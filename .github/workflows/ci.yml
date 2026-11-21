@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ["1.26.x"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./...
+
+  store-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: artex
+          POSTGRES_PASSWORD: artex
+          POSTGRES_DB: artex_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U artex"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+      - run: go test ./store/...
+        env:
+          CC_ARTEX_TEST_PG: "postgres://artex:artex@localhost:5432/artex_test?sslmode=disable"
