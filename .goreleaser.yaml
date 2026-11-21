@@ -5,7 +5,7 @@ project_name: cc-artex
 before:
   hooks:
     - go mod tidy
-    - cd web && npm ci && npm run build
+    - bash -c 'cd web && npm ci && npm run build'
 
 builds:
   - main: ./cmd/cc-artex
