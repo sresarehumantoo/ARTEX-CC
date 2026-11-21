@@ -29,7 +29,7 @@ function ActivityItem({ item }: { item: ActivityType }) {
       <button
         type="button"
         onClick={() => setExpanded(v => !v)}
-        className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+        className="flex w-full items-start gap-2 md:gap-3 px-3 md:px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
       >
         <div className="mt-1.5 shrink-0">
           <span
@@ -38,7 +38,7 @@ function ActivityItem({ item }: { item: ActivityType }) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+            <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate max-w-[150px] sm:max-w-none">
               {item.tool}
             </span>
             <Badge variant="default">{item.kind}</Badge>
@@ -71,8 +71,8 @@ function ActivityItem({ item }: { item: ActivityType }) {
         </div>
       </button>
       {expanded && item.detail && (
-        <div className="px-4 pb-3 pl-9">
-          <pre className="whitespace-pre-wrap break-words rounded-md bg-slate-100 dark:bg-slate-800 p-3 text-xs text-slate-700 dark:text-slate-300 max-h-96 overflow-y-auto">
+        <div className="px-3 md:px-4 pb-3 pl-7 md:pl-9">
+          <pre className="whitespace-pre-wrap break-words rounded-md bg-slate-100 dark:bg-slate-800 p-2 md:p-3 text-xs text-slate-700 dark:text-slate-300 max-h-96 overflow-y-auto overflow-x-auto">
             {item.detail}
           </pre>
         </div>
@@ -158,8 +158,8 @@ export default function Activity() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
+        <div className="relative min-w-0 w-full sm:w-auto sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
           <Input
             placeholder="Search summary, tool, worker..."
@@ -168,41 +168,43 @@ export default function Activity() {
             className="pl-9"
           />
         </div>
-        <Select
-          value={kindFilter}
-          onChange={e => setKindFilter(e.target.value)}
-        >
-          <option value="">All kinds</option>
-          {uniqueKinds.map(k => (
-            <option key={k} value={k}>
-              {k}
-            </option>
-          ))}
-        </Select>
-        <Select
-          value={toolFilter}
-          onChange={e => setToolFilter(e.target.value)}
-        >
-          <option value="">All tools</option>
-          {uniqueTools.map(t => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </Select>
-        <Button
-          variant={errorsOnly ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setErrorsOnly(v => !v)}
-        >
-          Errors only
-        </Button>
-        {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            <X className="h-4 w-4 mr-1" />
-            Clear
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={kindFilter}
+            onChange={e => setKindFilter(e.target.value)}
+          >
+            <option value="">All kinds</option>
+            {uniqueKinds.map(k => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+          </Select>
+          <Select
+            value={toolFilter}
+            onChange={e => setToolFilter(e.target.value)}
+          >
+            <option value="">All tools</option>
+            {uniqueTools.map(t => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </Select>
+          <Button
+            variant={errorsOnly ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setErrorsOnly(v => !v)}
+          >
+            Errors only
           </Button>
-        )}
+          {hasFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X className="h-4 w-4 mr-1" />
+              Clear
+            </Button>
+          )}
+        </div>
       </div>
 
       {isLoading && (

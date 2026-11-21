@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, Copy, ExternalLink, GitBranch, Search, Shield, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ExportDropdown } from '../components/ExportDropdown'
 import FindingsTimeline from '../components/FindingsTimeline'
 import { Badge, type BadgeVariant } from '../components/ui/badge'
@@ -50,13 +50,33 @@ type SortDir = 'asc' | 'desc'
 
 export default function Findings() {
   const { data: findings = [], isLoading, error } = useFindings()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [severityFilter, setSeverityFilter] = useState<Severity | null>(null)
   const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
   const [sortField, setSortField] = useState<SortField>('severity')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
-  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [selectedId, setSelectedId] = useState<number | null>(() => {
+    const idParam = searchParams.get('id')
+    if (idParam) {
+      const parsed = Number(idParam)
+      if (Number.isFinite(parsed)) return parsed
+    }
+    return null
+  })
   const [showTimeline, setShowTimeline] = useState(true)
+
+  useEffect(() => {
+    if (selectedId !== null) {
+      setSearchParams({ id: String(selectedId) }, { replace: true })
+    } else {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev)
+        next.delete('id')
+        return next
+      }, { replace: true })
+    }
+  }, [selectedId, setSearchParams])
 
   const { data: detail, isLoading: detailLoading } = useFindingDetail(selectedId)
 

@@ -26,6 +26,7 @@ export function useSSERefresh() {
           queryClient.invalidateQueries({ queryKey: ['findings'] })
           queryClient.invalidateQueries({ queryKey: ['engagement'] })
           queryClient.invalidateQueries({ queryKey: ['activity'] })
+          queryClient.invalidateQueries({ queryKey: ['coverage'] })
           toast(label ? `New finding: ${label}` : 'New finding discovered', { variant: 'warning' })
           break
         case 'asset_added':
@@ -38,6 +39,8 @@ export function useSSERefresh() {
           queryClient.invalidateQueries({ queryKey: ['engagement'] })
           queryClient.invalidateQueries({ queryKey: ['activity'] })
           queryClient.invalidateQueries({ queryKey: ['graph'] })
+          queryClient.invalidateQueries({ queryKey: ['coverage'] })
+          queryClient.invalidateQueries({ queryKey: ['coverage-gaps'] })
           toast('Data refreshed', { variant: 'success' })
           break
         case 'node_added':
@@ -55,6 +58,8 @@ export function useSSERefresh() {
         case 'store_changed':
           queryClient.invalidateQueries({ queryKey: ['engagement'] })
           queryClient.invalidateQueries({ queryKey: ['activity'] })
+          queryClient.invalidateQueries({ queryKey: ['coverage'] })
+          queryClient.invalidateQueries({ queryKey: ['coverage-gaps'] })
           break
       }
     },
