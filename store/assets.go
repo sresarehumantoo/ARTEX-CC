@@ -101,13 +101,13 @@ func calcCSegment(ip string) *string {
 }
 
 const assetSelectCols = `id, type, company_id, task_ids,
-	domain, root_domain, ip, c_segment, port,
-	icp, bound_domains,
-	record_type, record_value,
-	bundle_id, app_name, category, app_description, app_icp,
-	url, service_type, service_name,
-	favicon_mmh3, status_code, content_length, page_title,
-	technologies, method, extra,
+	COALESCE(domain,''), COALESCE(root_domain,''), COALESCE(ip,''), c_segment, port,
+	COALESCE(icp,''), bound_domains,
+	COALESCE(record_type,''), record_value,
+	COALESCE(bundle_id,''), COALESCE(app_name,''), COALESCE(category,''), COALESCE(app_description,''), COALESCE(app_icp,''),
+	COALESCE(url,''), COALESCE(service_type,''), COALESCE(service_name,''),
+	COALESCE(favicon_mmh3,''), status_code, content_length, COALESCE(page_title,''),
+	technologies, COALESCE(method,''), extra,
 	created_at, last_seen, updated_at`
 
 func scanAssets(rows *sql.Rows) ([]Asset, error) {
@@ -144,14 +144,15 @@ func scanAssets(rows *sql.Rows) ([]Asset, error) {
 
 func (s *Store) InsertAsset(ctx context.Context, taskID int64, item tools.AssetInput) (int64, error) {
 	internal := AssetInput{
-		Type:        item.Type,
-		Domain:      item.Domain,
-		IP:          item.IP,
-		URL:         item.URL,
-		ServiceName: item.ServiceName,
-		Method:      item.Method,
-		BundleID:    item.BundleID,
-		AppName:     item.AppName,
+		Type:         item.Type,
+		Domain:       item.Domain,
+		IP:           item.IP,
+		URL:          item.URL,
+		ServiceName:  item.ServiceName,
+		Method:       item.Method,
+		BundleID:     item.BundleID,
+		AppName:      item.AppName,
+		Technologies: []string{},
 	}
 	if item.Port > 0 {
 		p := item.Port

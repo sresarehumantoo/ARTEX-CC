@@ -9,12 +9,14 @@
 **Use your Claude subscription to run pentests. No API key needed.**
 
 [![CI](https://github.com/SREsAreHumanToo/cc-artex/actions/workflows/ci.yml/badge.svg)](https://github.com/SREsAreHumanToo/cc-artex/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/SREsAreHumanToo/cc-artex?logo=github)](https://github.com/SREsAreHumanToo/cc-artex/releases)
 [![Go 1.26+](https://img.shields.io/badge/go-1.26%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/SREsAreHumanToo/cc-artex?style=flat&logo=github)](https://github.com/SREsAreHumanToo/cc-artex/stargazers)
 
 </div>
 
-cc-artex is an MCP tool server that turns [ARTEX](https://github.com/Autumn-27/artex)'s autonomous pentest model into tools Claude Code calls through your existing Claude subscription. ARTEX's asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 31 MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
+cc-artex is an MCP tool server that turns [ARTEX](https://github.com/Autumn-27/artex)'s autonomous pentest model into tools Claude Code calls through your existing Claude subscription. ARTEX's asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 40+ MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
 
 You bring the brain. cc-artex brings the hands.
 
@@ -30,6 +32,26 @@ You bring the brain. cc-artex brings the hands.
 
 Claude Code decides what to test, what tools to call, and in what order. cc-artex executes the calls: inserting assets, tracking the exploration graph, recording findings and credentials, logging coverage, and capturing HTTP traffic through its built-in recording proxy. The exploration graph keeps Claude oriented across long engagements so it doesn't repeat work or lose context.
 
+### What a session looks like
+
+```
+$ claude
+> Pentest example.com, starting with reconnaissance.
+
+Claude calls: graph_overview → set_goals → insert_assets (domain: example.com)
+         → add_intent (enumerate subdomains) → record_fact (found: api.example.com)
+         → insert_assets (subdomain: api.example.com, service: https/443)
+         → add_intent (test api.example.com for auth bypass)
+         → traffic_hosts → traffic_search (host: api.example.com)
+         → traffic_get (inspect the auth request)
+         → traffic_replay (replay with modified auth header)
+         → record_coverage (api /admin, idor, no_issue_found)
+         → report_finding (severity: high, broken access control on /api/v2/users)
+         → prove_goal (evidence: finding #1) → generate_report
+```
+
+Each tool call updates the exploration graph. Claude sees where it has been, what it found, and what it planned next. If you stop and resume hours later, `graph_overview` brings it back up to speed.
+
 ## Why this exists
 
 ARTEX is a capable pentest framework with its own LLM agent loop. That agent loop needs an API key, a token budget, and careful management. If you already pay for Claude, that is a second brain doing the same job.
@@ -40,14 +62,33 @@ cc-artex removes the agent loop entirely and exposes the data layer as MCP tools
 - **Claude's full reasoning.** Not a constrained agent loop, but Claude's complete context window and tool-use capability driving the engagement.
 - **Your judgment in the loop.** Claude proposes, you approve. The exploration graph means you can review its plan, steer it, and pick up where it left off.
 
+## Install
+
+**Homebrew** (macOS and Linux):
+
+```sh
+brew install SREsAreHumanToo/tap/cc-artex
+```
+
+**Pre-built binaries:** download from the [Releases](https://github.com/SREsAreHumanToo/cc-artex/releases) page. Each release includes checksums.
+
+**From source:**
+
+```sh
+go install github.com/SREsAreHumanToo/cc-artex/cmd/cc-artex@latest
+```
+
+**Docker:**
+
+```sh
+docker compose up
+```
+
 ## Quick start
 
 **Prerequisites:** PostgreSQL, Go 1.26+
 
 ```sh
-# Install
-go install github.com/SREsAreHumanToo/cc-artex/cmd/cc-artex@latest
-
 # Create the database and initialize an engagement
 createdb ccartex
 cc-artex init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
@@ -119,29 +160,12 @@ Or use stdio transport through Docker:
 
 Point your testing tools at `http://localhost:8788` to capture traffic through the recording proxy.
 
-## What a session looks like
-
-```
-$ claude
-> Pentest example.com, starting with reconnaissance.
-
-Claude calls: graph_overview → set_goals → insert_assets (domain: example.com)
-         → add_intent (enumerate subdomains) → record_fact (found: api.example.com)
-         → insert_assets (subdomain: api.example.com, service: https/443)
-         → add_intent (test api.example.com for auth bypass)
-         → traffic_hosts → traffic_search (host: api.example.com)
-         → traffic_get (inspect the auth request)
-         → traffic_replay (replay with modified auth header)
-         → record_coverage (api /admin, idor, no_issue_found)
-         → report_finding (severity: high, broken access control on /api/v2/users)
-         → prove_goal (evidence: finding #1) → generate_report
-```
-
-Each tool call updates the exploration graph. Claude sees where it has been, what it found, and what it planned next. If you stop and resume hours later, `graph_overview` brings it back up to speed.
-
 ## Tool catalog
 
-### Assets and scope
+40+ MCP tools across seven categories. Claude calls these automatically based on what the engagement needs.
+
+<details open>
+<summary><strong>Assets and scope</strong></summary>
 
 | Tool | What it does |
 |------|-------------|
@@ -152,7 +176,10 @@ Each tool call updates the exploration graph. Claude sees where it has been, wha
 | `add_task_scope` | Add in-scope markers for the current task |
 | `list_untested_assets` | Find assets with no coverage records |
 
-### Exploration graph
+</details>
+
+<details>
+<summary><strong>Exploration graph</strong></summary>
 
 | Tool | What it does |
 |------|-------------|
@@ -166,7 +193,10 @@ Each tool call updates the exploration graph. Claude sees where it has been, wha
 | `set_constraints` | Set rules the engagement must follow |
 | `prove_goal` | Mark a goal as proved with evidence |
 
-### Findings and credentials
+</details>
+
+<details>
+<summary><strong>Findings and credentials</strong></summary>
 
 | Tool | What it does |
 |------|-------------|
@@ -175,29 +205,25 @@ Each tool call updates the exploration graph. Claude sees where it has been, wha
 | `save_task_credential` | Store a discovered credential |
 | `list_task_credentials` | List stored credentials |
 
-### Coverage
+</details>
+
+<details>
+<summary><strong>Coverage and engagements</strong></summary>
 
 | Tool | What it does |
 |------|-------------|
 | `record_coverage` | Record what was tested, the outcome, and evidence |
-
-### Engagement management
-
-| Tool | What it does |
-|------|-------------|
 | `create_engagement` | Create a new pentest engagement (task + exploration graph) |
 | `list_engagements` | List all engagements with id, goal, and status |
 | `engagement_status` | Get finding count, coverage summary, and frontier for an engagement |
-
-### Report generation
-
-| Tool | What it does |
-|------|-------------|
 | `generate_report` | Generate a Markdown penetration test report from the current engagement |
 
-### Traffic capture
+</details>
 
-Requires `--proxy` on `serve`. Point your testing tools at the proxy to capture requests.
+<details>
+<summary><strong>Traffic capture</strong> (requires <code>--proxy</code> on <code>serve</code>)</summary>
+
+Point your testing tools at the proxy to capture requests.
 
 | Tool | What it does |
 |------|-------------|
@@ -208,6 +234,8 @@ Requires `--proxy` on `serve`. Point your testing tools at the proxy to capture 
 | `traffic_replay` | Replay a captured request with optional modifications |
 | `traffic_hosts` | List all recorded target hosts with exchange counts |
 | `traffic_har_export` | Export captured traffic as a HAR 1.2 JSON document |
+
+</details>
 
 ## Architecture
 
@@ -263,13 +291,17 @@ cc-artex init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.examp
 
 When `--proxy` is set, cc-artex starts a recording MITM proxy on the given address. Configure your HTTP client or browser to use it, and the proxy captures every request and response for analysis through the traffic tools. The `init` command generates a CA certificate (at `traffic/_ca/mitmproxy-ca-cert.pem`) and prints OS-specific trust instructions so the proxy can intercept HTTPS.
 
-## Suggested GitHub topics
+## Examples
 
-`mcp`, `claude`, `claude-code`, `pentest`, `penetration-testing`, `security`, `offensive-security`, `bug-bounty`, `ai-security`, `mcp-server`
+See [docs/EXAMPLE_WALKTHROUGH.md](docs/EXAMPLE_WALKTHROUGH.md) for a complete
+engagement walkthrough showing every phase of a pentest session: reconnaissance,
+service enumeration, vulnerability testing, and report generation.
 
-## Contributing
+## Get help
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions, how to add a tool, and how to submit changes.
+- [GitHub Issues](https://github.com/SREsAreHumanToo/cc-artex/issues) for bugs and feature requests
+- [GitHub Discussions](https://github.com/SREsAreHumanToo/cc-artex/discussions) for questions and ideas
+- [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions and how to add a tool
 
 ## License
 

@@ -38,6 +38,7 @@ type Store interface {
 	// Task scope
 	AddTaskScope(ctx context.Context, taskID int64, kind, value, reason, source string) error
 	ListTaskScope(ctx context.Context, taskID int64) ([]int64, error)
+	IsInScope(ctx context.Context, taskID int64, target string) (bool, string, string, error)
 
 	// Credentials
 	SaveCredential(ctx context.Context, taskID int64, cred CredentialInput) (int64, error)
@@ -65,6 +66,13 @@ type Store interface {
 
 	// Report
 	ListFindingsForReport(ctx context.Context, explorationID int64) ([]ReportFinding, error)
+
+	// Intent lifecycle
+	UpdateNodeFields(ctx context.Context, nodeID int64, state string, payloadMerge map[string]any) error
+
+	// Export/Import
+	ExportEngagementData(ctx context.Context, taskID int64) (*EngagementExport, error)
+	ImportEngagementData(ctx context.Context, data *EngagementExport) (taskID int64, explorationID int64, err error)
 }
 
 // AssetInput is one item for asset insertion.
@@ -296,6 +304,21 @@ type ActivityFilter struct {
 	NodeID int64 `json:"node_id,omitempty"`
 	Kind   string `json:"kind,omitempty"`
 	Limit  int   `json:"limit,omitempty"`
+}
+
+type EngagementExport struct {
+	Version     int              `json:"version"`
+	ExportedAt  string           `json:"exported_at"`
+	Goal        string           `json:"goal"`
+	Description string           `json:"description"`
+	Nodes       []map[string]any `json:"nodes"`
+	Edges       []map[string]any `json:"edges"`
+	Constraints []map[string]any `json:"constraints"`
+	Assets      []map[string]any `json:"assets"`
+	Findings    []map[string]any `json:"findings"`
+	Credentials []map[string]any `json:"credentials"`
+	Coverage    []map[string]any `json:"coverage"`
+	Scope       []map[string]any `json:"scope"`
 }
 
 const (

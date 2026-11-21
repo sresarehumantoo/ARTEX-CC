@@ -6,7 +6,7 @@ require (
 	github.com/jackc/pgx/v5 v5.13.0
 	github.com/lqqyt2423/go-mitmproxy v1.9.5
 	github.com/mark3labs/mcp-go v0.58.0
-	golang.org/x/net v0.62.0
+	golang.org/x/net v0.63.0
 	modernc.org/sqlite v1.62.0
 )
 
