@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import {
   Server,
   Shield,
@@ -28,14 +30,16 @@ function StatCard({
   icon: Icon,
   title,
   value,
+  to,
   children,
 }: {
   icon: typeof Server
   title: string
   value: string | number
+  to?: string
   children?: React.ReactNode
 }) {
-  return (
+  const card = (
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
@@ -48,6 +52,14 @@ function StatCard({
         {children && <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">{children}</div>}
       </CardContent>
     </Card>
+  )
+
+  if (!to) return card
+
+  return (
+    <Link to={to} className="block rounded-xl transition-transform hover:scale-[1.02]">
+      {card}
+    </Link>
   )
 }
 
@@ -105,7 +117,11 @@ function ActivityFeed({ items }: { items: Activity[] }) {
   )
 }
 
+const ACTIVITY_PAGE_SIZE = 20
+
 export function Dashboard() {
+  const [activityLimit, setActivityLimit] = useState(ACTIVITY_PAGE_SIZE)
+
   const engagement = useQuery({
     queryKey: ['engagement'],
     queryFn: getEngagement,
@@ -113,8 +129,8 @@ export function Dashboard() {
   })
 
   const activity = useQuery({
-    queryKey: ['activity'],
-    queryFn: () => getActivity({ limit: '20' }),
+    queryKey: ['activity', activityLimit],
+    queryFn: () => getActivity({ limit: String(activityLimit) }),
     refetchInterval: 10_000,
   })
 
@@ -123,6 +139,15 @@ export function Dashboard() {
   return (
     <div className="space-y-4 md:space-y-6 p-3 md:p-6">
       <h1 className="text-lg md:text-2xl font-semibold text-slate-900 dark:text-slate-100">Dashboard</h1>
+
+      {e?.goal && (
+        <div>
+          <p className="text-base md:text-lg text-slate-600 dark:text-slate-300">{e.goal}</p>
+          {e.description && (
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{e.description}</p>
+          )}
+        </div>
+      )}
 
       {engagement.isLoading && <DashboardSkeleton />}
       {engagement.isError && (
@@ -134,17 +159,17 @@ export function Dashboard() {
       {e && (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard icon={Server} title="Assets" value={e.facts}>
+            <StatCard icon={Server} title="Assets" value={e.facts} to="/assets">
               {e.recent_facts.length > 0 && (
                 <span>{e.recent_facts.length} recent</span>
               )}
             </StatCard>
 
-            <StatCard icon={Shield} title="Findings" value={e.findings_total}>
+            <StatCard icon={Shield} title="Findings" value={e.findings_total} to="/findings">
               <SeverityBreakdown findings={e.finding_list} />
             </StatCard>
 
-            <StatCard icon={GitBranch} title="Graph" value={
+            <StatCard icon={GitBranch} title="Graph" to="/graph" value={
               e.goals.length +
               e.open_intents.length +
               e.running_intents.length +
@@ -193,7 +218,22 @@ export function Dashboard() {
               Failed to load activity: {(activity.error as Error).message}
             </p>
           )}
-          {activity.data && <ActivityFeed items={activity.data} />}
+          {activity.data && (
+            <>
+              <ActivityFeed items={activity.data} />
+              {activity.data.length >= activityLimit && (
+                <div className="mt-3 text-center">
+                  <button
+                    type="button"
+                    className="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                    onClick={() => setActivityLimit(prev => prev + ACTIVITY_PAGE_SIZE)}
+                  >
+                    Load more activity
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

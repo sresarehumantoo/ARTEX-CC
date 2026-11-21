@@ -62,10 +62,6 @@ export function GraphPage() {
   const prevCountRef = useRef(-1)
 
   useEffect(() => {
-    fetchGraph()
-  }, [fetchGraph])
-
-  useEffect(() => {
     if (data.nodes.length === 0) return
     const layout = layoutGraph(data)
 
@@ -149,7 +145,7 @@ export function GraphPage() {
           <p className="text-rose-500 text-sm mb-2">Failed to load graph</p>
           <p className="text-slate-400 text-xs mb-3">{error}</p>
           <button
-            onClick={fetchGraph}
+            onClick={() => fetchGraph()}
             className="px-3 py-1.5 text-xs rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600"
           >
             Retry
