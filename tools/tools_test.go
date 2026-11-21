@@ -174,6 +174,18 @@ func (m *mockStore) CompleteEngagement(_ context.Context, _ int64, _ string) err
 	return nil
 }
 
+func (m *mockStore) UpdateEngagement(_ context.Context, _ int64, _, _ *string) error {
+	return nil
+}
+
+func (m *mockStore) DeleteEngagement(_ context.Context, _ int64) error {
+	return nil
+}
+
+func (m *mockStore) EngagementActivity(_ context.Context, _ int64, _ int) ([]TimelineEntry, error) {
+	return nil, nil
+}
+
 func (m *mockStore) LogActivity(_ context.Context, _ int64, _ ActivityEntry) (int64, error) {
 	return 1, nil
 }
