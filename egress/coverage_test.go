@@ -539,8 +539,8 @@ func TestDedupeAndCache(t *testing.T) {
 	if srv.hits.Load() != 1 {
 		t.Fatalf("coalesced and cached GETs: hits %d, want 1", srv.hits.Load())
 	}
-	doReq(t, g, taskCtx("t2"), "GET", srv.URL)              // another task
-	doReq(t, g, context.Background(), "GET", srv.URL)        // no task key func match
+	doReq(t, g, taskCtx("t2"), "GET", srv.URL)        // another task
+	doReq(t, g, context.Background(), "GET", srv.URL) // no task key func match
 	time.Sleep(250 * time.Millisecond)
 	doReq(t, g, taskCtx("t1"), "GET", srv.URL) // expired
 	if srv.hits.Load() != 4 {
@@ -569,10 +569,10 @@ func TestUserAgentSet(t *testing.T) {
 
 func TestHostKey(t *testing.T) {
 	for in, want := range map[string]string{
-		"http://Example.COM:80/x":  "example.com",
-		"https://a.test:8443/":     "a.test:8443",
-		"https://b.test:443/":      "b.test",
-		"http://c.test/":           "c.test",
+		"http://Example.COM:80/x": "example.com",
+		"https://a.test:8443/":    "a.test:8443",
+		"https://b.test:443/":     "b.test",
+		"http://c.test/":          "c.test",
 	} {
 		if u, _ := url.Parse(in); HostKey(u) != want {
 			t.Errorf("HostKey(%s) = %q, want %q", in, HostKey(u), want)
@@ -675,9 +675,9 @@ func TestMarkProxyURL(t *testing.T) {
 	for in, want := range map[string]string{
 		"http://127.0.0.1:8788":            "http://artex-pace:artex-pace@127.0.0.1:8788",
 		"http://u:p@127.0.0.1:8788":        "http://u:p@127.0.0.1:8788",
-		"":                                  "",
-		"127.0.0.1:8788":                    "127.0.0.1:8788",
-		"socks5://proxy.example.test:1080":  "socks5://artex-pace:artex-pace@proxy.example.test:1080",
+		"":                                 "",
+		"127.0.0.1:8788":                   "127.0.0.1:8788",
+		"socks5://proxy.example.test:1080": "socks5://artex-pace:artex-pace@proxy.example.test:1080",
 	} {
 		if got := MarkProxyURL(in); got != want {
 			t.Errorf("MarkProxyURL(%q) = %q, want %q", in, got, want)

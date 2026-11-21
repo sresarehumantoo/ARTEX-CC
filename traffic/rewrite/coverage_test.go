@@ -420,4 +420,3 @@ func TestRequestBodyIneligibleInResponsePhase(t *testing.T) {
 	res := s.Apply(PhaseResponse, Input{Request: big, Response: response(200, nil, "ok")})
 	wantLines(t, res.Lines, "1:::skipped:not rewritten: body too large")
 }
-
