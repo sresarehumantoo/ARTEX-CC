@@ -13,7 +13,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import '../graph.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Spinner } from '../components/ui/spinner'
+import { GraphSkeleton } from '../components/skeletons/GraphSkeleton'
 import {
   GoalNode,
   IntentNode,
@@ -139,11 +139,7 @@ export function GraphPage() {
   )
 
   if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <Spinner className="h-8 w-8" />
-      </div>
-    )
+    return <GraphSkeleton />
   }
 
   if (error) {

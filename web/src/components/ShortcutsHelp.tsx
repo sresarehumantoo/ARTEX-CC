@@ -2,6 +2,12 @@ import { useEffect, useRef } from 'react'
 
 const SHORTCUTS = [
   {
+    section: 'Search',
+    items: [
+      { key: '⌘K / Ctrl+K', label: 'Open search' },
+    ],
+  },
+  {
     section: 'Navigation',
     items: [
       { key: '1', label: 'Dashboard' },

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { CommandPalette } from './components/CommandPalette'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ShortcutsHelp } from './components/ShortcutsHelp'
 import { Sidebar } from './components/Sidebar'
@@ -26,12 +27,19 @@ export default function App() {
   useKeyboardShortcuts()
 
   const [showHelp, setShowHelp] = useState(false)
+  const [showPalette, setShowPalette] = useState(false)
   const toggleHelp = useCallback(() => setShowHelp(v => !v), [])
+  const togglePalette = useCallback(() => setShowPalette(v => !v), [])
 
   useEffect(() => {
     window.addEventListener('toggle-shortcuts-help', toggleHelp)
     return () => window.removeEventListener('toggle-shortcuts-help', toggleHelp)
   }, [toggleHelp])
+
+  useEffect(() => {
+    window.addEventListener('toggle-command-palette', togglePalette)
+    return () => window.removeEventListener('toggle-command-palette', togglePalette)
+  }, [togglePalette])
 
   return (
     <div className="flex h-screen bg-white dark:bg-slate-900">
@@ -51,6 +59,7 @@ export default function App() {
         </ErrorBoundary>
       </main>
       <ShortcutsHelp open={showHelp} onClose={() => setShowHelp(false)} />
+      <CommandPalette open={showPalette} onClose={() => setShowPalette(false)} />
     </div>
   )
 }

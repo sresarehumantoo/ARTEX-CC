@@ -97,7 +97,7 @@ export interface Activity {
   is_error: boolean
   summary: string
   detail: string
-  created_at: string
+  created_at?: string
 }
 
 export interface TrafficPage {

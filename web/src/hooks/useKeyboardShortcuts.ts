@@ -6,6 +6,12 @@ export function useKeyboardShortcuts() {
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('toggle-command-palette'))
+        return
+      }
+
       const tag = (e.target as HTMLElement).tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
 
