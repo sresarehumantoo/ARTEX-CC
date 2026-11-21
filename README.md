@@ -16,7 +16,7 @@
 
 </div>
 
-cc-artex is an MCP tool server that turns [ARTEX](https://github.com/Autumn-27/artex)'s autonomous pentest model into tools Claude Code calls through your existing Claude subscription. ARTEX's asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 40+ MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
+cc-artex is an MCP tool server that turns [ARTEX](https://github.com/Autumn-27/artex)'s autonomous pentest model into tools Claude Code calls through your existing Claude subscription. ARTEX's asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 54 MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
 
 You bring the brain. cc-artex brings the hands.
 
@@ -162,7 +162,7 @@ Point your testing tools at `http://localhost:8788` to capture traffic through t
 
 ## Tool catalog
 
-40+ MCP tools across seven categories. Claude calls these automatically based on what the engagement needs.
+54 MCP tools across ten categories. Claude calls these automatically based on what the engagement needs.
 
 <details open>
 <summary><strong>Assets and scope</strong></summary>
@@ -202,6 +202,9 @@ Point your testing tools at `http://localhost:8788` to capture traffic through t
 |------|-------------|
 | `report_finding` | Report a vulnerability with severity, evidence, and affected assets |
 | `list_findings` | List findings for the current engagement |
+| `bind_finding_traffic` | Link a finding to captured traffic exchanges |
+| `merge_findings` | Merge duplicate findings into one |
+| `dismiss_finding` | Dismiss a false positive or duplicate finding |
 | `save_task_credential` | Store a discovered credential |
 | `list_task_credentials` | List stored credentials |
 
@@ -213,10 +216,15 @@ Point your testing tools at `http://localhost:8788` to capture traffic through t
 | Tool | What it does |
 |------|-------------|
 | `record_coverage` | Record what was tested, the outcome, and evidence |
+| `check_scope` | Check whether a target is in scope |
 | `create_engagement` | Create a new pentest engagement (task + exploration graph) |
 | `list_engagements` | List all engagements with id, goal, and status |
 | `engagement_status` | Get finding count, coverage summary, and frontier for an engagement |
+| `goal_met` | Mark an engagement goal as met |
+| `switch_engagement` | Change the active engagement without restarting |
 | `generate_report` | Generate a Markdown penetration test report from the current engagement |
+| `export_engagement` | Export an engagement to a portable JSON archive |
+| `import_engagement` | Import an engagement from a JSON archive |
 
 </details>
 
@@ -234,6 +242,45 @@ Point your testing tools at the proxy to capture requests.
 | `traffic_replay` | Replay a captured request with optional modifications |
 | `traffic_hosts` | List all recorded target hosts with exchange counts |
 | `traffic_har_export` | Export captured traffic as a HAR 1.2 JSON document |
+| `traffic_stats` | Summary statistics for captured traffic |
+| `traffic_timeline` | Timeline view of captured exchanges |
+
+</details>
+
+<details>
+<summary><strong>Evidence capture</strong></summary>
+
+| Tool | What it does |
+|------|-------------|
+| `save_evidence` | Store a proof-of-concept artifact (file, screenshot, or text) |
+| `list_evidence` | List evidence items for an engagement |
+| `get_evidence` | Retrieve a stored evidence item by ID |
+| `capture_command_output` | Run a command and store its output as evidence |
+
+</details>
+
+<details>
+<summary><strong>Enrichment and ingestion</strong></summary>
+
+| Tool | What it does |
+|------|-------------|
+| `enrich_domain` | Passive recon on a domain (DNS, WHOIS, CT logs) |
+| `enrich_ip` | Passive recon on an IP (reverse DNS, geolocation) |
+| `enrich_service` | Fingerprint a running service |
+| `ingest_scanner_output` | Parse and import output from nmap, nuclei, httpx, or ffuf |
+
+</details>
+
+<details>
+<summary><strong>Intent lifecycle and activity</strong></summary>
+
+| Tool | What it does |
+|------|-------------|
+| `start_intent` | Move a queued intent to in-progress |
+| `complete_intent` | Mark an intent as completed |
+| `cancel_intent` | Cancel an intent |
+| `list_activity` | List the engagement activity log |
+| `log_activity` | Record a manual activity entry |
 
 </details>
 
@@ -249,6 +296,7 @@ cc-artex/
 ├── traffic/           Recording MITM proxy, SOCKS5, replay, HAR export, rewrite engine
 │   ├── rewrite/       Rule-based request/response rewriting
 │   └── hookvm/        Sandboxed expression evaluator for rewrite hooks
+├── evidence/          Evidence capture and storage
 ├── report/            Markdown report generation with quality analysis
 └── egress/            Rate-limiting governor for outbound requests
 ```
@@ -259,7 +307,7 @@ The server speaks [MCP](https://modelcontextprotocol.io/) over stdio (for Claude
 
 - **Your Claude subscription IS the AI engine.** No API key management, no token budgets, no surprise bills. If you have Claude, you have everything you need.
 - **The exploration graph means Claude never loses context.** Every recon result, every tested endpoint, every credential, every planned next step is tracked in a persistent graph. Resume hours later and `graph_overview` brings Claude back up to speed.
-- **47 tools covering the full pentest lifecycle.** Asset discovery, scope management, exploration planning, traffic capture, credential storage, finding management, coverage tracking, and report generation.
+- **54 tools covering the full pentest lifecycle.** Asset discovery, scope management, exploration planning, traffic capture, evidence capture, credential storage, finding management, coverage tracking, and report generation.
 - **Works with any MCP client.** Claude Code, Cline, Cursor, or anything else that speaks the [Model Context Protocol](https://modelcontextprotocol.io/).
 - **One command to get started.** `docker compose up` or install the binary and run `cc-artex init`.
 
@@ -268,7 +316,7 @@ The server speaks [MCP](https://modelcontextprotocol.io/) over stdio (for Claude
 | | cc-artex | PentestGPT | HexStrike AI | Pentest-AI |
 |---|----------|-----------|-------------|-----------|
 | **State management** | Exploration graph (persistent, resumable) | Stateless / limited context | None | None |
-| **MCP native** | Yes (47 tools) | No (agent framework) | Yes (150+ tools) | Yes (205 tools) |
+| **MCP native** | Yes (54 tools) | No (agent framework) | Yes (150+ tools) | Yes (205 tools) |
 | **Evidence chains** | Yes (findings linked to assets, coverage, traffic) | No | No | No |
 | **Traffic capture** | Built-in recording proxy with replay | No | No | No |
 | **Multi-client support** | Any MCP client (Claude Code, Cline, Cursor) | Own interface | Claude Code | Claude Code |
