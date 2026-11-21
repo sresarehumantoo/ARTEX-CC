@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/SREsAreHumanToo/cc-artex/tools"
@@ -81,6 +82,32 @@ func (s *Store) ListTasks() ([]Task, error) {
 func (s *Store) SetTaskStatus(id int64, status string) error {
 	_, err := s.Exec(`UPDATE tasks SET status = $1 WHERE id = $2`, status, id)
 	return err
+}
+
+func (s *Store) CompleteEngagement(ctx context.Context, taskID int64, summary string) error {
+	t, err := s.GetTask(taskID)
+	if err != nil {
+		return err
+	}
+	if t == nil {
+		return fmt.Errorf("task %d not found", taskID)
+	}
+
+	if _, err := s.ExecContext(ctx, `UPDATE tasks SET status = 'done' WHERE id = $1`, taskID); err != nil {
+		return fmt.Errorf("update task status: %w", err)
+	}
+	if _, err := s.ExecContext(ctx, `UPDATE explorations SET status = 'achieved' WHERE id = $1`, t.ExplorationID); err != nil {
+		return fmt.Errorf("update exploration status: %w", err)
+	}
+
+	if summary != "" {
+		_, _ = s.ExecContext(ctx, `
+			INSERT INTO activity (exploration_id, kind, summary)
+			VALUES ($1, 'engagement_complete', $2)`,
+			t.ExplorationID, summary)
+	}
+
+	return nil
 }
 
 func (s *Store) ListEngagements(ctx context.Context) ([]tools.EngagementSummary, error) {

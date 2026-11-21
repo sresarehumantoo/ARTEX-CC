@@ -335,21 +335,6 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 	return ov, nil
 }
 
-func (s *Store) LogActivity(ctx context.Context, explorationID int64, a *Activity) error {
-	summary := utf8Clean(a.Summary)
-	detail := utf8Clean(a.Detail)
-	meta := jsonbClean(a.Metadata)
-	if len(meta) == 0 {
-		meta = []byte("{}")
-	}
-	return s.QueryRowContext(ctx,
-		`INSERT INTO activity(exploration_id, node_id, worker, kind, tool, tool_use_id, is_error, summary, detail, metadata)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		 RETURNING id, created_at`,
-		explorationID, a.NodeID, a.Worker, a.Kind, a.Tool, a.ToolUseID,
-		a.IsError, summary, detail, string(meta),
-	).Scan(&a.ID, &a.CreatedAt)
-}
 
 func (s *Store) NodeDetail(ctx context.Context, nodeID int64) (*tools.Node, error) {
 	row := s.QueryRowContext(ctx,

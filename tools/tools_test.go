@@ -138,6 +138,30 @@ func (m *mockStore) ListFindingsForReport(_ context.Context, _ int64) ([]ReportF
 	return nil, nil
 }
 
+func (m *mockStore) BindFindingTraffic(_ context.Context, _ int64, _, _, _ string, _ int) error {
+	return nil
+}
+
+func (m *mockStore) ListFindingTraffic(_ context.Context, _ int64) ([]TrafficBinding, error) {
+	return nil, nil
+}
+
+func (m *mockStore) FindingTrafficCount(_ context.Context, _ int64) (int, error) {
+	return 0, nil
+}
+
+func (m *mockStore) CompleteEngagement(_ context.Context, _ int64, _ string) error {
+	return nil
+}
+
+func (m *mockStore) LogActivity(_ context.Context, _ int64, _ ActivityEntry) (int64, error) {
+	return 1, nil
+}
+
+func (m *mockStore) ListActivity(_ context.Context, _ int64, _ ActivityFilter) ([]Activity, error) {
+	return nil, nil
+}
+
 var _ Store = (*mockStore)(nil)
 
 func TestRegistryLookup(t *testing.T) {

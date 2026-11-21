@@ -51,6 +51,18 @@ type Store interface {
 	ListEngagements(ctx context.Context) ([]EngagementSummary, error)
 	GetEngagement(ctx context.Context, id int64) (*EngagementDetail, error)
 
+	// Finding-traffic bindings
+	BindFindingTraffic(ctx context.Context, findingID int64, snapshotID, role, note string, position int) error
+	ListFindingTraffic(ctx context.Context, findingID int64) ([]TrafficBinding, error)
+	FindingTrafficCount(ctx context.Context, findingID int64) (int, error)
+
+	// Engagement completion
+	CompleteEngagement(ctx context.Context, taskID int64, summary string) error
+
+	// Activity log
+	LogActivity(ctx context.Context, explorationID int64, entry ActivityEntry) (int64, error)
+	ListActivity(ctx context.Context, explorationID int64, filter ActivityFilter) ([]Activity, error)
+
 	// Report
 	ListFindingsForReport(ctx context.Context, explorationID int64) ([]ReportFinding, error)
 }
@@ -246,6 +258,44 @@ type ReportFinding struct {
 	Summary   string `json:"summary"`
 	Evidence  string `json:"evidence"`
 	Status    string `json:"status"`
+}
+
+type TrafficBinding struct {
+	ID         int64  `json:"id"`
+	FindingID  int64  `json:"finding_id"`
+	SnapshotID string `json:"snapshot_id"`
+	Role       string `json:"role"`
+	Note       string `json:"note"`
+	Position   int    `json:"position"`
+}
+
+type ActivityEntry struct {
+	NodeID  int64  `json:"node_id,omitempty"`
+	Worker  string `json:"worker,omitempty"`
+	Kind    string `json:"kind,omitempty"`
+	Tool    string `json:"tool,omitempty"`
+	IsError bool   `json:"is_error,omitempty"`
+	Summary string `json:"summary,omitempty"`
+	Detail  string `json:"detail,omitempty"`
+}
+
+type Activity struct {
+	ID             int64  `json:"id"`
+	ExplorationID  int64  `json:"exploration_id"`
+	NodeID         int64  `json:"node_id,omitempty"`
+	Worker         string `json:"worker,omitempty"`
+	Kind           string `json:"kind,omitempty"`
+	Tool           string `json:"tool,omitempty"`
+	IsError        bool   `json:"is_error,omitempty"`
+	Summary        string `json:"summary,omitempty"`
+	Detail         string `json:"detail,omitempty"`
+	CreatedAt      string `json:"created_at"`
+}
+
+type ActivityFilter struct {
+	NodeID int64 `json:"node_id,omitempty"`
+	Kind   string `json:"kind,omitempty"`
+	Limit  int   `json:"limit,omitempty"`
 }
 
 const (

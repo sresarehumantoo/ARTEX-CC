@@ -194,12 +194,39 @@ func (s *Store) ListFindingsForReport(ctx context.Context, explorationID int64) 
 	return out, rows.Err()
 }
 
-func (s *Store) BindFindingTraffic(findingID int64, snapshotID, role, note string, position int) error {
-	_, err := s.Exec(`
+func (s *Store) BindFindingTraffic(ctx context.Context, findingID int64, snapshotID, role, note string, position int) error {
+	_, err := s.ExecContext(ctx, `
 		INSERT INTO finding_traffic_bindings (finding_id, snapshot_id, role, note, position)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (finding_id, snapshot_id) DO UPDATE
 		SET role = EXCLUDED.role, note = EXCLUDED.note, position = EXCLUDED.position`,
 		findingID, snapshotID, role, note, position)
 	return err
+}
+
+func (s *Store) ListFindingTraffic(ctx context.Context, findingID int64) ([]tools.TrafficBinding, error) {
+	rows, err := s.QueryContext(ctx, `
+		SELECT id, finding_id, snapshot_id, role, note, position
+		FROM finding_traffic_bindings
+		WHERE finding_id = $1
+		ORDER BY position, id`, findingID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []tools.TrafficBinding
+	for rows.Next() {
+		var b tools.TrafficBinding
+		if err := rows.Scan(&b.ID, &b.FindingID, &b.SnapshotID, &b.Role, &b.Note, &b.Position); err != nil {
+			return nil, err
+		}
+		out = append(out, b)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) FindingTrafficCount(ctx context.Context, findingID int64) (int, error) {
+	var count int
+	err := s.QueryRowContext(ctx, `SELECT COUNT(*) FROM finding_traffic_bindings WHERE finding_id = $1`, findingID).Scan(&count)
+	return count, err
 }

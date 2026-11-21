@@ -11,6 +11,7 @@ func RegisterEngagementTools(reg *Registry, store Store, taskID, explorationID i
 	reg.Register(makeCreateEngagement(store))
 	reg.Register(makeListEngagements(store))
 	reg.Register(makeEngagementStatus(store, taskID, explorationID))
+	reg.Register(makeGoalMet(store, taskID))
 }
 
 func makeCreateEngagement(store Store) Tool {
@@ -75,6 +76,36 @@ func makeListEngagements(store Store) Tool {
 				})
 			}
 			return jsonResult(out)
+		},
+	}
+}
+
+func makeGoalMet(store Store, taskID int64) Tool {
+	return Tool{
+		Name: "goal_met",
+		Description: "Mark the entire engagement as complete. Call this when all goals have been proved and the engagement is finished. " +
+			"Sets the task status to done. Provide an optional summary of what was accomplished.",
+		Schema: obj(map[string]any{
+			"summary": str("optional summary of what was accomplished"),
+		}),
+		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
+			if taskID <= 0 {
+				return errResult("goal_met requires a task context"), nil
+			}
+			var a struct {
+				Summary string `json:"summary"`
+			}
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
+			if err := store.CompleteEngagement(ctx, taskID, a.Summary); err != nil {
+				return errResult(err.Error()), nil
+			}
+			msg := fmt.Sprintf("engagement %d marked complete", taskID)
+			if a.Summary != "" {
+				msg += ": " + firstLine(a.Summary, 120)
+			}
+			return textResult(msg), nil
 		},
 	}
 }
