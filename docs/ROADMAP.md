@@ -5,26 +5,27 @@
 cc-artex is a working MCP tool server for penetration testing. It exposes ARTEX's
 data model as tools Claude Code calls directly, with no separate LLM API key.
 
-**Lines of code:** ~27,900 Go (98 files: 82 source, 16 test files with ~4,700 LOC).
+**Lines of code:** ~30,000 Go (100 files: 84 source, 16+ test files).
 
-**Tool count:** 54 registered tools (core + traffic + evidence + enrich + ingest + scope + intent + activity).
+**Tool count:** 59 registered tools (core + traffic + evidence + enrich + ingest + scope + intent + activity + triage + coverage).
 
-**Test count:** 183 test functions across 16 test files.
+**Test count:** 1,295 test functions across 16+ test files.
 
 **What works today:**
 
-- **CLI:** `serve` (stdio and HTTP transports), `init` (creates engagement, schema, CA cert), `version`.
+- **CLI:** `serve` (stdio and HTTP transports), `init` (creates engagement, schema, CA cert), `version`. `--version` flag on all subcommands. `CC_ARTEX_PG` env var override in docker-compose.
 - **Store (PostgreSQL):** Full schema with auto-migration. Assets (6 types), companies, company scope, task scope, exploration graph (nodes, edges, anchors, constraints), findings, credentials, coverage ledger with history, intercept rules, activity log. Engagement export/import to portable JSON archives.
 - **Exploration graph:** Goals, intents, facts, findings, hints, constraints. Edges connect them (derived_from, yields, spawns, proves). Frontier query. Graph overview for situational awareness. Prove-goal workflow with confidence gating. Intent lifecycle (start, complete, cancel).
 - **Asset management:** Bulk insert with upsert, DSL-based queries (fuzzy, exact, exclusion, numeric comparisons, boolean combinators, parentheses), untested-asset queries, company scope attribution.
-- **Findings and credentials:** Report findings with severity/evidence/assets, list findings, merge duplicates, dismiss false positives, bind findings to captured traffic. Save and list credentials with upsert-on-domain+username. AES-256-GCM encryption at rest for credential passwords.
-- **Coverage:** Record coverage entries (surface x risk_area x outcome), coverage history.
+- **Findings and credentials:** Report findings with severity/evidence/assets, list findings, merge duplicates, dismiss false positives, duplicate detection, bind findings to captured traffic. Save and list credentials with upsert-on-domain+username. AES-256-GCM encryption at rest for credential passwords.
+- **Coverage:** Record coverage entries (surface x risk_area x outcome), coverage history, coverage gaps analysis (`list_coverage_gaps`).
 - **Evidence capture:** `save_evidence`, `list_evidence`, `get_evidence`, and `capture_command_output` tools for structured proof-of-concept storage.
-- **Report generation:** Markdown report from findings, assets, and coverage. Finding quality assessment (PoE level, verification status, counterevidence). CSV and markdown export formats.
-- **Enrich:** Passive reconnaissance tools (`enrich_domain`, `enrich_ip`, `enrich_service`) with DNS resolution, reverse DNS, WHOIS, certificate transparency, and technology fingerprinting.
-- **Scanner ingestion:** Parsers for nmap, nuclei, httpx, and ffuf output. Results feed directly into the asset graph.
+- **Report generation:** Markdown report from findings, assets, and coverage. Finding quality assessment (PoE level, verification status, counterevidence). CSV and markdown export formats for findings, assets, and nodes.
+- **Enrich:** Passive reconnaissance tools (`enrich_domain`, `enrich_ip`, `enrich_service`) with DNS resolution, reverse DNS, WHOIS, certificate transparency, technology fingerprinting, and URL validation.
+- **Scanner ingestion:** Parsers for nmap, nuclei, httpx, ffuf, and masscan (XML and JSON) output. Results feed directly into the asset graph.
 - **Scope enforcement:** `check_scope` tool and automatic enforcement in asset, enrich, and traffic tools. Blocks out-of-scope actions with an override mechanism.
 - **Multi-engagement switching:** `switch_engagement` tool for changing active context without a server restart.
+- **Engagement management:** Update and delete engagements, activity timeline view.
 - **Activity log:** `list_activity` and `log_activity` tools for audit trail access.
 - **Traffic recording proxy:** Full MITM proxy with SQLite index (WAL mode, busy-timeout), blob storage, body spill for large payloads, WebSocket/SSE stream capture, URL path templating, host listing, paginated search (including body full-text search), HAR 1.2 export, request replay with modifications. Graceful shutdown with connection draining.
 - **Traffic rewrite engine:** Rule-based request/response rewriting with a custom hook VM (eval.go, stdlib, validation). Rewrite flow with match/transform pipeline.
@@ -37,8 +38,8 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 - **MCP resource:** `artex://engagement` resource serves the orchestration guide with live engagement context.
 - **Structured logging:** slog-based JSON logging across all packages.
 - **CI:** GitHub Actions with `go build`, `go vet`, `go test`, and store tests against a real PostgreSQL instance.
-- **Distribution:** goreleaser configuration for cross-platform binaries, Dockerfile, Homebrew tap section.
-- **Community files:** MIT license, CONTRIBUTING.md, SECURITY.md, 11 good-first-issue labels, example engagement walkthrough, godoc comments on all exported types.
+- **Distribution:** v0.1.0 released with cross-platform binaries (goreleaser), Dockerfile, Homebrew formula auto-generated.
+- **Community files:** MIT license, CONTRIBUTING.md, SECURITY.md, 11 good-first-issue labels, example engagement walkthrough, godoc comments on all exported types. Zero open issues, 38+ PRs merged.
 
 
 ## 2. P0: Ship blockers (all complete)
@@ -86,12 +87,32 @@ Done. `ingest/` package with parsers for nmap, nuclei, httpx, and ffuf. Results 
 
 Done. `check_scope` tool and automatic enforcement in asset, enrich, and traffic tools. Originally P4, promoted and implemented in P1.
 
+### ✅ 3.7 Finding triage
+
+Done. `merge_findings`, `dismiss_finding`, and duplicate detection tools for managing finding lifecycle.
+
+### ✅ 3.8 Coverage gaps analysis
+
+Done. `list_coverage_gaps` tool identifies untested surfaces and risk areas.
+
+### ✅ 3.9 Engagement management
+
+Done. `update_engagement`, `delete_engagement`, and activity timeline tools for full engagement lifecycle.
+
+### ✅ 3.10 Masscan ingestion
+
+Done. XML and JSON parser support in `ingest/` for masscan output, feeding results into the asset graph.
+
+### ✅ 3.11 CSV export
+
+Done. CSV export format for findings, assets, and nodes alongside existing markdown export.
+
 
 ## 4. P2: Quality and polish
 
 ### ✅ 4.1 Test coverage
 
-Significantly expanded: 16 test files, 183 test functions, ~4,700 test LOC. Coverage now includes enrich, report, egress, config, crypto, ingest, intent, scope, evidence, traffic core, rewrite engine (52 tests), and hook VM (44 tests).
+Significantly expanded: 16+ test files, 1,295 test functions. Coverage now includes enrich, report, egress, config, crypto, ingest, intent, scope, evidence, traffic core, rewrite engine, hook VM, store, tools, and mcpserver packages.
 
 Remaining gap: integration-level tests for multi-tool workflows.
 
@@ -101,7 +122,7 @@ Done. Standardized error format across all tools.
 
 ### ✅ 4.3 Structured logging
 
-Done. `slog`-based JSON logging across all packages, replacing `log.Logger` and raw stderr writes.
+Done. `slog`-based JSON logging across most packages. 57 `log.Printf` calls remain in `traffic/` and `eval/` for slog migration.
 
 ### ✅ 4.4 README accuracy
 
@@ -137,6 +158,14 @@ Done. 11 issues created (#25-#35) covering small, self-contained improvements.
 ### ✅ 5.6 pkg.go.dev documentation
 
 Done. 64 godoc comments added to all exported types and functions.
+
+### ✅ 5.7 CLAUDE.md and AGENTS.md
+
+Done. Project-level CLAUDE.md and AGENTS.md for contributor and agent onboarding.
+
+### ✅ 5.8 Release v0.1.0
+
+Done. First tagged release with cross-platform binaries via goreleaser and GitHub Actions.
 
 
 ## 6. P4: Future vision
@@ -182,6 +211,7 @@ Done. `merge_findings`, `dismiss_finding`, and `bind_finding_traffic` tools in `
 **What:** An animated demo (GIF or asciinema recording) showing cc-artex in action: initializing an engagement, running reconnaissance, discovering a finding, and generating a report. Embed in the README.
 **Effort:** S
 **Dependencies:** None.
+**Status:** Script exists but recording not yet done.
 **Rationale:** A 60-second visual walkthrough communicates the tool's value faster than any amount of documentation.
 
 ### 6.8 Multi-client MCP support
