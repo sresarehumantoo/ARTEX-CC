@@ -265,8 +265,14 @@ type CoverageEntry struct {
 type EngagementSummary struct {
 	ID            int64  `json:"id"`
 	Goal          string `json:"goal"`
+	Description   string `json:"description"`
 	Status        string `json:"status"`
 	ExplorationID int64  `json:"exploration_id"`
+	CreatedAt     string `json:"created_at"`
+	NodeCount     int    `json:"node_count"`
+	FindingCount  int    `json:"finding_count"`
+	AssetCount    int    `json:"asset_count"`
+	GoalsMet      bool   `json:"goals_met"`
 }
 
 // EngagementDetail is a full engagement including its description.

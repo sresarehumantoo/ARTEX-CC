@@ -112,8 +112,17 @@ func (s *Store) CompleteEngagement(ctx context.Context, taskID int64, summary st
 
 func (s *Store) ListEngagements(ctx context.Context) ([]tools.EngagementSummary, error) {
 	rows, err := s.QueryContext(ctx, `
-		SELECT id, goal, COALESCE(status,''), exploration_id
-		FROM tasks ORDER BY created_at DESC`)
+		SELECT t.id, t.goal, t.description, COALESCE(t.status,''), t.exploration_id,
+		       t.created_at,
+		       (SELECT COUNT(*) FROM exploration_nodes WHERE exploration_id = t.exploration_id),
+		       (SELECT COUNT(*) FROM findings WHERE task_id = t.id),
+		       (SELECT COUNT(*) FROM assets WHERE t.id = ANY(task_ids)),
+		       (SELECT CASE WHEN COUNT(*) = 0 THEN false
+		                    ELSE bool_and(state = 'met')
+		               END
+		        FROM exploration_nodes
+		        WHERE exploration_id = t.exploration_id AND kind = 'goal')
+		FROM tasks t ORDER BY t.created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -121,9 +130,12 @@ func (s *Store) ListEngagements(ctx context.Context) ([]tools.EngagementSummary,
 	var out []tools.EngagementSummary
 	for rows.Next() {
 		var e tools.EngagementSummary
-		if err := rows.Scan(&e.ID, &e.Goal, &e.Status, &e.ExplorationID); err != nil {
+		var createdAt time.Time
+		if err := rows.Scan(&e.ID, &e.Goal, &e.Description, &e.Status, &e.ExplorationID,
+			&createdAt, &e.NodeCount, &e.FindingCount, &e.AssetCount, &e.GoalsMet); err != nil {
 			return nil, err
 		}
+		e.CreatedAt = createdAt.Format(time.RFC3339)
 		out = append(out, e)
 	}
 	return out, rows.Err()
