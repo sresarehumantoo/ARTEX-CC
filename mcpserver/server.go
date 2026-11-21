@@ -7,10 +7,12 @@ import (
 	"strings"
 
 	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/cc-artex/traffic"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
+// Server is an MCP protocol server wrapping the tool registry.
 type Server struct {
 	mcp      *server.MCPServer
 	registry *tools.Registry
@@ -18,10 +20,13 @@ type Server struct {
 	store         tools.Store
 	taskID        int64
 	explorationID int64
+	traffic       *traffic.Traffic
 }
 
+// Option is a functional option for configuring a Server.
 type Option func(*Server)
 
+// WithEngagement returns an Option that binds the server to a store and engagement.
 func WithEngagement(store tools.Store, taskID, explorationID int64) Option {
 	return func(s *Server) {
 		s.store = store
@@ -30,6 +35,12 @@ func WithEngagement(store tools.Store, taskID, explorationID int64) Option {
 	}
 }
 
+// WithTraffic returns an Option that provides the traffic proxy for re-registration on engagement switch.
+func WithTraffic(t *traffic.Traffic) Option {
+	return func(s *Server) { s.traffic = t }
+}
+
+// New creates a Server with its tools registered and optional engagement context.
 func New(registry *tools.Registry, opts ...Option) *Server {
 	s := &Server{
 		registry: registry,

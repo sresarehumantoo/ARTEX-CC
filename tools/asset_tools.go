@@ -370,7 +370,13 @@ func assetTarget(item AssetInput) string {
 	case "ip":
 		return item.IP
 	case "service", "endpoint":
-		return item.URL
+		if item.URL != "" {
+			return item.URL
+		}
+		if item.IP != "" {
+			return item.IP
+		}
+		return item.Domain
 	}
 	return ""
 }
