@@ -43,3 +43,6 @@ vendor/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local-only files (strategy docs, drafts, not for repo)
+.local/
