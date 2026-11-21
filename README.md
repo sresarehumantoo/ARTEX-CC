@@ -10,7 +10,7 @@
 
 </div>
 
-cc-artex is an MCP tool server that turns [ARTEX](https://github.com/Autumn-27/artex)'s autonomous pentest model into tools Claude Code calls through your existing Claude subscription. ARTEX's asset graph, exploration tracking, finding management, and coverage recording, exposed as 20 MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
+cc-artex is an MCP tool server that turns [ARTEX](https://github.com/Autumn-27/artex)'s autonomous pentest model into tools Claude Code calls through your existing Claude subscription. ARTEX's asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 27 MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
 
 You bring the brain. cc-artex brings the hands.
 
@@ -30,13 +30,13 @@ You bring the brain. cc-artex brings the hands.
                                         +-------------+-------------+
                                         |             |             |
                                    +----+----+  +-----+-----+ +----+-----+
-                                   |  PG DB  |  |   proxy   | |  local   |
-                                   |  assets |  |  traffic  | | traffic  |
-                                   |  graph  |  |  capture  | |  store   |
+                                   |  PG DB  |  | recording | |  local   |
+                                   |  assets |  |   MITM    | | traffic  |
+                                   |  graph  |  |   proxy   | |  store   |
                                    +---------+  +-----------+ +----------+
 ```
 
-Claude Code decides what to test, what tools to call, and in what order. cc-artex executes the calls: inserting assets, tracking the exploration graph, recording findings and credentials, and logging coverage. The exploration graph keeps Claude oriented across long engagements so it doesn't repeat work or lose context.
+Claude Code decides what to test, what tools to call, and in what order. cc-artex executes the calls: inserting assets, tracking the exploration graph, recording findings and credentials, logging coverage, and capturing HTTP traffic through its built-in recording proxy. The exploration graph keeps Claude oriented across long engagements so it doesn't repeat work or lose context.
 
 ## Why this exists
 
@@ -61,18 +61,20 @@ createdb ccartex
 cc-artex init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
 ```
 
-The init command creates the schema, sets up the engagement, and prints the MCP config you need. Add it to your Claude Code config (`~/.claude.json` or project `.mcp.json`):
+The init command creates the schema, sets up the engagement, generates a CA certificate for HTTPS interception, and prints trust instructions for your OS. Add the printed MCP config to your Claude Code config (`~/.claude.json` or project `.mcp.json`):
 
 ```json
 {
   "mcpServers": {
     "cc-artex": {
       "command": "cc-artex",
-      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex"]
+      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
     }
   }
 }
 ```
+
+The `--proxy` flag starts a recording MITM proxy alongside the MCP server. Point your tools at the proxy address (e.g., `http://localhost:8788`) to capture and analyze traffic. Without `--proxy`, the traffic tools are not registered and cc-artex runs as a pure data server.
 
 Then start Claude Code. The tools appear automatically. Ask Claude to "pentest example.com" and watch it work.
 
@@ -86,9 +88,12 @@ Claude calls: graph_overview → set_goals → insert_assets (domain: example.co
          → add_intent (enumerate subdomains) → record_fact (found: api.example.com)
          → insert_assets (subdomain: api.example.com, service: https/443)
          → add_intent (test api.example.com for auth bypass)
+         → traffic_hosts → traffic_search (host: api.example.com)
+         → traffic_get (inspect the auth request)
+         → traffic_replay (replay with modified auth header)
          → record_coverage (api /admin, idor, no_issue_found)
          → report_finding (severity: high, broken access control on /api/v2/users)
-         → prove_goal (evidence: finding #1)
+         → prove_goal (evidence: finding #1) → generate_report
 ```
 
 Each tool call updates the exploration graph. Claude sees where it has been, what it found, and what it planned next. If you stop and resume hours later, `graph_overview` brings it back up to speed.
@@ -135,6 +140,34 @@ Each tool call updates the exploration graph. Claude sees where it has been, wha
 |------|-------------|
 | `record_coverage` | Record what was tested, the outcome, and evidence |
 
+### Engagement management
+
+| Tool | What it does |
+|------|-------------|
+| `create_engagement` | Create a new pentest engagement (task + exploration graph) |
+| `list_engagements` | List all engagements with id, goal, and status |
+| `engagement_status` | Get finding count, coverage summary, and frontier for an engagement |
+
+### Report generation
+
+| Tool | What it does |
+|------|-------------|
+| `generate_report` | Generate a Markdown penetration test report from the current engagement |
+
+### Traffic capture
+
+Requires `--proxy` on `serve`. Point your testing tools at the proxy to capture requests.
+
+| Tool | What it does |
+|------|-------------|
+| `traffic_search` | Search captured exchanges by host, URL, or body content |
+| `traffic_get` | Read the full request and response of a captured exchange |
+| `traffic_blob` | Page through oversized request or response bodies by blob hash |
+| `traffic_messages` | List WebSocket or SSE messages of a captured stream |
+| `traffic_replay` | Replay a captured request with optional modifications |
+| `traffic_hosts` | List all recorded target hosts with exchange counts |
+| `traffic_har_export` | Export captured traffic as a HAR 1.2 JSON document |
+
 ## Architecture
 
 ```
@@ -144,7 +177,11 @@ cc-artex/
 ├── mcpserver/         MCP protocol server (stdio and HTTP transports)
 ├── tools/             Tool implementations registered with the MCP server
 ├── config/            Configuration loading and engagement state (.cc-artex.json)
-└── traffic/           HTTP traffic capture and storage (planned)
+├── traffic/           Recording MITM proxy, SOCKS5, replay, HAR export, rewrite engine
+│   ├── rewrite/       Rule-based request/response rewriting
+│   └── hookvm/        Sandboxed expression evaluator for rewrite hooks
+├── report/            Markdown report generation with quality analysis
+└── egress/            Rate-limiting governor for outbound requests
 ```
 
 The server speaks [MCP](https://modelcontextprotocol.io/) over stdio (for Claude Code) or HTTP (for other clients). All state lives in PostgreSQL. The engagement config (`.cc-artex.json`) tracks the current task and exploration IDs so the server knows which engagement to serve.
@@ -173,12 +210,17 @@ cc-artex reads its PostgreSQL connection string from `--pg` or the `CC_ARTEX_PG`
 # Serve over stdio (Claude Code)
 cc-artex serve --stdio --pg "postgres://localhost/ccartex"
 
+# Serve with the recording proxy
+cc-artex serve --stdio --pg "postgres://localhost/ccartex" --proxy :8788
+
 # Serve over HTTP (other clients)
 cc-artex serve --listen localhost:9400 --pg "postgres://localhost/ccartex"
 
 # Start a new engagement
 cc-artex init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.example.com"
 ```
+
+When `--proxy` is set, cc-artex starts a recording MITM proxy on the given address. Configure your HTTP client or browser to use it, and the proxy captures every request and response for analysis through the traffic tools. The `init` command generates a CA certificate (at `traffic/_ca/mitmproxy-ca-cert.pem`) and prints OS-specific trust instructions so the proxy can intercept HTTPS.
 
 ## Suggested GitHub topics
 
