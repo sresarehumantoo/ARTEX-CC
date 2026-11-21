@@ -13,6 +13,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import '../graph.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Search, X, Filter } from 'lucide-react'
 import { GraphSkeleton } from '../components/skeletons/GraphSkeleton'
 import {
   GoalNode,
@@ -60,6 +61,31 @@ export function GraphPage() {
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null)
   const prevNodeIdsRef = useRef<Set<string>>(new Set())
   const prevCountRef = useRef(-1)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [kindFilter, setKindFilter] = useState<string>('all')
+
+  const matchingNodeIds = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query && kindFilter === 'all') return null
+    return new Set(
+      data.nodes
+        .filter((gn) => {
+          if (kindFilter !== 'all' && gn.kind !== kindFilter) return false
+          if (!query) return true
+          const p = gn.payload
+          const haystack = [
+            String(p.text ?? ''),
+            String(p.summary ?? ''),
+            String(p.vulnclass ?? ''),
+            String(p.name ?? ''),
+            gn.kind,
+            gn.state,
+          ].join(' ').toLowerCase()
+          return haystack.includes(query)
+        })
+        .map((gn) => String(gn.id)),
+    )
+  }, [data.nodes, searchQuery, kindFilter])
 
   useEffect(() => {
     if (data.nodes.length === 0) return
@@ -104,6 +130,39 @@ export function GraphPage() {
       setTimeout(() => rfInstance.fitView({ padding: 0.2, duration: 500 }), 50)
     }
   }, [nodes.length, rfInstance])
+
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((n) => ({
+        ...n,
+        style: {
+          ...n.style,
+          opacity: matchingNodeIds === null || matchingNodeIds.has(n.id) ? 1 : 0.2,
+          transition: 'opacity 0.2s ease',
+        },
+      })),
+    )
+  }, [matchingNodeIds, setNodes])
+
+  useEffect(() => {
+    if (!rfInstance || !matchingNodeIds || matchingNodeIds.size !== 1) return
+    const nodeId = [...matchingNodeIds][0]
+    rfInstance.fitView({ nodes: [{ id: nodeId }], padding: 0.5, duration: 500 })
+  }, [matchingNodeIds, rfInstance])
+
+  const focusMatches = useCallback(() => {
+    if (!rfInstance || !matchingNodeIds || matchingNodeIds.size === 0) return
+    rfInstance.fitView({
+      nodes: [...matchingNodeIds].map((id) => ({ id })),
+      padding: 0.3,
+      duration: 500,
+    })
+  }, [rfInstance, matchingNodeIds])
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery('')
+    setKindFilter('all')
+  }, [])
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     setSelectedNode(node.data as unknown as GN)
@@ -192,6 +251,52 @@ export function GraphPage() {
           zoomable
         />
       </ReactFlow>
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+        <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm px-2.5 py-1.5">
+          <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search nodes..."
+            className="bg-transparent text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none w-40"
+          />
+          {(searchQuery || kindFilter !== 'all') && (
+            <button onClick={clearSearch} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <div className="w-px h-4 bg-slate-200 dark:bg-slate-600 mx-0.5" />
+          <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <select
+            value={kindFilter}
+            onChange={(e) => setKindFilter(e.target.value)}
+            className="bg-transparent text-xs text-slate-600 dark:text-slate-300 outline-none cursor-pointer"
+          >
+            <option value="all">All</option>
+            <option value="goal">Goals</option>
+            <option value="intent">Intents</option>
+            <option value="fact">Facts</option>
+            <option value="finding">Findings</option>
+            <option value="hint">Hints</option>
+          </select>
+          {matchingNodeIds !== null && (
+            <>
+              <span className="text-xs text-slate-400 dark:text-slate-500 ml-1 whitespace-nowrap">
+                {matchingNodeIds.size} of {nodes.length}
+              </span>
+              {matchingNodeIds.size > 0 && (
+                <button
+                  onClick={focusMatches}
+                  className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 font-medium ml-1"
+                >
+                  Focus
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
       <Legend />
       {selectedNode && (
         <DetailDrawer node={selectedNode} onClose={() => setSelectedNode(null)} />

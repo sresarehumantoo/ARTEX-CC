@@ -43,6 +43,7 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /api/findings/{id}", a.handleFindingDetail)
 	mux.HandleFunc("GET /api/assets", a.handleAssets)
 	mux.HandleFunc("GET /api/assets/{id}", a.handleAssetDetail)
+	mux.HandleFunc("GET /api/assets/{id}/findings", a.handleAssetFindings)
 	mux.HandleFunc("GET /api/traffic", a.handleTraffic)
 	mux.HandleFunc("GET /api/traffic/{id}", a.handleTrafficDetail)
 	mux.HandleFunc("GET /api/search", a.handleSearch)
@@ -293,6 +294,53 @@ func (a *API) handleAssetDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonResponse(w, http.StatusOK, assets[0])
+}
+
+func (a *API) handleAssetFindings(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(r)
+	if !ok {
+		jsonError(w, http.StatusBadRequest, "invalid asset id")
+		return
+	}
+	q, ok := a.store.(dbQuerier)
+	if !ok {
+		jsonResponse(w, http.StatusOK, []any{})
+		return
+	}
+	ctx := r.Context()
+	assetIDJSON := "[" + strconv.FormatInt(id, 10) + "]"
+	rows, err := q.QueryContext(ctx, `
+		SELECT f.id, f.node_id, f.vulnclass, f.severity, f.summary, COALESCE(f.status,''),
+		       f.merged_into, f.dismissed, f.dismiss_reason, f.created_at
+		FROM findings f
+		JOIN tasks t ON t.id = f.task_id
+		WHERE t.exploration_id = $1
+		  AND f.asset_ids @> $2::jsonb
+		ORDER BY f.created_at DESC`, a.explorationID, assetIDJSON)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+	var out []findingWithTime
+	for rows.Next() {
+		var f findingWithTime
+		var nodeID, mergedInto sql.NullInt64
+		var ts time.Time
+		if err := rows.Scan(&f.ID, &nodeID, &f.VulnClass, &f.Severity, &f.Summary, &f.Status,
+			&mergedInto, &f.Dismissed, &f.DismissReason, &ts); err != nil {
+			jsonError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		f.NodeID = nodeID.Int64
+		f.MergedInto = mergedInto.Int64
+		f.CreatedAt = &ts
+		out = append(out, f)
+	}
+	if out == nil {
+		out = []findingWithTime{}
+	}
+	jsonResponse(w, http.StatusOK, out)
 }
 
 func (a *API) handleTraffic(w http.ResponseWriter, r *http.Request) {

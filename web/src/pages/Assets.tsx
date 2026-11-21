@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Download, GitBranch, List, Search, X, ChevronLeft, ChevronRight, Server } from 'lucide-react'
+import { Download, GitBranch, List, Search, ShieldAlert, X, ChevronLeft, ChevronRight, Server } from 'lucide-react'
 import { AssetGraph } from '../components/AssetGraph'
 import { Spinner } from '../components/ui/spinner'
 import { TableSkeleton } from '../components/skeletons/TableSkeleton'
 import { exportAssetCSV } from '../lib/export'
 import { cn } from '../lib/utils'
-import { fetchAssets, type Asset } from '../lib/api'
+import { fetchAssets, getAssetFindings, type Asset } from '../lib/api'
 
 type ViewMode = 'table' | 'graph'
 
@@ -28,6 +28,14 @@ const TYPE_COLORS: Record<string, string> = {
   endpoint: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
   app: 'bg-rose-500/15 text-rose-400 border-rose-500/25',
   company: 'bg-slate-500/15 text-slate-400 border-slate-500/25',
+}
+
+const SEVERITY_COLORS: Record<string, string> = {
+  critical: 'bg-rose-500/15 text-rose-400 border-rose-500/25',
+  high: 'bg-orange-500/15 text-orange-400 border-orange-500/25',
+  medium: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
+  low: 'bg-sky-500/15 text-sky-400 border-sky-500/25',
+  info: 'bg-slate-500/15 text-slate-400 border-slate-500/25',
 }
 
 const PAGE_SIZE = 50
@@ -187,8 +195,26 @@ function AssetRow({ asset, typeFilter, onClick }: { asset: Asset; typeFilter: st
   )
 }
 
+function SeverityBadge({ severity }: { severity: string }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium border',
+        SEVERITY_COLORS[severity] ?? SEVERITY_COLORS.info,
+      )}
+    >
+      {severity}
+    </span>
+  )
+}
+
 function DetailPanel({ asset, onClose }: { asset: Asset; onClose: () => void }) {
   const panelRef = useRef<HTMLDivElement>(null)
+
+  const { data: findings, isLoading: findingsLoading } = useQuery({
+    queryKey: ['asset-findings', asset.id],
+    queryFn: () => getAssetFindings(asset.id),
+  })
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -236,6 +262,37 @@ function DetailPanel({ asset, onClose }: { asset: Asset; onClose: () => void }) 
             ))}
             {Object.keys(asset.data).length === 0 && (
               <p className="text-sm text-slate-500 italic">No additional data</p>
+            )}
+          </div>
+
+          <div className="mt-6 border-t border-slate-200 dark:border-slate-800 pt-4">
+            <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5 mb-3">
+              <ShieldAlert className="w-4 h-4 text-slate-500" />
+              Linked Findings
+            </h3>
+            {findingsLoading ? (
+              <div className="flex items-center gap-2 py-3">
+                <Spinner className="h-4 w-4" />
+                <span className="text-sm text-slate-500">Loading findings...</span>
+              </div>
+            ) : !findings || findings.length === 0 ? (
+              <p className="text-sm text-slate-500 italic">No linked findings</p>
+            ) : (
+              <div className="space-y-2">
+                {findings.map((f) => (
+                  <a
+                    key={f.id}
+                    href={`/findings?id=${f.id}`}
+                    className="block rounded-md border border-slate-200 dark:border-slate-800 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <SeverityBadge severity={f.severity} />
+                      <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{f.vulnclass}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{f.summary}</p>
+                  </a>
+                ))}
+              </div>
             )}
           </div>
         </div>
