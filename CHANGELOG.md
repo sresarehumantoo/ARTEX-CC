@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Go Report Card, Go Reference, and License badges in README
+- Traffic rewrite rule validation tests (`rule_test.go`)
+
+### Improved
+- Test coverage: config 96%, mcpserver 93.5%, hookvm 89.1%, rewrite 97.6%, evidence 87.9%
+- Fixed goreleaser web build hook (`bash -c` wrapper)
+
 ## [0.2.0] - 2026-11-21
 
 ### Added

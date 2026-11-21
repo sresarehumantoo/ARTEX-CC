@@ -9,7 +9,7 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 
 **Tool count:** 59 registered tools (core + traffic + evidence + enrich + ingest + scope + intent + activity + triage + coverage).
 
-**Test count:** 230+ test functions, 300+ test cases including subtests.
+**Test count:** 430+ test functions, 500+ test cases including subtests.
 
 **What works today:**
 
@@ -40,7 +40,7 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 - **CI:** GitHub Actions with fmt-check, `go build`, `go vet`, `go test`, Codecov coverage reporting, and store tests against a real PostgreSQL instance.
 - **Distribution:** v0.1.1 released with cross-platform binaries (goreleaser), .deb packaging, Dockerfile, Homebrew formula auto-generated.
 - **Documentation:** Tool reference (docs/TOOLS.md), MCP client configs (docs/MCP_CLIENTS.md), AGENTS.md contributor guide, demo GIF.
-- **Community files:** MIT license, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, example engagement walkthrough, godoc comments on all exported types. Zero open issues, 55+ PRs merged.
+- **Community files:** MIT license, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, example engagement walkthrough, godoc comments on all exported types. Zero open issues, 76+ PRs merged.
 
 
 ## 2. P0: Ship blockers (all complete)
@@ -113,7 +113,7 @@ Done. CSV export format for findings, assets, and nodes alongside existing markd
 
 ### ✅ 4.1 Test coverage
 
-230+ test functions across all packages. Integration-level multi-tool workflow tests added. Coverage reporting via Codecov.
+430+ test functions across all packages. Integration-level multi-tool workflow tests added. Coverage reporting via Codecov. Nine packages above 85% coverage.
 
 ### ✅ 4.2 Error message consistency
 
