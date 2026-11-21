@@ -33,6 +33,7 @@ vendor/
 .claude/CLAUDE.local.md
 .claude/memory/
 .claude/projects/
+.claude/worktrees/
 
 # IDE / editor
 .idea/
