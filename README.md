@@ -11,8 +11,10 @@
 [![CI](https://github.com/SREsAreHumanToo/cc-artex/actions/workflows/ci.yml/badge.svg)](https://github.com/SREsAreHumanToo/cc-artex/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/SREsAreHumanToo/cc-artex?logo=github)](https://github.com/SREsAreHumanToo/cc-artex/releases)
 [![codecov](https://codecov.io/gh/SREsAreHumanToo/cc-artex/graph/badge.svg)](https://codecov.io/gh/SREsAreHumanToo/cc-artex)
+[![Go Report Card](https://goreportcard.com/badge/github.com/SREsAreHumanToo/cc-artex)](https://goreportcard.com/report/github.com/SREsAreHumanToo/cc-artex)
+[![Go Reference](https://pkg.go.dev/badge/github.com/SREsAreHumanToo/cc-artex.svg)](https://pkg.go.dev/github.com/SREsAreHumanToo/cc-artex)
 [![Go 1.26+](https://img.shields.io/badge/go-1.26%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub stars](https://img.shields.io/github/stars/SREsAreHumanToo/cc-artex?style=flat&logo=github)](https://github.com/SREsAreHumanToo/cc-artex/stargazers)
 
 </div>
