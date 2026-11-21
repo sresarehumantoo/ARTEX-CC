@@ -327,7 +327,13 @@ export function GraphPage() {
       </div>
       <Legend />
       {selectedNode && (
-        <DetailDrawer node={selectedNode} onClose={() => setSelectedNode(null)} />
+        <DetailDrawer
+          node={selectedNode}
+          edges={data?.edges ?? []}
+          allNodes={data?.nodes ?? []}
+          onClose={() => setSelectedNode(null)}
+          onSelectNode={(id) => setSelectedNode(data?.nodes.find((n) => n.id === id) ?? null)}
+        />
       )}
     </div>
   )

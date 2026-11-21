@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { LayoutDashboard, GitBranch, Shield, Globe, Clock, Server, Target, FileText, Sun, Moon, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { LayoutDashboard, GitBranch, Shield, Globe, Clock, Server, Target, FileText, KeyRound, Settings as SettingsIcon, Sun, Moon, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useTheme } from '../hooks/useTheme'
 import { getEngagement } from '../lib/api'
@@ -15,7 +15,9 @@ const links = [
   { to: '/activity', icon: Clock, label: 'Activity' },
   { to: '/assets', icon: Server, label: 'Assets', badgeKey: 'assets' as const },
   { to: '/coverage', icon: Target, label: 'Coverage' },
+  { to: '/credentials', icon: KeyRound, label: 'Credentials' },
   { to: '/report', icon: FileText, label: 'Report' },
+  { to: '/settings', icon: SettingsIcon, label: 'Settings' },
 ]
 
 function getInitialCollapsed(): boolean {

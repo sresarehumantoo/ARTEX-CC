@@ -51,6 +51,8 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /api/activity", a.handleActivity)
 	mux.HandleFunc("GET /api/coverage", a.handleCoverage)
 	mux.HandleFunc("GET /api/coverage/gaps", a.handleCoverageGaps)
+	mux.HandleFunc("GET /api/credentials", a.handleCredentials)
+	mux.HandleFunc("GET /api/constraints", a.handleConstraints)
 	mux.HandleFunc("GET /api/events", a.handleSSE)
 	return corsMiddleware(mux)
 }
@@ -595,4 +597,22 @@ func (a *API) handleCoverageGaps(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonResponse(w, http.StatusOK, gaps)
+}
+
+func (a *API) handleCredentials(w http.ResponseWriter, r *http.Request) {
+	creds, err := a.store.ListCredentials(r.Context(), a.taskID)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	jsonResponse(w, http.StatusOK, creds)
+}
+
+func (a *API) handleConstraints(w http.ResponseWriter, r *http.Request) {
+	constraints, err := a.store.ListConstraints(r.Context(), a.explorationID)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	jsonResponse(w, http.StatusOK, constraints)
 }

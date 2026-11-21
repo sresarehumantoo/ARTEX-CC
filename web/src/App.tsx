@@ -16,6 +16,8 @@ const Activity = lazy(() => import('./pages/Activity'))
 const Assets = lazy(() => import('./pages/Assets'))
 const Coverage = lazy(() => import('./pages/Coverage'))
 const Report = lazy(() => import('./pages/Report'))
+const Credentials = lazy(() => import('./pages/Credentials'))
+const Settings = lazy(() => import('./pages/Settings'))
 
 function PageLoader() {
   return (
@@ -58,7 +60,9 @@ export default function App() {
               <Route path="/activity" element={<Activity />} />
               <Route path="/assets" element={<Assets />} />
               <Route path="/coverage" element={<Coverage />} />
+              <Route path="/credentials" element={<Credentials />} />
               <Route path="/report" element={<Report />} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>

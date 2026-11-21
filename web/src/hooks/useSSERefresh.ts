@@ -41,6 +41,7 @@ export function useSSERefresh() {
           queryClient.invalidateQueries({ queryKey: ['graph'] })
           queryClient.invalidateQueries({ queryKey: ['coverage'] })
           queryClient.invalidateQueries({ queryKey: ['coverage-gaps'] })
+          queryClient.invalidateQueries({ queryKey: ['credentials'] })
           toast('Data refreshed', { variant: 'success' })
           break
         case 'node_added':
@@ -60,6 +61,7 @@ export function useSSERefresh() {
           queryClient.invalidateQueries({ queryKey: ['activity'] })
           queryClient.invalidateQueries({ queryKey: ['coverage'] })
           queryClient.invalidateQueries({ queryKey: ['coverage-gaps'] })
+          queryClient.invalidateQueries({ queryKey: ['credentials'] })
           break
       }
     },
