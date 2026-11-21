@@ -13,6 +13,9 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+// ToolNotifier is called after a mutating tool completes successfully.
+type ToolNotifier func(toolName string)
+
 // Server is an MCP protocol server wrapping the tool registry.
 type Server struct {
 	mcp      *server.MCPServer
@@ -23,6 +26,7 @@ type Server struct {
 	explorationID int64
 	traffic       *traffic.Traffic
 	evidence      *evidence.Store
+	notifier      ToolNotifier
 }
 
 // Option is a functional option for configuring a Server.
@@ -47,6 +51,12 @@ func WithEvidence(es *evidence.Store) Option {
 	return func(s *Server) { s.evidence = es }
 }
 
+// WithNotifier returns an Option that installs a callback invoked after each
+// mutating (non-read-only) tool completes successfully.
+func WithNotifier(fn ToolNotifier) Option {
+	return func(s *Server) { s.notifier = fn }
+}
+
 
 // New creates a Server with its tools registered and optional engagement context.
 func New(registry *tools.Registry, opts ...Option) *Server {
@@ -64,7 +74,7 @@ func New(registry *tools.Registry, opts ...Option) *Server {
 	)
 
 	for _, t := range registry.Tools() {
-		s.mcp.AddTool(convertTool(t), makeHandler(t))
+		s.mcp.AddTool(convertTool(t), makeHandlerWithNotifier(t, s.notifier))
 	}
 
 	if s.store != nil && s.explorationID > 0 {

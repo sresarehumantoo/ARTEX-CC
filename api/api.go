@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -61,6 +62,29 @@ func (a *API) Broadcast(eventType string, data any) {
 		case ch <- payload:
 		default:
 		}
+	}
+}
+
+func (a *API) NotifyChange(toolName string) {
+	ctx := context.Background()
+	switch {
+	case strings.HasPrefix(toolName, "insert_node"),
+		strings.HasPrefix(toolName, "add_hint"),
+		strings.HasPrefix(toolName, "add_intent"),
+		strings.HasPrefix(toolName, "record_fact"),
+		strings.HasPrefix(toolName, "prove_goal"),
+		strings.HasPrefix(toolName, "update_intent"):
+		nodes, _ := a.store.ListNodes(ctx, a.explorationID, "", 0)
+		edges, _ := a.store.Edges(ctx, a.explorationID, 0)
+		a.Broadcast("full_refresh", map[string]any{"nodes": nodes, "edges": edges})
+	case strings.HasPrefix(toolName, "add_finding"),
+		strings.HasPrefix(toolName, "confirm_finding"),
+		strings.HasPrefix(toolName, "report_finding"):
+		a.Broadcast("finding_added", nil)
+	case strings.HasPrefix(toolName, "insert_asset"):
+		a.Broadcast("asset_added", nil)
+	default:
+		a.Broadcast("store_changed", nil)
 	}
 }
 

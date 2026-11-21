@@ -155,6 +155,11 @@ func cmdServe(args []string) {
 	if t != nil {
 		srvOpts = append(srvOpts, mcpserver.WithTraffic(t))
 	}
+	var restAPI *api.API
+	if *webUI {
+		restAPI = api.New(s, t, engCfg.TaskID, engCfg.ExplorationID)
+		srvOpts = append(srvOpts, mcpserver.WithNotifier(restAPI.NotifyChange))
+	}
 	srv := mcpserver.New(reg, srvOpts...)
 	if *stdio {
 		slog.Info("serving", "transport", "stdio")
@@ -168,7 +173,6 @@ func cmdServe(args []string) {
 		mcpHandler := server.NewStreamableHTTPServer(srv.MCPServer())
 		mux.Handle("/mcp", mcpHandler)
 
-		restAPI := api.New(s, t, engCfg.TaskID, engCfg.ExplorationID)
 		mux.Handle("/api/", restAPI.Handler())
 
 		mux.Handle("/", web.Handler())

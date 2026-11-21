@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, X, ChevronLeft, ChevronRight, Server } from 'lucide-react'
+import { Spinner } from '../components/ui/spinner'
 import { cn } from '../lib/utils'
 import { fetchAssets, type Asset } from '../lib/api'
 
@@ -317,11 +318,10 @@ export default function Assets() {
             Failed to load assets: {(error as Error).message}
           </div>
         ) : isLoading ? (
-          <div className="flex items-center justify-center h-48 text-sm text-slate-500">
-            Loading...
-          </div>
+          <div className="flex items-center justify-center h-64"><Spinner className="h-8 w-8" /></div>
         ) : assets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-slate-500">
+          <div className="flex flex-col items-center justify-center h-48 gap-2 text-slate-500">
+            <Server className="h-10 w-10 text-slate-600" />
             <p className="text-sm">No assets found</p>
             {dslInput && (
               <p className="text-xs mt-1">Try adjusting your search query</p>

@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Clipboard, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Clipboard, Globe, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Badge, type BadgeVariant } from '../components/ui/badge'
@@ -7,6 +7,7 @@ import { Input } from '../components/ui/input'
 import { ScrollArea } from '../components/ui/scroll-area'
 import { Select } from '../components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
+import { Spinner } from '../components/ui/spinner'
 import { type TrafficFilters, useTraffic, useTrafficDetail } from '../hooks/useTraffic'
 import type { TrafficExchange } from '../lib/types'
 import { cn, formatBytes, relativeTime } from '../lib/utils'
@@ -172,9 +173,10 @@ export default function Traffic() {
       {/* Table */}
       <div className="min-h-0 flex-1 overflow-auto">
         {isLoading ? (
-          <div className="flex h-64 items-center justify-center text-slate-500">Loading...</div>
+          <div className="flex h-64 items-center justify-center"><Spinner className="h-8 w-8" /></div>
         ) : rows.length === 0 ? (
           <div className="flex h-64 flex-col items-center justify-center gap-2 text-slate-500">
+            <Globe className="h-10 w-10 text-slate-600" />
             <p className="text-lg">No traffic captured</p>
             <p className="text-sm">
               {hasFilters
@@ -283,7 +285,7 @@ export default function Traffic() {
             </div>
             <div className="flex min-h-0 flex-1">
               {detailLoading || !detail ? (
-                <div className="flex flex-1 items-center justify-center text-slate-500">Loading...</div>
+                <div className="flex flex-1 items-center justify-center"><Spinner className="h-8 w-8" /></div>
               ) : (
                 <>
                   <HttpPanel label="Request" content={detail.request} />

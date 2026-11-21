@@ -52,11 +52,11 @@ func (s *Server) registerSwitchEngagement() {
 			}
 			s.registry = reg
 			for _, t := range reg.Tools() {
-				s.mcp.AddTool(convertTool(t), makeHandler(t))
+				s.mcp.AddTool(convertTool(t), makeHandlerWithNotifier(t, s.notifier))
 			}
 
 			return tools.Result{Content: fmt.Sprintf("switched to engagement %d (exploration %d): %s", s.taskID, s.explorationID, eng.Goal)}, nil
 		},
 	}
-	s.mcp.AddTool(convertTool(t), makeHandler(t))
+	s.mcp.AddTool(convertTool(t), makeHandlerWithNotifier(t, s.notifier))
 }

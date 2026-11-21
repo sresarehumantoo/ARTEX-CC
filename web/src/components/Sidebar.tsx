@@ -12,14 +12,14 @@ const links = [
 
 export function Sidebar() {
   return (
-    <aside className="flex h-screen w-60 flex-col bg-slate-950 border-r border-slate-800">
-      <div className="flex items-center gap-2 px-5 py-5">
-        <Shield className="h-6 w-6 text-emerald-500" />
-        <span className="text-lg font-semibold tracking-tight text-slate-100">
+    <aside className="flex h-screen w-14 md:w-56 flex-col bg-slate-950 border-r border-slate-800">
+      <div className="flex items-center gap-2 px-3 py-5 md:px-5">
+        <Shield className="h-6 w-6 shrink-0 text-emerald-500" />
+        <span className="hidden md:block text-lg font-semibold tracking-tight text-slate-100">
           cc-artex
         </span>
       </div>
-      <nav className="flex-1 space-y-1 px-3 py-2">
+      <nav className="flex-1 space-y-1 px-2 py-2 md:px-3">
         {links.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
@@ -34,8 +34,8 @@ export function Sidebar() {
               )
             }
           >
-            <Icon className="h-4 w-4" />
-            {label}
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="hidden md:inline">{label}</span>
           </NavLink>
         ))}
       </nav>
