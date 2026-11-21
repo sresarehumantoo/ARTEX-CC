@@ -91,6 +91,17 @@ func cmdServe(args []string) {
 	}
 	defer s.Close()
 
+	if keyHex := os.Getenv("CC_ARTEX_CREDENTIAL_KEY"); keyHex != "" {
+		key, err := store.ParseCredentialKey(keyHex)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		s.SetCredentialKey(key)
+	} else {
+		fmt.Fprintln(os.Stderr, "warning: CC_ARTEX_CREDENTIAL_KEY is not set; credentials will be stored in plaintext")
+	}
+
 	reg := tools.NewRegistry()
 	tools.RegisterAll(reg, s, engCfg.TaskID, engCfg.ExplorationID)
 

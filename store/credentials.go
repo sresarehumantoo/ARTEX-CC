@@ -39,6 +39,15 @@ func (s *Store) SaveCredential(ctx context.Context, taskID int64, cred tools.Cre
 	if password == "" && source == "agent" {
 		return 0, fmt.Errorf("agent-recorded credentials require a password")
 	}
+	stored := password
+	if s.credentialKey != nil && password != "" {
+		enc, err := aesGCMEncrypt(s.credentialKey, password)
+		if err != nil {
+			return 0, fmt.Errorf("encrypt credential: %w", err)
+		}
+		stored = "enc:" + enc
+	}
+
 	var id int64
 	err := s.QueryRowContext(ctx, `
 		INSERT INTO task_credentials (task_id, domain, username, password, source, note)
@@ -49,7 +58,7 @@ func (s *Store) SaveCredential(ctx context.Context, taskID int64, cred tools.Cre
 		    note       = CASE WHEN EXCLUDED.note = '' THEN task_credentials.note ELSE EXCLUDED.note END,
 		    updated_at = now()
 		RETURNING id`,
-		taskID, domain, username, password, source, note).Scan(&id)
+		taskID, domain, username, stored, source, note).Scan(&id)
 	return id, err
 }
 
@@ -66,6 +75,13 @@ func (s *Store) ListCredentials(ctx context.Context, taskID int64) ([]tools.Cred
 		var c tools.Credential
 		if err := rows.Scan(&c.ID, &c.Domain, &c.Username, &c.Password, &c.Source, &c.Note); err != nil {
 			return nil, err
+		}
+		if s.credentialKey != nil && strings.HasPrefix(c.Password, "enc:") {
+			plain, err := aesGCMDecrypt(s.credentialKey, c.Password[4:])
+			if err != nil {
+				return nil, fmt.Errorf("decrypt credential %d: %w", c.ID, err)
+			}
+			c.Password = plain
 		}
 		out = append(out, c)
 	}

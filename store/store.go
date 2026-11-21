@@ -31,7 +31,10 @@ var embeddedMigrationFiles embed.FS
 
 const schemaMigrationLockKey int64 = 7337741001
 
-type Store struct{ *sql.DB }
+type Store struct {
+	*sql.DB
+	credentialKey []byte // 32-byte AES-256-GCM key; nil means plaintext
+}
 
 func Open(ctx context.Context, dsn string) (*Store, error) {
 	_ = ensureDatabase(dsn)
@@ -50,7 +53,7 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 		return nil, fmt.Errorf("ping: %w", err)
 	}
 
-	s := &Store{sqlDB}
+	s := &Store{DB: sqlDB}
 
 	err = withSchemaMigrationLock(context.Background(), sqlDB, func(conn *sql.Conn) error {
 		if _, err := conn.ExecContext(context.Background(), schemaSQL); err != nil {
@@ -69,6 +72,8 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 }
 
 func (s *Store) Close() error { return s.DB.Close() }
+
+func (s *Store) SetCredentialKey(key []byte) { s.credentialKey = key }
 
 func (s *Store) CreateEngagement(ctx context.Context, goal, description string) (taskID int64, explorationID int64, err error) {
 	explorationID, err = s.CreateExploration(description, goal)
