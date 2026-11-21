@@ -170,6 +170,7 @@ Point your testing tools at `http://localhost:8788` to capture traffic through t
 ## Tool catalog
 
 59 MCP tools across ten categories. Claude calls these automatically based on what the engagement needs.
+For detailed parameter documentation, see [Tool Reference](docs/TOOLS.md).
 
 <details open>
 <summary><strong>Exploration graph</strong></summary>
