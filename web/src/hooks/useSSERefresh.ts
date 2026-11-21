@@ -37,17 +37,20 @@ export function useSSERefresh() {
         case 'full_refresh':
           queryClient.invalidateQueries({ queryKey: ['engagement'] })
           queryClient.invalidateQueries({ queryKey: ['activity'] })
+          queryClient.invalidateQueries({ queryKey: ['graph'] })
           toast('Data refreshed', { variant: 'success' })
           break
         case 'node_added':
           queryClient.invalidateQueries({ queryKey: ['engagement'] })
           queryClient.invalidateQueries({ queryKey: ['activity'] })
+          queryClient.invalidateQueries({ queryKey: ['graph'] })
           toast(label ? `Graph updated: ${label}` : 'Graph updated', { variant: 'info' })
           break
         case 'node_updated':
         case 'edge_added':
           queryClient.invalidateQueries({ queryKey: ['engagement'] })
           queryClient.invalidateQueries({ queryKey: ['activity'] })
+          queryClient.invalidateQueries({ queryKey: ['graph'] })
           break
         case 'store_changed':
           queryClient.invalidateQueries({ queryKey: ['engagement'] })
