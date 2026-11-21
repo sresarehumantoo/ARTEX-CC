@@ -1,10 +1,12 @@
 package ingest
 
+// Result is the parsed output of a scanner tool containing discovered assets and findings.
 type Result struct {
 	Assets   []Asset
 	Findings []Finding
 }
 
+// Asset is a single network asset extracted from scanner output.
 type Asset struct {
 	Type          string
 	Domain        string
@@ -20,6 +22,7 @@ type Asset struct {
 	ContentLength int64
 }
 
+// Finding is a vulnerability finding extracted from scanner output.
 type Finding struct {
 	VulnClass string
 	Name      string

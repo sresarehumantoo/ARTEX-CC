@@ -1,5 +1,6 @@
 package tools
 
+// RegisterAll registers every tool group with the given registry and engagement context.
 func RegisterAll(reg *Registry, store Store, taskID, explorationID int64) {
 	RegisterAssetTools(reg, store, taskID)
 	RegisterExplorationTools(reg, store, explorationID)

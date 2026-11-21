@@ -2,6 +2,7 @@ package report
 
 import "time"
 
+// ReportFinding is a finding record used for report generation.
 type ReportFinding struct {
 	ID        int64
 	VulnClass string
@@ -11,18 +12,21 @@ type ReportFinding struct {
 	Evidence  string
 }
 
+// CoverageLedger is aggregated test coverage with identified gaps.
 type CoverageLedger struct {
 	Entries      []CoverageEntry
 	Gaps         []CoverageGap
 	Completeness *CoverageCompleteness
 }
 
+// CoverageEntry is one record of test coverage against an attack surface and risk area.
 type CoverageEntry struct {
 	Surface  string
 	RiskArea string
 	Outcome  string
 }
 
+// CoverageGap is an identified gap in test coverage.
 type CoverageGap struct {
 	Kind     string
 	Surface  string
@@ -36,11 +40,13 @@ func (g CoverageGap) String() string {
 	return g.Kind + " " + g.Surface + " " + g.RiskArea
 }
 
+// CoverageCompleteness is the overall completeness assessment of test coverage.
 type CoverageCompleteness struct {
 	State  string
 	Caveat string
 }
 
+// FindingQuality holds quality and verification metadata for a single finding.
 type FindingQuality struct {
 	ID                    int64
 	PoeLevel              int
@@ -58,6 +64,7 @@ func (q FindingQuality) ReportStale() bool {
 	return q.Report != "" && q.EvidenceVersion != q.ReportEvidenceVersion
 }
 
+// ExportFinding is a finding formatted for external export.
 type ExportFinding struct {
 	ID              int64
 	VulnClass       string

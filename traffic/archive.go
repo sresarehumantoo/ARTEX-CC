@@ -28,6 +28,7 @@ type ArchiveSnapshot struct {
 	Blobs     []string          `json:"blobs"`
 }
 
+// ArchiveExchange is one exchange within a portable archive snapshot.
 type ArchiveExchange struct {
 	ID             string  `json:"id"`
 	TS             int64   `json:"ts"`

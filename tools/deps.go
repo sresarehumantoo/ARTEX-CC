@@ -118,11 +118,13 @@ type AssetInput struct {
 	Params []map[string]any `json:"params,omitempty"`
 }
 
+// PortService is a port number and optional service name for an IP asset.
 type PortService struct {
 	Port    int    `json:"port"`
 	Service string `json:"service,omitempty"`
 }
 
+// AssetFilter holds query parameters for listing assets.
 type AssetFilter struct {
 	TaskID int64  `json:"task_id,omitempty"`
 	DSL    string `json:"dsl,omitempty"`
@@ -133,6 +135,7 @@ type AssetFilter struct {
 	Offset int    `json:"offset,omitempty"`
 }
 
+// Asset is a stored asset with its denormalized label and type-specific data.
 type Asset struct {
 	ID     int64          `json:"id"`
 	Type   string         `json:"type"`
@@ -140,6 +143,7 @@ type Asset struct {
 	Data   map[string]any `json:"data,omitempty"`
 }
 
+// Company is a company with its scope rules and asset count.
 type Company struct {
 	ID         int64    `json:"id"`
 	Name       string   `json:"name"`
@@ -147,12 +151,14 @@ type Company struct {
 	Scope      []string `json:"scope"`
 }
 
+// ScopeRule is one wildcard or CIDR rule governing what targets are in scope.
 type ScopeRule struct {
 	Kind   string `json:"kind"`
 	Value  string `json:"value"`
 	Reason string `json:"reason,omitempty"`
 }
 
+// FindingInput holds the parameters for creating a finding.
 type FindingInput struct {
 	TaskID        int64   `json:"task_id"`
 	ExplorationID int64   `json:"exploration_id"`
@@ -166,6 +172,7 @@ type FindingInput struct {
 	Worker        string  `json:"worker,omitempty"`
 }
 
+// Finding is a stored vulnerability finding.
 type Finding struct {
 	ID        int64  `json:"id"`
 	NodeID    int64  `json:"node_id,omitempty"`
@@ -176,6 +183,7 @@ type Finding struct {
 	Status    string `json:"status,omitempty"`
 }
 
+// Overview is aggregated exploration state returned by GraphOverview.
 type Overview struct {
 	Task             map[string]any   `json:"task,omitempty"`
 	Goals            []map[string]any `json:"goals,omitempty"`
@@ -193,6 +201,7 @@ type Overview struct {
 	Credentials      []map[string]any `json:"task_credentials,omitempty"`
 }
 
+// Node is a vertex in the exploration graph (goal, hint, intent, fact, or finding).
 type Node struct {
 	ID      int64          `json:"id"`
 	Kind    string         `json:"kind"`
@@ -201,24 +210,28 @@ type Node struct {
 	Origin  string         `json:"origin,omitempty"`
 }
 
+// NodeFilter holds query parameters for listing exploration nodes.
 type NodeFilter struct {
 	Kind  string `json:"kind,omitempty"`
 	State string `json:"state,omitempty"`
 	Limit int    `json:"limit,omitempty"`
 }
 
+// Edge is a directed relationship between two exploration nodes.
 type Edge struct {
 	From int64  `json:"from"`
 	Rel  string `json:"rel"`
 	To   int64  `json:"to"`
 }
 
+// Constraint is an operator-imposed restriction on exploration behavior.
 type Constraint struct {
 	ID   int64  `json:"id"`
 	Kind string `json:"kind"`
 	Text string `json:"text"`
 }
 
+// CredentialInput holds the parameters for saving a discovered credential.
 type CredentialInput struct {
 	Domain   string `json:"domain"`
 	Username string `json:"username"`
@@ -227,6 +240,7 @@ type CredentialInput struct {
 	Note     string `json:"note,omitempty"`
 }
 
+// Credential is a stored credential discovered during testing.
 type Credential struct {
 	ID       int64  `json:"id"`
 	Domain   string `json:"domain"`
@@ -236,6 +250,7 @@ type Credential struct {
 	Note     string `json:"note,omitempty"`
 }
 
+// CoverageEntry records one test-coverage data point against an attack surface and risk area.
 type CoverageEntry struct {
 	Surface  string `json:"surface"`
 	RiskArea string `json:"risk_area"`
@@ -246,6 +261,7 @@ type CoverageEntry struct {
 	IntentID int64  `json:"intent_id,omitempty"`
 }
 
+// EngagementSummary is a lightweight view of an engagement for list endpoints.
 type EngagementSummary struct {
 	ID            int64  `json:"id"`
 	Goal          string `json:"goal"`
@@ -253,11 +269,13 @@ type EngagementSummary struct {
 	ExplorationID int64  `json:"exploration_id"`
 }
 
+// EngagementDetail is a full engagement including its description.
 type EngagementDetail struct {
 	EngagementSummary
 	Description string `json:"description"`
 }
 
+// ReportFinding is a finding formatted for report generation.
 type ReportFinding struct {
 	ID        int64  `json:"id"`
 	VulnClass string `json:"vulnclass"`
@@ -268,6 +286,7 @@ type ReportFinding struct {
 	Status    string `json:"status"`
 }
 
+// TrafficBinding links a finding to a captured traffic exchange used as evidence.
 type TrafficBinding struct {
 	ID         int64  `json:"id"`
 	FindingID  int64  `json:"finding_id"`
@@ -277,6 +296,7 @@ type TrafficBinding struct {
 	Position   int    `json:"position"`
 }
 
+// ActivityEntry holds the parameters for logging an exploration activity event.
 type ActivityEntry struct {
 	NodeID  int64  `json:"node_id,omitempty"`
 	Worker  string `json:"worker,omitempty"`
@@ -287,6 +307,7 @@ type ActivityEntry struct {
 	Detail  string `json:"detail,omitempty"`
 }
 
+// Activity is a stored exploration activity log entry.
 type Activity struct {
 	ID             int64  `json:"id"`
 	ExplorationID  int64  `json:"exploration_id"`
@@ -300,12 +321,14 @@ type Activity struct {
 	CreatedAt      string `json:"created_at"`
 }
 
+// ActivityFilter holds query parameters for listing activity entries.
 type ActivityFilter struct {
 	NodeID int64 `json:"node_id,omitempty"`
 	Kind   string `json:"kind,omitempty"`
 	Limit  int   `json:"limit,omitempty"`
 }
 
+// EngagementExport is a serializable snapshot of an engagement for export and import.
 type EngagementExport struct {
 	Version     int              `json:"version"`
 	ExportedAt  string           `json:"exported_at"`

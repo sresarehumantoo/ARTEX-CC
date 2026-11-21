@@ -57,6 +57,7 @@ type HAR struct {
 	Log *HARLog `json:"log"`
 }
 
+// HARLog is the top-level log object in a HAR 1.2 document.
 type HARLog struct {
 	Version         string     `json:"version"`
 	Creator         HARCreator `json:"creator"`
@@ -66,19 +67,23 @@ type HARLog struct {
 	TotalMatched    int        `json:"_totalMatched,omitempty"`
 }
 
+// HARCreator identifies the tool that produced a HAR document.
 type HARCreator struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
 }
 
+// HARCache is a placeholder for the HAR 1.2 cache object (unused by this store).
 type HARCache struct{}
 
+// HARTimings is a placeholder for HAR 1.2 timing data (unused by this store).
 type HARTimings struct {
 	Send    float64 `json:"send"`
 	Wait    float64 `json:"wait"`
 	Receive float64 `json:"receive"`
 }
 
+// HAREntry is one HTTP exchange in a HAR document.
 type HAREntry struct {
 	StartedDateTime string      `json:"startedDateTime"`
 	Time            float64     `json:"time"`
@@ -89,6 +94,7 @@ type HAREntry struct {
 	ArtexExchangeID string      `json:"_artexExchangeId,omitempty"`
 }
 
+// HARRequest is the request side of a HAR entry.
 type HARRequest struct {
 	Method      string       `json:"method"`
 	URL         string       `json:"url"`
@@ -101,6 +107,7 @@ type HARRequest struct {
 	BodySize    int          `json:"bodySize"`
 }
 
+// HARPostData is the request body of a HAR entry.
 type HARPostData struct {
 	MimeType string     `json:"mimeType,omitempty"`
 	Params   []HARParam `json:"params,omitempty"`
@@ -108,6 +115,7 @@ type HARPostData struct {
 	Encoding string     `json:"encoding,omitempty"`
 }
 
+// HARParam is a query string or form parameter in a HAR entry.
 type HARParam struct {
 	Name        string `json:"name"`
 	Value       string `json:"value"`
@@ -115,6 +123,7 @@ type HARParam struct {
 	ContentType string `json:"contentType,omitempty"`
 }
 
+// HARCookie is a cookie in a HAR request or response.
 type HARCookie struct {
 	Name     string `json:"name"`
 	Value    string `json:"value"`
@@ -125,6 +134,7 @@ type HARCookie struct {
 	Secure   bool   `json:"secure,omitempty"`
 }
 
+// HARResponse is the response side of a HAR entry.
 type HARResponse struct {
 	Status      int         `json:"status"`
 	StatusText  string      `json:"statusText"`
@@ -137,6 +147,7 @@ type HARResponse struct {
 	BodySize    int         `json:"bodySize"`
 }
 
+// HARContent is the response body and metadata of a HAR entry.
 type HARContent struct {
 	Size     int    `json:"size"`
 	MimeType string `json:"mimeType"`
@@ -144,6 +155,7 @@ type HARContent struct {
 	Encoding string `json:"encoding,omitempty"`
 }
 
+// HARHeader is one HTTP header name-value pair in a HAR entry.
 type HARHeader struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
