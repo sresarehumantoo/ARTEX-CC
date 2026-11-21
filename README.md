@@ -40,14 +40,33 @@ cc-artex removes the agent loop entirely and exposes the data layer as MCP tools
 - **Claude's full reasoning.** Not a constrained agent loop, but Claude's complete context window and tool-use capability driving the engagement.
 - **Your judgment in the loop.** Claude proposes, you approve. The exploration graph means you can review its plan, steer it, and pick up where it left off.
 
+## Install
+
+**Homebrew** (macOS and Linux):
+
+```sh
+brew install SREsAreHumanToo/tap/cc-artex
+```
+
+**Pre-built binaries:** download from the [Releases](https://github.com/SREsAreHumanToo/cc-artex/releases) page. Each release includes checksums.
+
+**From source:**
+
+```sh
+go install github.com/SREsAreHumanToo/cc-artex/cmd/cc-artex@latest
+```
+
+**Docker:**
+
+```sh
+docker compose up
+```
+
 ## Quick start
 
 **Prerequisites:** PostgreSQL, Go 1.26+
 
 ```sh
-# Install
-go install github.com/SREsAreHumanToo/cc-artex/cmd/cc-artex@latest
-
 # Create the database and initialize an engagement
 createdb ccartex
 cc-artex init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
