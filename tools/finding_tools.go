@@ -11,6 +11,8 @@ func RegisterFindingTools(reg *Registry, store Store, taskID, explorationID int6
 	reg.Register(makeReportFinding(store, taskID, explorationID))
 	reg.Register(makeListFindings(store, explorationID))
 	reg.Register(makeBindFindingTraffic(store))
+	reg.Register(makeMergeFindings(store))
+	reg.Register(makeDismissFinding(store))
 }
 
 func makeReportFinding(store Store, taskID, explorationID int64) Tool {
@@ -74,12 +76,18 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 				AssetIDs:      pidList(a.AssetIDs),
 			}
 
+			dupes, _ := store.FindPotentialDuplicates(ctx, input.Severity, input.AssetIDs)
+
 			findingID, err := store.AddFinding(ctx, input)
 			if err != nil {
 				return errResult(err.Error()), nil
 			}
 
-			return textResult(fmt.Sprintf("finding recorded: %d", findingID)), nil
+			resp := map[string]any{"finding_id": findingID}
+			if len(dupes) > 0 {
+				resp["possible_duplicates"] = dupes
+			}
+			return jsonResult(resp)
 		},
 	}
 }
@@ -171,6 +179,90 @@ func makeBindFindingTraffic(store Store) Tool {
 				return errResult(err.Error()), nil
 			}
 			return textResult(fmt.Sprintf("traffic %s bound to finding %d as %s", snapshotID, findingID, role)), nil
+		},
+	}
+}
+
+func makeMergeFindings(store Store) Tool {
+	return Tool{
+		Name: "merge_findings",
+		Description: "Merge two or more findings into a single primary finding. " +
+			"Evidence and assets from secondary findings are folded into the primary. " +
+			"Secondary findings are marked as duplicates with a pointer to the primary.",
+		Schema: obj(map[string]any{
+			"finding_ids": arr(map[string]any{"type": "integer"}, "all finding ids to merge (must include primary_id)"),
+			"primary_id":  intp("the finding to keep as the merged result"),
+		}, "finding_ids", "primary_id"),
+		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
+			var a struct {
+				FindingIDs []json.RawMessage `json:"finding_ids"`
+				PrimaryID  json.RawMessage   `json:"primary_id"`
+			}
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
+			primaryID := pid(a.PrimaryID)
+			if primaryID <= 0 {
+				return errResult("primary_id is required"), nil
+			}
+			ids := pidList(a.FindingIDs)
+			if len(ids) < 2 {
+				return errResult("finding_ids must contain at least two findings"), nil
+			}
+			hasPrimary := false
+			var secondaryIDs []int64
+			for _, id := range ids {
+				if id == primaryID {
+					hasPrimary = true
+				} else {
+					secondaryIDs = append(secondaryIDs, id)
+				}
+			}
+			if !hasPrimary {
+				return errResult("finding_ids must include primary_id"), nil
+			}
+			if len(secondaryIDs) == 0 {
+				return errResult("finding_ids must contain at least one secondary finding"), nil
+			}
+
+			merged, err := store.MergeFindings(ctx, primaryID, secondaryIDs)
+			if err != nil {
+				return errResult(err.Error()), nil
+			}
+			return jsonResult(merged)
+		},
+	}
+}
+
+func makeDismissFinding(store Store) Tool {
+	return Tool{
+		Name: "dismiss_finding",
+		Description: "Mark a finding as dismissed (false positive). " +
+			"Dismissed findings are excluded from generate_report output.",
+		Schema: obj(map[string]any{
+			"finding_id": intp("the finding to dismiss"),
+			"reason":     str("why this finding is a false positive"),
+		}, "finding_id", "reason"),
+		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
+			var a struct {
+				FindingID json.RawMessage `json:"finding_id"`
+				Reason    string          `json:"reason"`
+			}
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
+			findingID := pid(a.FindingID)
+			if findingID <= 0 {
+				return errResult("finding_id is required"), nil
+			}
+			reason := strings.TrimSpace(a.Reason)
+			if reason == "" {
+				return errResult("reason is required"), nil
+			}
+			if err := store.DismissFinding(ctx, findingID, reason); err != nil {
+				return errResult(err.Error()), nil
+			}
+			return textResult(fmt.Sprintf("finding %d dismissed: %s", findingID, reason)), nil
 		},
 	}
 }
