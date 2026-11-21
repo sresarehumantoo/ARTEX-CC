@@ -1,6 +1,7 @@
 package rewrite
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -1005,5 +1006,28 @@ func TestLoadErrors(t *testing.T) {
 	}
 	if s.Len(PhaseRequest) != 1 {
 		t.Fatalf("expected 1 valid rule, got %d", s.Len(PhaseRequest))
+	}
+}
+
+func response(status int, header http.Header, body string) Response {
+	if header == nil {
+		header = http.Header{}
+	}
+	return Response{Status: status, Header: header, Body: []byte(body)}
+}
+
+func traceLineString(l TraceLine) string {
+	return fmt.Sprintf("%d:%s:%s:%s:%s", l.RuleID, l.Action, l.Field, l.Outcome, l.Reason)
+}
+
+func wantLines(t *testing.T, got []TraceLine, want ...string) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("trace lines: got %d, want %d\n  got=%v", len(got), len(want), got)
+	}
+	for i, w := range want {
+		if s := traceLineString(got[i]); s != w {
+			t.Errorf("line %d: got %q, want %q", i, s, w)
+		}
 	}
 }
