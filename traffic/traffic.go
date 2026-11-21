@@ -2429,6 +2429,122 @@ func normalizeSearchHost(raw string) (host, port string, err error) {
 	return strings.ToLower(host), port, nil
 }
 
+// TrafficStats holds aggregate statistics about captured traffic.
+type TrafficStats struct {
+	TotalExchanges int            `json:"total_exchanges"`
+	UniqueHosts    int            `json:"unique_hosts"`
+	StatusCodes    map[string]int `json:"status_codes"`
+	Methods        map[string]int `json:"methods"`
+	TopHosts       []HostCount    `json:"top_hosts"`
+	EarliestTS     int64          `json:"earliest_ts,omitempty"`
+	LatestTS       int64          `json:"latest_ts,omitempty"`
+	AvgRespSize    int64          `json:"avg_resp_size"`
+}
+
+// Stats returns aggregate statistics about all captured traffic.
+func (t *Traffic) Stats() (*TrafficStats, error) {
+	s := &TrafficStats{
+		StatusCodes: map[string]int{},
+		Methods:     map[string]int{},
+	}
+
+	err := t.db.QueryRow(`SELECT COUNT(*), COUNT(DISTINCT host), COALESCE(MIN(ts),0), COALESCE(MAX(ts),0), COALESCE(AVG(resp_len),0) FROM exchanges`).
+		Scan(&s.TotalExchanges, &s.UniqueHosts, &s.EarliestTS, &s.LatestTS, &s.AvgRespSize)
+	if err != nil {
+		return nil, err
+	}
+	if s.TotalExchanges == 0 {
+		return s, nil
+	}
+
+	rows, err := t.db.Query(`SELECT CASE WHEN status>=500 THEN '5xx' WHEN status>=400 THEN '4xx' WHEN status>=300 THEN '3xx' WHEN status>=200 THEN '2xx' ELSE 'other' END AS bucket, COUNT(*) FROM exchanges GROUP BY bucket ORDER BY bucket`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var bucket string
+		var count int
+		if err := rows.Scan(&bucket, &count); err != nil {
+			return nil, err
+		}
+		s.StatusCodes[bucket] = count
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	rows, err = t.db.Query(`SELECT method, COUNT(*) FROM exchanges GROUP BY method ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var method string
+		var count int
+		if err := rows.Scan(&method, &count); err != nil {
+			return nil, err
+		}
+		s.Methods[method] = count
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	rows, err = t.db.Query(`SELECT host, COUNT(*) AS n FROM exchanges GROUP BY host ORDER BY n DESC LIMIT 10`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var h HostCount
+		if err := rows.Scan(&h.Host, &h.Count); err != nil {
+			return nil, err
+		}
+		s.TopHosts = append(s.TopHosts, h)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return s, nil
+}
+
+// TimelineBucket is one time bucket in a traffic timeline.
+type TimelineBucket struct {
+	Bucket string `json:"bucket"`
+	Count  int    `json:"count"`
+}
+
+// Timeline returns time-bucketed exchange counts for a host. The bucket
+// parameter controls granularity: "minute", "hour" (default), or "day".
+func (t *Traffic) Timeline(host, bucket string) ([]TimelineBucket, error) {
+	var format string
+	switch strings.ToLower(strings.TrimSpace(bucket)) {
+	case "minute":
+		format = "%Y-%m-%d %H:%M"
+	case "day":
+		format = "%Y-%m-%d"
+	default:
+		format = "%Y-%m-%d %H:00"
+	}
+	rows, err := t.db.Query(
+		`SELECT strftime(?, ts, 'unixepoch') AS b, COUNT(*) FROM exchanges WHERE host=? GROUP BY b ORDER BY b`,
+		format, host)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []TimelineBucket
+	for rows.Next() {
+		var tb TimelineBucket
+		if err := rows.Scan(&tb.Bucket, &tb.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, tb)
+	}
+	return out, rows.Err()
+}
 
 func clip(s string, max int) string {
 	if len(s) <= max {
