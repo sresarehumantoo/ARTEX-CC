@@ -17,6 +17,8 @@ func RegisterTrafficTools(reg *Registry, t *traffic.Traffic, store Store, taskID
 	reg.Register(makeTrafficReplay(t, store, taskID))
 	reg.Register(makeTrafficHosts(t))
 	reg.Register(makeTrafficHARExport(t))
+	reg.Register(makeTrafficStats(t))
+	reg.Register(makeTrafficTimeline(t))
 }
 
 func makeTrafficSearch(t *traffic.Traffic) Tool {
@@ -367,6 +369,51 @@ func makeTrafficHARExport(t *traffic.Traffic) Tool {
 				"totalMatched": meta.TotalMatched,
 				"truncated":    meta.Truncated,
 			})
+		},
+	}
+}
+
+func makeTrafficStats(t *traffic.Traffic) Tool {
+	return Tool{
+		Name:        "traffic_stats",
+		Description: "Aggregate statistics about all captured traffic: total exchanges, unique hosts, status code distribution, method distribution, top 10 hosts, time range, and average response size.",
+		ReadOnly:    true,
+		Schema:      obj(map[string]any{}),
+		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
+			stats, err := t.Stats()
+			if err != nil {
+				return errResult(err.Error()), nil
+			}
+			return jsonResult(stats)
+		},
+	}
+}
+
+func makeTrafficTimeline(t *traffic.Traffic) Tool {
+	return Tool{
+		Name:        "traffic_timeline",
+		Description: "Show traffic activity over time for a host, bucketed by minute, hour (default), or day. Useful for spotting rate limiting, session expiry, and WAF patterns.",
+		ReadOnly:    true,
+		Schema: obj(map[string]any{
+			"host":   str("target host (required)"),
+			"bucket": enm([]string{"minute", "hour", "day"}, "time bucket granularity (default hour)"),
+		}, "host"),
+		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
+			var a struct {
+				Host   string `json:"host"`
+				Bucket string `json:"bucket"`
+			}
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
+			if strings.TrimSpace(a.Host) == "" {
+				return errResult("host is required"), nil
+			}
+			buckets, err := t.Timeline(a.Host, a.Bucket)
+			if err != nil {
+				return errResult(err.Error()), nil
+			}
+			return jsonResult(map[string]any{"host": a.Host, "buckets": buckets})
 		},
 	}
 }
