@@ -1,5 +1,8 @@
 export interface EngagementData {
-  task: Record<string, unknown>
+  task_id: number
+  exploration_id: number
+  description: string
+  goal: string
   goals: GraphNode[]
   open_intents: GraphNode[]
   running_intents: GraphNode[]
@@ -103,6 +106,7 @@ export interface TrafficPage {
 }
 
 export interface TrafficDetail {
+  id: string
   request: string
   response: string
 }

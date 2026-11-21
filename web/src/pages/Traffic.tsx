@@ -256,7 +256,7 @@ export default function Traffic() {
               'rounded px-2 py-1 text-[10px] font-medium whitespace-nowrap',
               bodySearch
                 ? 'bg-amber-500/20 text-amber-400'
-                : 'bg-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-300',
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300',
             )}
             title={bodySearch ? 'Searching request/response bodies' : 'Searching URLs'}
           >
@@ -307,7 +307,7 @@ export default function Traffic() {
                   data-row-id={row.id}
                   className={cn(
                     'cursor-pointer text-[13px] leading-tight',
-                    selectedId === row.id && 'bg-slate-800',
+                    selectedId === row.id && 'bg-slate-100 dark:bg-slate-800',
                   )}
                   onClick={() => setSelectedId(selectedId === row.id ? null : row.id)}
                 >

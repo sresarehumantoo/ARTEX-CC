@@ -45,8 +45,8 @@ export function ShortcutsHelp({ open, onClose }: { open: boolean; onClose: () =>
         if (e.target === overlayRef.current) onClose()
       }}
     >
-      <div className="w-80 rounded-lg border border-slate-700 bg-slate-900 p-5 shadow-xl">
-        <h2 className="mb-4 text-sm font-semibold text-slate-200">Keyboard Shortcuts</h2>
+      <div className="w-80 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-xl">
+        <h2 className="mb-4 text-sm font-semibold text-slate-800 dark:text-slate-200">Keyboard Shortcuts</h2>
         {SHORTCUTS.map(group => (
           <div key={group.section} className="mb-4">
             <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">
@@ -55,8 +55,8 @@ export function ShortcutsHelp({ open, onClose }: { open: boolean; onClose: () =>
             <div className="flex flex-col gap-1.5">
               {group.items.map(item => (
                 <div key={item.key} className="flex items-center justify-between">
-                  <span className="text-sm text-slate-400">{item.label}</span>
-                  <kbd className="rounded border border-slate-700 bg-slate-800 px-1.5 py-0.5 font-mono text-xs text-slate-300">
+                  <span className="text-sm text-slate-600 dark:text-slate-400">{item.label}</span>
+                  <kbd className="rounded border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 font-mono text-xs text-slate-700 dark:text-slate-300">
                     {item.key}
                   </kbd>
                 </div>
@@ -64,9 +64,9 @@ export function ShortcutsHelp({ open, onClose }: { open: boolean; onClose: () =>
             </div>
           </div>
         ))}
-        <div className="flex items-center justify-between border-t border-slate-800 pt-3">
-          <span className="text-sm text-slate-400">Toggle this help</span>
-          <kbd className="rounded border border-slate-700 bg-slate-800 px-1.5 py-0.5 font-mono text-xs text-slate-300">
+        <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-3">
+          <span className="text-sm text-slate-600 dark:text-slate-400">Toggle this help</span>
+          <kbd className="rounded border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 font-mono text-xs text-slate-700 dark:text-slate-300">
             ?
           </kbd>
         </div>

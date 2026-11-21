@@ -15,3 +15,12 @@ body {
   outline: 2px solid rgb(99 102 241);
   outline-offset: 2px;
 }
+
+@keyframes slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.2s ease-out forwards;
+}

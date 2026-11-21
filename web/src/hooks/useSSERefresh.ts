@@ -19,8 +19,6 @@ export function useSSERefresh() {
           queryClient.invalidateQueries({ queryKey: ['activity'] })
           break
         case 'full_refresh':
-        case 'node_added':
-        case 'node_updated':
           queryClient.invalidateQueries({ queryKey: ['engagement'] })
           queryClient.invalidateQueries({ queryKey: ['activity'] })
           break
