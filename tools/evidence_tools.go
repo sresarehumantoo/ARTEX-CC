@@ -59,6 +59,11 @@ func makeSaveEvidence(es *evidence.Store, store Store, taskID int64) Tool {
 				return errResult("content_base64 is required"), nil
 			}
 
+			const maxEvidenceBase64Len = 50 * 1024 * 1024 * 4 / 3
+			if len(a.ContentBase64) > maxEvidenceBase64Len {
+				return errResult("evidence too large (50 MB limit)"), nil
+			}
+
 			exists, err := store.FindingExists(ctx, findingID)
 			if err != nil {
 				return errResult("check finding: " + err.Error()), nil

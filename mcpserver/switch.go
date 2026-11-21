@@ -44,6 +44,9 @@ func (s *Server) registerSwitchEngagement() {
 
 			reg := tools.NewRegistry()
 			tools.RegisterAll(reg, s.store, s.taskID, s.explorationID)
+			if s.evidence != nil {
+				tools.RegisterEvidenceTools(reg, s.evidence, s.store, s.taskID)
+			}
 			if s.traffic != nil {
 				tools.RegisterTrafficTools(reg, s.traffic, s.store, s.taskID)
 			}

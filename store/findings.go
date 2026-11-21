@@ -79,7 +79,8 @@ func (s *Store) AddFinding(ctx context.Context, f tools.FindingInput) (int64, er
 
 func (s *Store) ListFindings(ctx context.Context, explorationID int64) ([]tools.Finding, error) {
 	rows, err := s.QueryContext(ctx, `
-		SELECT f.id, f.node_id, f.vulnclass, f.severity, f.summary, COALESCE(f.status,'')
+		SELECT f.id, f.node_id, f.vulnclass, f.severity, f.summary, COALESCE(f.status,''),
+		       f.merged_into, f.dismissed, f.dismiss_reason
 		FROM findings f
 		JOIN tasks t ON t.id = f.task_id
 		WHERE t.exploration_id = $1
@@ -91,12 +92,16 @@ func (s *Store) ListFindings(ctx context.Context, explorationID int64) ([]tools.
 	var out []tools.Finding
 	for rows.Next() {
 		var f tools.Finding
-		var nodeID sql.NullInt64
-		if err := rows.Scan(&f.ID, &nodeID, &f.VulnClass, &f.Severity, &f.Summary, &f.Status); err != nil {
+		var nodeID, mergedInto sql.NullInt64
+		if err := rows.Scan(&f.ID, &nodeID, &f.VulnClass, &f.Severity, &f.Summary, &f.Status,
+			&mergedInto, &f.Dismissed, &f.DismissReason); err != nil {
 			return nil, err
 		}
 		if nodeID.Valid {
 			f.NodeID = nodeID.Int64
+		}
+		if mergedInto.Valid {
+			f.MergedInto = mergedInto.Int64
 		}
 		out = append(out, f)
 	}
