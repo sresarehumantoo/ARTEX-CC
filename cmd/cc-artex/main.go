@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/SREsAreHumanToo/cc-artex/config"
 	"github.com/SREsAreHumanToo/cc-artex/mcpserver"
@@ -89,7 +90,6 @@ func cmdServe(args []string) {
 		fmt.Fprintf(os.Stderr, "error opening store: %v\n", err)
 		os.Exit(1)
 	}
-	defer s.Close()
 
 	if keyHex := os.Getenv("CC_ARTEX_CREDENTIAL_KEY"); keyHex != "" {
 		key, err := store.ParseCredentialKey(keyHex)
@@ -113,7 +113,6 @@ func cmdServe(args []string) {
 			fmt.Fprintf(os.Stderr, "error opening traffic proxy: %v\n", err)
 			os.Exit(1)
 		}
-		defer t.Close()
 		go func() {
 			if err := t.Start(); err != nil && ctx.Err() == nil {
 				fmt.Fprintf(os.Stderr, "traffic proxy error: %v\n", err)
@@ -135,6 +134,27 @@ func cmdServe(args []string) {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
+	}
+
+	shutdown(t, s)
+}
+
+const shutdownTimeout = 5 * time.Second
+
+func shutdown(t *traffic.Traffic, s *store.Store) {
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+
+	if t != nil {
+		if err := t.Shutdown(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "traffic proxy shutdown: %v\n", err)
+		}
+		if err := t.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "traffic close: %v\n", err)
+		}
+	}
+	if err := s.Close(); err != nil {
+		fmt.Fprintf(os.Stderr, "store close: %v\n", err)
 	}
 }
 

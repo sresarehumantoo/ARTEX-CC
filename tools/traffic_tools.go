@@ -330,7 +330,9 @@ func makeTrafficHARExport(t *traffic.Traffic) Tool {
 				Method string `json:"method"`
 				Status string `json:"status"`
 			}
-			_ = json.Unmarshal(in, &a)
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
 
 			doc, meta, err := t.ExportHAR(traffic.PageQuery{
 				Host:   a.Host,

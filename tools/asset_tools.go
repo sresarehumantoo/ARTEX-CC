@@ -72,6 +72,12 @@ func makeInsertAssets(store Store, taskID int64) Tool {
 			if err := json.Unmarshal(in, &a); err != nil {
 				return errResult("invalid input: " + err.Error()), nil
 			}
+			if len(a.Assets) > maxBatchLen {
+				return errResult(fmt.Sprintf("assets array too large (%d items, max %d)", len(a.Assets), maxBatchLen)), nil
+			}
+			if len(a.Assets) == 0 {
+				return errResult("assets array must not be empty"), nil
+			}
 
 			type result struct {
 				Index int    `json:"index"`
@@ -133,7 +139,9 @@ func makeListAssets(store Store, taskID int64) Tool {
 				Limit  int     `json:"limit"`
 				Offset int     `json:"offset"`
 			}
-			_ = json.Unmarshal(in, &a)
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
 			if a.Limit <= 0 {
 				a.Limit = 10
 			}
@@ -175,7 +183,9 @@ func makeListCompanies(store Store) Tool {
 			var a struct {
 				Search string `json:"search"`
 			}
-			_ = json.Unmarshal(in, &a)
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
 
 			cos, err := store.ListCompanies(ctx)
 			if err != nil {
@@ -270,8 +280,13 @@ func makeAddTaskScope(store Store, taskID int64) Tool {
 				Value      string       `json:"value"`
 				Reason     string       `json:"reason"`
 			}
-			_ = json.Unmarshal(in, &a)
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
 			items := a.Entries
+			if len(items) > maxBatchLen {
+				return errResult(fmt.Sprintf("entries array too large (%d items, max %d)", len(items), maxBatchLen)), nil
+			}
 			if len(items) == 0 {
 				items = []scopeEntry{{Kind: a.Kind, Value: a.Value}}
 			}
@@ -315,7 +330,9 @@ func makeListUntestedAssets(store Store, taskID int64) Tool {
 				Page     int    `json:"page"`
 				PageSize int    `json:"page_size"`
 			}
-			_ = json.Unmarshal(in, &a)
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
 			if a.Page <= 0 {
 				a.Page = 1
 			}

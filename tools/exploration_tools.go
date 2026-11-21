@@ -64,8 +64,13 @@ func makeAddIntent(store Store, explorationID int64) Tool {
 				Intents []intentItem `json:"intents"`
 				intentItem
 			}
-			_ = json.Unmarshal(in, &a)
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
 			items, isBatch := batchOrSingle(a.Intents, a.intentItem)
+			if len(items) > maxBatchLen {
+				return errResult(fmt.Sprintf("intents array too large (%d items, max %d)", len(items), maxBatchLen)), nil
+			}
 
 			addOne := func(it intentItem) (int64, error) {
 				if strings.TrimSpace(it.Summary) == "" {
@@ -224,7 +229,9 @@ func makeListFacts(store Store, explorationID int64) Tool {
 			var a struct {
 				Limit int `json:"limit"`
 			}
-			_ = json.Unmarshal(in, &a)
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
 			if a.Limit <= 0 {
 				a.Limit = 20
 			}
@@ -265,7 +272,9 @@ func makeNodeDetail(store Store) Tool {
 			var a struct {
 				ID json.RawMessage `json:"id"`
 			}
-			_ = json.Unmarshal(in, &a)
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
 			id := pid(a.ID)
 			if id <= 0 {
 				return errResult("id is required"), nil
@@ -302,8 +311,13 @@ func makeAddHint(store Store, explorationID int64) Tool {
 				Hints []hintItem `json:"hints"`
 				hintItem
 			}
-			_ = json.Unmarshal(in, &a)
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
 			items, isBatch := batchOrSingle(a.Hints, a.hintItem)
+			if len(items) > maxBatchLen {
+				return errResult(fmt.Sprintf("hints array too large (%d items, max %d)", len(items), maxBatchLen)), nil
+			}
 
 			addOne := func(it hintItem) (int64, error) {
 				if strings.TrimSpace(it.Text) == "" {
@@ -340,8 +354,13 @@ func makeSetGoals(store Store, explorationID int64) Tool {
 				Goals []goalItem `json:"goals"`
 				goalItem
 			}
-			_ = json.Unmarshal(in, &a)
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
 			items, isBatch := batchOrSingle(a.Goals, a.goalItem)
+			if len(items) > maxBatchLen {
+				return errResult(fmt.Sprintf("goals array too large (%d items, max %d)", len(items), maxBatchLen)), nil
+			}
 
 			addOne := func(it goalItem) (int64, error) {
 				text := strings.TrimSpace(it.Text)
@@ -388,8 +407,13 @@ func makeSetConstraints(store Store, explorationID int64) Tool {
 				Constraints []constraintItem `json:"constraints"`
 				constraintItem
 			}
-			_ = json.Unmarshal(in, &a)
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
 			items, isBatch := batchOrSingle(a.Constraints, a.constraintItem)
+			if len(items) > maxBatchLen {
+				return errResult(fmt.Sprintf("constraints array too large (%d items, max %d)", len(items), maxBatchLen)), nil
+			}
 
 			addOne := func(it constraintItem) (int64, error) {
 				text := strings.TrimSpace(it.Text)
@@ -429,7 +453,9 @@ func makeProveGoal(store Store, explorationID int64) Tool {
 				EvidenceID json.RawMessage `json:"evidence_id"`
 				Reason     string          `json:"reason"`
 			}
-			_ = json.Unmarshal(in, &a)
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
 			goal, ev := pid(a.GoalID), pid(a.EvidenceID)
 			if goal == 0 || ev == 0 {
 				return errResult("goal_id and evidence_id are required"), nil

@@ -578,6 +578,10 @@ func (t *Traffic) CACertPath() string {
 // Start runs the proxy (blocking); run in a goroutine.
 func (t *Traffic) Start() error { return t.proxy.Start() }
 
+// Shutdown stops the proxy listener gracefully, waiting for in-flight
+// connections to drain within the given context's deadline.
+func (t *Traffic) Shutdown(ctx context.Context) error { return t.proxy.Shutdown(ctx) }
+
 // Close waits for background tree reclamation to finish before closing the
 // index, so shutdown never leaves a goroutine unlinking files out from under a
 // removed data directory. Index-space reclamation is signalled to stop first:

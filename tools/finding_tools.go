@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 func RegisterFindingTools(reg *Registry, store Store, taskID, explorationID int64) {
@@ -37,6 +38,26 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 				AssetIDs  []json.RawMessage `json:"asset_ids"`
 			}
 			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
+			if strings.TrimSpace(a.VulnClass) == "" {
+				return errResult("vulnclass is required"), nil
+			}
+			if err := validateTextLen("vulnclass", a.VulnClass); err != nil {
+				return errResult(err.Error()), nil
+			}
+			sev := strings.ToLower(strings.TrimSpace(a.Severity))
+			if !validSeverities[sev] {
+				return errResult(fmt.Sprintf("severity %q is not valid (use critical/high/medium/low)", a.Severity)), nil
+			}
+			a.Severity = sev
+			if strings.TrimSpace(a.Summary) == "" {
+				return errResult("summary is required"), nil
+			}
+			if err := validateTextLen("summary", a.Summary); err != nil {
+				return errResult(err.Error()), nil
+			}
+			if err := validateTextLen("evidence", a.Evidence); err != nil {
 				return errResult(err.Error()), nil
 			}
 

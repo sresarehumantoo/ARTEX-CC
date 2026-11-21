@@ -32,6 +32,12 @@ func makeCreateEngagement(store Store) Tool {
 			if strings.TrimSpace(a.Goal) == "" {
 				return errResult("goal is required"), nil
 			}
+			if err := validateTextLen("goal", a.Goal); err != nil {
+				return errResult(err.Error()), nil
+			}
+			if err := validateTextLen("description", a.Description); err != nil {
+				return errResult(err.Error()), nil
+			}
 			desc := a.Description
 			if desc == "" {
 				desc = a.Goal
@@ -85,7 +91,9 @@ func makeEngagementStatus(store Store, defaultTaskID, defaultExplorationID int64
 			var a struct {
 				TaskID json.RawMessage `json:"task_id"`
 			}
-			_ = json.Unmarshal(in, &a)
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
 
 			taskID := pid(a.TaskID)
 			explorationID := defaultExplorationID

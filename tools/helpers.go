@@ -77,6 +77,22 @@ func pidList(raw []json.RawMessage) []int64 {
 	return out
 }
 
+const (
+	maxTextLen  = 10_000
+	maxBatchLen = 500
+)
+
+var validSeverities = map[string]bool{
+	"critical": true, "high": true, "medium": true, "low": true,
+}
+
+func validateTextLen(name, value string) error {
+	if len(value) > maxTextLen {
+		return fmt.Errorf("%s exceeds maximum length (%d bytes)", name, maxTextLen)
+	}
+	return nil
+}
+
 func splitLines(s string) []string {
 	var out []string
 	for _, line := range strings.Split(s, "\n") {
