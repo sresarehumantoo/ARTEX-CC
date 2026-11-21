@@ -18,6 +18,9 @@ type Store interface {
 	// Findings
 	AddFinding(ctx context.Context, f FindingInput) (int64, error)
 	ListFindings(ctx context.Context, explorationID int64) ([]Finding, error)
+	FindPotentialDuplicates(ctx context.Context, severity string, assetIDs []int64) ([]int64, error)
+	MergeFindings(ctx context.Context, primaryID int64, secondaryIDs []int64) (*MergedFinding, error)
+	DismissFinding(ctx context.Context, findingID int64, reason string) error
 
 	// Exploration graph
 	GraphOverview(ctx context.Context, explorationID int64) (*Overview, error)
@@ -181,6 +184,18 @@ type Finding struct {
 	Summary   string `json:"summary"`
 	State     string `json:"state,omitempty"`
 	Status    string `json:"status,omitempty"`
+}
+
+// MergedFinding is the result of merging multiple findings into one.
+type MergedFinding struct {
+	ID        int64   `json:"id"`
+	VulnClass string  `json:"vulnclass"`
+	Name      string  `json:"name"`
+	Severity  string  `json:"severity"`
+	Summary   string  `json:"summary"`
+	Evidence  string  `json:"evidence"`
+	AssetIDs  []int64 `json:"asset_ids"`
+	Status    string  `json:"status"`
 }
 
 // Overview is aggregated exploration state returned by GraphOverview.

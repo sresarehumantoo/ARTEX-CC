@@ -178,6 +178,18 @@ func (m *mockStore) ListActivity(_ context.Context, _ int64, _ ActivityFilter) (
 	return nil, nil
 }
 
+func (m *mockStore) FindPotentialDuplicates(_ context.Context, _ string, _ []int64) ([]int64, error) {
+	return nil, nil
+}
+
+func (m *mockStore) MergeFindings(_ context.Context, _ int64, _ []int64) (*MergedFinding, error) {
+	return nil, nil
+}
+
+func (m *mockStore) DismissFinding(_ context.Context, _ int64, _ string) error {
+	return nil
+}
+
 var _ Store = (*mockStore)(nil)
 
 func TestRegistryLookup(t *testing.T) {

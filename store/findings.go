@@ -23,8 +23,11 @@ type Finding struct {
 	Worker    string          `json:"worker"`
 	AssetIDs  json.RawMessage `json:"asset_ids"`
 	Status    string          `json:"status"`
-	Report    string          `json:"report"`
-	CreatedAt time.Time       `json:"created_at"`
+	Report        string          `json:"report"`
+	MergedInto    *int64          `json:"merged_into,omitempty"`
+	Dismissed     bool            `json:"dismissed"`
+	DismissReason string          `json:"dismiss_reason,omitempty"`
+	CreatedAt     time.Time       `json:"created_at"`
 }
 
 type FindingFilter struct {
@@ -35,13 +38,13 @@ type FindingFilter struct {
 	Offset   int
 }
 
-const findingSelectCols = `id, task_id, node_id, vulnclass, name, severity, summary, evidence, worker, asset_ids, status, report, created_at`
+const findingSelectCols = `id, task_id, node_id, vulnclass, name, severity, summary, evidence, worker, asset_ids, status, report, merged_into, dismissed, dismiss_reason, created_at`
 
 func scanFinding(row interface{ Scan(...any) error }) (Finding, error) {
 	var f Finding
 	err := row.Scan(&f.ID, &f.TaskID, &f.NodeID, &f.VulnClass, &f.Name,
 		&f.Severity, &f.Summary, &f.Evidence, &f.Worker, &f.AssetIDs,
-		&f.Status, &f.Report, &f.CreatedAt)
+		&f.Status, &f.Report, &f.MergedInto, &f.Dismissed, &f.DismissReason, &f.CreatedAt)
 	return f, err
 }
 
@@ -178,6 +181,8 @@ func (s *Store) ListFindingsForReport(ctx context.Context, explorationID int64) 
 		FROM findings f
 		JOIN tasks t ON t.id = f.task_id
 		WHERE t.exploration_id = $1
+		  AND f.dismissed = false
+		  AND f.merged_into IS NULL
 		ORDER BY f.created_at DESC`, explorationID)
 	if err != nil {
 		return nil, err
@@ -229,4 +234,141 @@ func (s *Store) FindingTrafficCount(ctx context.Context, findingID int64) (int, 
 	var count int
 	err := s.QueryRowContext(ctx, `SELECT COUNT(*) FROM finding_traffic_bindings WHERE finding_id = $1`, findingID).Scan(&count)
 	return count, err
+}
+
+func (s *Store) FindPotentialDuplicates(ctx context.Context, severity string, assetIDs []int64) ([]int64, error) {
+	if len(assetIDs) == 0 {
+		return nil, nil
+	}
+	assetJSON, err := json.Marshal(assetIDs)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.QueryContext(ctx, `
+		SELECT id FROM findings
+		WHERE severity = $1
+		  AND dismissed = false
+		  AND merged_into IS NULL
+		  AND asset_ids != '[]'::jsonb
+		  AND asset_ids ?| (
+			SELECT array_agg(elem::text)
+			FROM jsonb_array_elements($2::jsonb) AS elem
+		  )
+		ORDER BY created_at DESC`, severity, string(assetJSON))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs []int64) (*tools.MergedFinding, error) {
+	tx, err := s.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	var primary Finding
+	err = tx.QueryRowContext(ctx,
+		"SELECT "+findingSelectCols+" FROM findings WHERE id = $1 FOR UPDATE", primaryID,
+	).Scan(&primary.ID, &primary.TaskID, &primary.NodeID, &primary.VulnClass, &primary.Name,
+		&primary.Severity, &primary.Summary, &primary.Evidence, &primary.Worker, &primary.AssetIDs,
+		&primary.Status, &primary.Report, &primary.MergedInto, &primary.Dismissed, &primary.DismissReason, &primary.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("primary finding %d: %w", primaryID, err)
+	}
+
+	var primaryAssets []int64
+	_ = json.Unmarshal(primary.AssetIDs, &primaryAssets)
+	assetSet := map[int64]bool{}
+	for _, a := range primaryAssets {
+		assetSet[a] = true
+	}
+
+	var evidenceParts []string
+	if primary.Evidence != "" {
+		evidenceParts = append(evidenceParts, primary.Evidence)
+	}
+
+	for _, secID := range secondaryIDs {
+		if secID == primaryID {
+			continue
+		}
+		var sec Finding
+		err = tx.QueryRowContext(ctx,
+			"SELECT "+findingSelectCols+" FROM findings WHERE id = $1 FOR UPDATE", secID,
+		).Scan(&sec.ID, &sec.TaskID, &sec.NodeID, &sec.VulnClass, &sec.Name,
+			&sec.Severity, &sec.Summary, &sec.Evidence, &sec.Worker, &sec.AssetIDs,
+			&sec.Status, &sec.Report, &sec.MergedInto, &sec.Dismissed, &sec.DismissReason, &sec.CreatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("secondary finding %d: %w", secID, err)
+		}
+
+		var secAssets []int64
+		_ = json.Unmarshal(sec.AssetIDs, &secAssets)
+		for _, a := range secAssets {
+			if !assetSet[a] {
+				assetSet[a] = true
+				primaryAssets = append(primaryAssets, a)
+			}
+		}
+
+		if sec.Evidence != "" {
+			evidenceParts = append(evidenceParts, fmt.Sprintf("[merged from #%d]\n%s", secID, sec.Evidence))
+		}
+
+		_, err = tx.ExecContext(ctx,
+			"UPDATE findings SET merged_into = $1, status = $2 WHERE id = $3",
+			primaryID, FindingStatusDuplicate, secID)
+		if err != nil {
+			return nil, fmt.Errorf("mark secondary %d: %w", secID, err)
+		}
+	}
+
+	mergedAssetJSON, _ := json.Marshal(primaryAssets)
+	mergedEvidence := strings.Join(evidenceParts, "\n\n")
+
+	_, err = tx.ExecContext(ctx,
+		"UPDATE findings SET asset_ids = $1, evidence = $2 WHERE id = $3",
+		string(mergedAssetJSON), mergedEvidence, primaryID)
+	if err != nil {
+		return nil, fmt.Errorf("update primary: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return &tools.MergedFinding{
+		ID:        primaryID,
+		VulnClass: primary.VulnClass,
+		Name:      primary.Name,
+		Severity:  primary.Severity,
+		Summary:   primary.Summary,
+		Evidence:  mergedEvidence,
+		AssetIDs:  primaryAssets,
+		Status:    primary.Status,
+	}, nil
+}
+
+func (s *Store) DismissFinding(ctx context.Context, findingID int64, reason string) error {
+	res, err := s.ExecContext(ctx,
+		"UPDATE findings SET dismissed = true, dismiss_reason = $1, status = $2 WHERE id = $3",
+		reason, FindingStatusFalsePositive, findingID)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("finding %d not found", findingID)
+	}
+	return nil
 }
