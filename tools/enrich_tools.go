@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/SREsAreHumanToo/cc-artex/enrich"
 )
+
+const defaultEnrichTimeout = 30
 
 func RegisterEnrichTools(reg *Registry, store Store, taskID int64) {
 	reg.Register(makeEnrichDomain(store, taskID))
@@ -23,11 +26,13 @@ func makeEnrichDomain(store Store, taskID int64) Tool {
 			"Returns discovered facts and any new assets (IPs, subdomains from CNAMEs).",
 		ReadOnly: true,
 		Schema: obj(map[string]any{
-			"domain": str("domain or subdomain to enrich"),
+			"domain":  str("domain or subdomain to enrich"),
+			"timeout": intp("timeout in seconds (default 30)"),
 		}, "domain"),
 		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
 			var a struct {
-				Domain string `json:"domain"`
+				Domain  string `json:"domain"`
+				Timeout int    `json:"timeout"`
 			}
 			if err := json.Unmarshal(in, &a); err != nil {
 				return errResult("invalid input: " + err.Error()), nil
@@ -40,6 +45,12 @@ func makeEnrichDomain(store Store, taskID int64) Tool {
 			} else if !ok {
 				return errResult(fmt.Sprintf("enrichment blocked: target is out of scope (%s)", reason)), nil
 			}
+			timeout := a.Timeout
+			if timeout <= 0 {
+				timeout = defaultEnrichTimeout
+			}
+			ctx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+			defer cancel()
 			r, err := enrich.EnrichDomain(ctx, a.Domain)
 			if err != nil {
 				return errResult(err.Error()), nil
@@ -55,11 +66,13 @@ func makeEnrichIP(store Store, taskID int64) Tool {
 		Description: "Run reverse DNS on an IP address. Returns PTR records and any discovered hostnames as new assets.",
 		ReadOnly:    true,
 		Schema: obj(map[string]any{
-			"ip": str("IPv4 or IPv6 address"),
+			"ip":      str("IPv4 or IPv6 address"),
+			"timeout": intp("timeout in seconds (default 30)"),
 		}, "ip"),
 		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
 			var a struct {
-				IP string `json:"ip"`
+				IP      string `json:"ip"`
+				Timeout int    `json:"timeout"`
 			}
 			if err := json.Unmarshal(in, &a); err != nil {
 				return errResult("invalid input: " + err.Error()), nil
@@ -76,6 +89,12 @@ func makeEnrichIP(store Store, taskID int64) Tool {
 			} else if !ok {
 				return errResult(fmt.Sprintf("enrichment blocked: target is out of scope (%s)", reason)), nil
 			}
+			timeout := a.Timeout
+			if timeout <= 0 {
+				timeout = defaultEnrichTimeout
+			}
+			ctx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+			defer cancel()
 			r, err := enrich.EnrichIP(ctx, ip)
 			if err != nil {
 				return errResult(err.Error()), nil
@@ -93,15 +112,17 @@ func makeEnrichService(store Store, taskID int64) Tool {
 			"Scheme defaults to https for ports 443/8443, http otherwise.",
 		ReadOnly: true,
 		Schema: obj(map[string]any{
-			"host":   str("hostname or IP"),
-			"port":   intp("port number (1-65535)"),
-			"scheme": str("http or https (auto-detected from port if omitted)"),
+			"host":    str("hostname or IP"),
+			"port":    intp("port number (1-65535)"),
+			"scheme":  str("http or https (auto-detected from port if omitted)"),
+			"timeout": intp("timeout in seconds (default 30)"),
 		}, "host", "port"),
 		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
 			var a struct {
-				Host   string `json:"host"`
-				Port   int    `json:"port"`
-				Scheme string `json:"scheme"`
+				Host    string `json:"host"`
+				Port    int    `json:"port"`
+				Scheme  string `json:"scheme"`
+				Timeout int    `json:"timeout"`
 			}
 			if err := json.Unmarshal(in, &a); err != nil {
 				return errResult("invalid input: " + err.Error()), nil
@@ -117,6 +138,12 @@ func makeEnrichService(store Store, taskID int64) Tool {
 			} else if !ok {
 				return errResult(fmt.Sprintf("enrichment blocked: target is out of scope (%s)", reason)), nil
 			}
+			timeout := a.Timeout
+			if timeout <= 0 {
+				timeout = defaultEnrichTimeout
+			}
+			ctx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+			defer cancel()
 			r, err := enrich.EnrichService(ctx, a.Host, a.Port, a.Scheme)
 			if err != nil {
 				return errResult(err.Error()), nil

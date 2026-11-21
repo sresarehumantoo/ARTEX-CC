@@ -50,6 +50,7 @@ type Store interface {
 
 	// Coverage
 	RecordCoverage(ctx context.Context, taskID int64, entry CoverageEntry) error
+	ListCoverageGaps(ctx context.Context, taskID int64, explorationID int64) (*CoverageGaps, error)
 
 	// Engagements
 	CreateEngagement(ctx context.Context, goal, description string) (taskID int64, explorationID int64, err error)
@@ -283,6 +284,14 @@ type CoverageEntry struct {
 	Reason   string `json:"reason,omitempty"`
 	Worker   string `json:"worker,omitempty"`
 	IntentID int64  `json:"intent_id,omitempty"`
+}
+
+// CoverageGaps summarizes what hasn't been tested or recorded in the engagement.
+type CoverageGaps struct {
+	UntargetedAssets   []Asset `json:"untargeted_assets"`
+	UnresolvedIntents  []Node  `json:"unresolved_intents"`
+	UnprovenGoals      []Node  `json:"unproven_goals"`
+	UnenrichedServices []Asset `json:"unenriched_services"`
 }
 
 // EngagementSummary is a lightweight view of an engagement for list endpoints.

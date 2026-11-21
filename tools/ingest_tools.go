@@ -11,6 +11,7 @@ import (
 
 func RegisterIngestTools(reg *Registry, store Store, taskID, explorationID int64) {
 	reg.Register(makeIngestScannerOutput(store, taskID, explorationID))
+	reg.Register(makeIngestMasscan(store, taskID))
 }
 
 func makeIngestScannerOutput(store Store, taskID, explorationID int64) Tool {
@@ -149,4 +150,69 @@ func ingestAssetRef(a ingest.Asset) string {
 		return a.IP
 	}
 	return a.Type
+}
+
+func makeIngestMasscan(store Store, taskID int64) Tool {
+	return Tool{
+		Name: "ingest_masscan",
+		Description: "Parse masscan output (XML or JSON) and import discovered hosts and open ports as assets. " +
+			"Masscan produces nmap-compatible XML or its own JSON list format.",
+		Schema: obj(map[string]any{
+			"format": enm([]string{"xml", "json"}, "output format: xml or json"),
+			"data":   str("the masscan output to parse"),
+		}, "format", "data"),
+		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
+			var a struct {
+				Format string `json:"format"`
+				Data   string `json:"data"`
+			}
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
+			format := strings.ToLower(strings.TrimSpace(a.Format))
+			if format == "" {
+				return errResult("format is required"), nil
+			}
+			data := strings.TrimSpace(a.Data)
+			if data == "" {
+				return errResult("data is required"), nil
+			}
+
+			var results []ingest.Result
+			var err error
+			switch format {
+			case "xml":
+				results, err = ingest.ParseMasscanXML(strings.NewReader(data))
+			case "json":
+				results, err = ingest.ParseMasscanJSON(strings.NewReader(data))
+			default:
+				return errResult(fmt.Sprintf("unsupported format: %s (use xml or json)", format)), nil
+			}
+			if err != nil {
+				return errResult(fmt.Sprintf("parse masscan %s: %v", format, err)), nil
+			}
+
+			assetsCreated := 0
+			var errors []string
+			for _, r := range results {
+				for _, asset := range r.Assets {
+					input := ingestAssetToInput(asset)
+					if _, err := store.InsertAsset(ctx, taskID, input); err != nil {
+						errors = append(errors, fmt.Sprintf("asset %s: %v", ingestAssetRef(asset), err))
+						continue
+					}
+					assetsCreated++
+				}
+			}
+
+			out := map[string]any{
+				"assets_created":   assetsCreated,
+				"findings_created": 0,
+			}
+			if len(errors) > 0 {
+				out["errors"] = errors
+			}
+			return jsonResult(out)
+		},
+	}
 }

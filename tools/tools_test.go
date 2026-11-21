@@ -206,6 +206,10 @@ func (m *mockStore) DismissFinding(_ context.Context, _ int64, _ string) error {
 	return nil
 }
 
+func (m *mockStore) ListCoverageGaps(_ context.Context, _ int64, _ int64) (*CoverageGaps, error) {
+	return &CoverageGaps{}, nil
+}
+
 var _ Store = (*mockStore)(nil)
 
 func TestRegistryLookup(t *testing.T) {
