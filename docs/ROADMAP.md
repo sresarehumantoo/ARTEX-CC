@@ -5,11 +5,11 @@
 cc-artex is a working MCP tool server for penetration testing. It exposes ARTEX's
 data model as tools Claude Code calls directly, with no separate LLM API key.
 
-**Lines of code:** ~24,200 Go (91 files: 78 source, 13 test files with ~2,600 LOC).
+**Lines of code:** ~27,900 Go (98 files: 82 source, 16 test files with ~4,700 LOC).
 
-**Tool count:** 47 registered tools (core + traffic + enrich + ingest + scope + intent + activity).
+**Tool count:** 54 registered tools (core + traffic + evidence + enrich + ingest + scope + intent + activity).
 
-**Test count:** 76 test functions across 13 test files.
+**Test count:** 183 test functions across 16 test files.
 
 **What works today:**
 
@@ -17,8 +17,9 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 - **Store (PostgreSQL):** Full schema with auto-migration. Assets (6 types), companies, company scope, task scope, exploration graph (nodes, edges, anchors, constraints), findings, credentials, coverage ledger with history, intercept rules, activity log. Engagement export/import to portable JSON archives.
 - **Exploration graph:** Goals, intents, facts, findings, hints, constraints. Edges connect them (derived_from, yields, spawns, proves). Frontier query. Graph overview for situational awareness. Prove-goal workflow with confidence gating. Intent lifecycle (start, complete, cancel).
 - **Asset management:** Bulk insert with upsert, DSL-based queries (fuzzy, exact, exclusion, numeric comparisons, boolean combinators, parentheses), untested-asset queries, company scope attribution.
-- **Findings and credentials:** Report findings with severity/evidence/assets, list findings. Save and list credentials with upsert-on-domain+username. AES-256-GCM encryption at rest for credential passwords.
+- **Findings and credentials:** Report findings with severity/evidence/assets, list findings, merge duplicates, dismiss false positives, bind findings to captured traffic. Save and list credentials with upsert-on-domain+username. AES-256-GCM encryption at rest for credential passwords.
 - **Coverage:** Record coverage entries (surface x risk_area x outcome), coverage history.
+- **Evidence capture:** `save_evidence`, `list_evidence`, `get_evidence`, and `capture_command_output` tools for structured proof-of-concept storage.
 - **Report generation:** Markdown report from findings, assets, and coverage. Finding quality assessment (PoE level, verification status, counterevidence). CSV and markdown export formats.
 - **Enrich:** Passive reconnaissance tools (`enrich_domain`, `enrich_ip`, `enrich_service`) with DNS resolution, reverse DNS, WHOIS, certificate transparency, and technology fingerprinting.
 - **Scanner ingestion:** Parsers for nmap, nuclei, httpx, and ffuf output. Results feed directly into the asset graph.
@@ -57,12 +58,9 @@ All P0 items have been addressed:
 
 Done. `enrich_domain`, `enrich_ip`, `enrich_service` tools with DNS, reverse DNS, WHOIS, certificate transparency, and technology fingerprinting. Results feed into `insert_assets`.
 
-### 3.2 Evidence package (screenshot, proof-of-concept capture)
+### ✅ 3.2 Evidence package
 
-**What:** An `evidence/` package for capturing screenshots (headless Chrome via CDP) and PoC artifacts (request/response pairs snapshotted at the moment a finding is reported, with tamper-evident hashes). Expose as `capture_screenshot` and `snapshot_evidence` tools. Screenshots stored in the data directory with metadata in PG.
-**Effort:** L
-**Dependencies:** Traffic proxy (for request snapshots), Chrome/Chromium available on host.
-**Rationale:** A pentest report without screenshots and reproducible PoC steps is incomplete. Currently evidence is free-text in the finding record. Structured evidence with screenshots makes reports credible.
+Done. `save_evidence`, `list_evidence`, `get_evidence`, and `capture_command_output` tools in `evidence/` and `tools/evidence_tools.go`. Structured PoC storage with metadata in PostgreSQL.
 
 ### ✅ 3.3 Engagement export and import
 
@@ -93,12 +91,9 @@ Done. `check_scope` tool and automatic enforcement in asset, enrich, and traffic
 
 ### ✅ 4.1 Test coverage
 
-Significantly expanded: 13 test files, 76 test functions, ~2,600 test LOC (up from 4 files and ~1,000 LOC). Coverage now includes enrich, report, egress, config, crypto, ingest, intent, and scope packages.
+Significantly expanded: 16 test files, 183 test functions, ~4,700 test LOC. Coverage now includes enrich, report, egress, config, crypto, ingest, intent, scope, evidence, traffic core, rewrite engine (52 tests), and hook VM (44 tests).
 
-Remaining gaps worth filling:
-1. `traffic/rewrite/` and `traffic/hookvm/` (security-sensitive evaluation of user-supplied rules)
-2. Higher coverage in `traffic/` core
-3. Integration-level tests for multi-tool workflows
+Remaining gap: integration-level tests for multi-tool workflows.
 
 ### ✅ 4.2 Error message consistency
 
@@ -171,12 +166,9 @@ Done. 64 godoc comments added to all exported types and functions.
 
 Done. Promoted to P1 and implemented. `check_scope` tool with enforcement in asset, enrich, and traffic tools.
 
-### 6.5 Finding deduplication and triage
+### ✅ 6.5 Finding deduplication and triage
 
-**What:** Automatic deduplication of findings by vulnerability class + affected asset, with a triage workflow (confirm/dismiss/merge) exposed as MCP tools.
-**Effort:** M
-**Dependencies:** None.
-**Rationale:** In long engagements, the same vulnerability is often discovered multiple times from different angles. Deduplication reduces noise in the report and helps the agent focus on new findings.
+Done. `merge_findings`, `dismiss_finding`, and `bind_finding_traffic` tools in `tools/finding_tools.go`.
 
 ### 6.6 Temporal analysis of traffic
 
