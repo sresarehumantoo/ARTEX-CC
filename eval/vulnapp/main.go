@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -37,7 +38,7 @@ func main() {
 	if v := os.Getenv("LISTEN_ADDR"); v != "" {
 		addr = v
 	}
-	log.Printf("vulnapp listening on %s", addr)
+	slog.Info("vulnapp listening", "addr", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
