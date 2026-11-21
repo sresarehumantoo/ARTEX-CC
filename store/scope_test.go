@@ -1,6 +1,9 @@
 package store
 
-import "testing"
+import (
+	"net"
+	"testing"
+)
 
 func TestMatchesDomain(t *testing.T) {
 	t.Parallel()
@@ -150,4 +153,204 @@ func TestParseScopeCheckRule(t *testing.T) {
 			t.Error("expected nil rule for keyword kind")
 		}
 	})
+}
+
+func TestScopeCIDRContainment(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		cidr    string
+		ip      string
+		matches bool
+	}{
+		{"inside /24", "10.0.0.0/24", "10.0.0.5", true},
+		{"first address", "10.0.0.0/24", "10.0.0.0", true},
+		{"last address", "10.0.0.0/24", "10.0.0.255", true},
+		{"outside /24", "10.0.0.0/24", "10.0.1.1", false},
+		{"wide /16", "172.16.0.0/16", "172.16.255.254", true},
+		{"outside /16", "172.16.0.0/16", "172.17.0.1", false},
+		{"single host /32", "10.10.10.1/32", "10.10.10.1", true},
+		{"miss /32", "10.10.10.1/32", "10.10.10.2", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := parseScopeCheckRule("cidr", "", tt.cidr)
+			if r == nil {
+				t.Fatal("expected non-nil rule")
+			}
+			ip := net.ParseIP(tt.ip)
+			if ip == nil {
+				t.Fatalf("bad test IP: %s", tt.ip)
+			}
+			got := r.net.Contains(ip)
+			if got != tt.matches {
+				t.Errorf("CIDR %s contains %s = %v, want %v", tt.cidr, tt.ip, got, tt.matches)
+			}
+		})
+	}
+}
+
+func TestScopeDomainSuffixMatching(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		target  string
+		rule    string
+		matches bool
+	}{
+		{"exact root", "example.com", "example.com", true},
+		{"subdomain of root", "sub.example.com", "example.com", true},
+		{"deep subdomain", "a.b.c.example.com", "example.com", true},
+		{"different domain", "other.com", "example.com", false},
+		{"partial suffix", "notexample.com", "example.com", false},
+		{"rule is subdomain", "example.com", "sub.example.com", false},
+		{"exact subdomain match", "app.example.com", "app.example.com", true},
+		{"sub of subdomain", "dev.app.example.com", "app.example.com", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := matchesDomain(tt.target, tt.rule)
+			if got != tt.matches {
+				t.Errorf("matchesDomain(%q, %q) = %v, want %v", tt.target, tt.rule, got, tt.matches)
+			}
+		})
+	}
+}
+
+func TestScopeURLTargetExtraction(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		target string
+		want   string
+	}{
+		{"https with path", "https://example.com/path/to/resource", "example.com"},
+		{"http with port and path", "http://example.com:8080/api/v1", "example.com"},
+		{"https with query", "https://example.com/search?q=test&page=1", "example.com"},
+		{"IP URL", "https://10.10.10.1:443/admin", "10.10.10.1"},
+		{"bare domain", "example.com", "example.com"},
+		{"bare IP", "192.168.1.1", "192.168.1.1"},
+		{"host:port", "example.com:443", "example.com"},
+		{"ipv6 URL", "https://[2001:db8::1]:8443/", "2001:db8::1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractScopeTarget(tt.target)
+			if got != tt.want {
+				t.Errorf("extractScopeTarget(%q) = %q, want %q", tt.target, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestScopeMixedRuleMatching(t *testing.T) {
+	t.Parallel()
+
+	rules := []scopeCheckRule{}
+
+	domainRule := parseScopeCheckRule("root_domain", "example.com", "")
+	if domainRule != nil {
+		rules = append(rules, *domainRule)
+	}
+	cidrRule := parseScopeCheckRule("cidr", "", "10.0.0.0/8")
+	if cidrRule != nil {
+		rules = append(rules, *cidrRule)
+	}
+	subRule := parseScopeCheckRule("subdomain", "specific.other.com", "")
+	if subRule != nil {
+		rules = append(rules, *subRule)
+	}
+
+	tests := []struct {
+		name    string
+		target  string
+		matches bool
+	}{
+		{"domain in scope", "sub.example.com", true},
+		{"exact domain", "example.com", true},
+		{"IP in CIDR", "10.10.10.5", true},
+		{"IP outside CIDR", "192.168.1.1", false},
+		{"specific subdomain", "specific.other.com", true},
+		{"other subdomain not in scope", "admin.other.com", false},
+		{"unrelated domain", "evil.com", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			host := extractScopeTarget(tt.target)
+			ip := net.ParseIP(host)
+			matched := false
+			for _, r := range rules {
+				if ip != nil && r.net != nil {
+					if r.net.Contains(ip) {
+						matched = true
+						break
+					}
+					continue
+				}
+				if ip == nil && r.domain != "" {
+					if matchesDomain(host, r.domain) {
+						matched = true
+						break
+					}
+				}
+			}
+			if matched != tt.matches {
+				t.Errorf("target %q: matched = %v, want %v", tt.target, matched, tt.matches)
+			}
+		})
+	}
+}
+
+func TestScopeEmptyRulesPermissive(t *testing.T) {
+	t.Parallel()
+	var rules []scopeCheckRule
+
+	targets := []string{"anything.com", "10.10.10.1", "https://evil.com/hack"}
+	for _, target := range targets {
+		host := extractScopeTarget(target)
+		if host == "" {
+			t.Errorf("extractScopeTarget(%q) returned empty", target)
+			continue
+		}
+		if len(rules) != 0 {
+			t.Fatal("rules should be empty for this test")
+		}
+	}
+}
+
+func TestScopeIPSingleHostCIDR(t *testing.T) {
+	t.Parallel()
+
+	r := parseScopeCheckRule("ip", "", "10.10.10.42/32")
+	if r == nil {
+		t.Fatal("expected non-nil rule for /32 CIDR")
+	}
+	exact := net.ParseIP("10.10.10.42")
+	neighbor := net.ParseIP("10.10.10.43")
+	if !r.net.Contains(exact) {
+		t.Error("/32 should contain the exact IP")
+	}
+	if r.net.Contains(neighbor) {
+		t.Error("/32 should not contain a neighboring IP")
+	}
+}
+
+func TestScopeInvalidCIDR(t *testing.T) {
+	t.Parallel()
+	r := parseScopeCheckRule("cidr", "", "not-a-cidr")
+	if r != nil {
+		t.Error("expected nil rule for invalid CIDR")
+	}
+}
+
+func TestScopeDomainKindAlias(t *testing.T) {
+	t.Parallel()
+	r := parseScopeCheckRule("domain", "example.com", "")
+	if r == nil {
+		t.Fatal("expected non-nil rule for 'domain' kind")
+	}
+	if r.domain != "example.com" {
+		t.Errorf("domain = %q, want %q", r.domain, "example.com")
+	}
 }
