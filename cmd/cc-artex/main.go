@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/SREsAreHumanToo/cc-artex/config"
 	"github.com/SREsAreHumanToo/cc-artex/mcpserver"
 	"github.com/SREsAreHumanToo/cc-artex/store"
 	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/cc-artex/traffic"
 )
 
 var version = "v0.1.0-dev"
@@ -64,6 +66,7 @@ func cmdServe(args []string) {
 	stdio := fs.Bool("stdio", false, "use stdio transport instead of HTTP")
 	pg := pgDSN(fs)
 	dataDir := fs.String("data", ".", "data directory for traffic, evidence, etc.")
+	proxyAddr := fs.String("proxy", "", "start the recording proxy on ADDR (e.g., :8788)")
 	fs.Parse(args)
 
 	dsn := resolvePG(*pg)
@@ -90,6 +93,24 @@ func cmdServe(args []string) {
 
 	reg := tools.NewRegistry()
 	tools.RegisterAll(reg, s, engCfg.TaskID, engCfg.ExplorationID)
+
+	var t *traffic.Traffic
+	if *proxyAddr != "" {
+		trafficDir := filepath.Join(*dataDir, "traffic")
+		t, err = traffic.Open(trafficDir, *proxyAddr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error opening traffic proxy: %v\n", err)
+			os.Exit(1)
+		}
+		defer t.Close()
+		go func() {
+			if err := t.Start(); err != nil && ctx.Err() == nil {
+				fmt.Fprintf(os.Stderr, "traffic proxy error: %v\n", err)
+			}
+		}()
+		tools.RegisterTrafficTools(reg, t)
+		fmt.Fprintf(os.Stderr, "recording proxy on %s (CA cert: %s)\n", *proxyAddr, t.CACertPath())
+	}
 
 	srv := mcpserver.New(reg, mcpserver.WithEngagement(s, engCfg.TaskID, engCfg.ExplorationID))
 	if *stdio {
@@ -146,11 +167,26 @@ func cmdInit(args []string) {
 		os.Exit(1)
 	}
 
+	certPath, err := generateCA(*dataDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to generate CA certificate: %v\n", err)
+	}
+
 	fmt.Printf("Engagement created:\n")
 	fmt.Printf("  Task ID:        %d\n", taskID)
 	fmt.Printf("  Exploration ID: %d\n", explorationID)
 	fmt.Printf("  Config written: %s/.cc-artex.json\n", *dataDir)
 	fmt.Println()
+	if certPath != "" {
+		fmt.Printf("  CA certificate: %s\n", certPath)
+		fmt.Println()
+		fmt.Println("Trust the CA certificate so the recording proxy can intercept HTTPS:")
+		fmt.Println()
+		fmt.Println("  Linux:   sudo cp " + certPath + " /usr/local/share/ca-certificates/cc-artex.crt && sudo update-ca-certificates")
+		fmt.Println("  macOS:   sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain " + certPath)
+		fmt.Println("  Windows: certutil -addstore Root " + certPath)
+		fmt.Println()
+	}
 	fmt.Println("Add to your Claude Code MCP config:")
 	fmt.Println()
 	fmt.Printf(`  { "mcpServers": { "cc-artex": { "command": "cc-artex", "args": ["serve", "--stdio", "--pg", %q] } } }`, dsn)
