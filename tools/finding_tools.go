@@ -121,6 +121,13 @@ func makeListFindings(store Store, explorationID int64) Tool {
 				if f.Status != "" {
 					m["status"] = f.Status
 				}
+				if f.Dismissed {
+					m["dismissed"] = true
+					m["dismiss_reason"] = f.DismissReason
+				}
+				if f.MergedInto > 0 {
+					m["merged_into"] = f.MergedInto
+				}
 				if tc, err := store.FindingTrafficCount(ctx, f.ID); err == nil && tc > 0 {
 					m["traffic_count"] = tc
 				}

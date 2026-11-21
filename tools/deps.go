@@ -50,6 +50,7 @@ type Store interface {
 
 	// Coverage
 	RecordCoverage(ctx context.Context, taskID int64, entry CoverageEntry) error
+	ListCoverageGaps(ctx context.Context, taskID int64, explorationID int64) (*CoverageGaps, error)
 
 	// Engagements
 	CreateEngagement(ctx context.Context, goal, description string) (taskID int64, explorationID int64, err error)
@@ -178,13 +179,16 @@ type FindingInput struct {
 
 // Finding is a stored vulnerability finding.
 type Finding struct {
-	ID        int64  `json:"id"`
-	NodeID    int64  `json:"node_id,omitempty"`
-	VulnClass string `json:"vulnclass,omitempty"`
-	Severity  string `json:"severity,omitempty"`
-	Summary   string `json:"summary"`
-	State     string `json:"state,omitempty"`
-	Status    string `json:"status,omitempty"`
+	ID            int64  `json:"id"`
+	NodeID        int64  `json:"node_id,omitempty"`
+	VulnClass     string `json:"vulnclass,omitempty"`
+	Severity      string `json:"severity,omitempty"`
+	Summary       string `json:"summary"`
+	State         string `json:"state,omitempty"`
+	Status        string `json:"status,omitempty"`
+	MergedInto    int64  `json:"merged_into,omitempty"`
+	Dismissed     bool   `json:"dismissed,omitempty"`
+	DismissReason string `json:"dismiss_reason,omitempty"`
 }
 
 // MergedFinding is the result of merging multiple findings into one.
@@ -209,8 +213,10 @@ type Overview struct {
 	RecentDone       []map[string]any `json:"recent_done_intents,omitempty"`
 	DoneIntentsTotal int              `json:"done_intents_total"`
 	FrontierOpen     int              `json:"frontier_open"`
-	FindingsTotal    int              `json:"findings_total"`
-	FactsTotal       int              `json:"facts"`
+	FindingsTotal     int              `json:"findings_total"`
+	FindingsDismissed int              `json:"findings_dismissed"`
+	FindingsMerged    int              `json:"findings_merged"`
+	FactsTotal        int              `json:"facts"`
 	FindingList      []map[string]any `json:"finding_list,omitempty"`
 	RecentFacts      []map[string]any `json:"recent_facts,omitempty"`
 	Coverage         map[string]any   `json:"coverage,omitempty"`
@@ -275,6 +281,14 @@ type CoverageEntry struct {
 	Reason   string `json:"reason,omitempty"`
 	Worker   string `json:"worker,omitempty"`
 	IntentID int64  `json:"intent_id,omitempty"`
+}
+
+// CoverageGaps summarizes what hasn't been tested or recorded in the engagement.
+type CoverageGaps struct {
+	UntargetedAssets   []Asset          `json:"untargeted_assets"`
+	UnresolvedIntents  []Node           `json:"unresolved_intents"`
+	UnprovenGoals      []Node           `json:"unproven_goals"`
+	UnenrichedServices []Asset          `json:"unenriched_services"`
 }
 
 // EngagementSummary is a lightweight view of an engagement for list endpoints.

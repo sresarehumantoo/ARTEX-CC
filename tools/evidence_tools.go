@@ -67,6 +67,10 @@ func makeSaveEvidence(es *evidence.Store, store Store, taskID int64) Tool {
 				return errResult(fmt.Sprintf("finding %d not found", findingID)), nil
 			}
 
+			if len(a.ContentBase64) > maxEvidenceBase64Len {
+				return errResult(fmt.Sprintf("content_base64 exceeds %dMB limit", maxEvidenceBytes/(1024*1024))), nil
+			}
+
 			data, err := base64.StdEncoding.DecodeString(a.ContentBase64)
 			if err != nil {
 				return errResult("invalid base64: " + err.Error()), nil
@@ -179,7 +183,11 @@ func makeGetEvidence(es *evidence.Store) Tool {
 	}
 }
 
-const commandTimeout = 30 * time.Second
+const (
+	maxEvidenceBytes     = 50 * 1024 * 1024
+	maxEvidenceBase64Len = maxEvidenceBytes * 4 / 3
+	commandTimeout       = 30 * time.Second
+)
 
 func makeCaptureCommandOutput(es *evidence.Store, store Store, taskID int64) Tool {
 	return Tool{
