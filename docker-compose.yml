@@ -20,7 +20,8 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      CC_ARTEX_PG: postgres://${POSTGRES_USER:-ccartex}:${POSTGRES_PASSWORD:-ccartex}@postgres:5432/${POSTGRES_DB:-ccartex}?sslmode=disable
+      # Set CC_ARTEX_PG on the host to point at an external database
+      CC_ARTEX_PG: ${CC_ARTEX_PG:-postgres://ccartex:ccartex@postgres:5432/ccartex?sslmode=disable}
       CC_ARTEX_GOAL: ${CC_ARTEX_GOAL:-Pentest engagement}
     ports:
       - "127.0.0.1:9400:9400"

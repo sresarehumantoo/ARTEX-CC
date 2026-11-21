@@ -81,10 +81,16 @@ func cmdServe(args []string) {
 	stdio := fs.Bool("stdio", false, "use stdio transport instead of HTTP")
 	webUI := fs.Bool("web", false, "enable web UI and REST API")
 	debug := fs.Bool("debug", false, "enable debug-level logging")
+	showVersion := fs.Bool("version", false, "print version and exit")
 	pg := pgDSN(fs)
 	dataDir := fs.String("data", ".", "data directory for traffic, evidence, etc.")
 	proxyAddr := fs.String("proxy", "", "start the recording proxy on ADDR (e.g., :8788)")
 	fs.Parse(args)
+
+	if *showVersion {
+		fmt.Println("cc-artex " + version)
+		return
+	}
 
 	initLogging(*debug)
 
@@ -213,11 +219,17 @@ func shutdown(t *traffic.Traffic, s *store.Store) {
 
 func cmdInit(args []string) {
 	fs := flag.NewFlagSet("init", flag.ExitOnError)
+	showVersion := fs.Bool("version", false, "print version and exit")
 	pg := pgDSN(fs)
 	goal := fs.String("goal", "", "engagement goal")
 	desc := fs.String("description", "", "target description")
 	dataDir := fs.String("data", ".", "data directory for config file")
 	fs.Parse(args)
+
+	if *showVersion {
+		fmt.Println("cc-artex " + version)
+		return
+	}
 
 	initLogging(false)
 
