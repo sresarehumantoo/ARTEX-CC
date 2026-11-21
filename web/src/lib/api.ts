@@ -1,4 +1,4 @@
-import type { EngagementData, GraphData, Finding, FindingDetail, Asset, TrafficPage, TrafficDetail, Activity } from './types'
+import type { EngagementData, GraphData, Finding, FindingDetail, Asset, TrafficPage, TrafficDetail, Activity, CoverageStats, CoverageGaps } from './types'
 
 export type { Asset } from './types'
 
@@ -78,4 +78,12 @@ export function getTrafficDetail(id: string) {
 
 export function getActivity(params?: { limit?: string; kind?: string; node_id?: string }) {
   return fetchJSON<Activity[]>(`${BASE}/activity`, params)
+}
+
+export function getCoverage() {
+  return fetchJSON<CoverageStats>(`${BASE}/coverage`)
+}
+
+export function getCoverageGaps() {
+  return fetchJSON<CoverageGaps>(`${BASE}/coverage/gaps`)
 }

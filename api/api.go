@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/SREsAreHumanToo/cc-artex/store"
 	"github.com/SREsAreHumanToo/cc-artex/tools"
 	"github.com/SREsAreHumanToo/cc-artex/traffic"
 )
@@ -48,6 +49,8 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /api/traffic/{id}", a.handleTrafficDetail)
 	mux.HandleFunc("GET /api/search", a.handleSearch)
 	mux.HandleFunc("GET /api/activity", a.handleActivity)
+	mux.HandleFunc("GET /api/coverage", a.handleCoverage)
+	mux.HandleFunc("GET /api/coverage/gaps", a.handleCoverageGaps)
 	mux.HandleFunc("GET /api/events", a.handleSSE)
 	return corsMiddleware(mux)
 }
@@ -561,4 +564,35 @@ func (a *API) handleSSE(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+type coverageStatter interface {
+	CoverageStats(taskID int64) (*store.CoverageStats, error)
+}
+
+func (a *API) handleCoverage(w http.ResponseWriter, r *http.Request) {
+	cs, ok := a.store.(coverageStatter)
+	if !ok {
+		jsonResponse(w, http.StatusOK, store.CoverageStats{
+			Entries:    []store.CoverageEntry{},
+			Gaps:       []store.CoverageGap{},
+			Unexamined: []string{},
+		})
+		return
+	}
+	stats, err := cs.CoverageStats(a.taskID)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	jsonResponse(w, http.StatusOK, stats)
+}
+
+func (a *API) handleCoverageGaps(w http.ResponseWriter, r *http.Request) {
+	gaps, err := a.store.ListCoverageGaps(r.Context(), a.taskID, a.explorationID)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	jsonResponse(w, http.StatusOK, gaps)
 }

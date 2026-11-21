@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, ExternalLink, Search, Shield, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Copy, ExternalLink, GitBranch, Search, Shield, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ExportDropdown } from '../components/ExportDropdown'
@@ -18,6 +18,16 @@ import { exportCSV, exportJSON } from '../lib/export'
 import { generateReport } from '../lib/report'
 import type { Finding, Severity } from '../lib/types'
 import { cn } from '../lib/utils'
+
+function relativeTime(iso: string): string {
+  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
 
 const SEVERITY_ORDER: Record<Severity, number> = {
   critical: 0,
@@ -343,8 +353,9 @@ export default function Findings() {
         {/* Detail panel: full-screen overlay on mobile, side panel on md+ */}
         {selectedId !== null && (
           <div className={cn(
-            'fixed inset-0 z-40 overflow-y-auto bg-white dark:bg-slate-900',
-            'md:static md:inset-auto md:z-auto md:w-96 md:shrink-0 md:overflow-hidden md:rounded-lg md:border md:border-slate-200 md:dark:border-slate-800'
+            'fixed inset-0 z-40 overflow-y-auto bg-white dark:bg-slate-900 border-l-4',
+            'md:static md:inset-auto md:z-auto md:w-96 md:shrink-0 md:overflow-hidden md:rounded-lg md:border md:border-l-4 md:border-slate-200 md:dark:border-slate-800',
+            detail ? severityRingClass(detail.severity) : 'border-slate-300',
           )}>
             <DetailPanel
               detail={detail ?? null}
@@ -419,6 +430,16 @@ function DetailPanel({
   loading: boolean
   onClose: () => void
 }) {
+  const [copied, setCopied] = useState(false)
+
+  const copyFindingId = useCallback(() => {
+    if (!detail) return
+    navigator.clipboard.writeText(`FINDING-${detail.id}`).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }, [detail])
+
   if (loading || !detail) {
     return (
       <div className="flex h-64 items-center justify-center"><Spinner className="h-8 w-8" /></div>
@@ -443,7 +464,23 @@ function DetailPanel({
 
         <div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{detail.vulnclass}</h2>
-          <p className="mt-1 text-xs text-slate-500">Finding #{detail.id}</p>
+          <div className="mt-1 flex items-center gap-1.5">
+            <span className="text-xs text-slate-500">Finding #{detail.id}</span>
+            <button
+              type="button"
+              onClick={copyFindingId}
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              title="Copy finding ID"
+            >
+              <Copy className="h-3 w-3" />
+            </button>
+            {copied && <span className="text-xs text-emerald-500">Copied</span>}
+          </div>
+          {detail.created_at && (
+            <p className="mt-0.5 text-xs text-slate-400" title={new Date(detail.created_at).toLocaleString()}>
+              {relativeTime(detail.created_at)}
+            </p>
+          )}
         </div>
 
         <div>
@@ -462,7 +499,16 @@ function DetailPanel({
           </div>
           <div>
             <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">Node</h3>
-            <span className="font-mono text-sm text-slate-700 dark:text-slate-300">{detail.node_id}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-sm text-slate-700 dark:text-slate-300">{detail.node_id}</span>
+              <Link
+                to={`/graph?focus=${detail.node_id}`}
+                className="text-slate-400 hover:text-blue-500 dark:hover:text-blue-400"
+                title="View in graph"
+              >
+                <GitBranch className="h-3.5 w-3.5" />
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -507,6 +553,10 @@ function DetailPanel({
             </div>
           </div>
         )}
+
+        <div className="mt-2 border-t border-slate-200 dark:border-slate-800 pt-3 text-center text-xs text-slate-400">
+          <kbd className="font-sans">↑↓</kbd> navigate · <kbd className="font-sans">Esc</kbd> close
+        </div>
       </div>
     </ScrollArea>
   )

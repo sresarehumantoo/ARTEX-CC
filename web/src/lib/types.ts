@@ -64,6 +64,7 @@ export interface TrafficBinding {
 }
 
 export interface FindingDetail extends Finding {
+  created_at?: string
   traffic_bindings: TrafficBinding[]
 }
 
@@ -109,4 +110,33 @@ export interface TrafficDetail {
   id: string
   request: string
   response: string
+}
+
+export interface CoverageEntry {
+  surface: string
+  risk_area: string
+  outcome: string
+  evidence: string
+  reason: string
+  worker?: string
+  updated_at: string
+}
+
+export interface CoverageGap {
+  kind: string
+  surface?: string
+  risk_area: string
+}
+
+export interface CoverageStats {
+  entries: CoverageEntry[]
+  gaps: CoverageGap[]
+  unexamined: string[]
+}
+
+export interface CoverageGaps {
+  untargeted_assets: Asset[]
+  unresolved_intents: GraphNode[]
+  unproven_goals: GraphNode[]
+  unenriched_services: Asset[]
 }
