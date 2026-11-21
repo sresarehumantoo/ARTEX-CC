@@ -9,12 +9,12 @@ import (
 	"github.com/SREsAreHumanToo/cc-artex/traffic"
 )
 
-func RegisterTrafficTools(reg *Registry, t *traffic.Traffic) {
+func RegisterTrafficTools(reg *Registry, t *traffic.Traffic, store Store, taskID int64) {
 	reg.Register(makeTrafficSearch(t))
 	reg.Register(makeTrafficGet(t))
 	reg.Register(makeTrafficBlob(t))
 	reg.Register(makeTrafficMessages(t))
-	reg.Register(makeTrafficReplay(t))
+	reg.Register(makeTrafficReplay(t, store, taskID))
 	reg.Register(makeTrafficHosts(t))
 	reg.Register(makeTrafficHARExport(t))
 }
@@ -212,7 +212,7 @@ func makeTrafficMessages(t *traffic.Traffic) Tool {
 	}
 }
 
-func makeTrafficReplay(t *traffic.Traffic) Tool {
+func makeTrafficReplay(t *traffic.Traffic, store Store, taskID int64) Tool {
 	return Tool{
 		Name: "traffic_replay",
 		Description: "Replay a captured HTTP request (optionally with modifications). " +
@@ -247,6 +247,20 @@ func makeTrafficReplay(t *traffic.Traffic) Tool {
 				return errResult("exchange not found: " + err.Error()), nil
 			}
 			method, reqURL, headers, body := parseRawRequest(req)
+
+			replayTarget := reqURL
+			if a.ModifyURL != "" {
+				replayTarget = a.ModifyURL
+			}
+			if store != nil && replayTarget != "" {
+				ok, reason, _, scopeErr := store.IsInScope(ctx, taskID, replayTarget)
+				if scopeErr != nil {
+					return errResult("scope check failed: " + scopeErr.Error()), nil
+				}
+				if !ok {
+					return errResult(fmt.Sprintf("replay blocked: target is out of scope (%s)", reason)), nil
+				}
+			}
 
 			if a.ModifyMethod != "" {
 				method = a.ModifyMethod

@@ -115,6 +115,28 @@ func (s *Store) UpdateNodeState(ctx context.Context, nodeID int64, state string)
 	return err
 }
 
+func (s *Store) UpdateNodeFields(ctx context.Context, nodeID int64, state string, payloadMerge map[string]any) error {
+	if state != "" {
+		if _, err := s.ExecContext(ctx,
+			`UPDATE exploration_nodes SET state = $1 WHERE id = $2`,
+			state, nodeID); err != nil {
+			return err
+		}
+	}
+	if len(payloadMerge) > 0 {
+		merge, err := json.Marshal(payloadMerge)
+		if err != nil {
+			return err
+		}
+		if _, err := s.ExecContext(ctx,
+			`UPDATE exploration_nodes SET payload = payload || $1::jsonb WHERE id = $2`,
+			string(merge), nodeID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *Store) AddEdge(ctx context.Context, from int64, rel string, to int64) error {
 	var explorationID int64
 	err := s.QueryRowContext(ctx,

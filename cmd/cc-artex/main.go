@@ -130,7 +130,7 @@ func cmdServe(args []string) {
 				slog.Error("traffic proxy failed", "err", err)
 			}
 		}()
-		tools.RegisterTrafficTools(reg, t)
+		tools.RegisterTrafficTools(reg, t, s, engCfg.TaskID)
 		slog.Info("recording proxy started", "addr", *proxyAddr, "ca_cert", t.CACertPath())
 	}
 
