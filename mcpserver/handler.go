@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 
 	"github.com/SREsAreHumanToo/cc-artex/tools"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -18,6 +19,7 @@ func convertTool(t tools.Tool) mcp.Tool {
 
 func makeHandler(t tools.Tool) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		slog.Info("tool called", "tool", t.Name)
 		raw, err := json.Marshal(req.GetRawArguments())
 		if err != nil {
 			return mcp.NewToolResultError("invalid arguments: " + err.Error()), nil

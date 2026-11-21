@@ -8,6 +8,38 @@ import (
 
 func RegisterScopeTools(reg *Registry, store Store, taskID int64) {
 	reg.Register(makeRecordCoverage(store, taskID))
+	reg.Register(makeCheckScope(store, taskID))
+}
+
+func makeCheckScope(store Store, taskID int64) Tool {
+	return Tool{
+		Name:        "check_scope",
+		Description: "Check whether a target (domain, IP, or URL) is within the engagement's scope rules.",
+		ReadOnly:    true,
+		Schema: obj(map[string]any{
+			"target": str("domain, IP address, or URL to check"),
+		}, "target"),
+		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
+			var a struct {
+				Target string `json:"target"`
+			}
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
+			if strings.TrimSpace(a.Target) == "" {
+				return errResult("target is required"), nil
+			}
+			ok, reason, rule, err := store.IsInScope(ctx, taskID, a.Target)
+			if err != nil {
+				return errResult("scope check failed: " + err.Error()), nil
+			}
+			return jsonResult(map[string]any{
+				"in_scope":      ok,
+				"reason":        reason,
+				"matching_rule": rule,
+			})
+		},
+	}
 }
 
 func makeRecordCoverage(store Store, taskID int64) Tool {

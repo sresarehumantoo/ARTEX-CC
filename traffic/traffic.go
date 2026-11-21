@@ -16,6 +16,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -383,6 +384,7 @@ func Open(dir, addr string) (*Traffic, error) {
 	p.AddAddon(&sink{t: t})
 	t.proxy = p
 	t.sweeping.Go(t.sweepSnapshots) // stops on t.closed; Close waits for it
+	slog.Info("traffic store opened", "dir", dir)
 	return t, nil
 }
 
@@ -837,7 +839,9 @@ VALUES(?,?,?,?,?,?,?)`,
 
 	if err := tx.Commit(); err != nil {
 		fail("committing", err)
+		return
 	}
+	slog.Debug("exchange recorded", "host", host, "method", method, "url", url)
 }
 
 // appliedRules reports whether a trace rewrote its exchange, with the ids of
