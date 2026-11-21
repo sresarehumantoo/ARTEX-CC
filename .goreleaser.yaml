@@ -37,6 +37,18 @@ release:
   draft: false
   prerelease: auto
 
+nfpms:
+  - package_name: cc-artex
+    file_name_template: "{{ .PackageName }}_{{ .Version }}_{{ .Arch }}"
+    formats: [deb]
+    vendor: SREsAreHumanToo
+    maintainer: SREsAreHumanToo <88474954+sresarehumantoo@users.noreply.github.com>
+    homepage: https://github.com/SREsAreHumanToo/cc-artex
+    description: MCP tool server for autonomous pentesting with Claude Code
+    license: MIT
+    section: utils
+    bindir: /usr/bin
+
 brews:
   - repository:
       owner: SREsAreHumanToo
