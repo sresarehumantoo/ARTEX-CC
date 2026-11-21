@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net/url"
 	"path"
 	"regexp"
@@ -34,6 +35,14 @@ const schemaMigrationLockKey int64 = 7337741001
 type Store struct {
 	*sql.DB
 	credentialKey []byte // 32-byte AES-256-GCM key; nil means plaintext
+}
+
+func extractHost(dsn string) string {
+	u, err := url.Parse(dsn)
+	if err != nil || u.Host == "" {
+		return "unknown"
+	}
+	return u.Hostname()
 }
 
 func Open(ctx context.Context, dsn string) (*Store, error) {
@@ -68,6 +77,8 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 		sqlDB.Close()
 		return nil, err
 	}
+	slog.Info("store opened", "dsn_host", extractHost(dsn))
+	slog.Info("schema applied")
 	return s, nil
 }
 
@@ -99,6 +110,7 @@ func (s *Store) CreateEngagement(ctx context.Context, goal, description string) 
 	if err != nil {
 		return 0, 0, err
 	}
+	slog.Info("engagement created", "task_id", taskID, "exploration_id", explorationID)
 	return taskID, explorationID, nil
 }
 
