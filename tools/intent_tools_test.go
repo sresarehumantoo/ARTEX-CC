@@ -265,6 +265,145 @@ func TestCancelIntentAlreadyDone(t *testing.T) {
 	}
 }
 
+func TestStartIntentAlreadyRunning(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "running"}
+
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+
+	tool, _ := reg.Lookup("start_intent")
+	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !r.IsError {
+		t.Fatal("expected error for starting an already-running intent")
+	}
+	if !strings.Contains(r.Content, "must be open") {
+		t.Errorf("expected 'must be open' in error, got: %s", r.Content)
+	}
+}
+
+func TestStartIntentFromCancelled(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "stopped"}
+
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+
+	tool, _ := reg.Lookup("start_intent")
+	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !r.IsError {
+		t.Fatal("expected error for starting a cancelled intent")
+	}
+	if !strings.Contains(r.Content, "must be open") {
+		t.Errorf("expected 'must be open' in error, got: %s", r.Content)
+	}
+}
+
+func TestCompleteIntentFromStopped(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "stopped"}
+
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+
+	tool, _ := reg.Lookup("complete_intent")
+	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !r.IsError {
+		t.Fatal("expected error for completing a cancelled intent")
+	}
+	if !strings.Contains(r.Content, "must be running or open") {
+		t.Errorf("expected 'must be running or open' in error, got: %s", r.Content)
+	}
+}
+
+func TestCancelIntentAlreadyStopped(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "stopped"}
+
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+
+	tool, _ := reg.Lookup("cancel_intent")
+	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !r.IsError {
+		t.Fatal("expected error for cancelling an already-stopped intent")
+	}
+	if !strings.Contains(r.Content, "already") {
+		t.Errorf("expected 'already' in error, got: %s", r.Content)
+	}
+}
+
+func TestIntentOpenToCancelledLifecycle(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "open"}
+
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+
+	cancel, _ := reg.Lookup("cancel_intent")
+	r, _ := cancel.Run(context.Background(), json.RawMessage(`{"node_id": 10, "reason": "obsolete"}`))
+	if r.IsError {
+		t.Fatalf("cancel from open failed: %s", r.Content)
+	}
+	if ms.nodes[10].State != "stopped" {
+		t.Fatalf("expected stopped, got %s", ms.nodes[10].State)
+	}
+
+	start, _ := reg.Lookup("start_intent")
+	r, _ = start.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	if !r.IsError {
+		t.Fatal("expected error for starting a cancelled intent")
+	}
+}
+
+func TestIntentRunningToCancelledLifecycle(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "open"}
+
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+
+	start, _ := reg.Lookup("start_intent")
+	cancel, _ := reg.Lookup("cancel_intent")
+	complete, _ := reg.Lookup("complete_intent")
+
+	r, _ := start.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	if r.IsError {
+		t.Fatalf("start failed: %s", r.Content)
+	}
+
+	r, _ = cancel.Run(context.Background(), json.RawMessage(`{"node_id": 10, "reason": "pivoting"}`))
+	if r.IsError {
+		t.Fatalf("cancel from running failed: %s", r.Content)
+	}
+	if ms.nodes[10].State != "stopped" {
+		t.Fatalf("expected stopped, got %s", ms.nodes[10].State)
+	}
+
+	r, _ = complete.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	if !r.IsError {
+		t.Fatal("expected error for completing a cancelled intent")
+	}
+}
+
 func TestIntentFullLifecycle(t *testing.T) {
 	t.Parallel()
 	ms := newIntentMockStore()
