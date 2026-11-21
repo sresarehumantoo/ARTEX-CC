@@ -452,28 +452,16 @@ func (s *Store) Root(ctx context.Context, explorationID int64) (description, goa
 }
 
 func (s *Store) AddConstraint(ctx context.Context, explorationID int64, kind, text, origin string) (int64, error) {
-	var taskID int64
-	err := s.QueryRowContext(ctx,
-		`SELECT id FROM tasks WHERE exploration_id = $1 LIMIT 1`, explorationID).Scan(&taskID)
-	if err != nil {
-		return 0, fmt.Errorf("find task for exploration %d: %w", explorationID, err)
-	}
 	var id int64
-	err = s.QueryRowContext(ctx,
-		`INSERT INTO task_constraints(task_id, kind, text, origin) VALUES ($1, $2, $3, $4) RETURNING id`,
-		taskID, kind, text, origin).Scan(&id)
+	err := s.QueryRowContext(ctx,
+		`INSERT INTO task_constraints(exploration_id, kind, text, origin) VALUES ($1, $2, $3, $4) RETURNING id`,
+		explorationID, kind, text, origin).Scan(&id)
 	return id, err
 }
 
 func (s *Store) ListConstraints(ctx context.Context, explorationID int64) ([]tools.Constraint, error) {
-	var taskID int64
-	err := s.QueryRowContext(ctx,
-		`SELECT id FROM tasks WHERE exploration_id = $1 LIMIT 1`, explorationID).Scan(&taskID)
-	if err != nil {
-		return nil, fmt.Errorf("find task for exploration %d: %w", explorationID, err)
-	}
 	rows, err := s.QueryContext(ctx,
-		`SELECT id, kind, text FROM task_constraints WHERE task_id = $1 ORDER BY id`, taskID)
+		`SELECT id, kind, text FROM task_constraints WHERE exploration_id = $1 ORDER BY id`, explorationID)
 	if err != nil {
 		return nil, err
 	}
