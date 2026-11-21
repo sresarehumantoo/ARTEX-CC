@@ -8,13 +8,15 @@ import {
   Layers,
   AlertCircle,
   Wrench,
+  CheckCircle,
+  Target,
 } from 'lucide-react'
 import { DashboardSkeleton } from '../components/skeletons/DashboardSkeleton'
 import { Spinner } from '../components/ui/spinner'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Badge, severityVariant } from '../components/ui/badge'
 import { getEngagement, getActivity } from '../lib/api'
-import type { Activity, EngagementData } from '../lib/types'
+import type { Activity, EngagementData, GraphNode } from '../lib/types'
 
 function relativeTime(iso: string): string {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
@@ -117,6 +119,208 @@ function ActivityFeed({ items }: { items: Activity[] }) {
   )
 }
 
+function goalStateDot(state: string) {
+  if (state.includes('proven'))
+    return 'bg-emerald-500'
+  if (state === 'running' || state === 'in_progress')
+    return 'bg-amber-500'
+  return 'bg-slate-400 dark:bg-slate-500'
+}
+
+function goalStateLabel(state: string) {
+  if (state.includes('proven')) return 'Proven'
+  if (state === 'disproven') return 'Disproven'
+  if (state === 'running' || state === 'in_progress') return 'In progress'
+  return 'Open'
+}
+
+function GoalProgress({ goals }: { goals: GraphNode[] }) {
+  if (goals.length === 0) return null
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+          <CardTitle>Goals</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {goals.map((g) => (
+            <div key={g.id} className="flex items-start gap-3">
+              <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${goalStateDot(g.state)}`} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  {(g.payload.text as string) || `Goal #${g.id}`}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{goalStateLabel(g.state)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function RunningIntents({ intents }: { intents: GraphNode[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Wrench className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+          <CardTitle>Active Intents</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {intents.length === 0 ? (
+          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+            <CheckCircle className="h-4 w-4" />
+            <span>No active intents</span>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {intents.map((i) => (
+              <div key={i.id} className="flex items-start gap-3">
+                <span className="relative mt-1.5 flex h-2.5 w-2.5 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-blue-500" />
+                </span>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  {(i.payload.text as string) || `Intent #${i.id}`}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function CoverageRing({ coverage, frontierOpen }: { coverage: Record<string, unknown>; frontierOpen: number }) {
+  const entries = (typeof coverage.entries === 'number' ? coverage.entries : 0) as number
+  const gaps = (typeof coverage.gaps === 'number' ? coverage.gaps : 0) as number
+  const tested = entries - gaps
+  const total = entries + frontierOpen
+
+  if (total === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+            <CardTitle>Coverage</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">0</div>
+          <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">No coverage data yet</div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const size = 120
+  const strokeWidth = 14
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+
+  const segments = [
+    { value: Math.max(0, tested), color: 'text-emerald-500', label: 'Tested' },
+    { value: gaps, color: 'text-amber-500', label: 'Needs follow-up' },
+    { value: frontierOpen, color: 'text-slate-300 dark:text-slate-600', label: 'Unexamined' },
+  ].filter(s => s.value > 0)
+
+  let offset = 0
+  const arcs = segments.map(s => {
+    const pct = s.value / total
+    const dash = pct * circumference
+    const gap = circumference - dash
+    const arc = { ...s, dashArray: `${dash} ${gap}`, dashOffset: -offset }
+    offset += dash
+    return arc
+  })
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Layers className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+          <CardTitle>Coverage</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-6">
+          <div className="relative shrink-0" style={{ width: size, height: size }}>
+            <svg width={size} height={size} className="-rotate-90">
+              {arcs.map((arc, idx) => (
+                <circle
+                  key={idx}
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  fill="none"
+                  strokeWidth={strokeWidth}
+                  className={`stroke-current ${arc.color}`}
+                  strokeDasharray={arc.dashArray}
+                  strokeDashoffset={arc.dashOffset}
+                  strokeLinecap="round"
+                />
+              ))}
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">{entries}</span>
+            </div>
+          </div>
+          <div className="space-y-1.5 text-xs">
+            {segments.map((s, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <span className={`inline-block h-2.5 w-2.5 rounded-full bg-current ${s.color}`} />
+                <span className="text-slate-600 dark:text-slate-400">
+                  {s.label}: {s.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function IntentProgressBar({ done, running, open }: { done: number; running: number; open: number }) {
+  const total = done + running + open
+  if (total === 0) return null
+
+  const pctDone = (done / total) * 100
+  const pctRunning = (running / total) * 100
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <span>Intent progress</span>
+        <span>{done} done, {running} running, {open} open</span>
+      </div>
+      <div className="flex h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+        {pctDone > 0 && (
+          <div
+            className="bg-emerald-500 transition-all"
+            style={{ width: `${pctDone}%` }}
+          />
+        )}
+        {pctRunning > 0 && (
+          <div
+            className="animate-pulse bg-blue-500 transition-all"
+            style={{ width: `${pctRunning}%` }}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
 const ACTIVITY_PAGE_SIZE = 20
 
 export function Dashboard() {
@@ -181,11 +385,18 @@ export function Dashboard() {
               </span>
             </StatCard>
 
-            <StatCard icon={Layers} title="Coverage" value={
-              Object.keys(e.coverage).length
-            }>
-              <span>{e.frontier_open} frontier open</span>
-            </StatCard>
+            <CoverageRing coverage={e.coverage} frontierOpen={e.frontier_open} />
+          </div>
+
+          <IntentProgressBar
+            done={e.done_intents_total}
+            running={e.running_intents.length}
+            open={e.open_intents.length}
+          />
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <GoalProgress goals={e.goals} />
+            <RunningIntents intents={e.running_intents} />
           </div>
 
           {e.hints.length > 0 && (
