@@ -1,0 +1,40 @@
+package tools
+
+import (
+	"context"
+	"encoding/json"
+	"strings"
+)
+
+func RegisterScopeTools(reg *Registry, store Store, taskID int64) {
+	reg.Register(makeRecordCoverage(store, taskID))
+}
+
+func makeRecordCoverage(store Store, taskID int64) Tool {
+	return Tool{
+		Name: "record_coverage",
+		Description: "Record what you examined on a surface for one risk class (use the goal's vulnclass as risk_area when it applies), " +
+			"including negative results, so an absent finding is never read as a clean target.",
+		Schema: obj(map[string]any{
+			"surface":   str("what was examined: a URL, endpoint, parameter, host or feature"),
+			"risk_area": str("risk class, e.g. sqli, xss, idor"),
+			"outcome":   enm([]string{"reported", "no_issue_found", "ruled_out", "not_applicable", "needs_follow_up"}, "result for this surface and risk class"),
+			"evidence":  str("required for no_issue_found: a fact id, intent id or traffic id that shows the test"),
+			"reason":    str("required for ruled_out and not_applicable: why"),
+		}, "surface", "risk_area", "outcome"),
+		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
+			if taskID <= 0 {
+				return errResult("record_coverage requires a task context"), nil
+			}
+			var e CoverageEntry
+			if err := json.Unmarshal(in, &e); err != nil {
+				return errResult(err.Error()), nil
+			}
+			e.Outcome = strings.ToLower(strings.TrimSpace(e.Outcome))
+			if err := store.RecordCoverage(ctx, taskID, e); err != nil {
+				return errResult(err.Error()), nil
+			}
+			return textResult("recorded"), nil
+		},
+	}
+}
