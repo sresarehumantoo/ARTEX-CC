@@ -222,7 +222,7 @@ function CollapsibleSection({ title, count, defaultOpen, children }: {
 }
 
 function StructuralGaps({ gaps }: { gaps: CoverageGaps }) {
-  const sections = [
+  const sections: { title: string; items: unknown[]; render: (item: never) => string }[] = [
     { title: 'Untargeted Assets', items: gaps.untargeted_assets, render: (a: CoverageGaps['untargeted_assets'][0]) => `${a.type}: ${a.label}` },
     { title: 'Unresolved Intents', items: gaps.unresolved_intents, render: (n: CoverageGaps['unresolved_intents'][0]) => (n.payload.label as string) || `Intent #${n.id}` },
     { title: 'Unproven Goals', items: gaps.unproven_goals, render: (n: CoverageGaps['unproven_goals'][0]) => (n.payload.label as string) || `Goal #${n.id}` },
