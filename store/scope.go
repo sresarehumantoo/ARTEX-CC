@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -233,4 +234,147 @@ func nilIfEmpty(s string) any {
 		return nil
 	}
 	return s
+}
+
+func (s *Store) IsInScope(ctx context.Context, taskID int64, target string) (bool, string, string, error) {
+	host := extractScopeTarget(target)
+	if host == "" {
+		return false, "could not parse target", "", nil
+	}
+
+	ip := net.ParseIP(host)
+
+	var rules []scopeCheckRule
+	if taskID > 0 {
+		taskRules, err := s.loadTaskScopeRules(ctx, taskID)
+		if err != nil {
+			return false, "", "", err
+		}
+		rules = append(rules, taskRules...)
+
+		companyRules, err := s.loadCompanyScopeForTask(ctx, taskID)
+		if err != nil {
+			return false, "", "", err
+		}
+		rules = append(rules, companyRules...)
+	}
+
+	if len(rules) == 0 {
+		return true, "no scope rules defined (permissive default)", "", nil
+	}
+
+	for _, r := range rules {
+		if ip != nil && r.net != nil {
+			if r.net.Contains(ip) {
+				return true, "IP matches CIDR rule", r.raw, nil
+			}
+			continue
+		}
+		if ip == nil && r.domain != "" {
+			if matchesDomain(host, r.domain) {
+				return true, "domain matches scope rule", r.raw, nil
+			}
+		}
+	}
+
+	return false, "target does not match any scope rule", "", nil
+}
+
+type scopeCheckRule struct {
+	domain string
+	net    *net.IPNet
+	raw    string
+}
+
+func (s *Store) loadTaskScopeRules(ctx context.Context, taskID int64) ([]scopeCheckRule, error) {
+	rows, err := s.QueryContext(ctx, `
+		SELECT kind, COALESCE(domain,''), COALESCE(net::text,'')
+		FROM task_scope WHERE task_id = $1`, taskID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []scopeCheckRule
+	for rows.Next() {
+		var kind, domain, netStr string
+		if err := rows.Scan(&kind, &domain, &netStr); err != nil {
+			return nil, err
+		}
+		r := parseScopeCheckRule(kind, domain, netStr)
+		if r != nil {
+			out = append(out, *r)
+		}
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) loadCompanyScopeForTask(ctx context.Context, taskID int64) ([]scopeCheckRule, error) {
+	var companyID sql.NullInt64
+	err := s.QueryRowContext(ctx, `SELECT company_id FROM tasks WHERE id = $1`, taskID).Scan(&companyID)
+	if err != nil || !companyID.Valid {
+		return nil, err
+	}
+
+	rows, err := s.QueryContext(ctx, `
+		SELECT kind, COALESCE(domain,''), COALESCE(net::text,'')
+		FROM company_scope WHERE company_id = $1`, companyID.Int64)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []scopeCheckRule
+	for rows.Next() {
+		var kind, domain, netStr string
+		if err := rows.Scan(&kind, &domain, &netStr); err != nil {
+			return nil, err
+		}
+		r := parseScopeCheckRule(kind, domain, netStr)
+		if r != nil {
+			out = append(out, *r)
+		}
+	}
+	return out, rows.Err()
+}
+
+func parseScopeCheckRule(kind, domain, netStr string) *scopeCheckRule {
+	switch kind {
+	case "root_domain", "subdomain", "domain":
+		if domain != "" {
+			return &scopeCheckRule{domain: domain, raw: domain}
+		}
+	case "ip", "cidr":
+		if netStr != "" {
+			_, n, err := net.ParseCIDR(netStr)
+			if err == nil {
+				return &scopeCheckRule{net: n, raw: netStr}
+			}
+		}
+	}
+	return nil
+}
+
+func matchesDomain(target, rule string) bool {
+	target = strings.ToLower(target)
+	rule = strings.ToLower(rule)
+	if target == rule {
+		return true
+	}
+	return strings.HasSuffix(target, "."+rule)
+}
+
+func extractScopeTarget(target string) string {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return ""
+	}
+	if strings.Contains(target, "://") {
+		if u, err := url.Parse(target); err == nil && u.Hostname() != "" {
+			return strings.ToLower(u.Hostname())
+		}
+	}
+	host, _, err := net.SplitHostPort(target)
+	if err == nil {
+		return strings.ToLower(host)
+	}
+	return strings.ToLower(target)
 }

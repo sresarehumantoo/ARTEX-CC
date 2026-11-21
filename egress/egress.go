@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"math/rand/v2"
 	"net"
 	"net/http"
@@ -229,7 +230,11 @@ func (g *Governor) acquire(ctx context.Context, key string) (release func(), err
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
-	if err = sleep(ctx, g.reserve(h)+g.jitter()); err == nil {
+	wait := g.reserve(h)
+	if wait > 0 {
+		slog.Debug("rate limited", "host", key)
+	}
+	if err = sleep(ctx, wait+g.jitter()); err == nil {
 		select {
 		case g.global <- struct{}{}:
 		case <-ctx.Done():
@@ -539,6 +544,7 @@ func (t *transport) send(req *http.Request) (*http.Response, error) {
 			return resp, nil
 		}
 		d, ok := t.g.backoff(resp.Header, attempt)
+		slog.Warn("backoff", "host", host, "status", resp.StatusCode, "retry_after", d)
 		t.g.mu.Lock()
 		h := t.g.hosts[host]
 		if until := time.Now().Add(min(d, t.g.p.MaxDelay)); until.After(h.notBefore) {

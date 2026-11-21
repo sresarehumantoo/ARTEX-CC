@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -12,7 +13,7 @@ func (s *Server) ServeHTTP(ctx context.Context, addr string) error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		s.logger.Printf("listening on %s", addr)
+		slog.Info("http listener started", "addr", addr)
 		errCh <- httpServer.Start(addr)
 	}()
 
