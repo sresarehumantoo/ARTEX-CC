@@ -98,8 +98,9 @@ func TestListAssetsDSL(t *testing.T) {
 	taskID, _ := testEngagement(t, s, "dsl-assets")
 
 	_, err := s.InsertAsset(ctx, taskID, tools.AssetInput{
-		Type: "service",
-		URL:  "https://test.example.com/api",
+		Type:   "service",
+		URL:    "https://test.example.com/api",
+		Domain: "test.example.com",
 	})
 	if err != nil {
 		t.Fatalf("InsertAsset: %v", err)
