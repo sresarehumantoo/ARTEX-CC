@@ -18,6 +18,7 @@ type Store interface {
 	// Findings
 	AddFinding(ctx context.Context, f FindingInput) (int64, error)
 	ListFindings(ctx context.Context, explorationID int64) ([]Finding, error)
+	FindingExists(ctx context.Context, findingID int64) (bool, error)
 	FindPotentialDuplicates(ctx context.Context, severity string, assetIDs []int64) ([]int64, error)
 	MergeFindings(ctx context.Context, primaryID int64, secondaryIDs []int64) (*MergedFinding, error)
 	DismissFinding(ctx context.Context, findingID int64, reason string) error
