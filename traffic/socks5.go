@@ -14,7 +14,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
 )
 
 // Opt-in environment flags for the SOCKS5 inbound listener (P4.1a).

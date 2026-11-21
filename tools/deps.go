@@ -134,21 +134,21 @@ type PortService struct {
 
 // AssetFilter holds query parameters for listing assets.
 type AssetFilter struct {
-	TaskID int64  `json:"task_id,omitempty"`
-	DSL    string `json:"dsl,omitempty"`
-	Type   string `json:"type,omitempty"`
-	ID     int64  `json:"id,omitempty"`
+	TaskID int64   `json:"task_id,omitempty"`
+	DSL    string  `json:"dsl,omitempty"`
+	Type   string  `json:"type,omitempty"`
+	ID     int64   `json:"id,omitempty"`
 	IDs    []int64 `json:"ids,omitempty"`
-	Limit  int    `json:"limit,omitempty"`
-	Offset int    `json:"offset,omitempty"`
+	Limit  int     `json:"limit,omitempty"`
+	Offset int     `json:"offset,omitempty"`
 }
 
 // Asset is a stored asset with its denormalized label and type-specific data.
 type Asset struct {
-	ID     int64          `json:"id"`
-	Type   string         `json:"type"`
-	Label  string         `json:"label"`
-	Data   map[string]any `json:"data,omitempty"`
+	ID    int64          `json:"id"`
+	Type  string         `json:"type"`
+	Label string         `json:"label"`
+	Data  map[string]any `json:"data,omitempty"`
 }
 
 // Company is a company with its scope rules and asset count.
@@ -208,22 +208,22 @@ type MergedFinding struct {
 
 // Overview is aggregated exploration state returned by GraphOverview.
 type Overview struct {
-	Task             map[string]any   `json:"task,omitempty"`
-	Goals            []map[string]any `json:"goals,omitempty"`
-	Hints            []map[string]any `json:"hints,omitempty"`
-	OpenIntents      []map[string]any `json:"open_intents,omitempty"`
-	RunningIntents   []map[string]any `json:"running_intents,omitempty"`
-	RecentDone       []map[string]any `json:"recent_done_intents,omitempty"`
-	DoneIntentsTotal int              `json:"done_intents_total"`
-	FrontierOpen     int              `json:"frontier_open"`
+	Task              map[string]any   `json:"task,omitempty"`
+	Goals             []map[string]any `json:"goals,omitempty"`
+	Hints             []map[string]any `json:"hints,omitempty"`
+	OpenIntents       []map[string]any `json:"open_intents,omitempty"`
+	RunningIntents    []map[string]any `json:"running_intents,omitempty"`
+	RecentDone        []map[string]any `json:"recent_done_intents,omitempty"`
+	DoneIntentsTotal  int              `json:"done_intents_total"`
+	FrontierOpen      int              `json:"frontier_open"`
 	FindingsTotal     int              `json:"findings_total"`
 	FindingsDismissed int              `json:"findings_dismissed"`
 	FindingsMerged    int              `json:"findings_merged"`
 	FactsTotal        int              `json:"facts"`
-	FindingList      []map[string]any `json:"finding_list,omitempty"`
-	RecentFacts      []map[string]any `json:"recent_facts,omitempty"`
-	Coverage         map[string]any   `json:"coverage,omitempty"`
-	Credentials      []map[string]any `json:"task_credentials,omitempty"`
+	FindingList       []map[string]any `json:"finding_list,omitempty"`
+	RecentFacts       []map[string]any `json:"recent_facts,omitempty"`
+	Coverage          map[string]any   `json:"coverage,omitempty"`
+	Credentials       []map[string]any `json:"task_credentials,omitempty"`
 }
 
 // Node is a vertex in the exploration graph (goal, hint, intent, fact, or finding).
@@ -348,23 +348,23 @@ type ActivityEntry struct {
 
 // Activity is a stored exploration activity log entry.
 type Activity struct {
-	ID             int64  `json:"id"`
-	ExplorationID  int64  `json:"exploration_id"`
-	NodeID         int64  `json:"node_id,omitempty"`
-	Worker         string `json:"worker,omitempty"`
-	Kind           string `json:"kind,omitempty"`
-	Tool           string `json:"tool,omitempty"`
-	IsError        bool   `json:"is_error,omitempty"`
-	Summary        string `json:"summary,omitempty"`
-	Detail         string `json:"detail,omitempty"`
-	CreatedAt      string `json:"created_at"`
+	ID            int64  `json:"id"`
+	ExplorationID int64  `json:"exploration_id"`
+	NodeID        int64  `json:"node_id,omitempty"`
+	Worker        string `json:"worker,omitempty"`
+	Kind          string `json:"kind,omitempty"`
+	Tool          string `json:"tool,omitempty"`
+	IsError       bool   `json:"is_error,omitempty"`
+	Summary       string `json:"summary,omitempty"`
+	Detail        string `json:"detail,omitempty"`
+	CreatedAt     string `json:"created_at"`
 }
 
 // ActivityFilter holds query parameters for listing activity entries.
 type ActivityFilter struct {
-	NodeID int64 `json:"node_id,omitempty"`
+	NodeID int64  `json:"node_id,omitempty"`
 	Kind   string `json:"kind,omitempty"`
-	Limit  int   `json:"limit,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
 }
 
 // EngagementExport is a serializable snapshot of an engagement for export and import.
@@ -391,11 +391,11 @@ type TimelineEntry struct {
 }
 
 const (
-	KindGoal       = "goal"
-	KindHint       = "hint"
-	KindIntent     = "intent"
-	KindFact       = "fact"
-	KindFinding    = "finding"
+	KindGoal    = "goal"
+	KindHint    = "hint"
+	KindIntent  = "intent"
+	KindFact    = "fact"
+	KindFinding = "finding"
 
 	RelDerivedFrom = "derived_from"
 	RelYields      = "yields"

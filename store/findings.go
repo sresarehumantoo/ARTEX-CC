@@ -12,17 +12,17 @@ import (
 )
 
 type Finding struct {
-	ID        int64           `json:"id"`
-	TaskID    *int64          `json:"task_id,omitempty"`
-	NodeID    *int64          `json:"node_id,omitempty"`
-	VulnClass string          `json:"vulnclass"`
-	Name      string          `json:"name"`
-	Severity  string          `json:"severity"`
-	Summary   string          `json:"summary"`
-	Evidence  string          `json:"evidence"`
-	Worker    string          `json:"worker"`
-	AssetIDs  json.RawMessage `json:"asset_ids"`
-	Status    string          `json:"status"`
+	ID            int64           `json:"id"`
+	TaskID        *int64          `json:"task_id,omitempty"`
+	NodeID        *int64          `json:"node_id,omitempty"`
+	VulnClass     string          `json:"vulnclass"`
+	Name          string          `json:"name"`
+	Severity      string          `json:"severity"`
+	Summary       string          `json:"summary"`
+	Evidence      string          `json:"evidence"`
+	Worker        string          `json:"worker"`
+	AssetIDs      json.RawMessage `json:"asset_ids"`
+	Status        string          `json:"status"`
 	Report        string          `json:"report"`
 	MergedInto    *int64          `json:"merged_into,omitempty"`
 	Dismissed     bool            `json:"dismissed"`

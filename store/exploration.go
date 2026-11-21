@@ -230,8 +230,8 @@ func (s *Store) AddEdges(ctx context.Context, explorationID int64, edges []Edge)
 
 func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.Overview, error) {
 	ov := &tools.Overview{
-		Task:        map[string]any{},
-		Coverage:    map[string]any{},
+		Task:     map[string]any{},
+		Coverage: map[string]any{},
 	}
 
 	var desc, goal sql.NullString
@@ -368,7 +368,6 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 
 	return ov, nil
 }
-
 
 func (s *Store) NodeDetail(ctx context.Context, nodeID int64) (*tools.Node, error) {
 	row := s.QueryRowContext(ctx,

@@ -10,13 +10,13 @@ import (
 )
 
 type Task struct {
-	ID            int64  `json:"id"`
-	Name          string `json:"name"`
-	Description   string `json:"description"`
-	Goal          string `json:"goal"`
-	ExplorationID int64  `json:"exploration_id"`
-	Status        string `json:"status"`
-	CompanyID     *int64 `json:"company_id,omitempty"`
+	ID            int64     `json:"id"`
+	Name          string    `json:"name"`
+	Description   string    `json:"description"`
+	Goal          string    `json:"goal"`
+	ExplorationID int64     `json:"exploration_id"`
+	Status        string    `json:"status"`
+	CompanyID     *int64    `json:"company_id,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
