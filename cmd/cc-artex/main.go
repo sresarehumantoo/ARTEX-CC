@@ -36,8 +36,6 @@ func main() {
 		cmdInit(os.Args[2:])
 	case "health":
 		cmdHealth(os.Args[2:])
-	case "completion":
-		cmdCompletion(os.Args[2:])
 	case "version":
 		fmt.Println("cc-artex " + version)
 	case "-h", "--help", "help":
@@ -49,13 +47,12 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: cc-artex <command>")
+	fmt.Fprintln(os.Stderr, "usage: cc-artex <serve|init|health|version>")
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "  serve       Start the MCP tool server")
-	fmt.Fprintln(os.Stderr, "  init        Initialize a new engagement")
-	fmt.Fprintln(os.Stderr, "  health      Check PostgreSQL connectivity")
-	fmt.Fprintln(os.Stderr, "  completion  Generate shell completion script")
-	fmt.Fprintln(os.Stderr, "  version     Print version")
+	fmt.Fprintln(os.Stderr, "  serve    Start the MCP tool server")
+	fmt.Fprintln(os.Stderr, "  init     Initialize a new engagement")
+	fmt.Fprintln(os.Stderr, "  health   Check PostgreSQL connectivity")
+	fmt.Fprintln(os.Stderr, "  version  Print version")
 	os.Exit(1)
 }
 
