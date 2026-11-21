@@ -1,16 +1,32 @@
 # Contributing
 
-## Build
+## Development setup
+
+Prerequisites:
+
+- Go (the version in `go.mod`, currently 1.26)
+- PostgreSQL, for running the server and the store tests
+- Node.js and npm, for the web UI
 
 ```sh
-go build ./cmd/cc-artex
+git clone https://github.com/sresarehumantoo/cc-artex.git
+cd cc-artex
+make build   # builds the web UI, then ./cc-artex
+make ci      # fmt-check + vet + test, same as CI
 ```
 
-## Test
+To build only the Go binary (skips the web UI): `go build ./cmd/cc-artex`.
+
+To run the server against a local database, point `CC_ARTEX_PG` (or `--pg`) at it. `make dev` prints the commands for the Go server and the Vite dev server.
+
+## Testing
 
 ```sh
 # Unit tests (no external dependencies)
 go test ./...
+
+# A single package
+go test ./tools/...
 
 # Store tests (requires a PostgreSQL instance)
 CC_ARTEX_TEST_PG="postgres://localhost/ccartex_test" go test ./store/...
@@ -18,11 +34,11 @@ CC_ARTEX_TEST_PG="postgres://localhost/ccartex_test" go test ./store/...
 
 Store tests are skipped when `CC_ARTEX_TEST_PG` is not set, so `go test ./...` is safe to run without a database.
 
-## Lint
+## Code style
 
-```sh
-go vet ./...
-```
+- Go code must be formatted with `gofmt -s`. CI runs `make fmt-check`; run `make fmt` to fix.
+- `go vet ./...` must pass. There is no linter beyond vet.
+- `make lint` type-checks the web UI.
 
 ## Adding a tool
 
@@ -48,8 +64,8 @@ uses the helper functions in `tools/helpers.go` (`obj`, `str`, `enm`, etc.).
 
 ## Submitting changes
 
-- Fork the repo and create a branch from `main`.
-- Keep commits small and focused: one logical change per commit.
-- Run `go test ./...` and `go vet ./...` before pushing.
+- Fork the repo and create a branch from `main`, named with a prefix: `feat/`, `fix/`, `chore/`, `docs/`, or `test/` (for example `fix/report-filename`).
+- Keep commits small and focused: one logical change per commit, and one logical change per pull request.
+- Run `make ci` before pushing. CI must pass before a PR is merged.
 - Open a pull request against `main` with a short description of what changed
   and why.
