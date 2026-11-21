@@ -263,6 +263,12 @@ cc-artex init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.examp
 
 When `--proxy` is set, cc-artex starts a recording MITM proxy on the given address. Configure your HTTP client or browser to use it, and the proxy captures every request and response for analysis through the traffic tools. The `init` command generates a CA certificate (at `traffic/_ca/mitmproxy-ca-cert.pem`) and prints OS-specific trust instructions so the proxy can intercept HTTPS.
 
+## Examples
+
+See [docs/EXAMPLE_WALKTHROUGH.md](docs/EXAMPLE_WALKTHROUGH.md) for a complete
+engagement walkthrough showing every phase of a pentest session: reconnaissance,
+service enumeration, vulnerability testing, and report generation.
+
 ## Suggested GitHub topics
 
 `mcp`, `claude`, `claude-code`, `pentest`, `penetration-testing`, `security`, `offensive-security`, `bug-bounty`, `ai-security`, `mcp-server`
