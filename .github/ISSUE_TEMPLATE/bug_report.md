@@ -1,24 +1,22 @@
 ---
-name: Bug report
-about: Something isn't working as expected
+name: Bug Report
+about: Report a bug in cc-artex
 labels: bug
 ---
 
-**What happened?**
+## Description
+<!-- What happened? -->
 
+## Steps to reproduce
+1. 
+2. 
+3. 
 
-**What did you expect?**
+## Expected behavior
+<!-- What should have happened? -->
 
-
-**Steps to reproduce**
-
-1.
-2.
-3.
-
-**Environment**
-
-- cc-artex version (`cc-artex version`):
+## Environment
+- cc-artex version:
 - Go version:
 - OS:
-- PostgreSQL version:
+- MCP client (Claude Code, Cline, etc.):

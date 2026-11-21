@@ -255,6 +255,27 @@ cc-artex/
 
 The server speaks [MCP](https://modelcontextprotocol.io/) over stdio (for Claude Code) or HTTP (for other clients). All state lives in PostgreSQL. The engagement config (`.cc-artex.json`) tracks the current task and exploration IDs so the server knows which engagement to serve.
 
+## Why cc-artex?
+
+- **Your Claude subscription IS the AI engine.** No API key management, no token budgets, no surprise bills. If you have Claude, you have everything you need.
+- **The exploration graph means Claude never loses context.** Every recon result, every tested endpoint, every credential, every planned next step is tracked in a persistent graph. Resume hours later and `graph_overview` brings Claude back up to speed.
+- **47 tools covering the full pentest lifecycle.** Asset discovery, scope management, exploration planning, traffic capture, credential storage, finding management, coverage tracking, and report generation.
+- **Works with any MCP client.** Claude Code, Cline, Cursor, or anything else that speaks the [Model Context Protocol](https://modelcontextprotocol.io/).
+- **One command to get started.** `docker compose up` or install the binary and run `cc-artex init`.
+
+## cc-artex vs alternatives
+
+| | cc-artex | PentestGPT | HexStrike AI | Pentest-AI |
+|---|----------|-----------|-------------|-----------|
+| **State management** | Exploration graph (persistent, resumable) | Stateless / limited context | None | None |
+| **MCP native** | Yes (47 tools) | No (agent framework) | Yes (150+ tools) | Yes (205 tools) |
+| **Evidence chains** | Yes (findings linked to assets, coverage, traffic) | No | No | No |
+| **Traffic capture** | Built-in recording proxy with replay | No | No | No |
+| **Multi-client support** | Any MCP client (Claude Code, Cline, Cursor) | Own interface | Claude Code | Claude Code |
+| **License** | MIT | Research | Unknown | Unknown |
+
+cc-artex's differentiator is not tool count. It is the exploration graph and evidence chain model: every finding traces back to the asset, the coverage record, and the captured traffic that produced it.
+
 ## cc-artex vs ARTEX
 
 | | ARTEX | cc-artex |
