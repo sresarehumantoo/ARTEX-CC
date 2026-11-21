@@ -7,6 +7,7 @@ require (
 	github.com/lqqyt2423/go-mitmproxy v1.9.5
 	github.com/mark3labs/mcp-go v1.6.0
 	golang.org/x/net v0.63.0
+	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.62.0
 )
 

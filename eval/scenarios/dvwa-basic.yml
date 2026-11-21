@@ -1,0 +1,26 @@
+name: "DVWA Basic"
+description: >
+  Run cc-artex against DVWA at low security. The agent should discover
+  SQL injection, reflected XSS, and command injection at minimum.
+target: "http://localhost:8081"
+goal: "Find and report all critical vulnerabilities in DVWA"
+scope:
+  - "localhost:8081"
+credentials:
+  username: "admin"
+  password: "password"
+expected_findings:
+  min_count: 3
+  must_include:
+    - type: "sql_injection"
+      description: "SQL injection in one or more DVWA modules"
+    - type: "xss"
+      description: "Reflected or stored XSS"
+    - type: "command_injection"
+      description: "OS command injection"
+  may_include:
+    - type: "file_inclusion"
+    - type: "csrf"
+    - type: "file_upload"
+    - type: "brute_force"
+timeout: 15m

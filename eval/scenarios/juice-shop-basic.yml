@@ -1,0 +1,22 @@
+name: "Juice Shop Basic"
+description: >
+  Run cc-artex against OWASP Juice Shop. The agent should find at least
+  the most prominent vulnerabilities in the OWASP Top 10 categories.
+target: "http://localhost:8082"
+goal: "Discover and report OWASP Top 10 vulnerabilities in Juice Shop"
+scope:
+  - "localhost:8082"
+expected_findings:
+  min_count: 3
+  must_include:
+    - type: "sql_injection"
+      description: "SQL injection in login or search"
+    - type: "xss"
+      description: "DOM or reflected XSS"
+    - type: "broken_access_control"
+      description: "Unauthorized access to admin or other user data"
+  may_include:
+    - type: "sensitive_data_exposure"
+    - type: "security_misconfiguration"
+    - type: "injection"
+timeout: 20m

@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ccartex_eval
+      POSTGRES_PASSWORD: ccartex_eval
+      POSTGRES_DB: ccartex_eval
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ccartex_eval -d ccartex_eval"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  dvwa:
+    image: vulnerables/web-dvwa:latest
+    ports:
+      - "127.0.0.1:8081:80"
+    environment:
+      RECAPTCHA_PRIV_KEY: ""
+      RECAPTCHA_PUB_KEY: ""
+      SECURITY_LEVEL: low
+      PHPIDS_ENABLED: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  juice-shop:
+    image: bkimminich/juice-shop:latest
+    ports:
+      - "127.0.0.1:8082:3000"
+    environment:
+      NODE_ENV: unsafe
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/rest/admin/application-version || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  vulnapp:
+    build:
+      context: ./vulnapp
+    ports:
+      - "127.0.0.1:8083:8083"
+    environment:
+      DATA_DIR: /app/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/health || exit 1"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
