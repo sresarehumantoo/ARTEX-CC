@@ -172,6 +172,28 @@ func (s *Store) SetFindingStatus(id int64, status string) error {
 	return err
 }
 
+func (s *Store) ListFindingsForReport(ctx context.Context, explorationID int64) ([]tools.ReportFinding, error) {
+	rows, err := s.QueryContext(ctx, `
+		SELECT f.id, f.vulnclass, COALESCE(f.name,''), f.severity, f.summary, COALESCE(f.evidence,''), COALESCE(f.status,'')
+		FROM findings f
+		JOIN tasks t ON t.id = f.task_id
+		WHERE t.exploration_id = $1
+		ORDER BY f.created_at DESC`, explorationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []tools.ReportFinding
+	for rows.Next() {
+		var f tools.ReportFinding
+		if err := rows.Scan(&f.ID, &f.VulnClass, &f.Name, &f.Severity, &f.Summary, &f.Evidence, &f.Status); err != nil {
+			return nil, err
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) BindFindingTraffic(findingID int64, snapshotID, role, note string, position int) error {
 	_, err := s.Exec(`
 		INSERT INTO finding_traffic_bindings (finding_id, snapshot_id, role, note, position)

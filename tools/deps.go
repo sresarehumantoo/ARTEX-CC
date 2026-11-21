@@ -45,6 +45,14 @@ type Store interface {
 
 	// Coverage
 	RecordCoverage(ctx context.Context, taskID int64, entry CoverageEntry) error
+
+	// Engagements
+	CreateEngagement(ctx context.Context, goal, description string) (taskID int64, explorationID int64, err error)
+	ListEngagements(ctx context.Context) ([]EngagementSummary, error)
+	GetEngagement(ctx context.Context, id int64) (*EngagementDetail, error)
+
+	// Report
+	ListFindingsForReport(ctx context.Context, explorationID int64) ([]ReportFinding, error)
 }
 
 // AssetInput is one item for asset insertion.
@@ -216,6 +224,28 @@ type CoverageEntry struct {
 	Reason   string `json:"reason,omitempty"`
 	Worker   string `json:"worker,omitempty"`
 	IntentID int64  `json:"intent_id,omitempty"`
+}
+
+type EngagementSummary struct {
+	ID            int64  `json:"id"`
+	Goal          string `json:"goal"`
+	Status        string `json:"status"`
+	ExplorationID int64  `json:"exploration_id"`
+}
+
+type EngagementDetail struct {
+	EngagementSummary
+	Description string `json:"description"`
+}
+
+type ReportFinding struct {
+	ID        int64  `json:"id"`
+	VulnClass string `json:"vulnclass"`
+	Name      string `json:"name"`
+	Severity  string `json:"severity"`
+	Summary   string `json:"summary"`
+	Evidence  string `json:"evidence"`
+	Status    string `json:"status"`
 }
 
 const (

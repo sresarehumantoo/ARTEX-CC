@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/SREsAreHumanToo/cc-artex/tools"
 )
 
 type Task struct {
@@ -79,4 +81,42 @@ func (s *Store) ListTasks() ([]Task, error) {
 func (s *Store) SetTaskStatus(id int64, status string) error {
 	_, err := s.Exec(`UPDATE tasks SET status = $1 WHERE id = $2`, status, id)
 	return err
+}
+
+func (s *Store) ListEngagements(ctx context.Context) ([]tools.EngagementSummary, error) {
+	rows, err := s.QueryContext(ctx, `
+		SELECT id, goal, COALESCE(status,''), exploration_id
+		FROM tasks ORDER BY created_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []tools.EngagementSummary
+	for rows.Next() {
+		var e tools.EngagementSummary
+		if err := rows.Scan(&e.ID, &e.Goal, &e.Status, &e.ExplorationID); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) GetEngagement(ctx context.Context, id int64) (*tools.EngagementDetail, error) {
+	t, err := s.GetTask(id)
+	if err != nil {
+		return nil, err
+	}
+	if t == nil {
+		return nil, nil
+	}
+	return &tools.EngagementDetail{
+		EngagementSummary: tools.EngagementSummary{
+			ID:            t.ID,
+			Goal:          t.Goal,
+			Status:        t.Status,
+			ExplorationID: t.ExplorationID,
+		},
+		Description: t.Description,
+	}, nil
 }
