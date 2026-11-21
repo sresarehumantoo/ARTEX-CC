@@ -50,6 +50,7 @@ func New(registry *tools.Registry, opts ...Option) *Server {
 
 	if s.store != nil && s.explorationID > 0 {
 		s.registerEngagementResource()
+		s.registerSwitchEngagement()
 	}
 
 	return s
