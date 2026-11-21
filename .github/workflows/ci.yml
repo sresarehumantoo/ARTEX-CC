@@ -17,9 +17,17 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go-version }}
+      - name: Check formatting
+        run: test -z "$(gofmt -s -l .)"
       - run: go build ./...
       - run: go vet ./...
-      - run: go test ./...
+      - name: Test with coverage
+        run: go test -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.out
+          fail_ci_if_error: false
 
   store-tests:
     runs-on: ubuntu-latest
