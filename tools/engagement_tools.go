@@ -9,7 +9,7 @@ import (
 
 func RegisterEngagementTools(reg *Registry, store Store, taskID, explorationID int64) {
 	reg.Register(makeCreateEngagement(store))
-	reg.Register(makeListEngagements(store))
+	reg.Register(makeListEngagements(store, taskID))
 	reg.Register(makeEngagementStatus(store, taskID, explorationID))
 	reg.Register(makeGoalMet(store, taskID))
 }
@@ -55,10 +55,10 @@ func makeCreateEngagement(store Store) Tool {
 	}
 }
 
-func makeListEngagements(store Store) Tool {
+func makeListEngagements(store Store, activeTaskID int64) Tool {
 	return Tool{
 		Name:        "list_engagements",
-		Description: "List all pentest engagements (id, goal, status).",
+		Description: "List all pentest engagements with summary stats (goal, status, node/finding/asset counts).",
 		ReadOnly:    true,
 		Schema:      obj(map[string]any{}),
 		Run: func(ctx context.Context, _ json.RawMessage) (Result, error) {
@@ -68,12 +68,20 @@ func makeListEngagements(store Store) Tool {
 			}
 			out := make([]map[string]any, 0, len(engagements))
 			for _, e := range engagements {
-				out = append(out, map[string]any{
+				m := map[string]any{
 					"id":             e.ID,
 					"goal":           e.Goal,
+					"description":    e.Description,
 					"status":         e.Status,
 					"exploration_id": e.ExplorationID,
-				})
+					"created_at":     e.CreatedAt,
+					"node_count":     e.NodeCount,
+					"finding_count":  e.FindingCount,
+					"asset_count":    e.AssetCount,
+					"goals_met":      e.GoalsMet,
+					"active":         e.ID == activeTaskID,
+				}
+				out = append(out, m)
 			}
 			return jsonResult(out)
 		},
