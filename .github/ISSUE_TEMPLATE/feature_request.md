@@ -1,14 +1,14 @@
 ---
-name: Feature request
-about: Suggest a new tool or improvement
+name: Feature Request
+about: Suggest a new feature or improvement
 labels: enhancement
 ---
 
-**What would you like cc-artex to do?**
+## Summary
+<!-- One sentence describing what you want -->
 
+## Use case
+<!-- Why do you need this? What problem does it solve? -->
 
-**Why is this useful?**
-
-
-**Alternatives you've considered**
-
+## Proposed solution
+<!-- How should it work? -->
