@@ -309,6 +309,18 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 	}
 	ov.FindingsTotal = findingsTotal
 
+	var taskIDForFindings int64
+	if err := s.QueryRowContext(ctx,
+		`SELECT id FROM tasks WHERE exploration_id = $1 LIMIT 1`, explorationID).Scan(&taskIDForFindings); err == nil {
+		var dismissedCount, mergedCount int
+		_ = s.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM findings WHERE task_id = $1 AND dismissed = true`, taskIDForFindings).Scan(&dismissedCount)
+		_ = s.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM findings WHERE task_id = $1 AND merged_into IS NOT NULL`, taskIDForFindings).Scan(&mergedCount)
+		ov.FindingsDismissed = dismissedCount
+		ov.FindingsMerged = mergedCount
+	}
+
 	var factsTotal int
 	if err := s.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM exploration_nodes WHERE exploration_id = $1 AND kind = 'fact'`,

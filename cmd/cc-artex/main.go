@@ -140,6 +140,7 @@ func cmdServe(args []string) {
 
 	var srvOpts []mcpserver.Option
 	srvOpts = append(srvOpts, mcpserver.WithEngagement(s, engCfg.TaskID, engCfg.ExplorationID))
+	srvOpts = append(srvOpts, mcpserver.WithEvidence(evStore))
 	if t != nil {
 		srvOpts = append(srvOpts, mcpserver.WithTraffic(t))
 	}

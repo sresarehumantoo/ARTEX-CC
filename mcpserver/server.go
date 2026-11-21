@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/SREsAreHumanToo/cc-artex/evidence"
 	"github.com/SREsAreHumanToo/cc-artex/tools"
 	"github.com/SREsAreHumanToo/cc-artex/traffic"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -21,6 +22,7 @@ type Server struct {
 	taskID        int64
 	explorationID int64
 	traffic       *traffic.Traffic
+	evidence      *evidence.Store
 }
 
 // Option is a functional option for configuring a Server.
@@ -38,6 +40,11 @@ func WithEngagement(store tools.Store, taskID, explorationID int64) Option {
 // WithTraffic returns an Option that provides the traffic proxy for re-registration on engagement switch.
 func WithTraffic(t *traffic.Traffic) Option {
 	return func(s *Server) { s.traffic = t }
+}
+
+// WithEvidence returns an Option that provides the evidence store for re-registration on engagement switch.
+func WithEvidence(es *evidence.Store) Option {
+	return func(s *Server) { s.evidence = es }
 }
 
 

@@ -249,7 +249,8 @@ func (s *Store) exportAssets(ctx context.Context, taskID int64) ([]map[string]an
 
 func (s *Store) exportFindings(ctx context.Context, taskID int64) ([]map[string]any, error) {
 	rows, err := s.QueryContext(ctx,
-		`SELECT id, node_id, vulnclass, name, severity, summary, evidence, worker, asset_ids, status
+		`SELECT id, node_id, vulnclass, name, severity, summary, evidence, worker, asset_ids, status,
+		        merged_into, dismissed, dismiss_reason
 		 FROM findings WHERE task_id = $1 ORDER BY id`, taskID)
 	if err != nil {
 		return nil, err
@@ -259,10 +260,12 @@ func (s *Store) exportFindings(ctx context.Context, taskID int64) ([]map[string]
 	var out []map[string]any
 	for rows.Next() {
 		var id int64
-		var nodeID sql.NullInt64
-		var vulnclass, name, severity, summary, evidence, worker, status string
+		var nodeID, mergedInto sql.NullInt64
+		var vulnclass, name, severity, summary, evidence, worker, status, dismissReason string
 		var assetIDs json.RawMessage
-		if err := rows.Scan(&id, &nodeID, &vulnclass, &name, &severity, &summary, &evidence, &worker, &assetIDs, &status); err != nil {
+		var dismissed bool
+		if err := rows.Scan(&id, &nodeID, &vulnclass, &name, &severity, &summary, &evidence, &worker,
+			&assetIDs, &status, &mergedInto, &dismissed, &dismissReason); err != nil {
 			return nil, err
 		}
 		m := map[string]any{
@@ -289,6 +292,13 @@ func (s *Store) exportFindings(ctx context.Context, taskID int64) ([]map[string]
 			if json.Unmarshal(assetIDs, &ids) == nil && len(ids) > 0 {
 				m["asset_ids"] = ids
 			}
+		}
+		if mergedInto.Valid {
+			m["merged_into"] = mergedInto.Int64
+		}
+		if dismissed {
+			m["dismissed"] = true
+			m["dismiss_reason"] = dismissReason
 		}
 		out = append(out, m)
 	}
@@ -539,14 +549,20 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 			assetIDsJSON = string(raw)
 		}
 
+		dismissed := false
+		if v, ok := f["dismissed"]; ok {
+			dismissed, _ = v.(bool)
+		}
+
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO findings(task_id, node_id, vulnclass, name, severity, summary, evidence, worker, asset_ids, status, report)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, '')`,
+			`INSERT INTO findings(task_id, node_id, vulnclass, name, severity, summary, evidence, worker, asset_ids, status, report, dismissed, dismiss_reason)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, '', $11, $12)`,
 			taskID, nullID(newNodeID),
 			exportMapString(f, "vulnclass"), exportMapString(f, "name"),
 			exportMapString(f, "severity"), exportMapString(f, "summary"),
 			exportMapString(f, "evidence"), exportMapString(f, "worker"),
 			assetIDsJSON, exportMapString(f, "status"),
+			dismissed, exportMapString(f, "dismiss_reason"),
 		); err != nil {
 			return 0, 0, fmt.Errorf("import finding: %w", err)
 		}
