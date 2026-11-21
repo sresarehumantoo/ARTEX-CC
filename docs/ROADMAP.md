@@ -5,15 +5,15 @@
 cc-artex is a working MCP tool server for penetration testing. It exposes ARTEX's
 data model as tools Claude Code calls directly, with no separate LLM API key.
 
-**Lines of code:** ~30,000 Go (100 files: 84 source, 16+ test files).
+**Lines of code:** ~31,000 Go.
 
 **Tool count:** 59 registered tools (core + traffic + evidence + enrich + ingest + scope + intent + activity + triage + coverage).
 
-**Test count:** 1,295 test functions across 16+ test files.
+**Test count:** 230+ test functions, 300+ test cases including subtests.
 
 **What works today:**
 
-- **CLI:** `serve` (stdio and HTTP transports), `init` (creates engagement, schema, CA cert), `version`. `--version` flag on all subcommands. `CC_ARTEX_PG` env var override in docker-compose.
+- **CLI:** `serve` (stdio and HTTP transports), `init` (creates engagement, schema, CA cert), `version` (with `--json`), `health` (PostgreSQL connectivity check), `completion` (bash/zsh/fish). `--version` flag on all subcommands. `--timeout` for graceful shutdown. `CC_ARTEX_PG` env var override.
 - **Store (PostgreSQL):** Full schema with auto-migration. Assets (6 types), companies, company scope, task scope, exploration graph (nodes, edges, anchors, constraints), findings, credentials, coverage ledger with history, intercept rules, activity log. Engagement export/import to portable JSON archives.
 - **Exploration graph:** Goals, intents, facts, findings, hints, constraints. Edges connect them (derived_from, yields, spawns, proves). Frontier query. Graph overview for situational awareness. Prove-goal workflow with confidence gating. Intent lifecycle (start, complete, cancel).
 - **Asset management:** Bulk insert with upsert, DSL-based queries (fuzzy, exact, exclusion, numeric comparisons, boolean combinators, parentheses), untested-asset queries, company scope attribution.
@@ -37,9 +37,10 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 - **Intercept rules:** Tool-call interception with allow/deny/ask actions and timeout policy.
 - **MCP resource:** `artex://engagement` resource serves the orchestration guide with live engagement context.
 - **Structured logging:** slog-based JSON logging across all packages.
-- **CI:** GitHub Actions with `go build`, `go vet`, `go test`, and store tests against a real PostgreSQL instance.
-- **Distribution:** v0.1.0 released with cross-platform binaries (goreleaser), Dockerfile, Homebrew formula auto-generated.
-- **Community files:** MIT license, CONTRIBUTING.md, SECURITY.md, 11 good-first-issue labels, example engagement walkthrough, godoc comments on all exported types. Zero open issues, 38+ PRs merged.
+- **CI:** GitHub Actions with fmt-check, `go build`, `go vet`, `go test`, Codecov coverage reporting, and store tests against a real PostgreSQL instance.
+- **Distribution:** v0.1.1 released with cross-platform binaries (goreleaser), .deb packaging, Dockerfile, Homebrew formula auto-generated.
+- **Documentation:** Tool reference (docs/TOOLS.md), MCP client configs (docs/MCP_CLIENTS.md), AGENTS.md contributor guide, demo GIF.
+- **Community files:** MIT license, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, example engagement walkthrough, godoc comments on all exported types. Zero open issues, 55+ PRs merged.
 
 
 ## 2. P0: Ship blockers (all complete)
@@ -112,9 +113,7 @@ Done. CSV export format for findings, assets, and nodes alongside existing markd
 
 ### ✅ 4.1 Test coverage
 
-Significantly expanded: 16+ test files, 1,295 test functions. Coverage now includes enrich, report, egress, config, crypto, ingest, intent, scope, evidence, traffic core, rewrite engine, hook VM, store, tools, and mcpserver packages.
-
-Remaining gap: integration-level tests for multi-tool workflows.
+230+ test functions across all packages. Integration-level multi-tool workflow tests added. Coverage reporting via Codecov.
 
 ### ✅ 4.2 Error message consistency
 
@@ -143,9 +142,9 @@ Done. Cross-platform binary builds for Linux, macOS, and Windows via GitHub Acti
 
 Done. Multi-stage Dockerfile for container deployments.
 
-### 5.3 Homebrew formula
+### ✅ 5.3 Homebrew formula
 
-Partially done. goreleaser has a tap section that auto-generates the formula. A standalone tap repository has not been set up.
+Done. goreleaser auto-generates the formula to `SREsAreHumanToo/homebrew-tap`. Install with `brew install SREsAreHumanToo/tap/cc-artex`.
 
 ### ✅ 5.4 Example engagement walkthrough
 
@@ -153,7 +152,7 @@ Done. Annotated walkthrough in `docs/examples/` showing init through report gene
 
 ### ✅ 5.5 Good first issues
 
-Done. 11 issues created (#25-#35) covering small, self-contained improvements.
+Done. Good-first-issues created and resolved. Zero open issues.
 
 ### ✅ 5.6 pkg.go.dev documentation
 
