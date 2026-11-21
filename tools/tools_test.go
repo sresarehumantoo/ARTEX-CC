@@ -1,0 +1,233 @@
+package tools
+
+import (
+	"context"
+	"encoding/json"
+	"strings"
+	"testing"
+)
+
+type mockStore struct{}
+
+func (m *mockStore) InsertAsset(_ context.Context, _ int64, _ AssetInput) (int64, error) {
+	return 1, nil
+}
+
+func (m *mockStore) ListAssets(_ context.Context, _ AssetFilter) ([]Asset, int, error) {
+	return nil, 0, nil
+}
+
+func (m *mockStore) ListUntestedAssets(_ context.Context, _ int64, _ string, _, _ int) ([]Asset, int, error) {
+	return nil, 0, nil
+}
+
+func (m *mockStore) ListCompanies(_ context.Context) ([]Company, error) {
+	return nil, nil
+}
+
+func (m *mockStore) GetOrCreateCompany(_ context.Context, _ string, _ string) (int64, error) {
+	return 1, nil
+}
+
+func (m *mockStore) AddCompanyScope(_ context.Context, _ int64, _ []string, _ string) (int, int, int, []string, error) {
+	return 0, 0, 0, nil, nil
+}
+
+func (m *mockStore) AddFinding(_ context.Context, _ FindingInput) (int64, error) {
+	return 1, nil
+}
+
+func (m *mockStore) ListFindings(_ context.Context, _ int64) ([]Finding, error) {
+	return nil, nil
+}
+
+func (m *mockStore) GraphOverview(_ context.Context, _ int64) (*Overview, error) {
+	return &Overview{
+		Task:          map[string]any{"goal": "test"},
+		FactsTotal:    3,
+		FindingsTotal: 1,
+		Coverage:      map[string]any{},
+	}, nil
+}
+
+func (m *mockStore) AddNode(_ context.Context, _ int64, _ string, _ map[string]any, _ int, _, _ string, _ []int64) (int64, error) {
+	return 10, nil
+}
+
+func (m *mockStore) UpdateNodeState(_ context.Context, _ int64, _ string) error {
+	return nil
+}
+
+func (m *mockStore) ListNodes(_ context.Context, _ int64, _ string, _ int) ([]Node, error) {
+	return nil, nil
+}
+
+func (m *mockStore) NodeDetail(_ context.Context, _ int64) (*Node, error) {
+	return &Node{ID: 1, Kind: "fact", State: "confirmed"}, nil
+}
+
+func (m *mockStore) AddEdge(_ context.Context, _ int64, _ string, _ int64) error {
+	return nil
+}
+
+func (m *mockStore) Frontier(_ context.Context, _ int64, _ int) ([]Node, error) {
+	return nil, nil
+}
+
+func (m *mockStore) CountFinishedIntents(_ context.Context, _ int64) (int, error) {
+	return 0, nil
+}
+
+func (m *mockStore) CountOpenIntents(_ context.Context, _ int64) (int, error) {
+	return 0, nil
+}
+
+func (m *mockStore) OriginFactID(_ context.Context, _ int64) (int64, error) {
+	return 1, nil
+}
+
+func (m *mockStore) Edges(_ context.Context, _ int64, _ int) ([]Edge, error) {
+	return nil, nil
+}
+
+func (m *mockStore) Root(_ context.Context, _ int64) (string, string, error) {
+	return "desc", "goal", nil
+}
+
+func (m *mockStore) AddConstraint(_ context.Context, _ int64, _, _, _ string) (int64, error) {
+	return 1, nil
+}
+
+func (m *mockStore) ListConstraints(_ context.Context, _ int64) ([]Constraint, error) {
+	return nil, nil
+}
+
+func (m *mockStore) AddTaskScope(_ context.Context, _ int64, _, _, _, _ string) error {
+	return nil
+}
+
+func (m *mockStore) ListTaskScope(_ context.Context, _ int64) ([]int64, error) {
+	return nil, nil
+}
+
+func (m *mockStore) SaveCredential(_ context.Context, _ int64, _ CredentialInput) (int64, error) {
+	return 1, nil
+}
+
+func (m *mockStore) ListCredentials(_ context.Context, _ int64) ([]Credential, error) {
+	return nil, nil
+}
+
+func (m *mockStore) RecordCoverage(_ context.Context, _ int64, _ CoverageEntry) error {
+	return nil
+}
+
+func (m *mockStore) CreateEngagement(_ context.Context, _, _ string) (int64, int64, error) {
+	return 1, 1, nil
+}
+
+func (m *mockStore) ListEngagements(_ context.Context) ([]EngagementSummary, error) {
+	return nil, nil
+}
+
+func (m *mockStore) GetEngagement(_ context.Context, _ int64) (*EngagementDetail, error) {
+	return nil, nil
+}
+
+func (m *mockStore) ListFindingsForReport(_ context.Context, _ int64) ([]ReportFinding, error) {
+	return nil, nil
+}
+
+var _ Store = (*mockStore)(nil)
+
+func TestRegistryLookup(t *testing.T) {
+	t.Parallel()
+	reg := NewRegistry()
+	reg.Register(Tool{
+		Name: "alpha",
+		Run: func(_ context.Context, _ json.RawMessage) (Result, error) {
+			return Result{Content: "a"}, nil
+		},
+	})
+	reg.Register(Tool{
+		Name: "beta",
+		Run: func(_ context.Context, _ json.RawMessage) (Result, error) {
+			return Result{Content: "b"}, nil
+		},
+	})
+
+	t.Run("found_alpha", func(t *testing.T) {
+		tool, ok := reg.Lookup("alpha")
+		if !ok {
+			t.Fatal("expected alpha to be found")
+		}
+		if tool.Name != "alpha" {
+			t.Fatalf("expected name alpha, got %s", tool.Name)
+		}
+	})
+
+	t.Run("found_beta", func(t *testing.T) {
+		tool, ok := reg.Lookup("beta")
+		if !ok {
+			t.Fatal("expected beta to be found")
+		}
+		if tool.Name != "beta" {
+			t.Fatalf("expected name beta, got %s", tool.Name)
+		}
+	})
+
+	t.Run("not_found_gamma", func(t *testing.T) {
+		_, ok := reg.Lookup("gamma")
+		if ok {
+			t.Fatal("expected gamma to not be found")
+		}
+	})
+}
+
+func TestInsertAssetsToolSchema(t *testing.T) {
+	t.Parallel()
+	reg := NewRegistry()
+	RegisterAll(reg, &mockStore{}, 1, 1)
+
+	tool, ok := reg.Lookup("insert_assets")
+	if !ok {
+		t.Fatal("insert_assets tool not found")
+	}
+
+	assets, ok := tool.Schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("schema properties missing or wrong type")
+	}
+	assetsProp, ok := assets["assets"].(map[string]any)
+	if !ok {
+		t.Fatal("assets property missing or wrong type")
+	}
+	if assetsProp["type"] != "array" {
+		t.Fatalf("expected assets type=array, got %v", assetsProp["type"])
+	}
+}
+
+func TestGraphOverviewToolCallsMock(t *testing.T) {
+	t.Parallel()
+	reg := NewRegistry()
+	RegisterAll(reg, &mockStore{}, 1, 1)
+
+	tool, ok := reg.Lookup("graph_overview")
+	if !ok {
+		t.Fatal("graph_overview tool not found")
+	}
+
+	result, err := tool.Run(context.Background(), json.RawMessage("{}"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", result.Content)
+	}
+	if !strings.Contains(result.Content, `"facts"`) {
+		t.Fatalf("expected content to contain facts, got: %s", result.Content)
+	}
+	if !strings.Contains(result.Content, `"findings_total"`) {
+		t.Fatalf("expected content to contain findings_total, got: %s", result.Content)
+	}
+}
