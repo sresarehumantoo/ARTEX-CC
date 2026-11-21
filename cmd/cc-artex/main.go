@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/SREsAreHumanToo/cc-artex/config"
+	"github.com/SREsAreHumanToo/cc-artex/evidence"
 	"github.com/SREsAreHumanToo/cc-artex/mcpserver"
 	"github.com/SREsAreHumanToo/cc-artex/store"
 	"github.com/SREsAreHumanToo/cc-artex/tools"
@@ -116,6 +117,9 @@ func cmdServe(args []string) {
 
 	reg := tools.NewRegistry()
 	tools.RegisterAll(reg, s, engCfg.TaskID, engCfg.ExplorationID)
+
+	evStore := evidence.NewStore(*dataDir)
+	tools.RegisterEvidenceTools(reg, evStore, s, engCfg.TaskID)
 
 	var t *traffic.Traffic
 	if *proxyAddr != "" {

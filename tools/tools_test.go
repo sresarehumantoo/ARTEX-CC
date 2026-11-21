@@ -41,6 +41,10 @@ func (m *mockStore) ListFindings(_ context.Context, _ int64) ([]Finding, error) 
 	return nil, nil
 }
 
+func (m *mockStore) FindingExists(_ context.Context, _ int64) (bool, error) {
+	return true, nil
+}
+
 func (m *mockStore) GraphOverview(_ context.Context, _ int64) (*Overview, error) {
 	return &Overview{
 		Task:          map[string]any{"goal": "test"},

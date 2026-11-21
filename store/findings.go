@@ -159,6 +159,12 @@ func (s *Store) listFindingsInternal(filter FindingFilter) ([]Finding, int, erro
 	return findings, total, nil
 }
 
+func (s *Store) FindingExists(ctx context.Context, findingID int64) (bool, error) {
+	var exists bool
+	err := s.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM findings WHERE id = $1)", findingID).Scan(&exists)
+	return exists, err
+}
+
 func (s *Store) GetFinding(id int64) (*Finding, error) {
 	f, err := scanFinding(s.QueryRow("SELECT "+findingSelectCols+" FROM findings WHERE id = $1", id))
 	if err == sql.ErrNoRows {
