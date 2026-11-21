@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -61,18 +62,29 @@ func resolvePG(val string) string {
 	return ""
 }
 
+func initLogging(debug bool) {
+	level := slog.LevelInfo
+	if debug {
+		level = slog.LevelDebug
+	}
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
+}
+
 func cmdServe(args []string) {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	listen := fs.String("listen", "localhost:9400", "HTTP listen address")
 	stdio := fs.Bool("stdio", false, "use stdio transport instead of HTTP")
+	debug := fs.Bool("debug", false, "enable debug-level logging")
 	pg := pgDSN(fs)
 	dataDir := fs.String("data", ".", "data directory for traffic, evidence, etc.")
 	proxyAddr := fs.String("proxy", "", "start the recording proxy on ADDR (e.g., :8788)")
 	fs.Parse(args)
 
+	initLogging(*debug)
+
 	dsn := resolvePG(*pg)
 	if dsn == "" {
-		fmt.Fprintln(os.Stderr, "error: --pg or CC_ARTEX_PG is required")
+		slog.Error("--pg or CC_ARTEX_PG is required")
 		os.Exit(1)
 	}
 
@@ -81,25 +93,25 @@ func cmdServe(args []string) {
 
 	engCfg, err := config.LoadEngagement(*dataDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error loading engagement config: %v\n", err)
+		slog.Error("failed to load engagement config", "err", err)
 		os.Exit(1)
 	}
 
 	s, err := store.Open(ctx, dsn)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error opening store: %v\n", err)
+		slog.Error("failed to open store", "err", err)
 		os.Exit(1)
 	}
 
 	if keyHex := os.Getenv("CC_ARTEX_CREDENTIAL_KEY"); keyHex != "" {
 		key, err := store.ParseCredentialKey(keyHex)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			slog.Error("invalid credential key", "err", err)
 			os.Exit(1)
 		}
 		s.SetCredentialKey(key)
 	} else {
-		fmt.Fprintln(os.Stderr, "warning: CC_ARTEX_CREDENTIAL_KEY is not set; credentials will be stored in plaintext")
+		slog.Warn("CC_ARTEX_CREDENTIAL_KEY is not set; credentials will be stored in plaintext")
 	}
 
 	reg := tools.NewRegistry()
@@ -110,28 +122,29 @@ func cmdServe(args []string) {
 		trafficDir := filepath.Join(*dataDir, "traffic")
 		t, err = traffic.Open(trafficDir, *proxyAddr)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error opening traffic proxy: %v\n", err)
+			slog.Error("failed to open traffic proxy", "err", err)
 			os.Exit(1)
 		}
 		go func() {
 			if err := t.Start(); err != nil && ctx.Err() == nil {
-				fmt.Fprintf(os.Stderr, "traffic proxy error: %v\n", err)
+				slog.Error("traffic proxy failed", "err", err)
 			}
 		}()
-		tools.RegisterTrafficTools(reg, t)
-		fmt.Fprintf(os.Stderr, "recording proxy on %s (CA cert: %s)\n", *proxyAddr, t.CACertPath())
+		tools.RegisterTrafficTools(reg, t, s, engCfg.TaskID)
+		slog.Info("recording proxy started", "addr", *proxyAddr, "ca_cert", t.CACertPath())
 	}
 
 	srv := mcpserver.New(reg, mcpserver.WithEngagement(s, engCfg.TaskID, engCfg.ExplorationID))
 	if *stdio {
+		slog.Info("serving", "transport", "stdio")
 		if err := srv.ServeStdio(ctx); err != nil && ctx.Err() == nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			slog.Error("stdio server failed", "err", err)
 			os.Exit(1)
 		}
 	} else {
-		fmt.Fprintf(os.Stderr, "cc-artex serving on %s\n", *listen)
+		slog.Info("serving", "addr", *listen)
 		if err := srv.ServeHTTP(ctx, *listen); err != nil && ctx.Err() == nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			slog.Error("http server failed", "err", err)
 			os.Exit(1)
 		}
 	}
@@ -147,14 +160,14 @@ func shutdown(t *traffic.Traffic, s *store.Store) {
 
 	if t != nil {
 		if err := t.Shutdown(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "traffic proxy shutdown: %v\n", err)
+			slog.Error("traffic proxy shutdown failed", "err", err)
 		}
 		if err := t.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "traffic close: %v\n", err)
+			slog.Error("traffic close failed", "err", err)
 		}
 	}
 	if err := s.Close(); err != nil {
-		fmt.Fprintf(os.Stderr, "store close: %v\n", err)
+		slog.Error("store close failed", "err", err)
 	}
 }
 
@@ -166,9 +179,11 @@ func cmdInit(args []string) {
 	dataDir := fs.String("data", ".", "data directory for config file")
 	fs.Parse(args)
 
+	initLogging(false)
+
 	dsn := resolvePG(*pg)
 	if dsn == "" {
-		fmt.Fprintln(os.Stderr, "error: --pg or CC_ARTEX_PG is required")
+		slog.Error("--pg or CC_ARTEX_PG is required")
 		os.Exit(1)
 	}
 
@@ -176,14 +191,14 @@ func cmdInit(args []string) {
 
 	s, err := store.Open(ctx, dsn)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error opening store: %v\n", err)
+		slog.Error("failed to open store", "err", err)
 		os.Exit(1)
 	}
 	defer s.Close()
 
 	taskID, explorationID, err := s.CreateEngagement(ctx, *goal, *desc)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error creating engagement: %v\n", err)
+		slog.Error("failed to create engagement", "err", err)
 		os.Exit(1)
 	}
 
@@ -194,13 +209,13 @@ func cmdInit(args []string) {
 		Description:   *desc,
 	}
 	if err := config.SaveEngagement(*dataDir, engCfg); err != nil {
-		fmt.Fprintf(os.Stderr, "error saving config: %v\n", err)
+		slog.Error("failed to save config", "err", err)
 		os.Exit(1)
 	}
 
 	certPath, err := generateCA(*dataDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: failed to generate CA certificate: %v\n", err)
+		slog.Warn("failed to generate CA certificate", "err", err)
 	}
 
 	fmt.Printf("Engagement created:\n")

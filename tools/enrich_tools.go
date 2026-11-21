@@ -10,13 +10,13 @@ import (
 	"github.com/SREsAreHumanToo/cc-artex/enrich"
 )
 
-func RegisterEnrichTools(reg *Registry) {
-	reg.Register(makeEnrichDomain())
-	reg.Register(makeEnrichIP())
-	reg.Register(makeEnrichService())
+func RegisterEnrichTools(reg *Registry, store Store, taskID int64) {
+	reg.Register(makeEnrichDomain(store, taskID))
+	reg.Register(makeEnrichIP(store, taskID))
+	reg.Register(makeEnrichService(store, taskID))
 }
 
-func makeEnrichDomain() Tool {
+func makeEnrichDomain(store Store, taskID int64) Tool {
 	return Tool{
 		Name: "enrich_domain",
 		Description: "Run DNS enrichment on a domain: resolves A/AAAA/CNAME/MX/NS/TXT records and performs reverse DNS on discovered IPs. " +
@@ -35,6 +35,11 @@ func makeEnrichDomain() Tool {
 			if strings.TrimSpace(a.Domain) == "" {
 				return errResult("domain is required"), nil
 			}
+			if ok, reason, _, err := store.IsInScope(ctx, taskID, a.Domain); err != nil {
+				return errResult("scope check failed: " + err.Error()), nil
+			} else if !ok {
+				return errResult(fmt.Sprintf("enrichment blocked: target is out of scope (%s)", reason)), nil
+			}
 			r, err := enrich.EnrichDomain(ctx, a.Domain)
 			if err != nil {
 				return errResult(err.Error()), nil
@@ -44,7 +49,7 @@ func makeEnrichDomain() Tool {
 	}
 }
 
-func makeEnrichIP() Tool {
+func makeEnrichIP(store Store, taskID int64) Tool {
 	return Tool{
 		Name: "enrich_ip",
 		Description: "Run reverse DNS on an IP address. Returns PTR records and any discovered hostnames as new assets.",
@@ -66,6 +71,11 @@ func makeEnrichIP() Tool {
 			if net.ParseIP(ip) == nil {
 				return errResult(fmt.Sprintf("invalid IP address: %s", ip)), nil
 			}
+			if ok, reason, _, err := store.IsInScope(ctx, taskID, ip); err != nil {
+				return errResult("scope check failed: " + err.Error()), nil
+			} else if !ok {
+				return errResult(fmt.Sprintf("enrichment blocked: target is out of scope (%s)", reason)), nil
+			}
 			r, err := enrich.EnrichIP(ctx, ip)
 			if err != nil {
 				return errResult(err.Error()), nil
@@ -75,7 +85,7 @@ func makeEnrichIP() Tool {
 	}
 }
 
-func makeEnrichService() Tool {
+func makeEnrichService(store Store, taskID int64) Tool {
 	return Tool{
 		Name: "enrich_service",
 		Description: "Probe an HTTP(S) service for status code, redirect chain, server headers, page title, " +
@@ -101,6 +111,11 @@ func makeEnrichService() Tool {
 			}
 			if a.Port <= 0 || a.Port > 65535 {
 				return errResult("port must be 1-65535"), nil
+			}
+			if ok, reason, _, err := store.IsInScope(ctx, taskID, a.Host); err != nil {
+				return errResult("scope check failed: " + err.Error()), nil
+			} else if !ok {
+				return errResult(fmt.Sprintf("enrichment blocked: target is out of scope (%s)", reason)), nil
 			}
 			r, err := enrich.EnrichService(ctx, a.Host, a.Port, a.Scheme)
 			if err != nil {
