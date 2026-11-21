@@ -1,0 +1,43 @@
+name: "VulnApp Full"
+description: >
+  Run cc-artex against the custom vulnerable application. All five
+  vulnerability classes should be discoverable within the timeout.
+target: "http://localhost:8083"
+goal: "Find and report all vulnerabilities in the target web application"
+scope:
+  - "localhost:8083"
+credentials:
+  username: "admin"
+  password: "admin123"
+expected_findings:
+  min_count: 4
+  must_include:
+    - type: "sql_injection"
+      description: "SQL injection in /api/search?q= and /login"
+      endpoints:
+        - "/api/search?q="
+        - "/login"
+    - type: "directory_traversal"
+      description: "Path traversal in /files?path="
+      endpoints:
+        - "/files?path="
+    - type: "ssrf"
+      description: "Server-side request forgery in /fetch?url="
+      endpoints:
+        - "/fetch?url="
+    - type: "broken_access_control"
+      description: "Unauthenticated admin panel at /admin and IDOR at /api/users/:id"
+      endpoints:
+        - "/admin"
+        - "/api/users/"
+  may_include:
+    - type: "sensitive_data_exposure"
+      description: "Password returned in /api/users/:id response"
+    - type: "hardcoded_credentials"
+      description: "Default admin:admin123 credentials"
+expected_assets:
+  min_count: 3
+  types:
+    - "service"
+    - "endpoint"
+timeout: 15m
