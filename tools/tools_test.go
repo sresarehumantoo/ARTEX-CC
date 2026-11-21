@@ -207,7 +207,7 @@ func (m *mockStore) DismissFinding(_ context.Context, _ int64, _ string) error {
 }
 
 func (m *mockStore) ListCoverageGaps(_ context.Context, _ int64, _ int64) (*CoverageGaps, error) {
-	return &CoverageGaps{}, nil
+	return nil, nil
 }
 
 var _ Store = (*mockStore)(nil)

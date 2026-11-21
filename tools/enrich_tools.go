@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/url"
 	"strings"
 	"time"
 
@@ -127,12 +128,26 @@ func makeEnrichService(store Store, taskID int64) Tool {
 			if err := json.Unmarshal(in, &a); err != nil {
 				return errResult("invalid input: " + err.Error()), nil
 			}
-			if strings.TrimSpace(a.Host) == "" {
+			host := strings.TrimSpace(a.Host)
+			if host == "" {
 				return errResult("host is required"), nil
 			}
 			if a.Port <= 0 || a.Port > 65535 {
 				return errResult("port must be 1-65535"), nil
 			}
+			scheme := strings.ToLower(strings.TrimSpace(a.Scheme))
+			if scheme != "" && scheme != "http" && scheme != "https" {
+				return errResult(fmt.Sprintf("scheme must be http or https, got %q", a.Scheme)), nil
+			}
+			probe := scheme
+			if probe == "" {
+				probe = "http"
+			}
+			if _, err := url.ParseRequestURI(fmt.Sprintf("%s://%s:%d", probe, host, a.Port)); err != nil {
+				return errResult(fmt.Sprintf("malformed URL: %s", err)), nil
+			}
+			a.Host = host
+			a.Scheme = scheme
 			if ok, reason, _, err := store.IsInScope(ctx, taskID, a.Host); err != nil {
 				return errResult("scope check failed: " + err.Error()), nil
 			} else if !ok {
