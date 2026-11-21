@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-21
+
 ### Added
 - `cc-artex health` subcommand for PostgreSQL connectivity checks
 - `cc-artex completion bash/zsh/fish` for shell completions
@@ -14,9 +16,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `gofmt -s` check in CI pipeline
 - Tool reference documentation (docs/TOOLS.md)
 - MCP client configuration guide (docs/MCP_CLIENTS.md)
+- CHANGELOG.md
 - AGENTS.md contributor guide
 - CODE_OF_CONDUCT.md
-- Improved error message when CC_ARTEX_PG is not set
+
+### Improved
+- Error message when CC_ARTEX_PG is not set now shows both options with examples
+- CONTRIBUTING.md with dev setup, testing, code style sections
+- Roadmap refreshed with current stats
+- Test coverage: report 96.1%, egress 98.9%
 
 ## [0.1.1] - 2026-11-21
 
@@ -56,6 +64,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dockerfile for container deployments
 - GitHub Actions CI with PostgreSQL service container
 
-[Unreleased]: https://github.com/SREsAreHumanToo/cc-artex/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/SREsAreHumanToo/cc-artex/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/SREsAreHumanToo/cc-artex/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/SREsAreHumanToo/cc-artex/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/SREsAreHumanToo/cc-artex/releases/tag/v0.1.0
