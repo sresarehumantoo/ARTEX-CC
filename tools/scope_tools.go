@@ -60,7 +60,7 @@ func makeRecordCoverage(store Store, taskID int64) Tool {
 			}
 			var e CoverageEntry
 			if err := json.Unmarshal(in, &e); err != nil {
-				return errResult(err.Error()), nil
+				return errResult("invalid input: " + err.Error()), nil
 			}
 			e.Outcome = strings.ToLower(strings.TrimSpace(e.Outcome))
 			if err := store.RecordCoverage(ctx, taskID, e); err != nil {

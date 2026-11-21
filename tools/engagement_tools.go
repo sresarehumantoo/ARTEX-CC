@@ -28,7 +28,7 @@ func makeCreateEngagement(store Store) Tool {
 				Description string `json:"description"`
 			}
 			if err := json.Unmarshal(in, &a); err != nil {
-				return errResult(err.Error()), nil
+				return errResult("invalid input: " + err.Error()), nil
 			}
 			if strings.TrimSpace(a.Goal) == "" {
 				return errResult("goal is required"), nil

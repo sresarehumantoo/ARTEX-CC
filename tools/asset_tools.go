@@ -201,7 +201,7 @@ func makeListCompanies(store Store) Tool {
 
 			cos, err := store.ListCompanies(ctx)
 			if err != nil {
-				return errResult("failed to query companies: " + err.Error()), nil
+				return errResult(err.Error()), nil
 			}
 
 			q := strings.ToLower(strings.TrimSpace(a.Search))
@@ -238,14 +238,14 @@ func makeAddCompanyScope(store Store) Tool {
 				Logo    string `json:"logo"`
 			}
 			if err := json.Unmarshal(in, &a); err != nil {
-				return errResult(err.Error()), nil
+				return errResult("invalid input: " + err.Error()), nil
 			}
 			if strings.TrimSpace(a.Company) == "" {
 				return errResult("company must not be empty"), nil
 			}
 			companyID, err := store.GetOrCreateCompany(ctx, a.Company, a.Logo)
 			if err != nil {
-				return errResult("failed to create/get company: " + err.Error()), nil
+				return errResult(err.Error()), nil
 			}
 			lines := splitLines(a.Scope)
 			added, skipped, invalid, errMsgs, err := store.AddCompanyScope(ctx, companyID, lines, a.Reason)
@@ -370,7 +370,13 @@ func assetTarget(item AssetInput) string {
 	case "ip":
 		return item.IP
 	case "service", "endpoint":
-		return item.URL
+		if item.URL != "" {
+			return item.URL
+		}
+		if item.IP != "" {
+			return item.IP
+		}
+		return item.Domain
 	}
 	return ""
 }

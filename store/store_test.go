@@ -4,9 +4,16 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/SREsAreHumanToo/cc-artex/tools"
+)
+
+var (
+	sharedStore     *Store
+	sharedStoreOnce sync.Once
+	sharedStoreErr  error
 )
 
 func testDB(t *testing.T) *Store {
@@ -15,12 +22,13 @@ func testDB(t *testing.T) *Store {
 	if dsn == "" {
 		t.Skip("CC_ARTEX_TEST_PG not set")
 	}
-	s, err := Open(context.Background(), dsn)
-	if err != nil {
-		t.Fatal(err)
+	sharedStoreOnce.Do(func() {
+		sharedStore, sharedStoreErr = Open(context.Background(), dsn)
+	})
+	if sharedStoreErr != nil {
+		t.Fatal(sharedStoreErr)
 	}
-	t.Cleanup(func() { s.Close() })
-	return s
+	return sharedStore
 }
 
 func testEngagement(t *testing.T, s *Store, label string) (int64, int64) {
@@ -90,8 +98,9 @@ func TestListAssetsDSL(t *testing.T) {
 	taskID, _ := testEngagement(t, s, "dsl-assets")
 
 	_, err := s.InsertAsset(ctx, taskID, tools.AssetInput{
-		Type: "service",
-		URL:  "https://test.example.com/api",
+		Type:   "service",
+		URL:    "https://test.example.com/api",
+		Domain: "test.example.com",
 	})
 	if err != nil {
 		t.Fatalf("InsertAsset: %v", err)
@@ -326,16 +335,13 @@ func TestStaleIntentDetection(t *testing.T) {
 	ctx := context.Background()
 	_, expID := testEngagement(t, s, "stale-intent")
 
-	intentID, err := s.AddNode(ctx, expID, KindIntent, map[string]any{"summary": "long running intent"}, 5, "running", "worker", nil)
+	_, err := s.ExecContext(ctx,
+		`INSERT INTO exploration_nodes(exploration_id, kind, payload, priority, state, origin, created_at, updated_at)
+		 VALUES ($1, 'intent', '{"summary":"long running intent"}'::jsonb, 5, 'running', 'worker',
+		         NOW() - INTERVAL '1 hour', NOW() - INTERVAL '1 hour')`,
+		expID)
 	if err != nil {
-		t.Fatalf("AddNode intent: %v", err)
-	}
-
-	_, err = s.ExecContext(ctx,
-		"UPDATE exploration_nodes SET state='running', updated_at = NOW() - INTERVAL '1 hour' WHERE id=$1",
-		intentID)
-	if err != nil {
-		t.Fatalf("backdate updated_at: %v", err)
+		t.Fatalf("insert backdated intent: %v", err)
 	}
 
 	ov, err := s.GraphOverview(ctx, expID)
