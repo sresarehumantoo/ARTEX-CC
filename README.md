@@ -115,6 +115,8 @@ The `--proxy` flag starts a recording MITM proxy alongside the MCP server. Point
 
 Then start Claude Code. The tools appear automatically. Ask Claude to "pentest example.com" and watch it work.
 
+For Cursor, Cline, Windsurf, Zed, and other MCP clients, see [MCP Client Configuration](docs/MCP_CLIENTS.md).
+
 ## Docker quick start
 
 **Prerequisites:** Docker and Docker Compose
