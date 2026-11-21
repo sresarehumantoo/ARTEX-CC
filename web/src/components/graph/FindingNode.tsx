@@ -1,0 +1,35 @@
+import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { ShieldAlert } from 'lucide-react'
+import type { GraphNode } from '../../lib/types'
+
+const severityColors: Record<string, string> = {
+  critical: 'bg-rose-500 text-white',
+  high: 'bg-orange-500 text-white',
+  medium: 'bg-amber-500 text-white',
+  low: 'bg-blue-500 text-white',
+  info: 'bg-slate-400 text-white',
+}
+
+export function FindingNode({ data }: NodeProps & { data: GraphNode }) {
+  const name = (data.payload.name ?? data.payload.title ?? 'Finding') as string
+  const summary = (data.payload.summary ?? data.payload.text ?? '') as string
+  const severity = ((data.payload.severity ?? 'medium') as string).toLowerCase()
+  const colorClass = severityColors[severity] ?? severityColors.medium
+  return (
+    <div className="node-enter w-[180px] bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-[3px] border-rose-500 overflow-hidden">
+      <Handle type="target" position={Position.Left} className="!bg-rose-500 !w-2 !h-2" />
+      <div className="p-2.5">
+        <div className="flex items-center gap-1.5 mb-1">
+          <ShieldAlert size={14} className="text-rose-500 shrink-0" />
+          <span className="text-[10px] text-slate-400 dark:text-slate-500">#{data.id}</span>
+          <span className={`ml-auto px-1.5 py-0.5 text-[10px] font-medium rounded ${colorClass}`}>
+            {severity}
+          </span>
+        </div>
+        <p className="text-xs font-medium text-slate-800 dark:text-slate-100 truncate mb-0.5">{name}</p>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug line-clamp-2">{summary}</p>
+      </div>
+      <Handle type="source" position={Position.Right} className="!bg-rose-500 !w-2 !h-2" />
+    </div>
+  )
+}

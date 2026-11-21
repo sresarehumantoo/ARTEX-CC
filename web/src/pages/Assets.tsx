@@ -1,0 +1,385 @@
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { cn } from '../lib/utils'
+import { fetchAssets, type Asset } from '../lib/api'
+
+const ASSET_TYPES = [
+  { key: '', label: 'All' },
+  { key: 'root_domain', label: 'Domains' },
+  { key: 'ip', label: 'IPs' },
+  { key: 'subdomain', label: 'Subdomains' },
+  { key: 'service', label: 'Services' },
+  { key: 'endpoint', label: 'Endpoints' },
+  { key: 'app', label: 'Apps' },
+] as const
+
+const TYPE_COLORS: Record<string, string> = {
+  root_domain: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+  subdomain: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
+  ip: 'bg-violet-500/15 text-violet-400 border-violet-500/25',
+  service: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
+  endpoint: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
+  app: 'bg-rose-500/15 text-rose-400 border-rose-500/25',
+  company: 'bg-slate-500/15 text-slate-400 border-slate-500/25',
+}
+
+const PAGE_SIZE = 50
+
+function useDebounce<T>(value: T, ms: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), ms)
+    return () => clearTimeout(timer)
+  }, [value, ms])
+  return debounced
+}
+
+function TypeBadge({ type }: { type: string }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium border',
+        TYPE_COLORS[type] ?? TYPE_COLORS.company,
+      )}
+    >
+      {type}
+    </span>
+  )
+}
+
+function MethodBadge({ method }: { method: string }) {
+  const colors: Record<string, string> = {
+    GET: 'bg-emerald-500/15 text-emerald-400',
+    POST: 'bg-blue-500/15 text-blue-400',
+    PUT: 'bg-amber-500/15 text-amber-400',
+    DELETE: 'bg-rose-500/15 text-rose-400',
+    PATCH: 'bg-violet-500/15 text-violet-400',
+    OPTIONS: 'bg-slate-500/15 text-slate-400',
+    HEAD: 'bg-slate-500/15 text-slate-400',
+  }
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded px-1.5 py-0.5 text-xs font-mono font-medium',
+        colors[method] ?? colors.GET,
+      )}
+    >
+      {method}
+    </span>
+  )
+}
+
+function dataStr(val: unknown): string {
+  if (val == null) return ''
+  if (typeof val === 'string') return val
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val)
+  if (Array.isArray(val)) return val.map(dataStr).join(', ')
+  return JSON.stringify(val)
+}
+
+function AllColumns({ asset }: { asset: Asset }) {
+  return (
+    <>
+      <td className="px-3 py-2"><TypeBadge type={asset.type} /></td>
+      <td className="px-3 py-2 text-slate-200 truncate max-w-sm">{asset.label}</td>
+      <td className="px-3 py-2 text-slate-500 font-mono text-xs">{asset.id}</td>
+    </>
+  )
+}
+
+function DomainColumns({ asset }: { asset: Asset }) {
+  return (
+    <>
+      <td className="px-3 py-2 text-slate-200">{asset.label}</td>
+      <td className="px-3 py-2 text-slate-400 text-sm">{dataStr(asset.data.record_type)}</td>
+      <td className="px-3 py-2 text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.record_value)}</td>
+    </>
+  )
+}
+
+function IPColumns({ asset }: { asset: Asset }) {
+  return (
+    <>
+      <td className="px-3 py-2 text-slate-200 font-mono text-sm">{asset.label}</td>
+      <td className="px-3 py-2 text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.domains)}</td>
+      <td className="px-3 py-2 text-slate-400 text-sm">{dataStr(asset.data.open_ports)}</td>
+    </>
+  )
+}
+
+function SubdomainColumns({ asset }: { asset: Asset }) {
+  return (
+    <>
+      <td className="px-3 py-2 text-slate-200">{asset.label}</td>
+      <td className="px-3 py-2 text-slate-400 text-sm">{dataStr(asset.data.root_domain)}</td>
+      <td className="px-3 py-2 text-slate-400 text-sm">{dataStr(asset.data.record_type)}</td>
+      <td className="px-3 py-2 text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.record_value)}</td>
+    </>
+  )
+}
+
+function ServiceColumns({ asset }: { asset: Asset }) {
+  return (
+    <>
+      <td className="px-3 py-2 text-slate-200 text-sm truncate max-w-xs">{asset.label}</td>
+      <td className="px-3 py-2 text-slate-400 text-sm">{dataStr(asset.data.status_code)}</td>
+      <td className="px-3 py-2 text-slate-400 text-sm truncate max-w-[200px]">{dataStr(asset.data.technologies)}</td>
+      <td className="px-3 py-2 text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.title)}</td>
+    </>
+  )
+}
+
+function EndpointColumns({ asset }: { asset: Asset }) {
+  const method = typeof asset.data.method === 'string' ? asset.data.method : 'GET'
+  const params = Array.isArray(asset.data.params) ? asset.data.params.length : 0
+  return (
+    <>
+      <td className="px-3 py-2"><MethodBadge method={method} /></td>
+      <td className="px-3 py-2 text-slate-200 text-sm truncate max-w-md font-mono">{asset.label}</td>
+      <td className="px-3 py-2 text-slate-400 text-sm">{params}</td>
+    </>
+  )
+}
+
+function AppColumns({ asset }: { asset: Asset }) {
+  return (
+    <>
+      <td className="px-3 py-2 text-slate-200">{asset.label}</td>
+      <td className="px-3 py-2 text-slate-400 text-sm font-mono">{dataStr(asset.data.bundle_id)}</td>
+      <td className="px-3 py-2 text-slate-400 text-sm">{dataStr(asset.data.category)}</td>
+    </>
+  )
+}
+
+const COLUMN_HEADERS: Record<string, string[]> = {
+  '': ['Type', 'Label', 'ID'],
+  root_domain: ['Domain', 'Record Type', 'Record Value'],
+  ip: ['IP Address', 'Bound Domains', 'Open Ports'],
+  subdomain: ['Subdomain', 'Root Domain', 'Record Type', 'Record Value'],
+  service: ['URL', 'Status Code', 'Technologies', 'Page Title'],
+  endpoint: ['Method', 'URL', 'Params'],
+  app: ['Name', 'Bundle ID', 'Category'],
+}
+
+function AssetRow({ asset, typeFilter, onClick }: { asset: Asset; typeFilter: string; onClick: () => void }) {
+  const key = typeFilter || ''
+  return (
+    <tr
+      onClick={onClick}
+      className="border-b border-slate-800 hover:bg-slate-800/50 cursor-pointer transition-colors"
+    >
+      {key === '' && <AllColumns asset={asset} />}
+      {key === 'root_domain' && <DomainColumns asset={asset} />}
+      {key === 'ip' && <IPColumns asset={asset} />}
+      {key === 'subdomain' && <SubdomainColumns asset={asset} />}
+      {key === 'service' && <ServiceColumns asset={asset} />}
+      {key === 'endpoint' && <EndpointColumns asset={asset} />}
+      {key === 'app' && <AppColumns asset={asset} />}
+      {key === 'company' && <AllColumns asset={asset} />}
+    </tr>
+  )
+}
+
+function DetailPanel({ asset, onClose }: { asset: Asset; onClose: () => void }) {
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div
+        ref={panelRef}
+        className="relative w-full max-w-md bg-slate-900 border-l border-slate-700 shadow-xl overflow-y-auto animate-slide-in"
+      >
+        <div className="sticky top-0 bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <TypeBadge type={asset.type} />
+            <span className="text-sm text-slate-500 font-mono">#{asset.id}</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-4">
+          <h2 className="text-lg font-medium text-slate-100 mb-4 break-all">{asset.label}</h2>
+          <div className="space-y-2">
+            {Object.entries(asset.data).map(([key, val]) => (
+              <div key={key} className="flex flex-col gap-0.5">
+                <span className="text-xs text-slate-500 uppercase tracking-wider">{key.replace(/_/g, ' ')}</span>
+                <span className="text-sm text-slate-300 break-all">
+                  {typeof val === 'object' && val !== null ? (
+                    <pre className="text-xs bg-slate-800 rounded p-2 overflow-x-auto whitespace-pre-wrap">
+                      {JSON.stringify(val, null, 2)}
+                    </pre>
+                  ) : (
+                    dataStr(val)
+                  )}
+                </span>
+              </div>
+            ))}
+            {Object.keys(asset.data).length === 0 && (
+              <p className="text-sm text-slate-500 italic">No additional data</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function Assets() {
+  const [typeFilter, setTypeFilter] = useState('')
+  const [dslInput, setDslInput] = useState('')
+  const [page, setPage] = useState(0)
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
+
+  const debouncedDsl = useDebounce(dslInput, 300)
+
+  useEffect(() => {
+    setPage(0)
+  }, [typeFilter, debouncedDsl])
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['assets', typeFilter, debouncedDsl, page],
+    queryFn: () =>
+      fetchAssets({
+        type: typeFilter || undefined,
+        dsl: debouncedDsl || undefined,
+        limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE,
+      }),
+  })
+
+  const total = data?.total ?? 0
+  const assets = data?.assets ?? []
+  const start = page * PAGE_SIZE + 1
+  const end = Math.min((page + 1) * PAGE_SIZE, total)
+  const headers = COLUMN_HEADERS[typeFilter] ?? COLUMN_HEADERS['']
+
+  const handleClose = useCallback(() => setSelectedAsset(null), [])
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="border-b border-slate-800 bg-slate-950 px-4 py-3">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {ASSET_TYPES.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTypeFilter(t.key)}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors',
+                typeFilter === t.key
+                  ? 'bg-slate-700 text-slate-100'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800',
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="border-b border-slate-800 px-4 py-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <input
+            type="text"
+            value={dslInput}
+            onChange={(e) => setDslInput(e.target.value)}
+            placeholder='Search assets (e.g., domain=example.com AND type=service)'
+            className="w-full bg-slate-900 border border-slate-700 rounded-md py-2 pl-9 pr-9 text-sm text-slate-200 placeholder:text-slate-600 font-mono focus:outline-none focus:ring-1 focus:ring-slate-500 focus:border-slate-500"
+          />
+          {dslInput && (
+            <button
+              onClick={() => setDslInput('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto">
+        {error ? (
+          <div className="flex items-center justify-center h-48 text-sm text-rose-400">
+            Failed to load assets: {(error as Error).message}
+          </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center h-48 text-sm text-slate-500">
+            Loading...
+          </div>
+        ) : assets.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48 text-slate-500">
+            <p className="text-sm">No assets found</p>
+            {dslInput && (
+              <p className="text-xs mt-1">Try adjusting your search query</p>
+            )}
+          </div>
+        ) : (
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-slate-800 bg-slate-900/50">
+                {headers.map((h) => (
+                  <th
+                    key={h}
+                    className="px-3 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {assets.map((asset) => (
+                <AssetRow
+                  key={asset.id}
+                  asset={asset}
+                  typeFilter={typeFilter}
+                  onClick={() => setSelectedAsset(asset)}
+                />
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {total > 0 && (
+        <div className="border-t border-slate-800 px-4 py-2 flex items-center justify-between text-sm text-slate-400 bg-slate-950">
+          <span>
+            Showing {start}-{end} of {total}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="p-1 rounded hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={end >= total}
+              className="p-1 rounded hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {selectedAsset && <DetailPanel asset={selectedAsset} onClose={handleClose} />}
+    </div>
+  )
+}
