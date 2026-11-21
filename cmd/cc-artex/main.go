@@ -238,8 +238,40 @@ func cmdInit(args []string) {
 		fmt.Println("  Windows: certutil -addstore Root " + certPath)
 		fmt.Println()
 	}
-	fmt.Println("Add to your Claude Code MCP config:")
+	fmt.Println("Add to your Claude Code MCP config (~/.claude.json or project .mcp.json):")
 	fmt.Println()
-	fmt.Printf(`  { "mcpServers": { "cc-artex": { "command": "cc-artex", "args": ["serve", "--stdio", "--pg", %q] } } }`, dsn)
+	fmt.Println("Minimal (no proxy, data in cwd):")
 	fmt.Println()
+	fmt.Printf(`  {
+    "mcpServers": {
+      "cc-artex": {
+        "command": "cc-artex",
+        "args": ["serve", "--stdio", "--pg", %q]
+      }
+    }
+  }`, dsn)
+	fmt.Println()
+	fmt.Println()
+	fmt.Println("Full (recording proxy + explicit data directory):")
+	fmt.Println()
+	fmt.Printf(`  {
+    "mcpServers": {
+      "cc-artex": {
+        "command": "cc-artex",
+        "args": [
+          "serve", "--stdio",
+          "--pg", %q,
+          "--data", %q,
+          "--proxy", ":8788"
+        ]
+      }
+    }
+  }`, dsn, *dataDir)
+	fmt.Println()
+	fmt.Println()
+	fmt.Println("Flags:")
+	fmt.Println("  --pg        PostgreSQL connection string (or set CC_ARTEX_PG)")
+	fmt.Println("  --data      directory for traffic captures, evidence, and config")
+	fmt.Println("  --proxy     start the MITM recording proxy on ADDR (e.g. :8788)")
+	fmt.Println("  --debug     enable debug-level logging")
 }

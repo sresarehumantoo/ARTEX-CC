@@ -21,17 +21,17 @@ func makeGenerateReport(store Store, taskID, explorationID int64) Tool {
 		Run: func(ctx context.Context, _ json.RawMessage) (Result, error) {
 			_, goal, err := store.Root(ctx, explorationID)
 			if err != nil {
-				return errResult("root: " + err.Error()), nil
+				return errResult(err.Error()), nil
 			}
 
 			findings, err := store.ListFindingsForReport(ctx, explorationID)
 			if err != nil {
-				return errResult("list findings: " + err.Error()), nil
+				return errResult(err.Error()), nil
 			}
 
 			assets, _, err := store.ListAssets(ctx, AssetFilter{TaskID: taskID, Limit: 10000})
 			if err != nil {
-				return errResult("list assets: " + err.Error()), nil
+				return errResult(err.Error()), nil
 			}
 			assetCounts := map[string]int{}
 			for _, a := range assets {
