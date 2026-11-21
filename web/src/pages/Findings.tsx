@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, ExternalLink, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, ExternalLink, Search, Shield, X } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge, type BadgeVariant } from '../components/ui/badge'
@@ -8,6 +8,7 @@ import { Input } from '../components/ui/input'
 import { ScrollArea } from '../components/ui/scroll-area'
 import { Select } from '../components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
+import { Spinner } from '../components/ui/spinner'
 import { useFindingDetail, useFindings } from '../hooks/useFindings'
 import type { Finding, Severity } from '../lib/types'
 import { cn } from '../lib/utils'
@@ -103,7 +104,7 @@ export default function Findings() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 p-4">
+    <div className="flex h-full flex-col gap-4 p-6">
       {/* Summary cards */}
       <div className="grid grid-cols-5 gap-3">
         <SummaryCard
@@ -199,9 +200,10 @@ export default function Findings() {
         {/* Table */}
         <div className="min-h-0 flex-1">
           {isLoading ? (
-            <div className="flex h-64 items-center justify-center text-slate-500">Loading...</div>
+            <div className="flex h-64 items-center justify-center"><Spinner className="h-8 w-8" /></div>
           ) : filtered.length === 0 ? (
             <div className="flex h-64 flex-col items-center justify-center gap-2 text-slate-500">
+              <Shield className="h-10 w-10 text-slate-600" />
               <p className="text-lg">No findings</p>
               <p className="text-sm">
                 {findings.length > 0
@@ -331,7 +333,7 @@ function DetailPanel({
 }) {
   if (loading || !detail) {
     return (
-      <div className="flex h-64 items-center justify-center text-slate-500">Loading...</div>
+      <div className="flex h-64 items-center justify-center"><Spinner className="h-8 w-8" /></div>
     )
   }
 

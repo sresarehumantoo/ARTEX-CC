@@ -21,7 +21,7 @@ export function useTraffic(filters: TrafficFilters) {
   if (filters.host) params.set('host', filters.host)
   if (filters.method) params.set('method', filters.method)
   if (filters.status) params.set('status', filters.status)
-  if (filters.query) params.set('query', filters.query)
+  if (filters.query) params.set('q', filters.query)
   params.set('page', String(filters.page))
   params.set('size', String(filters.size))
 

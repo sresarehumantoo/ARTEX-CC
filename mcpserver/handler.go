@@ -18,6 +18,10 @@ func convertTool(t tools.Tool) mcp.Tool {
 }
 
 func makeHandler(t tools.Tool) server.ToolHandlerFunc {
+	return makeHandlerWithNotifier(t, nil)
+}
+
+func makeHandlerWithNotifier(t tools.Tool, notifier ToolNotifier) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		slog.Info("tool called", "tool", t.Name)
 		raw, err := json.Marshal(req.GetRawArguments())
@@ -31,6 +35,9 @@ func makeHandler(t tools.Tool) server.ToolHandlerFunc {
 		}
 		if result.IsError {
 			return mcp.NewToolResultError(result.Content), nil
+		}
+		if notifier != nil && !t.ReadOnly {
+			notifier(t.Name)
 		}
 		return mcp.NewToolResultText(result.Content), nil
 	}

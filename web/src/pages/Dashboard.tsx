@@ -7,6 +7,7 @@ import {
   AlertCircle,
   Wrench,
 } from 'lucide-react'
+import { Spinner } from '../components/ui/spinner'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Badge, severityVariant } from '../components/ui/badge'
 import { getEngagement, getActivity } from '../lib/api'
@@ -119,11 +120,11 @@ export function Dashboard() {
   const e = engagement.data
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <h1 className="text-2xl font-semibold text-slate-100">Dashboard</h1>
 
       {engagement.isLoading && (
-        <p className="text-sm text-slate-500">Loading engagement data...</p>
+        <div className="flex items-center justify-center h-64"><Spinner className="h-8 w-8" /></div>
       )}
       {engagement.isError && (
         <p className="text-sm text-rose-400">
@@ -186,7 +187,7 @@ export function Dashboard() {
         </CardHeader>
         <CardContent>
           {activity.isLoading && (
-            <p className="text-sm text-slate-500">Loading activity...</p>
+            <div className="flex items-center justify-center h-64"><Spinner className="h-8 w-8" /></div>
           )}
           {activity.isError && (
             <p className="text-sm text-rose-400">

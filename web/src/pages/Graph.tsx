@@ -12,6 +12,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import '../graph.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Spinner } from '../components/ui/spinner'
 import {
   GoalNode,
   IntentNode,
@@ -99,7 +100,7 @@ export function GraphPage() {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="text-slate-400 dark:text-slate-500 text-sm">Loading exploration graph...</div>
+        <Spinner className="h-8 w-8" />
       </div>
     )
   }

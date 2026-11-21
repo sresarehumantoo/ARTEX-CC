@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -64,6 +65,29 @@ func (a *API) Broadcast(eventType string, data any) {
 	}
 }
 
+func (a *API) NotifyChange(toolName string) {
+	ctx := context.Background()
+	switch {
+	case strings.HasPrefix(toolName, "insert_node"),
+		strings.HasPrefix(toolName, "add_hint"),
+		strings.HasPrefix(toolName, "add_intent"),
+		strings.HasPrefix(toolName, "record_fact"),
+		strings.HasPrefix(toolName, "prove_goal"),
+		strings.HasPrefix(toolName, "update_intent"):
+		nodes, _ := a.store.ListNodes(ctx, a.explorationID, "", 0)
+		edges, _ := a.store.Edges(ctx, a.explorationID, 0)
+		a.Broadcast("full_refresh", map[string]any{"nodes": nodes, "edges": edges})
+	case strings.HasPrefix(toolName, "add_finding"),
+		strings.HasPrefix(toolName, "confirm_finding"),
+		strings.HasPrefix(toolName, "report_finding"):
+		a.Broadcast("finding_added", nil)
+	case strings.HasPrefix(toolName, "insert_asset"):
+		a.Broadcast("asset_added", nil)
+	default:
+		a.Broadcast("store_changed", nil)
+	}
+}
+
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -118,13 +142,17 @@ func (a *API) handleEngagement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	desc, goal, _ := a.store.Root(ctx, a.explorationID)
-	jsonResponse(w, http.StatusOK, map[string]any{
-		"task_id":        a.taskID,
-		"exploration_id": a.explorationID,
-		"description":    desc,
-		"goal":           goal,
-		"overview":       overview,
-	})
+
+	// Flatten the overview into the top-level response so the frontend
+	// can read fields like goals, open_intents, etc. directly.
+	flat := map[string]any{}
+	b, _ := json.Marshal(overview)
+	json.Unmarshal(b, &flat)
+	flat["task_id"] = a.taskID
+	flat["exploration_id"] = a.explorationID
+	flat["description"] = desc
+	flat["goal"] = goal
+	jsonResponse(w, http.StatusOK, flat)
 }
 
 func (a *API) handleGraph(w http.ResponseWriter, r *http.Request) {
@@ -168,10 +196,11 @@ func (a *API) handleFindingDetail(w http.ResponseWriter, r *http.Request) {
 	for _, f := range findings {
 		if f.ID == id {
 			bindings, _ := a.store.ListFindingTraffic(r.Context(), id)
-			jsonResponse(w, http.StatusOK, map[string]any{
-				"finding":  f,
-				"traffic":  bindings,
-			})
+			result := map[string]any{}
+			b, _ := json.Marshal(f)
+			json.Unmarshal(b, &result)
+			result["traffic_bindings"] = bindings
+			jsonResponse(w, http.StatusOK, result)
 			return
 		}
 	}
@@ -218,7 +247,7 @@ func (a *API) handleAssetDetail(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) handleTraffic(w http.ResponseWriter, r *http.Request) {
 	if a.traffic == nil {
-		jsonResponse(w, http.StatusOK, map[string]any{"exchanges": []any{}, "total": 0})
+		jsonResponse(w, http.StatusOK, map[string]any{"rows": []any{}, "total": 0})
 		return
 	}
 	q := traffic.PageQuery{
@@ -257,8 +286,8 @@ func (a *API) handleTraffic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonResponse(w, http.StatusOK, map[string]any{
-		"exchanges": exchanges,
-		"total":     total,
+		"rows":  exchanges,
+		"total": total,
 	})
 }
 
