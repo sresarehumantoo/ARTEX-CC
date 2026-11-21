@@ -12,16 +12,16 @@ import (
 )
 
 type TaskScope struct {
-	ID          int64  `json:"id"`
-	TaskID      int64  `json:"task_id"`
-	Kind        string `json:"kind"`
-	CompanyID   *int64 `json:"company_id,omitempty"`
-	CompanyName string `json:"company_name,omitempty"`
-	Domain      string `json:"domain,omitempty"`
-	Net         string `json:"net,omitempty"`
-	Value       string `json:"value,omitempty"`
-	Source      string `json:"source"`
-	Reason      string `json:"reason,omitempty"`
+	ID          int64     `json:"id"`
+	TaskID      int64     `json:"task_id"`
+	Kind        string    `json:"kind"`
+	CompanyID   *int64    `json:"company_id,omitempty"`
+	CompanyName string    `json:"company_name,omitempty"`
+	Domain      string    `json:"domain,omitempty"`
+	Net         string    `json:"net,omitempty"`
+	Value       string    `json:"value,omitempty"`
+	Source      string    `json:"source"`
+	Reason      string    `json:"reason,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 

@@ -57,7 +57,6 @@ func WithNotifier(fn ToolNotifier) Option {
 	return func(s *Server) { s.notifier = fn }
 }
 
-
 // New creates a Server with its tools registered and optional engagement context.
 func New(registry *tools.Registry, opts ...Option) *Server {
 	s := &Server{
@@ -195,4 +194,3 @@ meeting goals, report what was tested and what remains unclear.
 For continuous autonomous operation, the user can run:
   /loop 5m Continue the pentest: call graph_overview, assess progress, dispatch subagents for open intents, prove goals when evidence exists.
 `
-

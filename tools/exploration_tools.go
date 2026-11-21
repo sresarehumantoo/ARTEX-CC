@@ -133,8 +133,8 @@ func makeRecordFact(store Store, explorationID int64) Tool {
 			"source = target_response | tool_output | third_party_intel | operator_input | inference (default).",
 		Schema: obj(map[string]any{
 			"facts": map[string]any{
-				"type":    "array",
-				"minItems": 1,
+				"type":        "array",
+				"minItems":    1,
 				"description": "The facts to record, usually exactly one.",
 				"items": obj(map[string]any{
 					"summary":    str("Required: a non-empty one-sentence summary of this conclusion."),

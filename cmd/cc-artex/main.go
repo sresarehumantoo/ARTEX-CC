@@ -34,6 +34,8 @@ func main() {
 		cmdServe(os.Args[2:])
 	case "init":
 		cmdInit(os.Args[2:])
+	case "health":
+		cmdHealth(os.Args[2:])
 	case "version":
 		fmt.Println("cc-artex " + version)
 	case "-h", "--help", "help":
@@ -45,10 +47,11 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: cc-artex <serve|init|version>")
+	fmt.Fprintln(os.Stderr, "usage: cc-artex <serve|init|health|version>")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "  serve    Start the MCP tool server")
 	fmt.Fprintln(os.Stderr, "  init     Initialize a new engagement")
+	fmt.Fprintln(os.Stderr, "  health   Check PostgreSQL connectivity")
 	fmt.Fprintln(os.Stderr, "  version  Print version")
 	os.Exit(1)
 }

@@ -69,7 +69,6 @@ func normalizeCoverageField(s string) string {
 
 func normRiskArea(s string) string { return strings.ToLower(normalizeCoverageField(s)) }
 
-
 func (s *Store) RecordCoverage(ctx context.Context, taskID int64, entry tools.CoverageEntry) error {
 	if taskID <= 0 {
 		return fmt.Errorf("task_id is required")

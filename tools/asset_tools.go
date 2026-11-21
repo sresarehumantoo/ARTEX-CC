@@ -33,11 +33,11 @@ func makeInsertAssets(store Store, taskID int64) Tool {
 						"enum":        []string{"root_domain", "ip", "subdomain", "app", "service", "endpoint"},
 						"description": "asset type",
 					},
-					"domain":       str("root domain or subdomain (required for root_domain/subdomain)"),
-					"icp":          str("ICP registration number (optional)"),
-					"record_type":  str("DNS record type: A/AAAA/CNAME/MX etc. (optional for subdomain)"),
-					"record_value": arr(map[string]any{"type": "string"}, "list of DNS record values (optional for subdomain)"),
-					"ip":           str("IP address (must be IPv4/IPv6, not a hostname; required for ip type)"),
+					"domain":        str("root domain or subdomain (required for root_domain/subdomain)"),
+					"icp":           str("ICP registration number (optional)"),
+					"record_type":   str("DNS record type: A/AAAA/CNAME/MX etc. (optional for subdomain)"),
+					"record_value":  arr(map[string]any{"type": "string"}, "list of DNS record values (optional for subdomain)"),
+					"ip":            str("IP address (must be IPv4/IPv6, not a hostname; required for ip type)"),
 					"bound_domains": arr(map[string]any{"type": "string"}, "list of domains bound to this IP (optional for ip type)"),
 					"open_ports": map[string]any{
 						"type":        "array",
@@ -287,10 +287,10 @@ func makeAddTaskScope(store Store, taskID int64) Tool {
 				Value string `json:"value"`
 			}
 			var a struct {
-				Entries    []scopeEntry `json:"entries"`
-				Kind       string       `json:"kind"`
-				Value      string       `json:"value"`
-				Reason     string       `json:"reason"`
+				Entries []scopeEntry `json:"entries"`
+				Kind    string       `json:"kind"`
+				Value   string       `json:"value"`
+				Reason  string       `json:"reason"`
 			}
 			if err := json.Unmarshal(in, &a); err != nil {
 				return errResult("invalid input: " + err.Error()), nil
