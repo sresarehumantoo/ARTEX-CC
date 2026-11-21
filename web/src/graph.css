@@ -7,14 +7,31 @@
   to { stroke-dashoffset: -20; }
 }
 
-@keyframes fade-in {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+@keyframes node-enter {
+  from { opacity: 0; scale: 0.85; }
+  to { opacity: 1; scale: 1; }
 }
 
 @keyframes slide-in-right {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
+}
+
+.react-flow__node {
+  transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.react-flow__node.dragging {
+  transition: none !important;
+}
+
+.react-flow__node.entering {
+  animation: node-enter 400ms ease-out forwards;
+}
+
+.react-flow__node:hover {
+  z-index: 10 !important;
+  filter: brightness(1.05);
 }
 
 .node-running {
@@ -24,10 +41,7 @@
 .edge-animated path {
   stroke-dasharray: 5 5;
   animation: dash-flow 1s linear infinite;
-}
-
-.node-enter {
-  animation: fade-in 0.3s ease-out forwards;
+  filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.6));
 }
 
 .drawer-enter {

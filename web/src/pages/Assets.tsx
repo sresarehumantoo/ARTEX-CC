@@ -83,7 +83,7 @@ function AllColumns({ asset }: { asset: Asset }) {
   return (
     <>
       <td className="px-3 py-2"><TypeBadge type={asset.type} /></td>
-      <td className="px-3 py-2 text-slate-200 truncate max-w-sm">{asset.label}</td>
+      <td className="px-3 py-2 text-slate-800 dark:text-slate-200 truncate max-w-sm">{asset.label}</td>
       <td className="px-3 py-2 text-slate-500 font-mono text-xs">{asset.id}</td>
     </>
   )
@@ -92,9 +92,9 @@ function AllColumns({ asset }: { asset: Asset }) {
 function DomainColumns({ asset }: { asset: Asset }) {
   return (
     <>
-      <td className="px-3 py-2 text-slate-200">{asset.label}</td>
-      <td className="px-3 py-2 text-slate-400 text-sm">{dataStr(asset.data.record_type)}</td>
-      <td className="px-3 py-2 text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.record_value)}</td>
+      <td className="px-3 py-2 text-slate-800 dark:text-slate-200">{asset.label}</td>
+      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{dataStr(asset.data.record_type)}</td>
+      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.record_value)}</td>
     </>
   )
 }
@@ -102,9 +102,9 @@ function DomainColumns({ asset }: { asset: Asset }) {
 function IPColumns({ asset }: { asset: Asset }) {
   return (
     <>
-      <td className="px-3 py-2 text-slate-200 font-mono text-sm">{asset.label}</td>
-      <td className="px-3 py-2 text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.domains)}</td>
-      <td className="px-3 py-2 text-slate-400 text-sm">{dataStr(asset.data.open_ports)}</td>
+      <td className="px-3 py-2 text-slate-800 dark:text-slate-200 font-mono text-sm">{asset.label}</td>
+      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.domains)}</td>
+      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{dataStr(asset.data.open_ports)}</td>
     </>
   )
 }
@@ -112,10 +112,10 @@ function IPColumns({ asset }: { asset: Asset }) {
 function SubdomainColumns({ asset }: { asset: Asset }) {
   return (
     <>
-      <td className="px-3 py-2 text-slate-200">{asset.label}</td>
-      <td className="px-3 py-2 text-slate-400 text-sm">{dataStr(asset.data.root_domain)}</td>
-      <td className="px-3 py-2 text-slate-400 text-sm">{dataStr(asset.data.record_type)}</td>
-      <td className="px-3 py-2 text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.record_value)}</td>
+      <td className="px-3 py-2 text-slate-800 dark:text-slate-200">{asset.label}</td>
+      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{dataStr(asset.data.root_domain)}</td>
+      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{dataStr(asset.data.record_type)}</td>
+      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.record_value)}</td>
     </>
   )
 }
@@ -123,10 +123,10 @@ function SubdomainColumns({ asset }: { asset: Asset }) {
 function ServiceColumns({ asset }: { asset: Asset }) {
   return (
     <>
-      <td className="px-3 py-2 text-slate-200 text-sm truncate max-w-xs">{asset.label}</td>
-      <td className="px-3 py-2 text-slate-400 text-sm">{dataStr(asset.data.status_code)}</td>
-      <td className="px-3 py-2 text-slate-400 text-sm truncate max-w-[200px]">{dataStr(asset.data.technologies)}</td>
-      <td className="px-3 py-2 text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.title)}</td>
+      <td className="px-3 py-2 text-slate-800 dark:text-slate-200 text-sm truncate max-w-xs">{asset.label}</td>
+      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{dataStr(asset.data.status_code)}</td>
+      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm truncate max-w-[200px]">{dataStr(asset.data.technologies)}</td>
+      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.title)}</td>
     </>
   )
 }
@@ -137,8 +137,8 @@ function EndpointColumns({ asset }: { asset: Asset }) {
   return (
     <>
       <td className="px-3 py-2"><MethodBadge method={method} /></td>
-      <td className="px-3 py-2 text-slate-200 text-sm truncate max-w-md font-mono">{asset.label}</td>
-      <td className="px-3 py-2 text-slate-400 text-sm">{params}</td>
+      <td className="px-3 py-2 text-slate-800 dark:text-slate-200 text-sm truncate max-w-md font-mono">{asset.label}</td>
+      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{params}</td>
     </>
   )
 }
@@ -146,9 +146,9 @@ function EndpointColumns({ asset }: { asset: Asset }) {
 function AppColumns({ asset }: { asset: Asset }) {
   return (
     <>
-      <td className="px-3 py-2 text-slate-200">{asset.label}</td>
-      <td className="px-3 py-2 text-slate-400 text-sm font-mono">{dataStr(asset.data.bundle_id)}</td>
-      <td className="px-3 py-2 text-slate-400 text-sm">{dataStr(asset.data.category)}</td>
+      <td className="px-3 py-2 text-slate-800 dark:text-slate-200">{asset.label}</td>
+      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm font-mono">{dataStr(asset.data.bundle_id)}</td>
+      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{dataStr(asset.data.category)}</td>
     </>
   )
 }
@@ -168,7 +168,7 @@ function AssetRow({ asset, typeFilter, onClick }: { asset: Asset; typeFilter: st
   return (
     <tr
       onClick={onClick}
-      className="border-b border-slate-800 hover:bg-slate-800/50 cursor-pointer transition-colors"
+      className="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
     >
       {key === '' && <AllColumns asset={asset} />}
       {key === 'root_domain' && <DomainColumns asset={asset} />}
@@ -198,29 +198,29 @@ function DetailPanel({ asset, onClose }: { asset: Asset; onClose: () => void }) 
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
         ref={panelRef}
-        className="relative w-full max-w-md bg-slate-900 border-l border-slate-700 shadow-xl overflow-y-auto animate-slide-in"
+        className="relative w-full max-w-md bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 shadow-xl overflow-y-auto animate-slide-in"
       >
-        <div className="sticky top-0 bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+        <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TypeBadge type={asset.type} />
             <span className="text-sm text-slate-500 font-mono">#{asset.id}</span>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+            className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="p-4">
-          <h2 className="text-lg font-medium text-slate-100 mb-4 break-all">{asset.label}</h2>
+          <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-4 break-all">{asset.label}</h2>
           <div className="space-y-2">
             {Object.entries(asset.data).map(([key, val]) => (
               <div key={key} className="flex flex-col gap-0.5">
                 <span className="text-xs text-slate-500 uppercase tracking-wider">{key.replace(/_/g, ' ')}</span>
-                <span className="text-sm text-slate-300 break-all">
+                <span className="text-sm text-slate-700 dark:text-slate-300 break-all">
                   {typeof val === 'object' && val !== null ? (
-                    <pre className="text-xs bg-slate-800 rounded p-2 overflow-x-auto whitespace-pre-wrap">
+                    <pre className="text-xs bg-slate-100 dark:bg-slate-800 rounded p-2 overflow-x-auto whitespace-pre-wrap">
                       {JSON.stringify(val, null, 2)}
                     </pre>
                   ) : (
@@ -272,7 +272,7 @@ export default function Assets() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b border-slate-800 bg-slate-950 px-4 py-3">
+      <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3">
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
           {ASSET_TYPES.map((t) => (
             <button
@@ -281,8 +281,8 @@ export default function Assets() {
               className={cn(
                 'px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors',
                 typeFilter === t.key
-                  ? 'bg-slate-700 text-slate-100'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800',
+                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800',
               )}
             >
               {t.label}
@@ -291,7 +291,7 @@ export default function Assets() {
         </div>
       </div>
 
-      <div className="border-b border-slate-800 px-4 py-2">
+      <div className="border-b border-slate-200 dark:border-slate-800 px-4 py-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input
@@ -299,12 +299,12 @@ export default function Assets() {
             value={dslInput}
             onChange={(e) => setDslInput(e.target.value)}
             placeholder='Search assets (e.g., domain=example.com AND type=service)'
-            className="w-full bg-slate-900 border border-slate-700 rounded-md py-2 pl-9 pr-9 text-sm text-slate-200 placeholder:text-slate-600 font-mono focus:outline-none focus:ring-1 focus:ring-slate-500 focus:border-slate-500"
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md py-2 pl-9 pr-9 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 font-mono focus:outline-none focus:ring-1 focus:ring-slate-500 focus:border-slate-500"
           />
           {dslInput && (
             <button
               onClick={() => setDslInput('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
             >
               <X className="w-4 h-4" />
             </button>
@@ -321,7 +321,7 @@ export default function Assets() {
           <div className="flex items-center justify-center h-64"><Spinner className="h-8 w-8" /></div>
         ) : assets.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-2 text-slate-500">
-            <Server className="h-10 w-10 text-slate-600" />
+            <Server className="h-10 w-10 text-slate-400 dark:text-slate-600" />
             <p className="text-sm">No assets found</p>
             {dslInput && (
               <p className="text-xs mt-1">Try adjusting your search query</p>
@@ -330,7 +330,7 @@ export default function Assets() {
         ) : (
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/50">
+              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                 {headers.map((h) => (
                   <th
                     key={h}
@@ -356,7 +356,7 @@ export default function Assets() {
       </div>
 
       {total > 0 && (
-        <div className="border-t border-slate-800 px-4 py-2 flex items-center justify-between text-sm text-slate-400 bg-slate-950">
+        <div className="border-t border-slate-200 dark:border-slate-800 px-4 py-2 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950">
           <span>
             Showing {start}-{end} of {total}
           </span>
@@ -364,14 +364,14 @@ export default function Assets() {
             <button
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="p-1 rounded hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={end >= total}
-              className="p-1 rounded hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
