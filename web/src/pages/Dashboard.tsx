@@ -38,13 +38,13 @@ function StatCard({
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-slate-400" />
+          <Icon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
           <CardTitle>{title}</CardTitle>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-bold text-slate-100">{value}</div>
-        {children && <div className="mt-2 text-sm text-slate-400">{children}</div>}
+        <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{value}</div>
+        {children && <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">{children}</div>}
       </CardContent>
     </Card>
   )
@@ -82,7 +82,7 @@ function ActivityFeed({ items }: { items: Activity[] }) {
       {items.map((a) => (
         <div
           key={a.id}
-          className="flex items-start gap-3 rounded-md px-3 py-2 hover:bg-slate-800/50"
+          className="flex items-start gap-3 rounded-md px-3 py-2 hover:bg-slate-100/50 dark:hover:bg-slate-800/50"
         >
           <div className="mt-0.5 shrink-0">
             {a.is_error ? (
@@ -93,10 +93,10 @@ function ActivityFeed({ items }: { items: Activity[] }) {
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-300">{a.tool}</span>
-              <span className="text-xs text-slate-600">{relativeTime(a.created_at)}</span>
+              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{a.tool}</span>
+              <span className="text-xs text-slate-400 dark:text-slate-600">{relativeTime(a.created_at)}</span>
             </div>
-            <p className="truncate text-sm text-slate-400">{a.summary}</p>
+            <p className="truncate text-sm text-slate-500 dark:text-slate-400">{a.summary}</p>
           </div>
         </div>
       ))}
@@ -121,7 +121,7 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-semibold text-slate-100">Dashboard</h1>
+      <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Dashboard</h1>
 
       {engagement.isLoading && (
         <div className="flex items-center justify-center h-64"><Spinner className="h-8 w-8" /></div>
@@ -170,7 +170,7 @@ export function Dashboard() {
                 <CardTitle>Hints</CardTitle>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-1 text-sm text-slate-300">
+                <ul className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
                   {e.hints.map((h) => (
                     <li key={h.id}>{h.payload.text as string || JSON.stringify(h.payload)}</li>
                   ))}

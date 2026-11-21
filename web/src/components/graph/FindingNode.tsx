@@ -16,7 +16,7 @@ export function FindingNode({ data }: NodeProps & { data: GraphNode }) {
   const severity = ((data.payload.severity ?? 'medium') as string).toLowerCase()
   const colorClass = severityColors[severity] ?? severityColors.medium
   return (
-    <div className="node-enter w-[180px] bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-[3px] border-rose-500 overflow-hidden">
+    <div className="w-[180px] bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-[3px] border-rose-500 overflow-hidden">
       <Handle type="target" position={Position.Left} className="!bg-rose-500 !w-2 !h-2" />
       <div className="p-2.5">
         <div className="flex items-center gap-1.5 mb-1">

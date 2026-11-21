@@ -75,36 +75,6 @@ export default function Findings() {
     })
   }, [findings, severityFilter, statusFilter, search, sortField, sortDir])
 
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      const tag = (e.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-
-      if (e.key === 'Escape' && selectedId !== null) {
-        setSelectedId(null)
-        return
-      }
-
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault()
-        if (filtered.length === 0) return
-        const currentIdx = selectedId !== null ? filtered.findIndex(f => f.id === selectedId) : -1
-        let nextIdx: number
-        if (e.key === 'ArrowDown') {
-          nextIdx = currentIdx < filtered.length - 1 ? currentIdx + 1 : currentIdx
-        } else {
-          nextIdx = currentIdx > 0 ? currentIdx - 1 : 0
-        }
-        const nextId = filtered[nextIdx].id
-        setSelectedId(nextId)
-        const row = document.querySelector(`[data-row-id="${nextId}"]`)
-        row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-      }
-    }
-    document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
-  }, [selectedId, filtered])
-
   const toggleSort = useCallback(
     (field: SortField) => {
       if (sortField === field) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
@@ -115,6 +85,33 @@ export default function Findings() {
     },
     [sortField],
   )
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (e.key === 'Escape' && selectedId !== null) {
+        setSelectedId(null)
+        return
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (filtered.length === 0) return
+        e.preventDefault()
+        const currentIdx = selectedId !== null ? filtered.findIndex(f => f.id === selectedId) : -1
+        let nextIdx: number
+        if (e.key === 'ArrowDown') {
+          nextIdx = currentIdx < filtered.length - 1 ? currentIdx + 1 : currentIdx
+        } else {
+          nextIdx = currentIdx > 0 ? currentIdx - 1 : 0
+        }
+        const nextId = filtered[nextIdx].id
+        setSelectedId(nextId)
+        document.querySelector(`[data-row-id="${nextId}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [selectedId, filtered])
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return null
@@ -127,7 +124,7 @@ export default function Findings() {
 
   if (error) {
     return (
-      <div className="flex h-96 items-center justify-center text-slate-500">
+      <div className="flex h-96 items-center justify-center text-slate-500 dark:text-slate-500">
         Failed to load findings: {(error as Error).message}
       </div>
     )
@@ -233,7 +230,7 @@ export default function Findings() {
             <div className="flex h-64 items-center justify-center"><Spinner className="h-8 w-8" /></div>
           ) : filtered.length === 0 ? (
             <div className="flex h-64 flex-col items-center justify-center gap-2 text-slate-500">
-              <Shield className="h-10 w-10 text-slate-600" />
+              <Shield className="h-10 w-10 text-slate-400 dark:text-slate-600" />
               <p className="text-lg">No findings</p>
               <p className="text-sm">
                 {findings.length > 0
@@ -264,16 +261,16 @@ export default function Findings() {
                       data-row-id={f.id}
                       className={cn(
                         'cursor-pointer',
-                        selectedId === f.id && 'bg-slate-800',
-                        i % 2 === 1 && 'bg-slate-900/50',
+                        selectedId === f.id && 'bg-slate-100 dark:bg-slate-800',
+                        i % 2 === 1 && 'bg-slate-50/50 dark:bg-slate-900/50',
                       )}
                       onClick={() => setSelectedId(selectedId === f.id ? null : f.id)}
                     >
                       <TableCell>
                         <Badge variant={SEVERITY_VARIANT[f.severity]}>{f.severity}</Badge>
                       </TableCell>
-                      <TableCell className="font-medium text-slate-200">{f.vulnclass}</TableCell>
-                      <TableCell className="max-w-md truncate text-slate-400">{f.summary}</TableCell>
+                      <TableCell className="font-medium text-slate-800 dark:text-slate-200">{f.vulnclass}</TableCell>
+                      <TableCell className="max-w-md truncate text-slate-500 dark:text-slate-400">{f.summary}</TableCell>
                       <TableCell>
                         <StatusText finding={f} />
                       </TableCell>
@@ -288,7 +285,7 @@ export default function Findings() {
 
         {/* Detail panel */}
         {selectedId !== null && (
-          <div className="w-96 shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
+          <div className="w-96 shrink-0 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
             <DetailPanel
               detail={detail ?? null}
               loading={detailLoading}
@@ -324,7 +321,7 @@ function SummaryCard({
     <Card
       className={cn(
         'cursor-pointer transition-colors hover:border-slate-700',
-        active && 'border-slate-600 bg-slate-800',
+        active && 'border-slate-400 dark:border-slate-600 bg-slate-100 dark:bg-slate-800',
       )}
       onClick={onClick}
     >
@@ -332,7 +329,7 @@ function SummaryCard({
         <CardTitle>{label}</CardTitle>
       </CardHeader>
       <CardContent>
-        <span className={cn('text-3xl font-bold', variant ? colorText[variant] : 'text-slate-100')}>
+        <span className={cn('text-3xl font-bold', variant ? colorText[variant] : 'text-slate-900 dark:text-slate-100')}>
           {count}
         </span>
       </CardContent>
@@ -378,20 +375,20 @@ function DetailPanel({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-300"
+            className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div>
-          <h2 className="text-lg font-semibold text-slate-100">{detail.vulnclass}</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{detail.vulnclass}</h2>
           <p className="mt-1 text-xs text-slate-500">Finding #{detail.id}</p>
         </div>
 
         <div>
           <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">Summary</h3>
-          <p className="text-sm leading-relaxed text-slate-300">{detail.summary}</p>
+          <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">{detail.summary}</p>
         </div>
 
         <div className="flex gap-4">
@@ -401,11 +398,11 @@ function DetailPanel({
           </div>
           <div>
             <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">State</h3>
-            <span className="text-sm text-slate-300">{detail.state}</span>
+            <span className="text-sm text-slate-700 dark:text-slate-300">{detail.state}</span>
           </div>
           <div>
             <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">Node</h3>
-            <span className="font-mono text-sm text-slate-300">{detail.node_id}</span>
+            <span className="font-mono text-sm text-slate-700 dark:text-slate-300">{detail.node_id}</span>
           </div>
         </div>
 
@@ -419,7 +416,7 @@ function DetailPanel({
         {detail.merged_into > 0 && (
           <div>
             <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">Merged into</h3>
-            <span className="font-mono text-sm text-slate-300">#{detail.merged_into}</span>
+            <span className="font-mono text-sm text-slate-700 dark:text-slate-300">#{detail.merged_into}</span>
           </div>
         )}
 
@@ -433,11 +430,11 @@ function DetailPanel({
                 <Link
                   key={tb.id}
                   to={`/traffic?selected=${tb.snapshot_id}`}
-                  className="flex items-center gap-2 rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm transition-colors hover:border-slate-600"
+                  className="flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3 py-2 text-sm transition-colors hover:border-slate-300 dark:hover:border-slate-600"
                 >
                   <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-500" />
                   <div className="min-w-0 flex-1">
-                    <span className="font-mono text-slate-300">{tb.snapshot_id}</span>
+                    <span className="font-mono text-slate-700 dark:text-slate-300">{tb.snapshot_id}</span>
                     {tb.role && (
                       <Badge variant="default" className="ml-2">
                         {tb.role}

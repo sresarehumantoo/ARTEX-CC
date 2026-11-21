@@ -8,10 +8,11 @@ import {
   useEdgesState,
   type Node,
   type Edge,
+  type ReactFlowInstance,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import '../graph.css'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Spinner } from '../components/ui/spinner'
 import {
   GoalNode,
@@ -56,6 +57,9 @@ export function GraphPage() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([] as Node[])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([] as Edge[])
   const [selectedNode, setSelectedNode] = useState<GN | null>(null)
+  const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null)
+  const prevNodeIdsRef = useRef<Set<string>>(new Set())
+  const prevCountRef = useRef(-1)
 
   useEffect(() => {
     fetchGraph()
@@ -64,9 +68,46 @@ export function GraphPage() {
   useEffect(() => {
     if (data.nodes.length === 0) return
     const layout = layoutGraph(data)
-    setNodes(layout.nodes as unknown as Node[])
+
+    const prevIds = prevNodeIdsRef.current
+    const enteringIds = new Set<string>()
+
+    const layoutNodes = layout.nodes.map((n) => {
+      const isNew = prevIds.size > 0 && !prevIds.has(n.id)
+      if (isNew) enteringIds.add(n.id)
+      return {
+        ...n,
+        className: isNew ? 'entering' : undefined,
+      }
+    })
+
+    prevNodeIdsRef.current = new Set(layout.nodes.map((n) => n.id))
+    setNodes(layoutNodes as unknown as Node[])
     setEdges(layout.edges as unknown as Edge[])
+
+    if (enteringIds.size > 0) {
+      setTimeout(() => {
+        setNodes((nds) =>
+          nds.map((n) => ({
+            ...n,
+            className: enteringIds.has(n.id) ? undefined : n.className,
+          })),
+        )
+      }, 500)
+    }
   }, [data, setNodes, setEdges])
+
+  useEffect(() => {
+    if (!rfInstance || nodes.length === 0) return
+    if (prevCountRef.current === -1) {
+      prevCountRef.current = nodes.length
+      return
+    }
+    if (nodes.length !== prevCountRef.current) {
+      prevCountRef.current = nodes.length
+      setTimeout(() => rfInstance.fitView({ padding: 0.2, duration: 500 }), 50)
+    }
+  }, [nodes.length, rfInstance])
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     setSelectedNode(node.data as unknown as GN)
@@ -140,6 +181,7 @@ export function GraphPage() {
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
+        onInit={setRfInstance}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView

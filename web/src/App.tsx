@@ -34,7 +34,7 @@ export default function App() {
   }, [toggleHelp])
 
   return (
-    <div className="flex h-screen bg-slate-900">
+    <div className="flex h-screen bg-white dark:bg-slate-900">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
         <ErrorBoundary>

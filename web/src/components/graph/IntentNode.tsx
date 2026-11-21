@@ -17,7 +17,7 @@ export function IntentNode({ data }: NodeProps & { data: GraphNode }) {
   const text = (data.payload.text ?? data.payload.summary ?? '') as string
   const isRunning = data.state === 'running'
   return (
-    <div className={`node-enter w-[180px] bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-[3px] border-blue-500 overflow-hidden ${isRunning ? 'node-running' : ''}`}>
+    <div className={`w-[180px] bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-[3px] border-blue-500 overflow-hidden ${isRunning ? 'node-running' : ''}`}>
       <Handle type="target" position={Position.Left} className="!bg-blue-500 !w-2 !h-2" />
       <div className="p-2.5">
         <div className="flex items-center gap-1.5 mb-1">

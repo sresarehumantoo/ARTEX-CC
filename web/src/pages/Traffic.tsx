@@ -209,7 +209,7 @@ export default function Traffic() {
   return (
     <div className="flex h-full flex-col">
       {/* Filter bar */}
-      <div className="flex items-center gap-3 border-b border-slate-800 px-4 py-2">
+      <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-800 px-4 py-2">
         <Input
           placeholder="Host..."
           value={host}
@@ -256,7 +256,7 @@ export default function Traffic() {
               'rounded px-2 py-1 text-[10px] font-medium whitespace-nowrap',
               bodySearch
                 ? 'bg-amber-500/20 text-amber-400'
-                : 'bg-slate-800 text-slate-500 hover:text-slate-300',
+                : 'bg-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-300',
             )}
             title={bodySearch ? 'Searching request/response bodies' : 'Searching URLs'}
           >
@@ -279,7 +279,7 @@ export default function Traffic() {
           <div className="flex h-64 items-center justify-center"><Spinner className="h-8 w-8" /></div>
         ) : rows.length === 0 ? (
           <div className="flex h-64 flex-col items-center justify-center gap-2 text-slate-500">
-            <Globe className="h-10 w-10 text-slate-600" />
+            <Globe className="h-10 w-10 text-slate-400 dark:text-slate-600" />
             <p className="text-lg">No traffic captured</p>
             <p className="text-sm">
               {hasFilters
@@ -314,13 +314,13 @@ export default function Traffic() {
                   <TableCell className="whitespace-nowrap text-xs text-slate-500">
                     {relativeTime(row.ts)}
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate font-mono text-xs text-slate-300">
+                  <TableCell className="max-w-[200px] truncate font-mono text-xs text-slate-700 dark:text-slate-300">
                     {row.host}
                   </TableCell>
                   <TableCell>
                     <MethodBadge method={row.method} />
                   </TableCell>
-                  <TableCell className="max-w-md truncate font-mono text-xs text-slate-400">
+                  <TableCell className="max-w-md truncate font-mono text-xs text-slate-500 dark:text-slate-400">
                     <HighlightText text={displayUrl(row)} query={!bodySearch ? debouncedQuery : ''} />
                   </TableCell>
                   <TableCell>
@@ -341,7 +341,7 @@ export default function Traffic() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-slate-800 px-4 py-2">
+        <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 px-4 py-2">
           <Button
             variant="ghost"
             size="sm"
@@ -369,12 +369,12 @@ export default function Traffic() {
         <>
           {/* Drag handle */}
           <div
-            className="h-1.5 cursor-row-resize border-t border-slate-700 bg-slate-800 hover:bg-slate-700"
+            className="h-1.5 cursor-row-resize border-t border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
             onMouseDown={onDragStart}
           />
-          <div style={{ height: detailHeight }} className="flex flex-col bg-slate-900">
-            <div className="flex items-center gap-2 border-b border-slate-800 px-4 py-1.5">
-              <span className="text-xs font-medium text-slate-400">
+          <div style={{ height: detailHeight }} className="flex flex-col bg-white dark:bg-slate-900">
+            <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 px-4 py-1.5">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 {selectedId}
               </span>
               <div className="ml-auto flex items-center gap-1">
@@ -393,7 +393,7 @@ export default function Traffic() {
               ) : (
                 <>
                   <HttpPanel label="Request" content={detail.request} showCurl />
-                  <div className="w-px bg-slate-800" />
+                  <div className="w-px bg-slate-200 dark:bg-slate-800" />
                   <HttpPanel label="Response" content={detail.response} />
                 </>
               )}
@@ -452,14 +452,14 @@ function HttpPanel({ label, content, showCurl }: { label: string; content: strin
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
-      <div className="flex items-center justify-between border-b border-slate-800 px-3 py-1">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-3 py-1">
         <span className="text-xs font-medium text-slate-500">{label}</span>
         <div className="flex items-center gap-2">
           {showCurl && (
             <button
               type="button"
               onClick={copyCurl}
-              className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300"
+              className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700 dark:text-slate-300"
             >
               <Terminal className="h-3 w-3" />
               {copiedCurl ? 'Copied' : 'curl'}
@@ -468,7 +468,7 @@ function HttpPanel({ label, content, showCurl }: { label: string; content: strin
           <button
             type="button"
             onClick={copy}
-            className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300"
+            className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700 dark:text-slate-300"
           >
             <Clipboard className="h-3 w-3" />
             {copied ? 'Copied' : 'Copy'}
@@ -485,7 +485,7 @@ function HttpPanel({ label, content, showCurl }: { label: string; content: strin
 }
 
 function formatHttp(raw: string): React.ReactNode {
-  if (!raw) return <span className="text-slate-600">Empty</span>
+  if (!raw) return <span className="text-slate-400 dark:text-slate-600">Empty</span>
 
   const headerEnd = raw.indexOf('\r\n\r\n')
   const splitPos = headerEnd >= 0 ? headerEnd : raw.indexOf('\n\n')
@@ -511,7 +511,7 @@ function highlightHeaders(text: string): React.ReactNode {
     if (i === 0 || colonIdx < 0) {
       return (
         <span key={i}>
-          <span className="font-semibold text-slate-200">{line}</span>
+          <span className="font-semibold text-slate-800 dark:text-slate-200">{line}</span>
           {i < lines.length - 1 ? '\n' : ''}
         </span>
       )
@@ -521,7 +521,7 @@ function highlightHeaders(text: string): React.ReactNode {
     return (
       <span key={i}>
         <span className="text-blue-400">{name}</span>
-        <span className="text-slate-400">{value}</span>
+        <span className="text-slate-500 dark:text-slate-400">{value}</span>
         {i < lines.length - 1 ? '\n' : ''}
       </span>
     )
@@ -534,12 +534,12 @@ function formatBody(body: string): React.ReactNode {
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
     try {
       const formatted = JSON.stringify(JSON.parse(trimmed), null, 2)
-      return <span className="text-slate-300">{formatted}</span>
+      return <span className="text-slate-700 dark:text-slate-300">{formatted}</span>
     } catch {
       // not valid JSON
     }
   }
-  return <span className="text-slate-300">{body}</span>
+  return <span className="text-slate-700 dark:text-slate-300">{body}</span>
 }
 
 function buildCurl(request: string): string {
@@ -597,7 +597,7 @@ function SortableHead({
     <TableHead className={cn('cursor-pointer select-none', className)} onClick={() => onToggle(col)}>
       <span className="inline-flex items-center gap-0.5">
         {label}
-        <Icon className={cn('h-3 w-3', active ? 'text-slate-300' : 'text-slate-600')} />
+        <Icon className={cn('h-3 w-3', active ? 'text-slate-700 dark:text-slate-300' : 'text-slate-600')} />
       </span>
     </TableHead>
   )
