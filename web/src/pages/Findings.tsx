@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, ExternalLink, Search, Shield, X } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge, type BadgeVariant } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -74,6 +74,36 @@ export default function Findings() {
       return dir * (a.id - b.id)
     })
   }, [findings, severityFilter, statusFilter, search, sortField, sortDir])
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
+      if (e.key === 'Escape' && selectedId !== null) {
+        setSelectedId(null)
+        return
+      }
+
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        if (filtered.length === 0) return
+        const currentIdx = selectedId !== null ? filtered.findIndex(f => f.id === selectedId) : -1
+        let nextIdx: number
+        if (e.key === 'ArrowDown') {
+          nextIdx = currentIdx < filtered.length - 1 ? currentIdx + 1 : currentIdx
+        } else {
+          nextIdx = currentIdx > 0 ? currentIdx - 1 : 0
+        }
+        const nextId = filtered[nextIdx].id
+        setSelectedId(nextId)
+        const row = document.querySelector(`[data-row-id="${nextId}"]`)
+        row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [selectedId, filtered])
 
   const toggleSort = useCallback(
     (field: SortField) => {
@@ -231,6 +261,7 @@ export default function Findings() {
                   {filtered.map((f, i) => (
                     <TableRow
                       key={f.id}
+                      data-row-id={f.id}
                       className={cn(
                         'cursor-pointer',
                         selectedId === f.id && 'bg-slate-800',

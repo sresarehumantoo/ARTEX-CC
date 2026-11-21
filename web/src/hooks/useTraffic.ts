@@ -12,6 +12,11 @@ export interface TrafficFilters {
   method: string
   status: string
   query: string
+  body: string
+  respMin: string
+  respMax: string
+  sort: string
+  order: 'asc' | 'desc' | ''
   page: number
   size: number
 }
@@ -22,6 +27,11 @@ export function useTraffic(filters: TrafficFilters) {
   if (filters.method) params.set('method', filters.method)
   if (filters.status) params.set('status', filters.status)
   if (filters.query) params.set('q', filters.query)
+  if (filters.body) params.set('body', filters.body)
+  if (filters.respMin) params.set('resp_min', filters.respMin)
+  if (filters.respMax) params.set('resp_max', filters.respMax)
+  if (filters.sort) params.set('sort', filters.sort)
+  if (filters.order) params.set('order', filters.order)
   params.set('page', String(filters.page))
   params.set('size', String(filters.size))
 

@@ -1,8 +1,10 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { ShortcutsHelp } from './components/ShortcutsHelp'
 import { Sidebar } from './components/Sidebar'
 import { Spinner } from './components/ui/spinner'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useSSERefresh } from './hooks/useSSERefresh'
 import { Dashboard } from './pages/Dashboard'
 
@@ -21,6 +23,15 @@ function PageLoader() {
 
 export default function App() {
   useSSERefresh()
+  useKeyboardShortcuts()
+
+  const [showHelp, setShowHelp] = useState(false)
+  const toggleHelp = useCallback(() => setShowHelp(v => !v), [])
+
+  useEffect(() => {
+    window.addEventListener('toggle-shortcuts-help', toggleHelp)
+    return () => window.removeEventListener('toggle-shortcuts-help', toggleHelp)
+  }, [toggleHelp])
 
   return (
     <div className="flex h-screen bg-slate-900">
@@ -38,6 +49,7 @@ export default function App() {
           </Suspense>
         </ErrorBoundary>
       </main>
+      <ShortcutsHelp open={showHelp} onClose={() => setShowHelp(false)} />
     </div>
   )
 }
