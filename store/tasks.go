@@ -141,6 +141,121 @@ func (s *Store) ListEngagements(ctx context.Context) ([]tools.EngagementSummary,
 	return out, rows.Err()
 }
 
+func (s *Store) UpdateEngagement(ctx context.Context, taskID int64, goal, description *string) error {
+	t, err := s.GetTask(taskID)
+	if err != nil {
+		return err
+	}
+	if t == nil {
+		return fmt.Errorf("task %d not found", taskID)
+	}
+
+	tx, err := s.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	if goal != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE tasks SET goal = $1, name = $1 WHERE id = $2`, *goal, taskID); err != nil {
+			return fmt.Errorf("update task goal: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE explorations SET goal = $1 WHERE id = $2`, *goal, t.ExplorationID); err != nil {
+			return fmt.Errorf("update exploration goal: %w", err)
+		}
+	}
+	if description != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE tasks SET description = $1 WHERE id = $2`, *description, taskID); err != nil {
+			return fmt.Errorf("update task description: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE explorations SET description = $1 WHERE id = $2`, *description, t.ExplorationID); err != nil {
+			return fmt.Errorf("update exploration description: %w", err)
+		}
+	}
+
+	return tx.Commit()
+}
+
+func (s *Store) DeleteEngagement(ctx context.Context, taskID int64) error {
+	t, err := s.GetTask(taskID)
+	if err != nil {
+		return err
+	}
+	if t == nil {
+		return fmt.Errorf("task %d not found", taskID)
+	}
+
+	tx, err := s.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM findings WHERE task_id = $1`, taskID); err != nil {
+		return fmt.Errorf("delete findings: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE assets SET task_ids = array_remove(task_ids, $1) WHERE $1 = ANY(task_ids)`, taskID); err != nil {
+		return fmt.Errorf("detach assets: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM tasks WHERE id = $1`, taskID); err != nil {
+		return fmt.Errorf("delete task: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM explorations WHERE id = $1`, t.ExplorationID); err != nil {
+		return fmt.Errorf("delete exploration: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+func (s *Store) EngagementActivity(ctx context.Context, explorationID int64, limit int) ([]tools.TimelineEntry, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	rows, err := s.QueryContext(ctx, `
+		WITH task AS (
+			SELECT id FROM tasks WHERE exploration_id = $1 LIMIT 1
+		)
+		SELECT ts, kind, summary FROM (
+			SELECT created_at AS ts, 'finding' AS kind,
+			       COALESCE(severity || ': ', '') || summary AS summary
+			FROM findings WHERE task_id = (SELECT id FROM task)
+
+			UNION ALL
+
+			SELECT created_at AS ts, 'node:' || kind AS kind,
+			       COALESCE(state, '') || ': ' || COALESCE(payload->>'text', payload->>'description', kind) AS summary
+			FROM exploration_nodes WHERE exploration_id = $1
+
+			UNION ALL
+
+			SELECT created_at AS ts, 'asset' AS kind,
+			       type || ': ' || COALESCE(domain, ip, url, app_name, service_name, '') AS summary
+			FROM assets WHERE (SELECT id FROM task) = ANY(task_ids)
+		) combined
+		ORDER BY ts DESC
+		LIMIT $2`, explorationID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []tools.TimelineEntry
+	for rows.Next() {
+		var e tools.TimelineEntry
+		var ts time.Time
+		if err := rows.Scan(&ts, &e.Kind, &e.Summary); err != nil {
+			return nil, err
+		}
+		e.Timestamp = ts.Format("15:04:05")
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) GetEngagement(ctx context.Context, id int64) (*tools.EngagementDetail, error) {
 	t, err := s.GetTask(id)
 	if err != nil {

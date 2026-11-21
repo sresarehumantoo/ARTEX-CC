@@ -62,8 +62,11 @@ type Store interface {
 	ListFindingTraffic(ctx context.Context, findingID int64) ([]TrafficBinding, error)
 	FindingTrafficCount(ctx context.Context, findingID int64) (int, error)
 
-	// Engagement completion
+	// Engagement management
 	CompleteEngagement(ctx context.Context, taskID int64, summary string) error
+	UpdateEngagement(ctx context.Context, taskID int64, goal, description *string) error
+	DeleteEngagement(ctx context.Context, taskID int64) error
+	EngagementActivity(ctx context.Context, explorationID int64, limit int) ([]TimelineEntry, error)
 
 	// Activity log
 	LogActivity(ctx context.Context, explorationID int64, entry ActivityEntry) (int64, error)
@@ -179,13 +182,16 @@ type FindingInput struct {
 
 // Finding is a stored vulnerability finding.
 type Finding struct {
-	ID        int64  `json:"id"`
-	NodeID    int64  `json:"node_id,omitempty"`
-	VulnClass string `json:"vulnclass,omitempty"`
-	Severity  string `json:"severity,omitempty"`
-	Summary   string `json:"summary"`
-	State     string `json:"state,omitempty"`
-	Status    string `json:"status,omitempty"`
+	ID            int64  `json:"id"`
+	NodeID        int64  `json:"node_id,omitempty"`
+	VulnClass     string `json:"vulnclass,omitempty"`
+	Severity      string `json:"severity,omitempty"`
+	Summary       string `json:"summary"`
+	State         string `json:"state,omitempty"`
+	Status        string `json:"status,omitempty"`
+	MergedInto    int64  `json:"merged_into,omitempty"`
+	Dismissed     bool   `json:"dismissed,omitempty"`
+	DismissReason string `json:"dismiss_reason,omitempty"`
 }
 
 // MergedFinding is the result of merging multiple findings into one.
@@ -210,8 +216,10 @@ type Overview struct {
 	RecentDone       []map[string]any `json:"recent_done_intents,omitempty"`
 	DoneIntentsTotal int              `json:"done_intents_total"`
 	FrontierOpen     int              `json:"frontier_open"`
-	FindingsTotal    int              `json:"findings_total"`
-	FactsTotal       int              `json:"facts"`
+	FindingsTotal     int              `json:"findings_total"`
+	FindingsDismissed int              `json:"findings_dismissed"`
+	FindingsMerged    int              `json:"findings_merged"`
+	FactsTotal        int              `json:"facts"`
 	FindingList      []map[string]any `json:"finding_list,omitempty"`
 	RecentFacts      []map[string]any `json:"recent_facts,omitempty"`
 	Coverage         map[string]any   `json:"coverage,omitempty"`
@@ -373,6 +381,13 @@ type EngagementExport struct {
 	Credentials []map[string]any `json:"credentials"`
 	Coverage    []map[string]any `json:"coverage"`
 	Scope       []map[string]any `json:"scope"`
+}
+
+// TimelineEntry is one row in the engagement activity timeline.
+type TimelineEntry struct {
+	Timestamp string `json:"timestamp"`
+	Kind      string `json:"kind"`
+	Summary   string `json:"summary"`
 }
 
 const (
