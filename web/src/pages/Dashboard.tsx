@@ -7,6 +7,7 @@ import {
   AlertCircle,
   Wrench,
 } from 'lucide-react'
+import { DashboardSkeleton } from '../components/skeletons/DashboardSkeleton'
 import { Spinner } from '../components/ui/spinner'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Badge, severityVariant } from '../components/ui/badge'
@@ -94,7 +95,7 @@ function ActivityFeed({ items }: { items: Activity[] }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{a.tool}</span>
-              <span className="text-xs text-slate-400 dark:text-slate-600">{relativeTime(a.created_at)}</span>
+              {a.created_at && <span className="text-xs text-slate-400 dark:text-slate-600">{relativeTime(a.created_at)}</span>}
             </div>
             <p className="truncate text-sm text-slate-500 dark:text-slate-400">{a.summary}</p>
           </div>
@@ -120,12 +121,10 @@ export function Dashboard() {
   const e = engagement.data
 
   return (
-    <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Dashboard</h1>
+    <div className="space-y-4 md:space-y-6 p-3 md:p-6">
+      <h1 className="text-lg md:text-2xl font-semibold text-slate-900 dark:text-slate-100">Dashboard</h1>
 
-      {engagement.isLoading && (
-        <div className="flex items-center justify-center h-64"><Spinner className="h-8 w-8" /></div>
-      )}
+      {engagement.isLoading && <DashboardSkeleton />}
       {engagement.isError && (
         <p className="text-sm text-rose-400">
           Failed to load engagement: {(engagement.error as Error).message}

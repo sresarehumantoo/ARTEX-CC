@@ -1,15 +1,21 @@
 import { ChevronDown, ChevronUp, ExternalLink, Search, Shield, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ExportDropdown } from '../components/ExportDropdown'
+import FindingsTimeline from '../components/FindingsTimeline'
 import { Badge, type BadgeVariant } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { ScrollArea } from '../components/ui/scroll-area'
 import { Select } from '../components/ui/select'
+import { Skeleton } from '../components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 import { Spinner } from '../components/ui/spinner'
+import { TableSkeleton } from '../components/skeletons/TableSkeleton'
 import { useFindingDetail, useFindings } from '../hooks/useFindings'
+import { exportCSV, exportJSON } from '../lib/export'
+import { generateReport } from '../lib/report'
 import type { Finding, Severity } from '../lib/types'
 import { cn } from '../lib/utils'
 
@@ -40,6 +46,7 @@ export default function Findings() {
   const [sortField, setSortField] = useState<SortField>('severity')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [showTimeline, setShowTimeline] = useState(true)
 
   const { data: detail, isLoading: detailLoading } = useFindingDetail(selectedId)
 
@@ -122,6 +129,22 @@ export default function Findings() {
     )
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex h-full flex-col gap-3 md:gap-4 p-3 md:p-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-lg border border-slate-200 dark:border-slate-800 p-6 space-y-3">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-9 w-12" />
+            </div>
+          ))}
+        </div>
+        <TableSkeleton columns={5} rows={8} filterBar />
+      </div>
+    )
+  }
+
   if (error) {
     return (
       <div className="flex h-96 items-center justify-center text-slate-500 dark:text-slate-500">
@@ -131,9 +154,9 @@ export default function Findings() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
+    <div className="flex h-full flex-col gap-3 md:gap-4 p-3 md:p-6">
       {/* Summary cards */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
         <SummaryCard
           label="Total"
           count={counts.total}
@@ -171,7 +194,7 @@ export default function Findings() {
       </div>
 
       {/* Filter bar */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2 md:gap-3">
         <div className="flex items-center gap-1">
           {(['critical', 'high', 'medium', 'low'] as Severity[]).map(s => (
             <Button
@@ -202,7 +225,7 @@ export default function Findings() {
           <option value="dismissed">Dismissed</option>
         </Select>
 
-        <div className="relative ml-auto w-64">
+        <div className="relative w-full md:w-64 md:ml-auto">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
           <Input
             placeholder="Search vulnclass or summary..."
@@ -220,7 +243,39 @@ export default function Findings() {
             </button>
           )}
         </div>
+
+        <ExportDropdown options={[
+          { label: 'Export CSV', onClick: () => exportCSV(filtered, 'findings.csv') },
+          { label: 'Export JSON', onClick: () => exportJSON(filtered, 'findings.json') },
+          {
+            label: 'Generate Report',
+            onClick: () => {
+              const md = generateReport(filtered)
+              const blob = new Blob([md], { type: 'text/markdown' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = 'findings-report.md'
+              a.click()
+              URL.revokeObjectURL(url)
+            },
+          },
+        ]} />
       </div>
+
+      {filtered.length >= 2 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowTimeline(v => !v)}
+            className="flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+          >
+            <ChevronDown className={cn('h-4 w-4 transition-transform', !showTimeline && '-rotate-90')} />
+            <span>Timeline</span>
+          </button>
+          {showTimeline && <FindingsTimeline findings={filtered} className="mt-2 h-28" />}
+        </div>
+      )}
 
       {/* Main content area */}
       <div className="flex min-h-0 flex-1 gap-4">
@@ -240,52 +295,57 @@ export default function Findings() {
             </div>
           ) : (
             <ScrollArea className="h-full">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-24 cursor-pointer select-none" onClick={() => toggleSort('severity')}>
-                      Severity <SortIcon field="severity" />
-                    </TableHead>
-                    <TableHead>Vuln Class</TableHead>
-                    <TableHead className="max-w-md">Summary</TableHead>
-                    <TableHead className="w-24">Status</TableHead>
-                    <TableHead className="w-16 cursor-pointer select-none text-right" onClick={() => toggleSort('id')}>
-                      ID <SortIcon field="id" />
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((f, i) => (
-                    <TableRow
-                      key={f.id}
-                      data-row-id={f.id}
-                      className={cn(
-                        'cursor-pointer',
-                        selectedId === f.id && 'bg-slate-100 dark:bg-slate-800',
-                        i % 2 === 1 && 'bg-slate-50/50 dark:bg-slate-900/50',
-                      )}
-                      onClick={() => setSelectedId(selectedId === f.id ? null : f.id)}
-                    >
-                      <TableCell>
-                        <Badge variant={SEVERITY_VARIANT[f.severity]}>{f.severity}</Badge>
-                      </TableCell>
-                      <TableCell className="font-medium text-slate-800 dark:text-slate-200">{f.vulnclass}</TableCell>
-                      <TableCell className="max-w-md truncate text-slate-500 dark:text-slate-400">{f.summary}</TableCell>
-                      <TableCell>
-                        <StatusText finding={f} />
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-slate-500">{f.id}</TableCell>
+              <div className="overflow-x-auto">
+                <Table className="min-w-[600px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-24 cursor-pointer select-none" onClick={() => toggleSort('severity')}>
+                        Severity <SortIcon field="severity" />
+                      </TableHead>
+                      <TableHead>Vuln Class</TableHead>
+                      <TableHead className="max-w-md">Summary</TableHead>
+                      <TableHead className="w-24">Status</TableHead>
+                      <TableHead className="w-16 cursor-pointer select-none text-right" onClick={() => toggleSort('id')}>
+                        ID <SortIcon field="id" />
+                      </TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((f, i) => (
+                      <TableRow
+                        key={f.id}
+                        data-row-id={f.id}
+                        className={cn(
+                          'cursor-pointer',
+                          selectedId === f.id && 'bg-slate-100 dark:bg-slate-800',
+                          i % 2 === 1 && 'bg-slate-50/50 dark:bg-slate-900/50',
+                        )}
+                        onClick={() => setSelectedId(selectedId === f.id ? null : f.id)}
+                      >
+                        <TableCell>
+                          <Badge variant={SEVERITY_VARIANT[f.severity]}>{f.severity}</Badge>
+                        </TableCell>
+                        <TableCell className="font-medium text-slate-800 dark:text-slate-200">{f.vulnclass}</TableCell>
+                        <TableCell className="max-w-md truncate text-slate-500 dark:text-slate-400">{f.summary}</TableCell>
+                        <TableCell>
+                          <StatusText finding={f} />
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-slate-500">{f.id}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </ScrollArea>
           )}
         </div>
 
-        {/* Detail panel */}
+        {/* Detail panel: full-screen overlay on mobile, side panel on md+ */}
         {selectedId !== null && (
-          <div className="w-96 shrink-0 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <div className={cn(
+            'fixed inset-0 z-40 overflow-y-auto bg-white dark:bg-slate-900',
+            'md:static md:inset-auto md:z-auto md:w-96 md:shrink-0 md:overflow-hidden md:rounded-lg md:border md:border-slate-200 md:dark:border-slate-800'
+          )}>
             <DetailPanel
               detail={detail ?? null}
               loading={detailLoading}

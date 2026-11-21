@@ -8,6 +8,7 @@ import { ScrollArea } from '../components/ui/scroll-area'
 import { Select } from '../components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 import { Spinner } from '../components/ui/spinner'
+import { TableSkeleton } from '../components/skeletons/TableSkeleton'
 import { type TrafficFilters, useTraffic, useTrafficDetail } from '../hooks/useTraffic'
 import type { TrafficExchange } from '../lib/types'
 import { cn, formatBytes, relativeTime } from '../lib/utils'
@@ -209,12 +210,12 @@ export default function Traffic() {
   return (
     <div className="flex h-full flex-col">
       {/* Filter bar */}
-      <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-800 px-4 py-2">
+      <div className="flex flex-wrap items-center gap-2 md:gap-3 border-b border-slate-200 dark:border-slate-800 px-3 md:px-4 py-2">
         <Input
           placeholder="Host..."
           value={host}
           onChange={e => setHost(e.target.value)}
-          className="w-44"
+          className="w-full sm:w-44"
         />
         <Select value={method} onChange={e => setMethod(e.target.value)} className="w-28">
           <option value="">Method</option>
@@ -242,12 +243,12 @@ export default function Traffic() {
           className="w-20"
           type="number"
         />
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 w-full sm:w-auto">
           <Input
             placeholder={bodySearch ? 'Search request/response bodies...' : 'Search...'}
             value={query}
             onChange={e => setQuery(e.target.value)}
-            className="w-52"
+            className="w-full sm:w-52"
           />
           <button
             type="button"
@@ -276,7 +277,7 @@ export default function Traffic() {
       {/* Table */}
       <div className="min-h-0 flex-1 overflow-auto">
         {isLoading ? (
-          <div className="flex h-64 items-center justify-center"><Spinner className="h-8 w-8" /></div>
+          <div className="p-3 md:p-4"><TableSkeleton columns={7} rows={12} /></div>
         ) : rows.length === 0 ? (
           <div className="flex h-64 flex-col items-center justify-center gap-2 text-slate-500">
             <Globe className="h-10 w-10 text-slate-400 dark:text-slate-600" />
@@ -288,7 +289,8 @@ export default function Traffic() {
             </p>
           </div>
         ) : (
-          <Table>
+          <div className="overflow-x-auto">
+          <Table className="min-w-[800px]">
             <TableHeader>
               <TableRow className="text-[11px]">
                 <SortableHead col="time" label="Time" current={sortCol} order={sortOrder} onToggle={toggleSort} className="w-16" />
@@ -336,6 +338,7 @@ export default function Traffic() {
               ))}
             </TableBody>
           </Table>
+          </div>
         )}
       </div>
 
@@ -372,7 +375,7 @@ export default function Traffic() {
             className="h-1.5 cursor-row-resize border-t border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
             onMouseDown={onDragStart}
           />
-          <div style={{ height: detailHeight }} className="flex flex-col bg-white dark:bg-slate-900">
+          <div style={{ height: detailHeight, maxHeight: '60vh' }} className="flex flex-col bg-white dark:bg-slate-900">
             <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 px-4 py-1.5">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 {selectedId}

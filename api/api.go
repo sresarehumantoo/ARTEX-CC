@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -44,6 +45,7 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /api/assets/{id}", a.handleAssetDetail)
 	mux.HandleFunc("GET /api/traffic", a.handleTraffic)
 	mux.HandleFunc("GET /api/traffic/{id}", a.handleTrafficDetail)
+	mux.HandleFunc("GET /api/search", a.handleSearch)
 	mux.HandleFunc("GET /api/activity", a.handleActivity)
 	mux.HandleFunc("GET /api/events", a.handleSSE)
 	return corsMiddleware(mux)
@@ -173,10 +175,54 @@ func (a *API) handleGraph(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type dbQuerier interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}
+
+type findingWithTime struct {
+	tools.Finding
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+}
+
+func (a *API) findingTimestamps(ctx context.Context) map[int64]time.Time {
+	q, ok := a.store.(dbQuerier)
+	if !ok {
+		return nil
+	}
+	rows, err := q.QueryContext(ctx,
+		`SELECT f.id, f.created_at FROM findings f JOIN tasks t ON t.id = f.task_id WHERE t.exploration_id = $1`,
+		a.explorationID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	m := map[int64]time.Time{}
+	for rows.Next() {
+		var id int64
+		var ts time.Time
+		if rows.Scan(&id, &ts) == nil {
+			m[id] = ts
+		}
+	}
+	return m
+}
+
 func (a *API) handleFindings(w http.ResponseWriter, r *http.Request) {
 	findings, err := a.store.ListFindings(r.Context(), a.explorationID)
 	if err != nil {
 		jsonError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	timestamps := a.findingTimestamps(r.Context())
+	if timestamps != nil {
+		result := make([]findingWithTime, len(findings))
+		for i, f := range findings {
+			result[i] = findingWithTime{Finding: f}
+			if ts, ok := timestamps[f.ID]; ok {
+				result[i].CreatedAt = &ts
+			}
+		}
+		jsonResponse(w, http.StatusOK, result)
 		return
 	}
 	jsonResponse(w, http.StatusOK, findings)
@@ -200,6 +246,10 @@ func (a *API) handleFindingDetail(w http.ResponseWriter, r *http.Request) {
 			b, _ := json.Marshal(f)
 			json.Unmarshal(b, &result)
 			result["traffic_bindings"] = bindings
+			timestamps := a.findingTimestamps(r.Context())
+			if ts, ok := timestamps[f.ID]; ok {
+				result["created_at"] = ts
+			}
 			jsonResponse(w, http.StatusOK, result)
 			return
 		}
@@ -329,6 +379,98 @@ func (a *API) handleActivity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonResponse(w, http.StatusOK, activity)
+}
+
+type searchResult struct {
+	Type     string `json:"type"`
+	ID       any    `json:"id"`
+	Title    string `json:"title"`
+	Subtitle string `json:"subtitle"`
+	URL      string `json:"url"`
+}
+
+func (a *API) handleSearch(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
+	if q == "" {
+		jsonResponse(w, http.StatusOK, map[string]any{"results": []any{}})
+		return
+	}
+
+	ctx := r.Context()
+	ql := strings.ToLower(q)
+	var results []searchResult
+
+	findings, err := a.store.ListFindings(ctx, a.explorationID)
+	if err == nil {
+		n := 0
+		for _, f := range findings {
+			if n >= 5 {
+				break
+			}
+			if strings.Contains(strings.ToLower(f.VulnClass), ql) || strings.Contains(strings.ToLower(f.Summary), ql) {
+				results = append(results, searchResult{
+					Type:     "finding",
+					ID:       f.ID,
+					Title:    f.VulnClass,
+					Subtitle: f.Severity + " — " + truncate(f.Summary, 60),
+					URL:      "/findings?id=" + strconv.FormatInt(f.ID, 10),
+				})
+				n++
+			}
+		}
+	}
+
+	assets, _, err := a.store.ListAssets(ctx, tools.AssetFilter{
+		TaskID: a.taskID,
+		DSL:    q,
+		Limit:  5,
+	})
+	if err == nil {
+		for _, asset := range assets {
+			results = append(results, searchResult{
+				Type:     "asset",
+				ID:       asset.ID,
+				Title:    asset.Label,
+				Subtitle: asset.Type,
+				URL:      "/assets?id=" + strconv.FormatInt(asset.ID, 10),
+			})
+		}
+	}
+
+	nodes, err := a.store.ListNodes(ctx, a.explorationID, "", 0)
+	if err == nil {
+		n := 0
+		for _, nd := range nodes {
+			if n >= 5 {
+				break
+			}
+			label, _ := nd.Payload["label"].(string)
+			summary, _ := nd.Payload["summary"].(string)
+			if strings.Contains(strings.ToLower(label), ql) || strings.Contains(strings.ToLower(summary), ql) {
+				subtitle := nd.Kind
+				if nd.State != "" {
+					subtitle += " — " + nd.State
+				}
+				results = append(results, searchResult{
+					Type:     "node",
+					ID:       nd.ID,
+					Title:    label,
+					Subtitle: subtitle,
+					URL:      "/graph?node=" + strconv.FormatInt(nd.ID, 10),
+				})
+				n++
+			}
+		}
+	}
+
+	jsonResponse(w, http.StatusOK, map[string]any{"results": results})
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
 }
 
 func (a *API) handleSSE(w http.ResponseWriter, r *http.Request) {
