@@ -1,4 +1,8 @@
 <div align="center">
+  <img src="docs/logo.svg" alt="cc-artex" width="200">
+</div>
+
+<div align="center">
 
 # cc-artex
 
@@ -20,21 +24,9 @@ You bring the brain. cc-artex brings the hands.
 
 ## How it works
 
-```
-                        MCP (stdio or HTTP)
-  +-------------+ <---------------------------> +-----------+
-  | Claude Code |                               |  cc-artex |
-  | (the brain) |                               |  (tools)  |
-  +-------------+                               +-----+-----+
-                                                      |
-                                        +-------------+-------------+
-                                        |             |             |
-                                   +----+----+  +-----+-----+ +----+-----+
-                                   |  PG DB  |  | recording | |  local   |
-                                   |  assets |  |   MITM    | | traffic  |
-                                   |  graph  |  |   proxy   | |  store   |
-                                   +---------+  +-----------+ +----------+
-```
+<div align="center">
+  <img src="docs/architecture.svg" alt="cc-artex architecture" width="800">
+</div>
 
 Claude Code decides what to test, what tools to call, and in what order. cc-artex executes the calls: inserting assets, tracking the exploration graph, recording findings and credentials, logging coverage, and capturing HTTP traffic through its built-in recording proxy. The exploration graph keeps Claude oriented across long engagements so it doesn't repeat work or lose context.
 
@@ -77,6 +69,55 @@ The init command creates the schema, sets up the engagement, generates a CA cert
 The `--proxy` flag starts a recording MITM proxy alongside the MCP server. Point your tools at the proxy address (e.g., `http://localhost:8788`) to capture and analyze traffic. Without `--proxy`, the traffic tools are not registered and cc-artex runs as a pure data server.
 
 Then start Claude Code. The tools appear automatically. Ask Claude to "pentest example.com" and watch it work.
+
+## Docker quick start
+
+**Prerequisites:** Docker and Docker Compose
+
+```sh
+docker compose up
+```
+
+This starts PostgreSQL and cc-artex together. On first run it automatically creates the database schema and a default engagement. The MCP server listens on `localhost:9400` and the recording proxy on `localhost:8788`.
+
+To set a specific engagement goal:
+
+```sh
+CC_ARTEX_GOAL="Pentest example.com" docker compose up
+```
+
+Add this to your Claude Code MCP config (`~/.claude.json` or project `.mcp.json`) to connect over HTTP:
+
+```json
+{
+  "mcpServers": {
+    "cc-artex": {
+      "type": "sse",
+      "url": "http://localhost:9400/sse"
+    }
+  }
+}
+```
+
+Or use stdio transport through Docker:
+
+```json
+{
+  "mcpServers": {
+    "cc-artex": {
+      "command": "docker",
+      "args": [
+        "compose", "exec", "-T", "cc-artex",
+        "/app/cc-artex", "serve", "--stdio",
+        "--pg", "postgres://ccartex:ccartex@postgres:5432/ccartex?sslmode=disable",
+        "--data", "/app/data", "--proxy", ":8788"
+      ]
+    }
+  }
+}
+```
+
+Point your testing tools at `http://localhost:8788` to capture traffic through the recording proxy.
 
 ## What a session looks like
 
