@@ -1,0 +1,48 @@
+version: 2
+
+project_name: cc-artex
+
+builds:
+  - main: ./cmd/cc-artex
+    binary: cc-artex
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    flags:
+      - -trimpath
+
+archives:
+  - format_overrides:
+      - goos: darwin
+        format: zip
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+changelog:
+  sort: asc
+
+release:
+  github:
+    owner: SREsAreHumanToo
+    name: cc-artex
+  draft: false
+  prerelease: auto
+
+brews:
+  - repository:
+      owner: SREsAreHumanToo
+      name: homebrew-tap
+    homepage: https://github.com/SREsAreHumanToo/cc-artex
+    description: MCP tool server that turns ARTEX into tools Claude Code calls through your existing Claude subscription.
+    license: MIT
+    install: |
+      bin.install "cc-artex"
