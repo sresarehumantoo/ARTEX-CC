@@ -144,14 +144,15 @@ func scanAssets(rows *sql.Rows) ([]Asset, error) {
 
 func (s *Store) InsertAsset(ctx context.Context, taskID int64, item tools.AssetInput) (int64, error) {
 	internal := AssetInput{
-		Type:        item.Type,
-		Domain:      item.Domain,
-		IP:          item.IP,
-		URL:         item.URL,
-		ServiceName: item.ServiceName,
-		Method:      item.Method,
-		BundleID:    item.BundleID,
-		AppName:     item.AppName,
+		Type:         item.Type,
+		Domain:       item.Domain,
+		IP:           item.IP,
+		URL:          item.URL,
+		ServiceName:  item.ServiceName,
+		Method:       item.Method,
+		BundleID:     item.BundleID,
+		AppName:      item.AppName,
+		Technologies: []string{},
 	}
 	if item.Port > 0 {
 		p := item.Port
