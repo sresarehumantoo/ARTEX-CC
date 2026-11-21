@@ -23,6 +23,7 @@ type nucleiInfo struct {
 	Tags        []string `json:"tags"`
 }
 
+// ParseNuclei parses nuclei JSONL output into asset and finding results.
 func ParseNuclei(data string) (*Result, error) {
 	r := &Result{}
 	seenHosts := map[string]bool{}
