@@ -1,13 +1,45 @@
+# Build artifacts
 /cc-artex
+dist/
 *.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 *.test
 *.prof
-*.out
 *.pprof
+*.out
 coverage.html
+__debug_bin*
+
+# Go
+vendor/
+
+# Runtime / engagement data
+.cc-artex.json
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets
 .env
 .env.*
-vendor/
-dist/
-.cc-artex.json
-__debug_bin*
+*.pem
+*.key
+
+# Claude Code (user-specific)
+.claude/settings.local.json
+.claude/memory/
+.claude/projects/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

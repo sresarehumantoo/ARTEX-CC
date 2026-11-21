@@ -110,6 +110,22 @@ func (m *mockStore) ListTaskScope(_ context.Context, _ int64) ([]int64, error) {
 	return nil, nil
 }
 
+func (m *mockStore) IsInScope(_ context.Context, _ int64, _ string) (bool, string, string, error) {
+	return true, "mock: always in scope", "", nil
+}
+
+func (m *mockStore) UpdateNodeFields(_ context.Context, _ int64, _ string, _ map[string]any) error {
+	return nil
+}
+
+func (m *mockStore) ExportEngagementData(_ context.Context, _ int64) (*EngagementExport, error) {
+	return nil, nil
+}
+
+func (m *mockStore) ImportEngagementData(_ context.Context, _ *EngagementExport) (int64, int64, error) {
+	return 1, 1, nil
+}
+
 func (m *mockStore) SaveCredential(_ context.Context, _ int64, _ CredentialInput) (int64, error) {
 	return 1, nil
 }
