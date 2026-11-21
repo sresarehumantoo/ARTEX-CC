@@ -64,6 +64,10 @@ export async function fetchAsset(id: number): Promise<Asset> {
   return res.json()
 }
 
+export function getAssetFindings(assetId: number) {
+  return fetchJSON<Finding[]>(`${BASE}/assets/${assetId}/findings`)
+}
+
 export function getTraffic(params?: Record<string, string>) {
   return fetchJSON<TrafficPage>(`${BASE}/traffic`, params)
 }
@@ -72,6 +76,6 @@ export function getTrafficDetail(id: string) {
   return fetchJSON<TrafficDetail>(`${BASE}/traffic/${id}`)
 }
 
-export function getActivity(params?: { limit?: string }) {
+export function getActivity(params?: { limit?: string; kind?: string; node_id?: string }) {
   return fetchJSON<Activity[]>(`${BASE}/activity`, params)
 }

@@ -12,6 +12,7 @@ import { Dashboard } from './pages/Dashboard'
 const Graph = lazy(() => import('./pages/Graph'))
 const Findings = lazy(() => import('./pages/Findings'))
 const Traffic = lazy(() => import('./pages/Traffic'))
+const Activity = lazy(() => import('./pages/Activity'))
 const Assets = lazy(() => import('./pages/Assets'))
 
 function PageLoader() {
@@ -52,6 +53,7 @@ export default function App() {
               <Route path="/graph" element={<Graph />} />
               <Route path="/findings" element={<Findings />} />
               <Route path="/traffic" element={<Traffic />} />
+              <Route path="/activity" element={<Activity />} />
               <Route path="/assets" element={<Assets />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

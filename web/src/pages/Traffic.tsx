@@ -537,12 +537,88 @@ function formatBody(body: string): React.ReactNode {
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
     try {
       const formatted = JSON.stringify(JSON.parse(trimmed), null, 2)
-      return <span className="text-slate-700 dark:text-slate-300">{formatted}</span>
+      return highlightJson(formatted)
     } catch {
       // not valid JSON
     }
   }
+  if (trimmed.startsWith('<')) {
+    return highlightMarkup(trimmed)
+  }
   return <span className="text-slate-700 dark:text-slate-300">{body}</span>
+}
+
+function highlightJson(json: string): React.ReactNode {
+  const nodes: React.ReactNode[] = []
+  const re = /("(?:[^"\\]|\\.)*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(\btrue\b|\bfalse\b|\bnull\b)|([{}[\]:,])/g
+  let m: RegExpExecArray | null
+  let last = 0
+  let k = 0
+
+  while ((m = re.exec(json)) !== null) {
+    if (m.index > last) nodes.push(json.slice(last, m.index))
+    last = re.lastIndex
+
+    if (m[1]) {
+      if (m[2]) {
+        nodes.push(<span key={k++} className="text-cyan-400">{m[1]}</span>)
+        nodes.push(m[2])
+      } else {
+        nodes.push(<span key={k++} className="text-emerald-400">{m[1]}</span>)
+      }
+    } else if (m[3]) {
+      nodes.push(<span key={k++} className="text-amber-400">{m[3]}</span>)
+    } else if (m[4]) {
+      nodes.push(<span key={k++} className="text-purple-400">{m[4]}</span>)
+    } else if (m[5]) {
+      nodes.push(<span key={k++} className="text-slate-500">{m[5]}</span>)
+    }
+  }
+
+  if (last < json.length) nodes.push(json.slice(last))
+  return <>{nodes}</>
+}
+
+function highlightMarkup(html: string): React.ReactNode {
+  const nodes: React.ReactNode[] = []
+  const tagRe = /<\/?[a-zA-Z][\w:.-]*(?:\s[^>]*)?\/?>/g
+  let m: RegExpExecArray | null
+  let last = 0
+  let k = 0
+
+  while ((m = tagRe.exec(html)) !== null) {
+    if (m.index > last) nodes.push(html.slice(last, m.index))
+    last = tagRe.lastIndex
+
+    const tag = m[0]
+    const tm = tag.match(/^(<\/?)([a-zA-Z][\w:.-]*)([\s\S]*?)(\/?>)$/)
+    if (!tm) { nodes.push(tag); continue }
+
+    nodes.push(<span key={k++} className="text-slate-500">{tm[1]}</span>)
+    nodes.push(<span key={k++} className="text-blue-400">{tm[2]}</span>)
+
+    if (tm[3]) {
+      const attrRe = /(\s+)([\w:.-]+)(?:(=)("[^"]*"|'[^']*'|\S+))?/g
+      let am: RegExpExecArray | null
+      let aLast = 0
+      while ((am = attrRe.exec(tm[3])) !== null) {
+        if (am.index > aLast) nodes.push(tm[3].slice(aLast, am.index))
+        aLast = attrRe.lastIndex
+        nodes.push(am[1])
+        nodes.push(<span key={k++} className="text-amber-400">{am[2]}</span>)
+        if (am[3]) {
+          nodes.push(am[3])
+          nodes.push(<span key={k++} className="text-emerald-400">{am[4]}</span>)
+        }
+      }
+      if (aLast < tm[3].length) nodes.push(tm[3].slice(aLast))
+    }
+
+    nodes.push(<span key={k++} className="text-slate-500">{tm[4]}</span>)
+  }
+
+  if (last < html.length) nodes.push(html.slice(last))
+  return <>{nodes}</>
 }
 
 function buildCurl(request: string): string {
@@ -552,17 +628,20 @@ function buildCurl(request: string): string {
   if (!method || !path) return ''
   const hostLine = lines.find(l => l.toLowerCase().startsWith('host:'))
   const host = hostLine?.split(':').slice(1).join(':').trim() ?? ''
-  const url = `https://${host}${path}`
+  const scheme = /(?:^|:)443$/.test(host) ? 'https' : 'http'
+  const url = `${scheme}://${host}${path}`
+
+  const esc = (s: string) => s.replace(/'/g, "'\\''")
 
   const headers = lines.slice(1).filter(l => l.includes(':') && !l.toLowerCase().startsWith('host:'))
-  const headerFlags = headers.map(h => `-H '${h}'`).join(' ')
+  const headerFlags = headers.map(h => `-H '${esc(h)}'`).join(' ')
 
   const bodyStart = request.indexOf('\r\n\r\n')
   const body = bodyStart >= 0 ? request.slice(bodyStart + 4).trim() : ''
 
-  let cmd = `curl -X ${method} '${url}'`
+  let cmd = `curl -X ${method} '${esc(url)}'`
   if (headerFlags) cmd += ` ${headerFlags}`
-  if (body) cmd += ` -d '${body}'`
+  if (body) cmd += ` -d '${esc(body)}'`
   return cmd
 }
 
