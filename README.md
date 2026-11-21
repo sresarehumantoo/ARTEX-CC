@@ -21,18 +21,19 @@ You bring the brain. cc-artex brings the hands.
 ## How it works
 
 ```
-┌─────────────┐       MCP (stdio or HTTP)       ┌──────────┐
-│  Claude Code │◄───────────────────────────────►│ cc-artex │
-│  (the brain) │                                 │  (tools) │
-└─────────────┘                                  └────┬─────┘
-                                                      │
-                                         ┌────────────┼────────────┐
-                                         │            │            │
-                                    ┌────▼───┐  ┌────▼───┐  ┌────▼────┐
-                                    │  PG DB │  │ proxy  │  │  local  │
-                                    │ assets │  │ traffic│  │ traffic │
-                                    │ graph  │  │ capture│  │  store  │
-                                    └────────┘  └────────┘  └─────────┘
+                        MCP (stdio or HTTP)
+  +-------------+ <---------------------------> +-----------+
+  | Claude Code |                               |  cc-artex |
+  | (the brain) |                               |  (tools)  |
+  +-------------+                               +-----+-----+
+                                                      |
+                                        +-------------+-------------+
+                                        |             |             |
+                                   +----+----+  +-----+-----+ +----+-----+
+                                   |  PG DB  |  |   proxy   | |  local   |
+                                   |  assets |  |  traffic  | | traffic  |
+                                   |  graph  |  |  capture  | |  store   |
+                                   +---------+  +-----------+ +----------+
 ```
 
 Claude Code decides what to test, what tools to call, and in what order. cc-artex executes the calls: inserting assets, tracking the exploration graph, recording findings and credentials, and logging coverage. The exploration graph keeps Claude oriented across long engagements so it doesn't repeat work or lose context.
