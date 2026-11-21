@@ -219,3 +219,7 @@ func (s *Store) CoverageStats(taskID int64) (*CoverageStats, error) {
 
 	return stats, nil
 }
+
+func (s *Store) ListCoverageGaps(_ context.Context, _ int64, _ int64) (*tools.CoverageGaps, error) {
+	return &tools.CoverageGaps{}, nil
+}

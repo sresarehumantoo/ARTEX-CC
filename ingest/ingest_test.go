@@ -265,3 +265,178 @@ func TestParseFfufInvalidJSON(t *testing.T) {
 		t.Error("expected error for invalid JSON")
 	}
 }
+
+func TestParseMasscanXML(t *testing.T) {
+	t.Parallel()
+	data := `<?xml version="1.0"?>
+<nmaprun scanner="masscan">
+  <host>
+    <address addr="10.0.0.1" addrtype="ipv4"/>
+    <ports>
+      <port protocol="tcp" portid="80"><state state="open"/><service name="http"/></port>
+      <port protocol="tcp" portid="443"><state state="open"/><service name="https"/></port>
+      <port protocol="tcp" portid="22"><state state="open"/><service name="ssh"/></port>
+    </ports>
+  </host>
+  <host>
+    <address addr="10.0.0.2" addrtype="ipv4"/>
+    <ports>
+      <port protocol="tcp" portid="8080"><state state="open"/><service name="http-proxy"/></port>
+    </ports>
+  </host>
+</nmaprun>`
+
+	results, err := ParseMasscanXML(strings.NewReader(data))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result set, got %d", len(results))
+	}
+	r := results[0]
+
+	var hasIP1, hasIP2, hasHTTP, hasHTTPS, hasSSH, hasProxy bool
+	for _, a := range r.Assets {
+		switch {
+		case a.Type == "ip" && a.IP == "10.0.0.1":
+			hasIP1 = true
+		case a.Type == "ip" && a.IP == "10.0.0.2":
+			hasIP2 = true
+		case a.Type == "service" && a.Port == 80 && strings.HasPrefix(a.URL, "http://"):
+			hasHTTP = true
+		case a.Type == "service" && a.Port == 443 && strings.HasPrefix(a.URL, "https://"):
+			hasHTTPS = true
+		case a.Type == "service" && a.Port == 22 && a.ServiceName == "ssh":
+			hasSSH = true
+		case a.Type == "service" && a.Port == 8080 && strings.Contains(a.URL, "http://"):
+			hasProxy = true
+		}
+	}
+
+	if !hasIP1 {
+		t.Error("missing IP asset 10.0.0.1")
+	}
+	if !hasIP2 {
+		t.Error("missing IP asset 10.0.0.2")
+	}
+	if !hasHTTP {
+		t.Error("missing HTTP service on port 80")
+	}
+	if !hasHTTPS {
+		t.Error("missing HTTPS service on port 443")
+	}
+	if !hasSSH {
+		t.Error("missing SSH service on port 22")
+	}
+	if !hasProxy {
+		t.Error("missing HTTP proxy service on port 8080")
+	}
+}
+
+func TestParseMasscanXMLEmpty(t *testing.T) {
+	t.Parallel()
+	data := `<?xml version="1.0"?><nmaprun scanner="masscan"></nmaprun>`
+	_, err := ParseMasscanXML(strings.NewReader(data))
+	if err == nil {
+		t.Error("expected error for empty masscan XML")
+	}
+}
+
+func TestParseMasscanJSON(t *testing.T) {
+	t.Parallel()
+	data := `[
+{"ip": "10.0.0.1", "timestamp": "1234567890", "ports": [{"port": 80, "proto": "tcp", "status": "open", "service": {"name": "http"}}]},
+{"ip": "10.0.0.1", "timestamp": "1234567891", "ports": [{"port": 443, "proto": "tcp", "status": "open", "service": {"name": "https"}}]},
+{"ip": "10.0.0.2", "timestamp": "1234567892", "ports": [{"port": 22, "proto": "tcp", "status": "open", "service": {"name": "ssh"}}]}
+]`
+
+	results, err := ParseMasscanJSON(strings.NewReader(data))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result set, got %d", len(results))
+	}
+	r := results[0]
+
+	ips := map[string]bool{}
+	var svcCount int
+	for _, a := range r.Assets {
+		if a.Type == "ip" {
+			ips[a.IP] = true
+		}
+		if a.Type == "service" {
+			svcCount++
+		}
+	}
+	if !ips["10.0.0.1"] {
+		t.Error("missing IP 10.0.0.1")
+	}
+	if !ips["10.0.0.2"] {
+		t.Error("missing IP 10.0.0.2")
+	}
+	if svcCount != 3 {
+		t.Errorf("expected 3 service assets, got %d", svcCount)
+	}
+}
+
+func TestParseMasscanJSONEmpty(t *testing.T) {
+	t.Parallel()
+	_, err := ParseMasscanJSON(strings.NewReader(""))
+	if err == nil {
+		t.Error("expected error for empty masscan JSON")
+	}
+}
+
+func TestParseMasscanJSONSingleLine(t *testing.T) {
+	t.Parallel()
+	data := `{"ip": "192.168.1.1", "timestamp": "1700000000", "ports": [{"port": 8443, "proto": "tcp", "status": "open", "service": {"name": "https"}}]}`
+
+	results, err := ParseMasscanJSON(strings.NewReader(data))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	r := results[0]
+
+	var found bool
+	for _, a := range r.Assets {
+		if a.Type == "service" && a.Port == 8443 && strings.HasPrefix(a.URL, "https://") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected HTTPS service on port 8443")
+	}
+}
+
+func TestParseMasscanXMLNoService(t *testing.T) {
+	t.Parallel()
+	data := `<?xml version="1.0"?>
+<nmaprun scanner="masscan">
+  <host>
+    <address addr="10.0.0.5" addrtype="ipv4"/>
+    <ports>
+      <port protocol="tcp" portid="9999"><state state="open"/></port>
+    </ports>
+  </host>
+</nmaprun>`
+
+	results, err := ParseMasscanXML(strings.NewReader(data))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	r := results[0]
+
+	var svc *Asset
+	for _, a := range r.Assets {
+		if a.Type == "service" {
+			svc = &a
+		}
+	}
+	if svc == nil {
+		t.Fatal("expected a service asset")
+	}
+	if svc.ServiceName != "unknown-9999" {
+		t.Errorf("expected service name unknown-9999, got %s", svc.ServiceName)
+	}
+}
