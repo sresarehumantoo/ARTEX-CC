@@ -28,30 +28,32 @@ function SeverityTable({ findings }: { findings: Finding[] }) {
   }
 
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b border-slate-200 dark:border-slate-700">
-          <th className="text-left py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Severity</th>
-          <th className="text-right py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Count</th>
-        </tr>
-      </thead>
-      <tbody>
-        {SEVERITY_ORDER.map(sev => (
-          <tr key={sev} className="border-b border-slate-100 dark:border-slate-800">
-            <td className="py-1.5 px-3">
-              <Badge variant={severityVariant(sev)}>{sev}</Badge>
-            </td>
-            <td className="py-1.5 px-3 text-right font-medium text-slate-900 dark:text-slate-100">
-              {counts[sev]}
-            </td>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 dark:border-slate-700">
+            <th className="text-left py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Severity</th>
+            <th className="text-right py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Count</th>
           </tr>
-        ))}
-        <tr className="font-semibold">
-          <td className="py-1.5 px-3 text-slate-900 dark:text-slate-100">Total (active)</td>
-          <td className="py-1.5 px-3 text-right text-slate-900 dark:text-slate-100">{active.length}</td>
-        </tr>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {SEVERITY_ORDER.map(sev => (
+            <tr key={sev} className="border-b border-slate-100 dark:border-slate-800">
+              <td className="py-1.5 px-3">
+                <Badge variant={severityVariant(sev)}>{sev}</Badge>
+              </td>
+              <td className="py-1.5 px-3 text-right font-medium text-slate-900 dark:text-slate-100">
+                {counts[sev]}
+              </td>
+            </tr>
+          ))}
+          <tr className="font-semibold">
+            <td className="py-1.5 px-3 text-slate-900 dark:text-slate-100">Total (active)</td>
+            <td className="py-1.5 px-3 text-right text-slate-900 dark:text-slate-100">{active.length}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   )
 }
 
@@ -68,22 +70,24 @@ function StatsTable({ engagement, assets }: { engagement: EngagementData; assets
   ]
 
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b border-slate-200 dark:border-slate-700">
-          <th className="text-left py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Metric</th>
-          <th className="text-right py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Value</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map(([label, value]) => (
-          <tr key={label} className="border-b border-slate-100 dark:border-slate-800">
-            <td className="py-1.5 px-3 text-slate-600 dark:text-slate-400">{label}</td>
-            <td className="py-1.5 px-3 text-right font-medium text-slate-900 dark:text-slate-100">{value}</td>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 dark:border-slate-700">
+            <th className="text-left py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Metric</th>
+            <th className="text-right py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Value</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map(([label, value]) => (
+            <tr key={label} className="border-b border-slate-100 dark:border-slate-800">
+              <td className="py-1.5 px-3 text-slate-600 dark:text-slate-400">{label}</td>
+              <td className="py-1.5 px-3 text-right font-medium text-slate-900 dark:text-slate-100">{value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
@@ -141,42 +145,46 @@ function AssetInventory({ assets }: { assets: Asset[] }) {
 
   return (
     <div className="space-y-4">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-slate-200 dark:border-slate-700">
-            <th className="text-left py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Type</th>
-            <th className="text-right py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Count</th>
-          </tr>
-        </thead>
-        <tbody>
-          {Array.from(byType).map(([type, list]) => (
-            <tr key={type} className="border-b border-slate-100 dark:border-slate-800">
-              <td className="py-1.5 px-3 text-slate-900 dark:text-slate-100">{type}</td>
-              <td className="py-1.5 px-3 text-right font-medium text-slate-900 dark:text-slate-100">{list.length}</td>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 dark:border-slate-700">
+              <th className="text-left py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Type</th>
+              <th className="text-right py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Count</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {Array.from(byType).map(([type, list]) => (
+              <tr key={type} className="border-b border-slate-100 dark:border-slate-800">
+                <td className="py-1.5 px-3 text-slate-900 dark:text-slate-100">{type}</td>
+                <td className="py-1.5 px-3 text-right font-medium text-slate-900 dark:text-slate-100">{list.length}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {Array.from(byType).map(([type, list]) => (
         <div key={type}>
           <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">{type}</h4>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-700">
-                <th className="text-left py-1.5 px-3 font-semibold text-slate-700 dark:text-slate-300">ID</th>
-                <th className="text-left py-1.5 px-3 font-semibold text-slate-700 dark:text-slate-300">Label</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map(a => (
-                <tr key={a.id} className="border-b border-slate-100 dark:border-slate-800">
-                  <td className="py-1 px-3 text-slate-500 dark:text-slate-400">{a.id}</td>
-                  <td className="py-1 px-3 text-slate-900 dark:text-slate-100">{a.label}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-700">
+                  <th className="text-left py-1.5 px-3 font-semibold text-slate-700 dark:text-slate-300">ID</th>
+                  <th className="text-left py-1.5 px-3 font-semibold text-slate-700 dark:text-slate-300">Label</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {list.map(a => (
+                  <tr key={a.id} className="border-b border-slate-100 dark:border-slate-800">
+                    <td className="py-1 px-3 text-slate-500 dark:text-slate-400">{a.id}</td>
+                    <td className="py-1 px-3 text-slate-900 dark:text-slate-100">{a.label}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ))}
     </div>
@@ -226,27 +234,29 @@ function GoalsTable({ engagement }: { engagement: EngagementData }) {
   return (
     <div>
       <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">Goals</h3>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-slate-200 dark:border-slate-700">
-            <th className="text-left py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Goal</th>
-            <th className="text-left py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {engagement.goals.map(g => {
-            const label = (g.payload.label as string) ?? (g.payload.description as string) ?? `Goal #${g.id}`
-            return (
-              <tr key={g.id} className="border-b border-slate-100 dark:border-slate-800">
-                <td className="py-1.5 px-3 text-slate-900 dark:text-slate-100">{label}</td>
-                <td className="py-1.5 px-3">
-                  <Badge variant={g.state === 'proven' ? 'get' : 'default'}>{g.state}</Badge>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 dark:border-slate-700">
+              <th className="text-left py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Goal</th>
+              <th className="text-left py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {engagement.goals.map(g => {
+              const label = (g.payload.label as string) ?? (g.payload.description as string) ?? `Goal #${g.id}`
+              return (
+                <tr key={g.id} className="border-b border-slate-100 dark:border-slate-800">
+                  <td className="py-1.5 px-3 text-slate-900 dark:text-slate-100">{label}</td>
+                  <td className="py-1.5 px-3">
+                    <Badge variant={g.state === 'proven' ? 'get' : 'default'}>{g.state}</Badge>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -310,7 +320,7 @@ export default function Report() {
         <h1 className="text-lg md:text-2xl font-semibold text-slate-900 dark:text-slate-100">
           Engagement Report
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleDownloadMarkdown} disabled={!engagement}>
             <Download className="h-4 w-4 mr-1.5" />
             Download Markdown
@@ -371,7 +381,7 @@ export default function Report() {
         {/* Asset Inventory */}
         <section>
           <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">Asset Inventory</h2>
-          <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-4 overflow-hidden">
+          <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 md:p-4 overflow-hidden">
             <AssetInventory assets={assets} />
           </div>
         </section>
@@ -380,7 +390,7 @@ export default function Report() {
         {engagement && (
           <section>
             <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">Coverage and Methodology</h2>
-            <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-4 space-y-4">
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 md:p-4 space-y-4">
               <GoalsTable engagement={engagement} />
               {engagement.hints.length > 0 && (
                 <div>

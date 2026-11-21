@@ -13,6 +13,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import '../graph.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Search, X, Filter } from 'lucide-react'
 import { GraphSkeleton } from '../components/skeletons/GraphSkeleton'
 import {
@@ -61,6 +62,9 @@ export function GraphPage() {
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null)
   const prevNodeIdsRef = useRef<Set<string>>(new Set())
   const prevCountRef = useRef(-1)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const focusParam = searchParams.get('focus')
+  const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [kindFilter, setKindFilter] = useState<string>('all')
 
@@ -133,22 +137,46 @@ export function GraphPage() {
 
   useEffect(() => {
     setNodes((nds) =>
-      nds.map((n) => ({
-        ...n,
-        style: {
-          ...n.style,
-          opacity: matchingNodeIds === null || matchingNodeIds.has(n.id) ? 1 : 0.2,
-          transition: 'opacity 0.2s ease',
-        },
-      })),
+      nds.map((n) => {
+        const isFocused = focusedNodeId === n.id
+        return {
+          ...n,
+          style: {
+            ...n.style,
+            opacity: matchingNodeIds === null || matchingNodeIds.has(n.id) ? 1 : 0.2,
+            transition: 'opacity 0.2s ease, filter 0.3s ease',
+            filter: isFocused ? 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.7)) drop-shadow(0 0 16px rgba(59, 130, 246, 0.4))' : undefined,
+          },
+        }
+      }),
     )
-  }, [matchingNodeIds, setNodes])
+  }, [matchingNodeIds, focusedNodeId, setNodes])
 
   useEffect(() => {
     if (!rfInstance || !matchingNodeIds || matchingNodeIds.size !== 1) return
     const nodeId = [...matchingNodeIds][0]
     rfInstance.fitView({ nodes: [{ id: nodeId }], padding: 0.5, duration: 500 })
   }, [matchingNodeIds, rfInstance])
+
+  useEffect(() => {
+    if (!focusParam || data.nodes.length === 0 || !rfInstance) return
+    const target = data.nodes.find((n) => String(n.id) === focusParam)
+    if (!target) return
+
+    setSelectedNode(target)
+    const nodeId = String(target.id)
+    setFocusedNodeId(nodeId)
+    rfInstance.fitView({ nodes: [{ id: nodeId }], padding: 0.5, duration: 500 })
+
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('focus')
+      return next
+    }, { replace: true })
+
+    const timer = setTimeout(() => setFocusedNodeId(null), 2000)
+    return () => clearTimeout(timer)
+  }, [focusParam, data.nodes, rfInstance, setSearchParams])
 
   const focusMatches = useCallback(() => {
     if (!rfInstance || !matchingNodeIds || matchingNodeIds.size === 0) return

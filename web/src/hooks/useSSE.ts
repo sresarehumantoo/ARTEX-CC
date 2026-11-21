@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { setConnected, setLastEvent } from './useSSEStatus'
 
 export interface SSEEvent {
   type: string
@@ -18,7 +19,12 @@ export function useSSE(url: string, onEvent: (event: SSEEvent) => void) {
     function connect() {
       const es = new EventSource(url)
 
+      es.onopen = () => {
+        setConnected(true)
+      }
+
       es.onmessage = (e) => {
+        setLastEvent(new Date())
         delayRef.current = INITIAL_DELAY
         try {
           const data = JSON.parse(e.data) as SSEEvent
@@ -29,6 +35,7 @@ export function useSSE(url: string, onEvent: (event: SSEEvent) => void) {
       }
 
       es.onerror = () => {
+        setConnected(false)
         es.close()
         if (disposed) return
         timeoutRef.current = setTimeout(() => {
@@ -45,6 +52,7 @@ export function useSSE(url: string, onEvent: (event: SSEEvent) => void) {
 
     return () => {
       disposed = true
+      setConnected(false)
       es.close()
       if (timeoutRef.current !== null) clearTimeout(timeoutRef.current)
     }

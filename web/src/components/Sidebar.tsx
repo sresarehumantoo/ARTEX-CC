@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { LayoutDashboard, GitBranch, Shield, Globe, Clock, Server, Target, FileText, Sun, Moon, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useTheme } from '../hooks/useTheme'
 import { getEngagement } from '../lib/api'
+import { useSSEStatus } from '../hooks/useSSEStatus'
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -25,6 +26,16 @@ function getInitialCollapsed(): boolean {
   }
 }
 
+function formatRelativeTime(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
+  if (seconds < 5) return 'just now'
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  return `${hours}h ago`
+}
+
 function hasHighSeverity(findingList: Record<string, unknown>[]): boolean {
   return findingList.some((f) => {
     const sev = f.severity as string
@@ -35,6 +46,15 @@ function hasHighSeverity(findingList: Record<string, unknown>[]): boolean {
 export function Sidebar() {
   const { theme, toggleTheme } = useTheme()
   const [collapsed, setCollapsed] = useState(getInitialCollapsed)
+  const sseStatus = useSSEStatus()
+  const [, tick] = useState(0)
+
+  useEffect(() => {
+    if (!sseStatus.lastEvent) return
+    const id = setInterval(() => tick((n) => n + 1), 15_000)
+    return () => clearInterval(id)
+  }, [sseStatus.lastEvent])
+
   const { data: engagement } = useQuery({
     queryKey: ['engagement'],
     queryFn: getEngagement,
@@ -124,6 +144,27 @@ export function Sidebar() {
           )
         })}
       </nav>
+      <div className={cn('px-2 py-2', !collapsed && 'md:px-3')}>
+        <div className="flex items-center gap-3 px-3 py-1.5">
+          <span
+            className={cn(
+              'block h-2 w-2 shrink-0 rounded-full',
+              sseStatus.connected ? 'bg-emerald-500' : 'bg-rose-500',
+            )}
+            title={sseStatus.connected ? 'Connected' : 'Disconnected'}
+          />
+          <span className={cn(showLabels, 'text-xs text-slate-500 dark:text-slate-400')}>
+            {sseStatus.connected ? 'Connected' : 'Disconnected'}
+          </span>
+        </div>
+        {sseStatus.lastEvent && (
+          <div className={cn('px-3 py-0.5', collapsed ? 'hidden' : 'hidden md:block')}>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500">
+              Updated {formatRelativeTime(sseStatus.lastEvent)}
+            </span>
+          </div>
+        )}
+      </div>
       <div className={cn('px-2 py-3', !collapsed && 'md:px-3')}>
         <button
           type="button"
