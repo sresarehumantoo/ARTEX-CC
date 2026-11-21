@@ -43,7 +43,7 @@ func makeSaveTaskCredential(store Store, taskID int64) Tool {
 				Note:     a.Note,
 			})
 			if err != nil {
-				return errResult("save_task_credential failed: " + err.Error()), nil
+				return errResult(err.Error()), nil
 			}
 			return jsonResult(map[string]any{
 				"id": id, "domain": a.Domain, "username": a.Username, "source": "agent",
@@ -65,7 +65,7 @@ func makeListTaskCredentials(store Store, taskID int64) Tool {
 			}
 			list, err := store.ListCredentials(ctx, taskID)
 			if err != nil {
-				return errResult("list_task_credentials failed: " + err.Error()), nil
+				return errResult(err.Error()), nil
 			}
 			return jsonResult(map[string]any{"credentials": list})
 		},

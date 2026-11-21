@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 )
 
 func RegisterExportTools(reg *Registry, store Store, taskID, explorationID int64) {
@@ -68,7 +67,7 @@ func makeImportEngagement(store Store) Tool {
 
 			var export EngagementExport
 			if err := json.Unmarshal([]byte(a.Data), &export); err != nil {
-				return errResult(fmt.Sprintf("invalid export data: %v", err)), nil
+				return errResult("invalid export data: " + err.Error()), nil
 			}
 
 			taskID, explorationID, err := store.ImportEngagementData(ctx, &export)
