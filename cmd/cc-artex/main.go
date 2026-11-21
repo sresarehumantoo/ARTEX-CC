@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -23,7 +25,11 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-var version = "v0.1.0-dev"
+var (
+	version   = "v0.1.0-dev"
+	commit    = "unknown"
+	buildDate = "unknown"
+)
 
 func main() {
 	if len(os.Args) < 2 {
@@ -39,7 +45,7 @@ func main() {
 	case "completion":
 		cmdCompletion(os.Args[2:])
 	case "version":
-		fmt.Println("cc-artex " + version)
+		cmdVersion(os.Args[2:])
 	case "-h", "--help", "help":
 		usage()
 	default:
@@ -91,6 +97,7 @@ func cmdServe(args []string) {
 	pg := pgDSN(fs)
 	dataDir := fs.String("data", ".", "data directory for traffic, evidence, etc.")
 	proxyAddr := fs.String("proxy", "", "start the recording proxy on ADDR (e.g., :8788)")
+	shutdownSecs := fs.Int("timeout", 30, "graceful shutdown timeout in seconds")
 	fs.Parse(args)
 
 	if *showVersion {
@@ -102,7 +109,13 @@ func cmdServe(args []string) {
 
 	dsn := resolvePG(*pg)
 	if dsn == "" {
-		slog.Error("--pg or CC_ARTEX_PG is required")
+		fmt.Fprintln(os.Stderr, "error: PostgreSQL connection string is required")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "  Option 1: pass --pg flag")
+		fmt.Fprintln(os.Stderr, "    cc-artex serve --pg 'postgres://user:pass@localhost/ccartex'")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "  Option 2: set CC_ARTEX_PG environment variable")
+		fmt.Fprintln(os.Stderr, "    export CC_ARTEX_PG='postgres://user:pass@localhost/ccartex'")
 		os.Exit(1)
 	}
 
@@ -195,7 +208,9 @@ func cmdServe(args []string) {
 				os.Exit(1)
 			}
 		case <-ctx.Done():
-			httpServer.Shutdown(context.Background())
+			sdCtx, sdCancel := context.WithTimeout(context.Background(), time.Duration(*shutdownSecs)*time.Second)
+			defer sdCancel()
+			httpServer.Shutdown(sdCtx)
 		}
 	} else {
 		slog.Info("serving", "addr", *listen)
@@ -205,13 +220,11 @@ func cmdServe(args []string) {
 		}
 	}
 
-	shutdown(t, s)
+	shutdown(t, s, time.Duration(*shutdownSecs)*time.Second)
 }
 
-const shutdownTimeout = 5 * time.Second
-
-func shutdown(t *traffic.Traffic, s *store.Store) {
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+func shutdown(t *traffic.Traffic, s *store.Store, timeout time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	if t != nil {
@@ -331,4 +344,26 @@ func cmdInit(args []string) {
 	fmt.Println("  --data      directory for traffic captures, evidence, and config")
 	fmt.Println("  --proxy     start the MITM recording proxy on ADDR (e.g. :8788)")
 	fmt.Println("  --debug     enable debug-level logging")
+}
+
+func cmdVersion(args []string) {
+	fs := flag.NewFlagSet("version", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "output as JSON")
+	fs.Parse(args)
+
+	if *jsonOut {
+		info := map[string]string{
+			"version":    version,
+			"commit":     commit,
+			"build_date": buildDate,
+			"go_version": runtime.Version(),
+			"os":         runtime.GOOS,
+			"arch":       runtime.GOARCH,
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(info)
+	} else {
+		fmt.Println("cc-artex " + version)
+	}
 }
