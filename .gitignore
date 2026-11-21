@@ -30,6 +30,7 @@ vendor/
 
 # Claude Code (user-specific)
 .claude/settings.local.json
+.claude/CLAUDE.local.md
 .claude/memory/
 .claude/projects/
 
