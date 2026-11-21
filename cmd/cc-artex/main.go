@@ -5,18 +5,22 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
 
+	"github.com/SREsAreHumanToo/cc-artex/api"
 	"github.com/SREsAreHumanToo/cc-artex/config"
 	"github.com/SREsAreHumanToo/cc-artex/evidence"
 	"github.com/SREsAreHumanToo/cc-artex/mcpserver"
 	"github.com/SREsAreHumanToo/cc-artex/store"
 	"github.com/SREsAreHumanToo/cc-artex/tools"
 	"github.com/SREsAreHumanToo/cc-artex/traffic"
+	"github.com/SREsAreHumanToo/cc-artex/web"
+	"github.com/mark3labs/mcp-go/server"
 )
 
 var version = "v0.1.0-dev"
@@ -75,6 +79,7 @@ func cmdServe(args []string) {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	listen := fs.String("listen", "localhost:9400", "HTTP listen address")
 	stdio := fs.Bool("stdio", false, "use stdio transport instead of HTTP")
+	webUI := fs.Bool("web", false, "enable web UI and REST API")
 	debug := fs.Bool("debug", false, "enable debug-level logging")
 	pg := pgDSN(fs)
 	dataDir := fs.String("data", ".", "data directory for traffic, evidence, etc.")
@@ -150,6 +155,31 @@ func cmdServe(args []string) {
 		if err := srv.ServeStdio(ctx); err != nil && ctx.Err() == nil {
 			slog.Error("stdio server failed", "err", err)
 			os.Exit(1)
+		}
+	} else if *webUI {
+		mux := http.NewServeMux()
+
+		mcpHandler := server.NewStreamableHTTPServer(srv.MCPServer())
+		mux.Handle("/mcp", mcpHandler)
+
+		restAPI := api.New(s, t, engCfg.TaskID, engCfg.ExplorationID)
+		mux.Handle("/api/", restAPI.Handler())
+
+		mux.Handle("/", web.Handler())
+
+		httpServer := &http.Server{Addr: *listen, Handler: mux}
+		errCh := make(chan error, 1)
+		go func() { errCh <- httpServer.ListenAndServe() }()
+
+		slog.Info("serving", "addr", *listen, "web", true)
+		select {
+		case err := <-errCh:
+			if err != nil && ctx.Err() == nil {
+				slog.Error("http server failed", "err", err)
+				os.Exit(1)
+			}
+		case <-ctx.Done():
+			httpServer.Shutdown(context.Background())
 		}
 	} else {
 		slog.Info("serving", "addr", *listen)
