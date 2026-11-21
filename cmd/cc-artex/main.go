@@ -134,7 +134,12 @@ func cmdServe(args []string) {
 		slog.Info("recording proxy started", "addr", *proxyAddr, "ca_cert", t.CACertPath())
 	}
 
-	srv := mcpserver.New(reg, mcpserver.WithEngagement(s, engCfg.TaskID, engCfg.ExplorationID))
+	var srvOpts []mcpserver.Option
+	srvOpts = append(srvOpts, mcpserver.WithEngagement(s, engCfg.TaskID, engCfg.ExplorationID))
+	if t != nil {
+		srvOpts = append(srvOpts, mcpserver.WithTraffic(t))
+	}
+	srv := mcpserver.New(reg, srvOpts...)
 	if *stdio {
 		slog.Info("serving", "transport", "stdio")
 		if err := srv.ServeStdio(ctx); err != nil && ctx.Err() == nil {

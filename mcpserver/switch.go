@@ -44,6 +44,9 @@ func (s *Server) registerSwitchEngagement() {
 
 			reg := tools.NewRegistry()
 			tools.RegisterAll(reg, s.store, s.taskID, s.explorationID)
+			if s.traffic != nil {
+				tools.RegisterTrafficTools(reg, s.traffic, s.store, s.taskID)
+			}
 			s.registry = reg
 			for _, t := range reg.Tools() {
 				s.mcp.AddTool(convertTool(t), makeHandler(t))
