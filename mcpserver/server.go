@@ -75,6 +75,9 @@ func New(registry *tools.Registry, opts ...Option) *Server {
 	return s
 }
 
+// MCPServer returns the underlying mcp-go server for use as an http.Handler.
+func (s *Server) MCPServer() *server.MCPServer { return s.mcp }
+
 const engagementURI = "artex://engagement"
 
 func (s *Server) registerEngagementResource() {

@@ -1,0 +1,108 @@
+export interface EngagementData {
+  task: Record<string, unknown>
+  goals: GraphNode[]
+  open_intents: GraphNode[]
+  running_intents: GraphNode[]
+  recent_done_intents: GraphNode[]
+  done_intents_total: number
+  frontier_open: number
+  findings_total: number
+  findings_dismissed: number
+  findings_merged: number
+  facts: number
+  finding_list: Record<string, unknown>[]
+  recent_facts: GraphNode[]
+  coverage: Record<string, unknown>
+  task_credentials: Record<string, unknown>[]
+  hints: GraphNode[]
+}
+
+export interface GraphNode {
+  id: number
+  kind: 'goal' | 'hint' | 'intent' | 'fact' | 'finding'
+  state: string
+  payload: Record<string, unknown>
+  origin?: string
+}
+
+export interface GraphEdge {
+  from: number
+  rel: 'spawns' | 'derived_from' | 'yields' | 'proves'
+  to: number
+}
+
+export interface GraphData {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+}
+
+export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info'
+
+export interface Finding {
+  id: number
+  node_id: number
+  vulnclass: string
+  severity: Severity
+  summary: string
+  state: string
+  status: string
+  merged_into: number
+  dismissed: boolean
+  dismiss_reason: string
+}
+
+export interface TrafficBinding {
+  id: number
+  finding_id: number
+  snapshot_id: string
+  role: string
+  note: string
+  position: number
+}
+
+export interface FindingDetail extends Finding {
+  traffic_bindings: TrafficBinding[]
+}
+
+export interface Asset {
+  id: number
+  type: string
+  label: string
+  data: Record<string, unknown>
+}
+
+export interface TrafficExchange {
+  id: string
+  ts: number
+  host: string
+  method: string
+  url_template: string
+  url: string
+  status: number
+  content_type: string
+  resp_len: number
+  rewritten: boolean
+}
+
+export interface Activity {
+  id: number
+  exploration_id: number
+  node_id: number
+  worker: string
+  kind: string
+  tool: string
+  is_error: boolean
+  summary: string
+  detail: string
+  created_at: string
+}
+
+export interface TrafficPage {
+  rows: TrafficExchange[]
+  total: number
+}
+
+export interface TrafficDetail {
+  request: string
+  response: string
+}
