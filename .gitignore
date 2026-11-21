@@ -1,0 +1,9 @@
+/cc-artex
+*.exe
+*.test
+*.prof
+*.out
+.env
+.env.*
+vendor/
+dist/
