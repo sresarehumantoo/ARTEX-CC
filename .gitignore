@@ -3,8 +3,11 @@
 *.test
 *.prof
 *.out
+*.pprof
+coverage.html
 .env
 .env.*
 vendor/
 dist/
 .cc-artex.json
+__debug_bin*
