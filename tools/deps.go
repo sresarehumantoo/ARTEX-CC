@@ -61,8 +61,11 @@ type Store interface {
 	ListFindingTraffic(ctx context.Context, findingID int64) ([]TrafficBinding, error)
 	FindingTrafficCount(ctx context.Context, findingID int64) (int, error)
 
-	// Engagement completion
+	// Engagement management
 	CompleteEngagement(ctx context.Context, taskID int64, summary string) error
+	UpdateEngagement(ctx context.Context, taskID int64, goal, description *string) error
+	DeleteEngagement(ctx context.Context, taskID int64) error
+	EngagementActivity(ctx context.Context, explorationID int64, limit int) ([]TimelineEntry, error)
 
 	// Activity log
 	LogActivity(ctx context.Context, explorationID int64, entry ActivityEntry) (int64, error)
@@ -364,6 +367,13 @@ type EngagementExport struct {
 	Credentials []map[string]any `json:"credentials"`
 	Coverage    []map[string]any `json:"coverage"`
 	Scope       []map[string]any `json:"scope"`
+}
+
+// TimelineEntry is one row in the engagement activity timeline.
+type TimelineEntry struct {
+	Timestamp string `json:"timestamp"`
+	Kind      string `json:"kind"`
+	Summary   string `json:"summary"`
 }
 
 const (
