@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 	"time"
-
 )
 
 // ExternalExchange is one captured request/response pair handed in from

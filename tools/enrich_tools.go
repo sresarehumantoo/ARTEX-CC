@@ -63,7 +63,7 @@ func makeEnrichDomain(store Store, taskID int64) Tool {
 
 func makeEnrichIP(store Store, taskID int64) Tool {
 	return Tool{
-		Name: "enrich_ip",
+		Name:        "enrich_ip",
 		Description: "Run reverse DNS on an IP address. Returns PTR records and any discovered hostnames as new assets.",
 		ReadOnly:    true,
 		Schema: obj(map[string]any{

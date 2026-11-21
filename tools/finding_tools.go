@@ -94,10 +94,10 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 
 func makeListFindings(store Store, explorationID int64) Tool {
 	return Tool{
-		Name:     "list_findings",
+		Name:        "list_findings",
 		Description: "List the confirmed findings of this task (compact: id+vulnclass+severity+summary+state+status+traffic_count).",
-		ReadOnly: true,
-		Schema:   obj(map[string]any{}),
+		ReadOnly:    true,
+		Schema:      obj(map[string]any{}),
 		Run: func(ctx context.Context, _ json.RawMessage) (Result, error) {
 			findings, err := store.ListFindings(ctx, explorationID)
 			if err != nil {

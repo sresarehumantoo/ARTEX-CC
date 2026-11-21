@@ -200,4 +200,3 @@ func ParseScopeLine(kind, value string) (*ScopeRule, error) {
 	}
 	return r, nil
 }
-

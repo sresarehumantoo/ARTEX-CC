@@ -384,20 +384,20 @@ func matchesFindingType(f tools.Finding, expectedType string) bool {
 	}
 
 	aliases := map[string][]string{
-		"sqlinjection":          {"sqli", "sql injection", "sql_injection"},
-		"xss":                   {"cross-site scripting", "cross site scripting", "reflected xss", "stored xss", "dom xss"},
-		"commandinjection":      {"command injection", "os command", "rce", "remote code execution"},
-		"directorytraversal":    {"path traversal", "directory traversal", "lfi", "local file inclusion", "file read"},
-		"ssrf":                  {"server-side request forgery", "server side request forgery", "ssrf"},
-		"brokenaccesscontrol":   {"access control", "idor", "insecure direct object", "unauthorized", "authentication bypass", "missing auth", "unauthenticated"},
-		"sensitivedataexposure": {"sensitive data", "information disclosure", "data exposure", "data leak"},
-		"hardcodedcredentials":  {"hardcoded", "default credentials", "weak password", "default password"},
-		"fileinclusion":         {"file inclusion", "lfi", "rfi"},
-		"csrf":                  {"cross-site request forgery", "csrf"},
-		"fileupload":            {"file upload", "unrestricted upload"},
-		"bruteforce":            {"brute force", "brute_force"},
+		"sqlinjection":             {"sqli", "sql injection", "sql_injection"},
+		"xss":                      {"cross-site scripting", "cross site scripting", "reflected xss", "stored xss", "dom xss"},
+		"commandinjection":         {"command injection", "os command", "rce", "remote code execution"},
+		"directorytraversal":       {"path traversal", "directory traversal", "lfi", "local file inclusion", "file read"},
+		"ssrf":                     {"server-side request forgery", "server side request forgery", "ssrf"},
+		"brokenaccesscontrol":      {"access control", "idor", "insecure direct object", "unauthorized", "authentication bypass", "missing auth", "unauthenticated"},
+		"sensitivedataexposure":    {"sensitive data", "information disclosure", "data exposure", "data leak"},
+		"hardcodedcredentials":     {"hardcoded", "default credentials", "weak password", "default password"},
+		"fileinclusion":            {"file inclusion", "lfi", "rfi"},
+		"csrf":                     {"cross-site request forgery", "csrf"},
+		"fileupload":               {"file upload", "unrestricted upload"},
+		"bruteforce":               {"brute force", "brute_force"},
 		"securitymisconfiguration": {"misconfiguration", "misconfig"},
-		"injection":             {"injection"},
+		"injection":                {"injection"},
 	}
 
 	for key, synonyms := range aliases {
