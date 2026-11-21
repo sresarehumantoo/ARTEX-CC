@@ -1,7 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GitBranch, Server, ShieldAlert } from 'lucide-react'
+import {
+  Clock,
+  FileText,
+  GitBranch,
+  Globe,
+  KeyRound,
+  LayoutDashboard,
+  Moon,
+  Server,
+  ShieldAlert,
+  Sun,
+  Target,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useSearch, type SearchResult } from '../hooks/useSearch'
+import { useTheme } from '../hooks/useTheme'
 
 const TYPE_ICONS = {
   finding: ShieldAlert,
@@ -14,6 +28,14 @@ const TYPE_LABELS = {
   asset: 'Assets',
   node: 'Nodes',
 } as const
+
+interface QuickAction {
+  id: string
+  label: string
+  subtitle: string
+  icon: LucideIcon
+  action: () => void
+}
 
 function groupResults(results: SearchResult[]) {
   const groups: { type: SearchResult['type']; label: string; items: SearchResult[] }[] = []
@@ -30,6 +52,7 @@ function groupResults(results: SearchResult[]) {
 
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate()
+  const { theme, toggleTheme } = useTheme()
   const inputRef = useRef<HTMLInputElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   const [query, setQuery] = useState('')
@@ -40,6 +63,33 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const results = data?.results ?? []
   const groups = groupResults(results)
 
+  const quickActions: QuickAction[] = useMemo(() => {
+    function go(path: string) {
+      return () => { navigate(path); onClose() }
+    }
+    return [
+      { id: 'nav-dashboard',    label: 'Dashboard',    subtitle: 'Overview and stats',     icon: LayoutDashboard, action: go('/') },
+      { id: 'nav-graph',        label: 'Graph',        subtitle: 'Attack graph',           icon: GitBranch,       action: go('/graph') },
+      { id: 'nav-findings',     label: 'Findings',     subtitle: 'Vulnerabilities found',  icon: ShieldAlert,     action: go('/findings') },
+      { id: 'nav-traffic',      label: 'Traffic',      subtitle: 'Captured requests',      icon: Globe,           action: go('/traffic') },
+      { id: 'nav-activity',     label: 'Activity',     subtitle: 'Recent actions',         icon: Clock,           action: go('/activity') },
+      { id: 'nav-assets',       label: 'Assets',       subtitle: 'Hosts and services',     icon: Server,          action: go('/assets') },
+      { id: 'nav-coverage',     label: 'Coverage',     subtitle: 'Testing coverage',       icon: Target,          action: go('/coverage') },
+      { id: 'nav-credentials',  label: 'Credentials',  subtitle: 'Stored credentials',     icon: KeyRound,        action: go('/credentials') },
+      { id: 'nav-report',       label: 'Report',       subtitle: 'Generate report',        icon: FileText,        action: go('/report') },
+      { id: 'toggle-theme',     label: 'Toggle theme', subtitle: `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`, icon: theme === 'dark' ? Sun : Moon, action: () => { toggleTheme(); onClose() } },
+    ]
+  }, [navigate, onClose, theme, toggleTheme])
+
+  const filteredActions = useMemo(() => {
+    if (debouncedQuery.length >= 2) return []
+    if (query.length === 0) return quickActions
+    const q = query.toLowerCase()
+    return quickActions.filter(a => a.label.toLowerCase().includes(q))
+  }, [query, debouncedQuery, quickActions])
+
+  const activeItemCount = debouncedQuery.length >= 2 ? results.length : filteredActions.length
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 200)
     return () => clearTimeout(timer)
@@ -47,7 +97,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 
   useEffect(() => {
     setSelectedIndex(0)
-  }, [debouncedQuery])
+  }, [debouncedQuery, query])
 
   useEffect(() => {
     if (open) {
@@ -74,7 +124,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       }
       if (e.key === 'ArrowDown') {
         e.preventDefault()
-        setSelectedIndex(i => Math.min(i + 1, results.length - 1))
+        setSelectedIndex(i => Math.min(i + 1, activeItemCount - 1))
         return
       }
       if (e.key === 'ArrowUp') {
@@ -82,14 +132,18 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         setSelectedIndex(i => Math.max(i - 1, 0))
         return
       }
-      if (e.key === 'Enter' && results.length > 0) {
+      if (e.key === 'Enter' && activeItemCount > 0) {
         e.preventDefault()
-        selectResult(results[selectedIndex])
+        if (debouncedQuery.length >= 2) {
+          selectResult(results[selectedIndex])
+        } else {
+          filteredActions[selectedIndex]?.action()
+        }
       }
     }
     document.addEventListener('keydown', handleKey, true)
     return () => document.removeEventListener('keydown', handleKey, true)
-  }, [open, results, selectedIndex, selectResult, onClose])
+  }, [open, activeItemCount, debouncedQuery, results, filteredActions, selectedIndex, selectResult, onClose])
 
   if (!open) return null
 
@@ -155,9 +209,42 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             </div>
           ))}
 
-          {debouncedQuery.length < 2 && (
+          {debouncedQuery.length < 2 && filteredActions.length > 0 && (
+            <div>
+              <div className="px-4 pt-3 pb-1 text-xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Quick Actions
+              </div>
+              {filteredActions.map((action, idx) => {
+                const Icon = action.icon
+                return (
+                  <button
+                    key={action.id}
+                    className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors ${
+                      idx === selectedIndex
+                        ? 'bg-slate-100 dark:bg-slate-800'
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                    }`}
+                    onClick={() => action.action()}
+                    onMouseEnter={() => setSelectedIndex(idx)}
+                  >
+                    <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm text-slate-900 dark:text-slate-100">
+                        {action.label}
+                      </div>
+                      <div className="truncate text-xs text-slate-500 dark:text-slate-400">
+                        {action.subtitle}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {debouncedQuery.length < 2 && filteredActions.length === 0 && query.length > 0 && (
             <div className="px-4 py-8 text-center text-sm text-slate-500">
-              Type to search across findings, assets, and graph nodes
+              No matching actions
             </div>
           )}
         </div>

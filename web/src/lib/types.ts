@@ -140,3 +140,18 @@ export interface CoverageGaps {
   unproven_goals: GraphNode[]
   unenriched_services: Asset[]
 }
+
+export interface Credential {
+  id: number
+  domain: string
+  username: string
+  password?: string
+  source?: string
+  note?: string
+}
+
+export interface Constraint {
+  id: number
+  kind: string
+  text: string
+}

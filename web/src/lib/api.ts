@@ -1,4 +1,4 @@
-import type { EngagementData, GraphData, Finding, FindingDetail, Asset, TrafficPage, TrafficDetail, Activity, CoverageStats, CoverageGaps } from './types'
+import type { EngagementData, GraphData, Finding, FindingDetail, Asset, TrafficPage, TrafficDetail, Activity, CoverageStats, CoverageGaps, Credential, Constraint } from './types'
 
 export type { Asset } from './types'
 
@@ -86,4 +86,12 @@ export function getCoverage() {
 
 export function getCoverageGaps() {
   return fetchJSON<CoverageGaps>(`${BASE}/coverage/gaps`)
+}
+
+export function getCredentials() {
+  return fetchJSON<Credential[]>(`${BASE}/credentials`)
+}
+
+export function getConstraints() {
+  return fetchJSON<Constraint[]>(`${BASE}/constraints`)
 }
