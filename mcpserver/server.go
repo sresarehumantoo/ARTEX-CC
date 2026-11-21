@@ -3,8 +3,7 @@ package mcpserver
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
+	"log/slog"
 	"strings"
 
 	"github.com/SREsAreHumanToo/cc-artex/tools"
@@ -15,7 +14,6 @@ import (
 type Server struct {
 	mcp      *server.MCPServer
 	registry *tools.Registry
-	logger   *log.Logger
 
 	store         tools.Store
 	taskID        int64
@@ -23,12 +21,6 @@ type Server struct {
 }
 
 type Option func(*Server)
-
-func WithLogger(l *log.Logger) Option {
-	return func(s *Server) {
-		s.logger = l
-	}
-}
 
 func WithEngagement(store tools.Store, taskID, explorationID int64) Option {
 	return func(s *Server) {
@@ -41,7 +33,6 @@ func WithEngagement(store tools.Store, taskID, explorationID int64) Option {
 func New(registry *tools.Registry, opts ...Option) *Server {
 	s := &Server{
 		registry: registry,
-		logger:   log.New(os.Stderr, "mcpserver: ", log.LstdFlags),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -77,6 +68,7 @@ func (s *Server) registerEngagementResource() {
 }
 
 func (s *Server) handleReadEngagement(ctx context.Context, _ mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+	slog.Debug("engagement resource read")
 	var b strings.Builder
 	b.WriteString(orchestrationGuide)
 
