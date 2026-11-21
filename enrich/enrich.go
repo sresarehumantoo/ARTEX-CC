@@ -12,22 +12,26 @@ import (
 	"time"
 )
 
+// Fact is one piece of reconnaissance intelligence tied to a parent asset.
 type Fact struct {
 	Parent string `json:"parent"`
 	Text   string `json:"text"`
 	Source string `json:"source"`
 }
 
+// Asset is a discovered asset produced by an enrichment probe.
 type Asset struct {
 	Type  string `json:"type"`
 	Value string `json:"value"`
 }
 
+// Result is the combined output of an enrichment probe: facts and new assets.
 type Result struct {
 	Facts  []Fact  `json:"facts,omitempty"`
 	Assets []Asset `json:"assets,omitempty"`
 }
 
+// EnrichDomain collects DNS records and reverse lookups for a domain.
 func EnrichDomain(ctx context.Context, domain string) (*Result, error) {
 	domain = strings.TrimSpace(domain)
 	if domain == "" {
@@ -106,6 +110,7 @@ func lookupReverseDNSForDomain(ctx context.Context, resolver *net.Resolver, doma
 	}
 }
 
+// EnrichIP collects reverse DNS records for an IP address.
 func EnrichIP(ctx context.Context, ip string) (*Result, error) {
 	ip = strings.TrimSpace(ip)
 	if net.ParseIP(ip) == nil {
@@ -127,6 +132,7 @@ func EnrichIP(ctx context.Context, ip string) (*Result, error) {
 	return r, nil
 }
 
+// EnrichService probes an HTTP(S) service for technology fingerprints and TLS details.
 func EnrichService(ctx context.Context, host string, port int, scheme string) (*Result, error) {
 	host = strings.TrimSpace(host)
 	if host == "" {

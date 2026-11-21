@@ -40,6 +40,7 @@ func WithTraffic(t *traffic.Traffic) Option {
 	return func(s *Server) { s.traffic = t }
 }
 
+
 // New creates a Server with its tools registered and optional engagement context.
 func New(registry *tools.Registry, opts ...Option) *Server {
 	s := &Server{
