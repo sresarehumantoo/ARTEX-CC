@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 380" width="800" height="380">
+  <defs>
+    <style>
+      .box-label { font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace; font-size: 15px; font-weight: 600; }
+      .box-sub { font-family: "Inter", "Segoe UI", system-ui, sans-serif; font-size: 12px; }
+      .sub-label { font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace; font-size: 13px; font-weight: 500; }
+      .sub-detail { font-family: "Inter", "Segoe UI", system-ui, sans-serif; font-size: 11px; }
+      .conn-label { font-family: "SF Mono", "Cascadia Code", "Fira Code", monospace; font-size: 11px; }
+      .text-primary { fill: #1f2937; }
+      .text-secondary { fill: #6b7280; }
+      .box-claude { fill: #ede9fe; stroke: #7c3aed; }
+      .box-artex { fill: #e0f2fe; stroke: #0ea5e9; }
+      .box-sub-bg { fill: #ecfeff; stroke: #0891b2; }
+      .conn-line { stroke: #9ca3af; }
+      .conn-arrow { fill: #9ca3af; }
+      .branch-line { stroke: #d1d5db; }
+      .conn-bg { fill: #f9fafb; }
+      @media (prefers-color-scheme: dark) {
+        .text-primary { fill: #e5e7eb; }
+        .text-secondary { fill: #9ca3af; }
+        .box-claude { fill: #2d1b4e; stroke: #7c3aed; }
+        .box-artex { fill: #0c3547; stroke: #0ea5e9; }
+        .box-sub-bg { fill: #0a2e3d; stroke: #0891b2; }
+        .conn-line { stroke: #6b7280; }
+        .conn-arrow { fill: #6b7280; }
+        .branch-line { stroke: #4b5563; }
+        .conn-bg { fill: #111827; }
+      }
+    </style>
+  </defs>
+
+  <rect x="30" y="110" width="200" height="90" rx="12" ry="12"
+        class="box-claude" stroke-width="1.5"/>
+  <text x="130" y="150" text-anchor="middle" class="box-label text-primary">Claude Code</text>
+  <text x="130" y="172" text-anchor="middle" class="box-sub text-secondary">(the brain)</text>
+
+  <line x1="230" y1="155" x2="370" y2="155" class="conn-line" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <polygon points="367,150 377,155 367,160" class="conn-arrow"/>
+  <polygon points="233,150 223,155 233,160" class="conn-arrow"/>
+
+  <rect x="262" y="134" width="76" height="22" rx="4" ry="4" class="conn-bg" stroke="none"/>
+  <text x="300" y="150" text-anchor="middle" class="conn-label text-secondary">MCP</text>
+  <text x="300" y="178" text-anchor="middle" class="sub-detail text-secondary">stdio or HTTP</text>
+
+  <rect x="370" y="110" width="200" height="90" rx="12" ry="12"
+        class="box-artex" stroke-width="1.5"/>
+  <text x="470" y="150" text-anchor="middle" class="box-label text-primary">cc-artex</text>
+  <text x="470" y="172" text-anchor="middle" class="box-sub text-secondary">(tools)</text>
+
+  <line x1="470" y1="200" x2="470" y2="245" class="branch-line" stroke-width="1.5"/>
+  <line x1="270" y1="245" x2="670" y2="245" class="branch-line" stroke-width="1.5"/>
+  <line x1="270" y1="245" x2="270" y2="275" class="branch-line" stroke-width="1.5"/>
+  <line x1="470" y1="245" x2="470" y2="275" class="branch-line" stroke-width="1.5"/>
+  <line x1="670" y1="245" x2="670" y2="275" class="branch-line" stroke-width="1.5"/>
+
+  <rect x="170" y="275" width="200" height="80" rx="10" ry="10"
+        class="box-sub-bg" stroke-width="1.2"/>
+  <text x="270" y="308" text-anchor="middle" class="sub-label text-primary">PostgreSQL</text>
+  <text x="270" y="326" text-anchor="middle" class="sub-detail text-secondary">assets, graph, findings</text>
+  <text x="270" y="342" text-anchor="middle" class="sub-detail text-secondary">credentials, coverage</text>
+
+  <rect x="370" y="275" width="200" height="80" rx="10" ry="10"
+        class="box-sub-bg" stroke-width="1.2"/>
+  <text x="470" y="308" text-anchor="middle" class="sub-label text-primary">Recording Proxy</text>
+  <text x="470" y="326" text-anchor="middle" class="sub-detail text-secondary">MITM, SOCKS5</text>
+  <text x="470" y="342" text-anchor="middle" class="sub-detail text-secondary">traffic capture</text>
+
+  <rect x="570" y="275" width="200" height="80" rx="10" ry="10"
+        class="box-sub-bg" stroke-width="1.2"/>
+  <text x="670" y="308" text-anchor="middle" class="sub-label text-primary">Report Generator</text>
+  <text x="670" y="326" text-anchor="middle" class="sub-detail text-secondary">markdown output</text>
+  <text x="670" y="342" text-anchor="middle" class="sub-detail text-secondary">quality analysis</text>
+</svg>
