@@ -20,6 +20,10 @@ cc-artex is an MCP tool server that turns [ARTEX](https://github.com/Autumn-27/a
 
 You bring the brain. cc-artex brings the hands.
 
+<p align="center">
+  <img src="docs/demo.gif" alt="cc-artex demo" width="720">
+</p>
+
 > **Authorized use only.** This is an offensive security tool, for penetration
 > testing, red teaming, CTFs and lab work. Use it only against systems you own
 > or have explicit permission to test.
