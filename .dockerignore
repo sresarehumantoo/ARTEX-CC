@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+.cc-artex.json
+/cc-artex
+*.exe
+*.test
+*.prof
+*.out
+vendor/
+dist/
+data/
+traffic/_ca/
+coverage.html
+__debug_bin*
