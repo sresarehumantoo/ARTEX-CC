@@ -1,3 +1,4 @@
+// Package ingest parses scanner output (nmap, nuclei, httpx, ffuf, masscan) into asset results.
 package ingest
 
 import (
@@ -45,6 +46,7 @@ type nmapService struct {
 	Version string `xml:"version,attr"`
 }
 
+// ParseNmap parses nmap XML output into asset results.
 func ParseNmap(data string) (*Result, error) {
 	data = strings.TrimSpace(data)
 	if strings.HasPrefix(data, "<") {

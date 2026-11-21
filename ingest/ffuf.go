@@ -22,6 +22,7 @@ type ffufConfig struct {
 	Method string `json:"method"`
 }
 
+// ParseFfuf parses ffuf JSON output into endpoint asset results.
 func ParseFfuf(data string) (*Result, error) {
 	data = strings.TrimSpace(data)
 

@@ -38,6 +38,7 @@ type masscanSvc struct {
 	Name string `xml:"name,attr"`
 }
 
+// ParseMasscanXML parses masscan XML output into IP and service asset results.
 func ParseMasscanXML(r io.Reader) ([]Result, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -88,6 +89,7 @@ type masscanJSONSvc struct {
 	Name string `json:"name"`
 }
 
+// ParseMasscanJSON parses masscan JSON output into IP and service asset results.
 func ParseMasscanJSON(r io.Reader) ([]Result, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {

@@ -18,6 +18,7 @@ type httpxResult struct {
 	Scheme        string   `json:"scheme"`
 }
 
+// ParseHttpx parses httpx JSONL output into service asset results.
 func ParseHttpx(data string) (*Result, error) {
 	r := &Result{}
 	seenURLs := map[string]bool{}

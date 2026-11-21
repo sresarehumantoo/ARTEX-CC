@@ -1,13 +1,21 @@
-.PHONY: web build clean dev test lint help
+.PHONY: all build web install dev test lint fmt fmt-check vet ci clean help
+
+all: build
 
 help:
 	@echo "Targets:"
-	@echo "  build   Build frontend then Go binary (default)"
-	@echo "  web     Build frontend to web/dist/"
-	@echo "  dev     Print instructions for local development"
-	@echo "  test    Run Go tests"
-	@echo "  lint    Type-check frontend"
-	@echo "  clean   Remove build artifacts"
+	@echo "  all         Build frontend then Go binary (default)"
+	@echo "  build       Build frontend then Go binary"
+	@echo "  install     Install cc-artex to GOPATH/bin"
+	@echo "  web         Build frontend to web/dist/"
+	@echo "  dev         Print instructions for local development"
+	@echo "  test        Run Go tests"
+	@echo "  lint        Type-check frontend"
+	@echo "  fmt         Format Go code"
+	@echo "  fmt-check   Check Go formatting (CI)"
+	@echo "  vet         Run go vet"
+	@echo "  ci          Run fmt-check + vet + test"
+	@echo "  clean       Remove build artifacts"
 
 web: web/node_modules
 	cd web && npm run build
@@ -19,6 +27,9 @@ web/node_modules: web/package.json web/package-lock.json
 build: web
 	go build -o cc-artex ./cmd/cc-artex
 
+install:
+	go install ./cmd/cc-artex
+
 dev:
 	@echo "Start the Go server:  go run ./cmd/cc-artex serve --web --pg \$$CC_ARTEX_PG --listen :9400"
 	@echo "Start Vite dev:       cd web && npm run dev"
@@ -28,6 +39,17 @@ test:
 
 lint: web/node_modules
 	cd web && npx tsc -b --noEmit
+
+fmt:
+	gofmt -s -w .
+
+fmt-check:
+	@out=$$(gofmt -s -l .); [ -z "$$out" ] || { echo "$$out"; exit 1; }
+
+vet:
+	go vet ./...
+
+ci: fmt-check vet test
 
 clean:
 	rm -rf web/dist cc-artex
