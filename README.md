@@ -14,7 +14,7 @@
 
 </div>
 
-cc-artex is an MCP tool server that turns [ARTEX](https://github.com/Autumn-27/artex)'s autonomous pentest model into tools Claude Code calls through your existing Claude subscription. ARTEX's asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 31 MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
+cc-artex is an MCP tool server that turns [ARTEX](https://github.com/Autumn-27/artex)'s autonomous pentest model into tools Claude Code calls through your existing Claude subscription. ARTEX's asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 40+ MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
 
 You bring the brain. cc-artex brings the hands.
 
