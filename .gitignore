@@ -1,6 +1,6 @@
 # Build artifacts
 /cc-artex
-dist/
+/dist/
 *.exe
 *.exe~
 *.dll

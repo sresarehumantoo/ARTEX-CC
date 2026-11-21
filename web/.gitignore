@@ -8,7 +8,10 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
+# Ignore Vite build output, but keep the placeholder index.html so go:embed
+# always has at least one file in dist/ and go build works without npm.
+dist/*
+!dist/index.html
 dist-ssr
 *.local
 

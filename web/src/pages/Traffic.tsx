@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Clipboard, Globe, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronUp, Clipboard, Globe, Terminal, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Badge, type BadgeVariant } from '../components/ui/badge'
@@ -36,9 +36,16 @@ export default function Traffic() {
   const [method, setMethod] = useState('')
   const [statusInput, setStatusInput] = useState('')
   const [query, setQuery] = useState('')
+  const [bodySearch, setBodySearch] = useState(false)
+  const [respMin, setRespMin] = useState('')
+  const [respMax, setRespMax] = useState('')
+  const [sortCol, setSortCol] = useState('')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | ''>('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [debouncedHost, setDebouncedHost] = useState('')
   const [debouncedStatus, setDebouncedStatus] = useState('')
+  const [debouncedRespMin, setDebouncedRespMin] = useState('')
+  const [debouncedRespMax, setDebouncedRespMax] = useState('')
   const [page, setPage] = useState(0)
   const [selectedId, setSelectedId] = useState<string | null>(
     searchParams.get('selected'),
@@ -48,6 +55,8 @@ export default function Traffic() {
   const queryTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const hostTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const statusTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const respMinTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const respMaxTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
     clearTimeout(queryTimer.current)
@@ -68,19 +77,36 @@ export default function Traffic() {
   }, [statusInput])
 
   useEffect(() => {
+    clearTimeout(respMinTimer.current)
+    respMinTimer.current = setTimeout(() => setDebouncedRespMin(respMin), 300)
+    return () => clearTimeout(respMinTimer.current)
+  }, [respMin])
+
+  useEffect(() => {
+    clearTimeout(respMaxTimer.current)
+    respMaxTimer.current = setTimeout(() => setDebouncedRespMax(respMax), 300)
+    return () => clearTimeout(respMaxTimer.current)
+  }, [respMax])
+
+  useEffect(() => {
     setPage(0)
-  }, [debouncedHost, method, debouncedStatus, debouncedQuery])
+  }, [debouncedHost, method, debouncedStatus, debouncedQuery, debouncedRespMin, debouncedRespMax, bodySearch])
 
   const filters: TrafficFilters = useMemo(
     () => ({
       host: debouncedHost,
       method,
       status: debouncedStatus,
-      query: debouncedQuery,
+      query: bodySearch ? '' : debouncedQuery,
+      body: bodySearch ? debouncedQuery : '',
+      respMin: debouncedRespMin,
+      respMax: debouncedRespMax,
+      sort: sortCol,
+      order: sortOrder,
       page,
       size: PAGE_SIZE,
     }),
-    [debouncedHost, method, debouncedStatus, debouncedQuery, page],
+    [debouncedHost, method, debouncedStatus, debouncedQuery, bodySearch, debouncedRespMin, debouncedRespMax, sortCol, sortOrder, page],
   )
 
   const { data, isLoading, error } = useTraffic(filters)
@@ -92,14 +118,62 @@ export default function Traffic() {
   const rangeStart = page * PAGE_SIZE + 1
   const rangeEnd = Math.min((page + 1) * PAGE_SIZE, total)
 
+  useEffect(() => {
+    if (rows.length > 0 && selectedId === null) {
+      setSelectedId(rows[0].id)
+    }
+  }, [rows, selectedId])
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (e.key === 'Escape' && selectedId !== null) {
+        setSelectedId(null)
+        return
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (rows.length === 0) return
+        e.preventDefault()
+        const currentIdx = selectedId !== null ? rows.findIndex(r => r.id === selectedId) : -1
+        let nextIdx: number
+        if (e.key === 'ArrowDown') {
+          nextIdx = currentIdx < rows.length - 1 ? currentIdx + 1 : currentIdx
+        } else {
+          nextIdx = currentIdx > 0 ? currentIdx - 1 : 0
+        }
+        const nextId = rows[nextIdx].id
+        setSelectedId(nextId)
+        document.querySelector(`[data-row-id="${nextId}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [selectedId, rows])
+
+  const toggleSort = useCallback((col: string) => {
+    if (sortCol === col) {
+      if (sortOrder === 'desc') setSortOrder('asc')
+      else { setSortCol(''); setSortOrder('') }
+    } else {
+      setSortCol(col)
+      setSortOrder('desc')
+    }
+  }, [sortCol, sortOrder])
+
   const clearFilters = useCallback(() => {
     setHost('')
     setMethod('')
     setStatusInput('')
     setQuery('')
+    setBodySearch(false)
+    setRespMin('')
+    setRespMax('')
+    setSortCol('')
+    setSortOrder('')
   }, [])
 
-  const hasFilters = host || method || statusInput || query
+  const hasFilters = host || method || statusInput || query || respMin || respMax
 
   // Resizable detail panel
   const dragRef = useRef<{ startY: number; startH: number } | null>(null)
@@ -155,11 +229,40 @@ export default function Traffic() {
           className="w-36"
         />
         <Input
-          placeholder="Search..."
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          className="w-52"
+          placeholder="Min"
+          value={respMin}
+          onChange={e => setRespMin(e.target.value)}
+          className="w-20"
+          type="number"
         />
+        <Input
+          placeholder="Max"
+          value={respMax}
+          onChange={e => setRespMax(e.target.value)}
+          className="w-20"
+          type="number"
+        />
+        <div className="flex items-center gap-1">
+          <Input
+            placeholder={bodySearch ? 'Search request/response bodies...' : 'Search...'}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            className="w-52"
+          />
+          <button
+            type="button"
+            onClick={() => setBodySearch(b => !b)}
+            className={cn(
+              'rounded px-2 py-1 text-[10px] font-medium whitespace-nowrap',
+              bodySearch
+                ? 'bg-amber-500/20 text-amber-400'
+                : 'bg-slate-800 text-slate-500 hover:text-slate-300',
+            )}
+            title={bodySearch ? 'Searching request/response bodies' : 'Searching URLs'}
+          >
+            Body
+          </button>
+        </div>
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>
             <X className="mr-1 h-3 w-3" /> Clear
@@ -188,19 +291,20 @@ export default function Traffic() {
           <Table>
             <TableHeader>
               <TableRow className="text-[11px]">
-                <TableHead className="w-16">Time</TableHead>
+                <SortableHead col="time" label="Time" current={sortCol} order={sortOrder} onToggle={toggleSort} className="w-16" />
                 <TableHead>Host</TableHead>
                 <TableHead className="w-16">Method</TableHead>
                 <TableHead>URL</TableHead>
-                <TableHead className="w-14">Status</TableHead>
+                <SortableHead col="status" label="Status" current={sortCol} order={sortOrder} onToggle={toggleSort} className="w-14" />
                 <TableHead>Type</TableHead>
-                <TableHead className="w-16 text-right">Size</TableHead>
+                <SortableHead col="size" label="Size" current={sortCol} order={sortOrder} onToggle={toggleSort} className="w-16 text-right" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map(row => (
                 <TableRow
                   key={row.id}
+                  data-row-id={row.id}
                   className={cn(
                     'cursor-pointer text-[13px] leading-tight',
                     selectedId === row.id && 'bg-slate-800',
@@ -217,7 +321,7 @@ export default function Traffic() {
                     <MethodBadge method={row.method} />
                   </TableCell>
                   <TableCell className="max-w-md truncate font-mono text-xs text-slate-400">
-                    {displayUrl(row)}
+                    <HighlightText text={displayUrl(row)} query={!bodySearch ? debouncedQuery : ''} />
                   </TableCell>
                   <TableCell>
                     <StatusCode code={row.status} />
@@ -288,7 +392,7 @@ export default function Traffic() {
                 <div className="flex flex-1 items-center justify-center"><Spinner className="h-8 w-8" /></div>
               ) : (
                 <>
-                  <HttpPanel label="Request" content={detail.request} />
+                  <HttpPanel label="Request" content={detail.request} showCurl />
                   <div className="w-px bg-slate-800" />
                   <HttpPanel label="Response" content={detail.response} />
                 </>
@@ -325,8 +429,9 @@ function shortContentType(ct: string): string {
   return base.replace('application/', '').replace('text/', '')
 }
 
-function HttpPanel({ label, content }: { label: string; content: string }) {
+function HttpPanel({ label, content, showCurl }: { label: string; content: string; showCurl?: boolean }) {
   const [copied, setCopied] = useState(false)
+  const [copiedCurl, setCopiedCurl] = useState(false)
   const formatted = useMemo(() => formatHttp(content), [content])
 
   const copy = useCallback(() => {
@@ -336,18 +441,39 @@ function HttpPanel({ label, content }: { label: string; content: string }) {
     })
   }, [content])
 
+  const copyCurl = useCallback(() => {
+    const cmd = buildCurl(content)
+    if (!cmd) return
+    navigator.clipboard.writeText(cmd).then(() => {
+      setCopiedCurl(true)
+      setTimeout(() => setCopiedCurl(false), 1500)
+    })
+  }, [content])
+
   return (
     <div className="flex min-w-0 flex-1 flex-col">
       <div className="flex items-center justify-between border-b border-slate-800 px-3 py-1">
         <span className="text-xs font-medium text-slate-500">{label}</span>
-        <button
-          type="button"
-          onClick={copy}
-          className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300"
-        >
-          <Clipboard className="h-3 w-3" />
-          {copied ? 'Copied' : 'Copy'}
-        </button>
+        <div className="flex items-center gap-2">
+          {showCurl && (
+            <button
+              type="button"
+              onClick={copyCurl}
+              className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300"
+            >
+              <Terminal className="h-3 w-3" />
+              {copiedCurl ? 'Copied' : 'curl'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={copy}
+            className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300"
+          >
+            <Clipboard className="h-3 w-3" />
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
       </div>
       <ScrollArea className="flex-1 p-3">
         <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap break-all">
@@ -414,4 +540,65 @@ function formatBody(body: string): React.ReactNode {
     }
   }
   return <span className="text-slate-300">{body}</span>
+}
+
+function buildCurl(request: string): string {
+  const lines = request.split(/\r?\n/)
+  if (lines.length === 0) return ''
+  const [method, path] = lines[0].split(' ')
+  if (!method || !path) return ''
+  const hostLine = lines.find(l => l.toLowerCase().startsWith('host:'))
+  const host = hostLine?.split(':').slice(1).join(':').trim() ?? ''
+  const url = `https://${host}${path}`
+
+  const headers = lines.slice(1).filter(l => l.includes(':') && !l.toLowerCase().startsWith('host:'))
+  const headerFlags = headers.map(h => `-H '${h}'`).join(' ')
+
+  const bodyStart = request.indexOf('\r\n\r\n')
+  const body = bodyStart >= 0 ? request.slice(bodyStart + 4).trim() : ''
+
+  let cmd = `curl -X ${method} '${url}'`
+  if (headerFlags) cmd += ` ${headerFlags}`
+  if (body) cmd += ` -d '${body}'`
+  return cmd
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function HighlightText({ text, query }: { text: string; query: string }) {
+  if (!query) return <>{text}</>
+  const parts = text.split(new RegExp(`(${escapeRegex(query)})`, 'gi'))
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.toLowerCase() === query.toLowerCase()
+          ? <mark key={i} className="bg-amber-500/30 text-inherit rounded-sm px-0.5">{p}</mark>
+          : p
+      )}
+    </>
+  )
+}
+
+function SortableHead({
+  col, label, current, order, onToggle, className,
+}: {
+  col: string
+  label: string
+  current: string
+  order: 'asc' | 'desc' | ''
+  onToggle: (col: string) => void
+  className?: string
+}) {
+  const active = current === col
+  const Icon = active ? (order === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown
+  return (
+    <TableHead className={cn('cursor-pointer select-none', className)} onClick={() => onToggle(col)}>
+      <span className="inline-flex items-center gap-0.5">
+        {label}
+        <Icon className={cn('h-3 w-3', active ? 'text-slate-300' : 'text-slate-600')} />
+      </span>
+    </TableHead>
+  )
 }
