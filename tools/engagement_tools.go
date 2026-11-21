@@ -12,6 +12,7 @@ func RegisterEngagementTools(reg *Registry, store Store, taskID, explorationID i
 	reg.Register(makeListEngagements(store, taskID))
 	reg.Register(makeEngagementStatus(store, taskID, explorationID))
 	reg.Register(makeGoalMet(store, taskID))
+	reg.Register(makeListCoverageGaps(store, taskID, explorationID))
 }
 
 func makeCreateEngagement(store Store) Tool {
@@ -176,6 +177,26 @@ func makeEngagementStatus(store Store, defaultTaskID, defaultExplorationID int64
 				result["coverage"] = ov.Coverage
 			}
 			return jsonResult(result)
+		},
+	}
+}
+
+func makeListCoverageGaps(store Store, taskID, explorationID int64) Tool {
+	return Tool{
+		Name: "list_coverage_gaps",
+		Description: "Identify testing gaps in the current engagement: assets never targeted by an intent, " +
+			"intents with no recorded facts, goals not yet proven, and service ports discovered but not enriched.",
+		ReadOnly: true,
+		Schema:   obj(map[string]any{}),
+		Run: func(ctx context.Context, _ json.RawMessage) (Result, error) {
+			if taskID <= 0 || explorationID <= 0 {
+				return errResult("list_coverage_gaps requires an active engagement context"), nil
+			}
+			gaps, err := store.ListCoverageGaps(ctx, taskID, explorationID)
+			if err != nil {
+				return errResult(err.Error()), nil
+			}
+			return jsonResult(gaps)
 		},
 	}
 }

@@ -219,3 +219,108 @@ func (s *Store) CoverageStats(taskID int64) (*CoverageStats, error) {
 
 	return stats, nil
 }
+
+func (s *Store) ListCoverageGaps(ctx context.Context, taskID int64, explorationID int64) (*tools.CoverageGaps, error) {
+	gaps := &tools.CoverageGaps{
+		UntargetedAssets:   []tools.Asset{},
+		UnresolvedIntents:  []tools.Node{},
+		UnprovenGoals:      []tools.Node{},
+		UnenrichedServices: []tools.Asset{},
+	}
+
+	untargetedRows, err := s.QueryContext(ctx, `
+		SELECT `+assetSelectCols+`
+		FROM assets a
+		WHERE $1 = ANY(a.task_ids)
+		  AND a.id NOT IN (
+			SELECT ea.asset_id FROM exploration_anchors ea
+			JOIN exploration_nodes en ON en.id = ea.node_id
+			WHERE en.exploration_id = $2 AND en.kind = 'intent'
+		  )
+		ORDER BY a.id
+		LIMIT 100`, taskID, explorationID)
+	if err != nil {
+		return nil, fmt.Errorf("untargeted assets: %w", err)
+	}
+	defer untargetedRows.Close()
+	untargeted, err := scanAssets(untargetedRows)
+	if err != nil {
+		return nil, fmt.Errorf("untargeted assets scan: %w", err)
+	}
+	for _, a := range untargeted {
+		gaps.UntargetedAssets = append(gaps.UntargetedAssets, assetToTools(a))
+	}
+
+	unresolvedRows, err := s.QueryContext(ctx, `
+		SELECT `+nodeSelectCols+`
+		FROM exploration_nodes n
+		WHERE n.exploration_id = $1
+		  AND n.kind = 'intent'
+		  AND n.state IN ('open', 'running')
+		  AND n.id NOT IN (
+			SELECT e.src_id FROM exploration_edges e
+			WHERE e.exploration_id = $1 AND e.rel = 'yields'
+		  )
+		ORDER BY n.priority DESC, n.id
+		LIMIT 100`, explorationID)
+	if err != nil {
+		return nil, fmt.Errorf("unresolved intents: %w", err)
+	}
+	defer unresolvedRows.Close()
+	unresolvedNodes, err := scanNodes(unresolvedRows)
+	if err != nil {
+		return nil, fmt.Errorf("unresolved intents scan: %w", err)
+	}
+	for _, n := range unresolvedNodes {
+		gaps.UnresolvedIntents = append(gaps.UnresolvedIntents, nodeToTools(n))
+	}
+
+	unprovenRows, err := s.QueryContext(ctx, `
+		SELECT `+nodeSelectCols+`
+		FROM exploration_nodes n
+		WHERE n.exploration_id = $1
+		  AND n.kind = 'goal'
+		  AND n.state != 'deleted'
+		  AND n.id NOT IN (
+			SELECT e.dst_id FROM exploration_edges e
+			WHERE e.exploration_id = $1 AND e.rel = 'proves'
+		  )
+		ORDER BY n.id`, explorationID)
+	if err != nil {
+		return nil, fmt.Errorf("unproven goals: %w", err)
+	}
+	defer unprovenRows.Close()
+	unprovenNodes, err := scanNodes(unprovenRows)
+	if err != nil {
+		return nil, fmt.Errorf("unproven goals scan: %w", err)
+	}
+	for _, n := range unprovenNodes {
+		gaps.UnprovenGoals = append(gaps.UnprovenGoals, nodeToTools(n))
+	}
+
+	unenrichedRows, err := s.QueryContext(ctx, `
+		SELECT `+assetSelectCols+`
+		FROM assets a
+		WHERE $1 = ANY(a.task_ids)
+		  AND a.type = 'service'
+		  AND a.id NOT IN (
+			SELECT ea.asset_id FROM exploration_anchors ea
+			JOIN exploration_nodes en ON en.id = ea.node_id
+			WHERE en.exploration_id = $2 AND en.kind = 'fact'
+		  )
+		ORDER BY a.id
+		LIMIT 100`, taskID, explorationID)
+	if err != nil {
+		return nil, fmt.Errorf("unenriched services: %w", err)
+	}
+	defer unenrichedRows.Close()
+	unenriched, err := scanAssets(unenrichedRows)
+	if err != nil {
+		return nil, fmt.Errorf("unenriched services scan: %w", err)
+	}
+	for _, a := range unenriched {
+		gaps.UnenrichedServices = append(gaps.UnenrichedServices, assetToTools(a))
+	}
+
+	return gaps, nil
+}
