@@ -98,6 +98,18 @@ func makeInsertAssets(store Store, taskID int64) Tool {
 					errs = append(errs, errEntry{Index: i, Error: "type is required"})
 					continue
 				}
+				target := assetTarget(item)
+				if target != "" {
+					ok, reason, _, scopeErr := store.IsInScope(ctx, taskID, target)
+					if scopeErr != nil {
+						errs = append(errs, errEntry{Index: i, Error: "scope check failed: " + scopeErr.Error()})
+						continue
+					}
+					if !ok {
+						errs = append(errs, errEntry{Index: i, Error: fmt.Sprintf("out of scope (%s): %s", target, reason)})
+						continue
+					}
+				}
 				id, err := store.InsertAsset(ctx, taskID, item)
 				if err != nil {
 					errs = append(errs, errEntry{Index: i, Error: err.Error()})
@@ -349,4 +361,16 @@ func makeListUntestedAssets(store Store, taskID int64) Tool {
 			})
 		},
 	}
+}
+
+func assetTarget(item AssetInput) string {
+	switch item.Type {
+	case "root_domain", "subdomain":
+		return item.Domain
+	case "ip":
+		return item.IP
+	case "service", "endpoint":
+		return item.URL
+	}
+	return ""
 }

@@ -8,6 +8,6 @@ func RegisterAll(reg *Registry, store Store, taskID, explorationID int64) {
 	RegisterScopeTools(reg, store, taskID)
 	RegisterReportTools(reg, store, taskID, explorationID)
 	RegisterEngagementTools(reg, store, taskID, explorationID)
-	RegisterEnrichTools(reg)
+	RegisterEnrichTools(reg, store, taskID)
 	RegisterActivityTools(reg, store, explorationID)
 }

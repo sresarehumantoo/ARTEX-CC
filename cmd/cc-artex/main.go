@@ -118,7 +118,7 @@ func cmdServe(args []string) {
 				fmt.Fprintf(os.Stderr, "traffic proxy error: %v\n", err)
 			}
 		}()
-		tools.RegisterTrafficTools(reg, t)
+		tools.RegisterTrafficTools(reg, t, s, engCfg.TaskID)
 		fmt.Fprintf(os.Stderr, "recording proxy on %s (CA cert: %s)\n", *proxyAddr, t.CACertPath())
 	}
 
