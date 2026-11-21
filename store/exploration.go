@@ -24,6 +24,7 @@ type Node struct {
 	DeleteReason  string          `json:"delete_reason,omitempty"`
 	Anchors       []int64         `json:"anchors,omitempty"`
 	CreatedAt     time.Time       `json:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at"`
 }
 
 type Edge struct {
@@ -129,7 +130,7 @@ const nodeSelectCols = `n.id, n.kind, n.payload, n.priority, n.state,
 	COALESCE(n.origin, ''), COALESCE(n.owner, ''),
 	COALESCE(n.blocked_reason, ''), COALESCE(n.delete_reason, ''),
 	COALESCE((SELECT json_agg(asset_id) FROM exploration_anchors WHERE node_id = n.id), '[]'::json),
-	n.created_at`
+	n.created_at, n.updated_at`
 
 func (s *Store) ListNodes(ctx context.Context, explorationID int64, kind string, limit int) ([]tools.Node, error) {
 	query := `SELECT ` + nodeSelectCols + `
@@ -171,7 +172,7 @@ func scanNodes(rows *sql.Rows) ([]Node, error) {
 		if err := rows.Scan(
 			&n.ID, &n.Kind, &n.Payload, &n.Priority, &n.State,
 			&n.Origin, &n.Owner, &n.BlockedReason, &n.DeleteReason,
-			&anchorsJSON, &n.CreatedAt,
+			&anchorsJSON, &n.CreatedAt, &n.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -254,6 +255,9 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 			case "open":
 				ov.OpenIntents = append(ov.OpenIntents, m)
 			case "running":
+				if time.Since(n.UpdatedAt) > 30*time.Minute {
+					m["possibly_stale"] = true
+				}
 				ov.RunningIntents = append(ov.RunningIntents, m)
 			case "done", "exhausted", "stopped":
 				ov.RecentDone = append(ov.RecentDone, m)
@@ -355,7 +359,7 @@ func (s *Store) NodeDetail(ctx context.Context, nodeID int64) (*tools.Node, erro
 	err := row.Scan(
 		&n.ID, &n.Kind, &n.Payload, &n.Priority, &n.State,
 		&n.Origin, &n.Owner, &n.BlockedReason, &n.DeleteReason,
-		&anchorsJSON, &n.CreatedAt,
+		&anchorsJSON, &n.CreatedAt, &n.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("node %d not found", nodeID)

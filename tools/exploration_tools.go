@@ -22,8 +22,10 @@ func RegisterExplorationTools(reg *Registry, store Store, explorationID int64) {
 func makeGraphOverview(store Store, explorationID int64) Tool {
 	return Tool{
 		Name: "graph_overview",
-		Description: "(Exploration graph) distilled situational summary: asset counts, goals, hints (strategic hints from the human/main agent, " +
-			"must be incorporated when generating intents), frontier, findings, coverage. Call it first when planning.",
+		Description: "The task board: goals and their states, open/running/done intents, recent facts, findings, credentials, coverage. " +
+			"Call this FIRST at the start of every planning cycle to understand what has been done, what is in progress, and what needs doing next. " +
+			"After subagents complete work, call it again to see their results and plan the next round. " +
+			"Includes strategic hints from the human/main agent that must be incorporated when generating intents.",
 		ReadOnly: true,
 		Schema:   obj(map[string]any{}),
 		Run: func(ctx context.Context, _ json.RawMessage) (Result, error) {
@@ -42,7 +44,8 @@ func makeAddIntent(store Store, explorationID int64) Tool {
 		Description: "Generate exploration directions into the frontier and link them into the exploration graph. " +
 			"An intent is an open exploration direction: describe freely in one summary sentence what to explore/verify/exploit.\n" +
 			"Batch preferred: put multiple new directions into the intents array in a single submission (saves round trips). " +
-			"Returns an ids array, same length and order as intents. For a single intent, omit intents and pass the top-level summary.",
+			"Returns an ids array, same length and order as intents. For a single intent, omit intents and pass the top-level summary.\n" +
+			"After calling graph_overview and identifying gaps, use this to queue new work. Each intent is one exploration direction.",
 		Schema: obj(map[string]any{
 			"intents":    arr(map[string]any{"type": "object"}, "[Prefer this] array of exploration directions to add"),
 			"summary":    str("[single] one sentence describing this exploration direction"),
@@ -115,6 +118,8 @@ func makeRecordFact(store Store, explorationID int64) Tool {
 	return Tool{
 		Name: "record_fact",
 		Description: "Write an exploration fact/conclusion into the exploration graph, linked to the intent that produced it (intent_id). " +
+			"Call this IMMEDIATELY when you learn something, do not wait until the end. " +
+			"Facts written here are visible to the coordinator and other subagents via graph_overview and list_facts.\n" +
 			"Used to record both positive conclusions (fingerprinting/enumeration) and negative conclusions ('port closed'/'parameter not injectable').\n" +
 			"Multiple observations from one exploration must be consolidated into ONE fact, not split into many.\n" +
 			"facts is the preferred parameter: facts:[{...}] with one item per mutually distinct conclusion.\n" +
@@ -411,7 +416,8 @@ func makeProveGoal(store Store, explorationID int64) Tool {
 	return Tool{
 		Name: "prove_goal",
 		Description: "Call when you judge that a finding/fact proves a goal met: links the evidence node to the goal node and marks the goal met. " +
-			"A fact counts as evidence only when its confidence is observed.",
+			"A fact counts as evidence only when its confidence is observed. " +
+			"When evidence (findings or facts) proves a goal met, call this. When all goals are proved, the engagement is complete.",
 		Schema: obj(map[string]any{
 			"goal_id":     intp("goal node id"),
 			"evidence_id": intp("id of the finding/fact node that proves it"),

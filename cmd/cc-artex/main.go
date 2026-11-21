@@ -91,7 +91,7 @@ func cmdServe(args []string) {
 	reg := tools.NewRegistry()
 	tools.RegisterAll(reg, s, engCfg.TaskID, engCfg.ExplorationID)
 
-	srv := mcpserver.New(reg)
+	srv := mcpserver.New(reg, mcpserver.WithEngagement(s, engCfg.TaskID, engCfg.ExplorationID))
 	if *stdio {
 		if err := srv.ServeStdio(ctx); err != nil && ctx.Err() == nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)

@@ -15,7 +15,8 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 	return Tool{
 		Name: "report_finding",
 		Description: "Record a confirmed finding, with evidence providing verifiable proof such as command output and logs. " +
-			"Pass the current intent_id when in a task context.",
+			"Pass the current intent_id when in a task context. " +
+			"After reporting, the coordinator sees this in graph_overview and can use it as evidence for prove_goal.",
 		Schema: obj(map[string]any{
 			"vulnclass": str("vulnerability class"),
 			"name":      str("vulnerability name"),
