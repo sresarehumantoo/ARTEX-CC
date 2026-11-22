@@ -390,7 +390,7 @@ export default function Assets() {
     return () => clearTimeout(timer)
   }, [typeFilter, selectedId, setSearchParams])
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['assets', typeFilter, debouncedDsl, page],
     queryFn: () =>
       fetchAssets({
@@ -505,8 +505,17 @@ export default function Assets() {
 
       <div className="flex-1 overflow-auto">
         {error ? (
-          <div className="flex items-center justify-center h-48 text-sm text-rose-400">
-            Failed to load assets: {(error as Error).message}
+          <div className="flex items-center justify-center h-48">
+            <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
+              <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load assets: {(error as Error).message}</p>
+              <button
+                type="button"
+                onClick={() => refetch()}
+                className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
+              >
+                Try again
+              </button>
+            </div>
           </div>
         ) : isLoading ? (
           <div className="p-3 md:p-4"><TableSkeleton columns={4} rows={10} /></div>

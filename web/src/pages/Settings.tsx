@@ -87,12 +87,12 @@ function exportEngagementJSON(engagement: EngagementData, constraints: Constrain
 
 export default function Settings() {
   const { toast } = useToast()
-  const { data: engagement, isLoading: engLoading, error: engError } = useQuery({
+  const { data: engagement, isLoading: engLoading, error: engError, refetch: refetchEng } = useQuery({
     queryKey: ['engagement'],
     queryFn: getEngagement,
   })
 
-  const { data: constraints, isLoading: conLoading, error: conError } = useQuery({
+  const { data: constraints, isLoading: conLoading, error: conError, refetch: refetchCon } = useQuery({
     queryKey: ['constraints'],
     queryFn: getConstraints,
   })
@@ -123,7 +123,16 @@ export default function Settings() {
 
       <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6">
         {engError ? (
-          <div className="text-sm text-rose-400">Failed to load engagement: {(engError as Error).message}</div>
+          <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
+            <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load engagement: {(engError as Error).message}</p>
+            <button
+              type="button"
+              onClick={() => refetchEng()}
+              className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
+            >
+              Try again
+            </button>
+          </div>
         ) : engLoading ? (
           <SettingsSkeleton />
         ) : (
@@ -179,7 +188,16 @@ export default function Settings() {
 
             <CollapsibleSection title="Constraints" icon={ShieldCheck} defaultOpen={(constraints?.length ?? 0) > 0}>
               {conError ? (
-                <div className="text-sm text-rose-400">Failed to load constraints: {(conError as Error).message}</div>
+                <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
+                  <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load constraints: {(conError as Error).message}</p>
+                  <button
+                    type="button"
+                    onClick={() => refetchCon()}
+                    className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
+                  >
+                    Try again
+                  </button>
+                </div>
               ) : conLoading ? (
                 <div className="space-y-2">
                   <Skeleton className="h-8 rounded-md" />

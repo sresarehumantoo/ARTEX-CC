@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { Zap } from 'lucide-react'
 import type { GraphNode } from '../../lib/types'
@@ -15,7 +16,7 @@ function stateBadge(state: string) {
   }
 }
 
-export function IntentNode({ data }: NodeProps & { data: GraphNode }) {
+export const IntentNode = memo(function IntentNode({ data }: NodeProps & { data: GraphNode }) {
   const text = (data.payload.text ?? data.payload.summary ?? '') as string
   const isRunning = data.state === 'running'
   return (
@@ -33,4 +34,4 @@ export function IntentNode({ data }: NodeProps & { data: GraphNode }) {
       <Handle type="source" position={Position.Right} className="!bg-blue-500 !w-2 !h-2" />
     </div>
   )
-}
+})

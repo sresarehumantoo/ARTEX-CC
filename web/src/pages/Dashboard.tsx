@@ -564,9 +564,16 @@ export function Dashboard() {
 
       {engagement.isLoading && <DashboardSkeleton />}
       {engagement.isError && (
-        <p className="text-sm text-rose-400">
-          Failed to load engagement: {(engagement.error as Error).message}
-        </p>
+        <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
+          <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load engagement: {(engagement.error as Error).message}</p>
+          <button
+            type="button"
+            onClick={() => engagement.refetch()}
+            className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
+          >
+            Try again
+          </button>
+        </div>
       )}
 
       {e && (
@@ -670,9 +677,16 @@ export function Dashboard() {
             </div>
           )}
           {activity.isError && (
-            <p className="text-sm text-rose-400">
-              Failed to load activity: {(activity.error as Error).message}
-            </p>
+            <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
+              <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load activity: {(activity.error as Error).message}</p>
+              <button
+                type="button"
+                onClick={() => activity.refetch()}
+                className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
+              >
+                Try again
+              </button>
+            </div>
           )}
           {activity.data && (
             <>

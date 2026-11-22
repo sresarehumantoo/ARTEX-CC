@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { ShieldAlert } from 'lucide-react'
 import type { GraphNode } from '../../lib/types'
@@ -12,7 +13,7 @@ const severityColors: Record<string, string> = {
   info: 'bg-slate-400 text-white',
 }
 
-export function FindingNode({ data }: NodeProps & { data: GraphNode }) {
+export const FindingNode = memo(function FindingNode({ data }: NodeProps & { data: GraphNode }) {
   const name = (data.payload.name ?? data.payload.title ?? 'Finding') as string
   const summary = (data.payload.summary ?? data.payload.text ?? '') as string
   const severity = ((data.payload.severity ?? 'medium') as string).toLowerCase()
@@ -35,4 +36,4 @@ export function FindingNode({ data }: NodeProps & { data: GraphNode }) {
       <Handle type="source" position={Position.Right} className="!bg-rose-500 !w-2 !h-2" />
     </div>
   )
-}
+})

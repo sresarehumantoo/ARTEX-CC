@@ -344,12 +344,12 @@ export default function Coverage() {
     return () => clearTimeout(timer)
   }, [outcomeFilter, setSearchParams])
 
-  const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
+  const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useQuery({
     queryKey: ['coverage'],
     queryFn: getCoverage,
   })
 
-  const { data: gaps, isLoading: gapsLoading, error: gapsError } = useQuery({
+  const { data: gaps, isLoading: gapsLoading, error: gapsError, refetch: refetchGaps } = useQuery({
     queryKey: ['coverage-gaps'],
     queryFn: getCoverageGaps,
   })
@@ -393,7 +393,16 @@ export default function Coverage() {
 
       <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6">
         {statsError ? (
-          <div className="text-sm text-rose-400">Failed to load coverage: {(statsError as Error).message}</div>
+          <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
+            <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load coverage: {(statsError as Error).message}</p>
+            <button
+              type="button"
+              onClick={() => refetchStats()}
+              className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
+            >
+              Try again
+            </button>
+          </div>
         ) : statsLoading ? (
           <CoverageSkeleton />
         ) : (
@@ -441,7 +450,16 @@ export default function Coverage() {
             Structural Gaps
           </h2>
           {gapsError ? (
-            <div className="text-sm text-rose-400">Failed to load gaps: {(gapsError as Error).message}</div>
+            <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
+              <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load gaps: {(gapsError as Error).message}</p>
+              <button
+                type="button"
+                onClick={() => refetchGaps()}
+                className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
+              >
+                Try again
+              </button>
+            </div>
           ) : gapsLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-8 rounded-md" />

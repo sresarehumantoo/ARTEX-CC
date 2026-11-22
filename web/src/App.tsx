@@ -6,7 +6,6 @@ import { ConnectionBanner } from './components/ConnectionBanner'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ShortcutsHelp } from './components/ShortcutsHelp'
 import { Sidebar } from './components/Sidebar'
-import { Spinner } from './components/ui/spinner'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useDocumentTitle } from './hooks/useDocumentTitle'
 import { useSSERefresh } from './hooks/useSSERefresh'
@@ -26,8 +25,14 @@ const NotFound = lazy(() => import('./pages/NotFound'))
 
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center h-64">
-      <Spinner className="h-8 w-8" />
+    <div className="p-6 space-y-4 animate-pulse">
+      <div className="h-6 w-48 rounded bg-slate-200 dark:bg-slate-700" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="h-24 rounded-lg bg-slate-200 dark:bg-slate-700" />
+        ))}
+      </div>
+      <div className="h-64 rounded-lg bg-slate-200 dark:bg-slate-700" />
     </div>
   )
 }

@@ -1,10 +1,11 @@
+import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { Lightbulb } from 'lucide-react'
 import type { GraphNode } from '../../lib/types'
 import { truncate } from '../../lib/utils'
 import { NodeTooltip } from './NodeTooltip'
 
-export function HintNode({ data }: NodeProps & { data: GraphNode }) {
+export const HintNode = memo(function HintNode({ data }: NodeProps & { data: GraphNode }) {
   const text = (data.payload.text ?? data.payload.summary ?? '') as string
   return (
     <div className="group relative w-[180px] bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-[3px] border-violet-500 overflow-hidden">
@@ -20,4 +21,4 @@ export function HintNode({ data }: NodeProps & { data: GraphNode }) {
       <Handle type="source" position={Position.Right} className="!bg-violet-500 !w-2 !h-2" />
     </div>
   )
-}
+})
