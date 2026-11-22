@@ -1,0 +1,16 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 2%
+    patch:
+      default:
+        target: 80%
+
+ignore:
+  - "cmd/"
+  - "eval/"
+  - "web/"
+  - "docs/"
+  - "scripts/"

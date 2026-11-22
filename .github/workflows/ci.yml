@@ -26,7 +26,9 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.out
+          flags: unit
           fail_ci_if_error: false
 
   store-tests:
@@ -50,6 +52,14 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.26.x"
-      - run: go test ./store/...
+      - name: Test store with coverage
+        run: go test -coverprofile=coverage-store.out -covermode=atomic ./store/...
         env:
           CC_ARTEX_TEST_PG: "postgres://artex:artex@localhost:5432/artex_test?sslmode=disable"
+      - name: Upload store coverage
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage-store.out
+          flags: store
+          fail_ci_if_error: false
