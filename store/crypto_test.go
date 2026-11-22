@@ -89,3 +89,43 @@ func TestEncPrefix(t *testing.T) {
 		t.Errorf("encrypted value should be valid hex: %v", err)
 	}
 }
+
+func TestDecryptCiphertextTooShort(t *testing.T) {
+	t.Parallel()
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		t.Fatal(err)
+	}
+	_, err := aesGCMDecrypt(key, hex.EncodeToString([]byte("short")))
+	if err != errCiphertextTooShort {
+		t.Errorf("got %v, want errCiphertextTooShort", err)
+	}
+}
+
+func TestParseCredentialKey(t *testing.T) {
+	t.Parallel()
+
+	validKey := hex.EncodeToString(make([]byte, 32))
+	key, err := ParseCredentialKey(validKey)
+	if err != nil {
+		t.Fatalf("valid key: %v", err)
+	}
+	if len(key) != 32 {
+		t.Errorf("key length = %d, want 32", len(key))
+	}
+
+	_, err = ParseCredentialKey("not-hex")
+	if err == nil {
+		t.Error("expected error for invalid hex")
+	}
+
+	_, err = ParseCredentialKey(hex.EncodeToString(make([]byte, 16)))
+	if err == nil {
+		t.Error("expected error for 16-byte key")
+	}
+
+	_, err = ParseCredentialKey("")
+	if err == nil {
+		t.Error("expected error for empty key")
+	}
+}
