@@ -391,6 +391,22 @@ cc-artex init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.examp
 
 When `--proxy` is set, cc-artex starts a recording MITM proxy on the given address. Configure your HTTP client or browser to use it, and the proxy captures every request and response for analysis through the traffic tools. The `init` command generates a CA certificate (at `traffic/_ca/mitmproxy-ca-cert.pem`) and prints OS-specific trust instructions so the proxy can intercept HTTPS.
 
+## Environment variables
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `CC_ARTEX_PG` | PostgreSQL connection string (fallback when `--pg` is not passed) | _(none, required)_ |
+| `CC_ARTEX_CREDENTIAL_KEY` | Hex-encoded AES key for encrypting stored credentials at rest | _(none; credentials stored in plaintext)_ |
+| `CC_ARTEX_GOAL` | Engagement goal used by `docker-entrypoint.sh` on first run | `Pentest engagement` |
+| `ARTEX_NOISE_PROFILE` | Egress rate-limit profile: `off`, `quiet`, `balanced`, or `aggressive` | `off` |
+| `ARTEX_TARGET_USER_AGENT` | User-Agent header set on outbound requests when a noise profile other than `off` is active | _(none; original header unchanged)_ |
+| `ARTEX_SOCKS5_ENABLED` | Enable the SOCKS5 CONNECT listener (`1`/`true`/`on`/`yes`) | `false` |
+| `ARTEX_SOCKS5_ADDR` | Bind address for the SOCKS5 listener (setting this also enables the listener) | `127.0.0.1:1080` |
+| `ARTEX_SOCKS5_UDP_ENABLED` | Enable RFC 1928 UDP ASSOCIATE on the SOCKS5 listener | `false` |
+| `ARTEX_TRANSPARENT_TCP_ENABLED` | Enable the Linux transparent TCP listener (requires iptables/nftables REDIRECT) | `false` |
+| `ARTEX_TRANSPARENT_TCP_ADDR` | Bind address for the transparent TCP listener | `127.0.0.1:1081` |
+| `ARTEX_TAMPER_HOOKS_ENABLED` | Enable the request/response tampering hook engine | `false` |
+
 ## Examples
 
 See [docs/EXAMPLE_WALKTHROUGH.md](docs/EXAMPLE_WALKTHROUGH.md) for a complete
