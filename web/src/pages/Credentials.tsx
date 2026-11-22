@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Eye, EyeOff, Copy, Key, Search, X, Download } from 'lucide-react'
+import { Eye, EyeOff, Copy, Key, Search, Download } from 'lucide-react'
 import { getCredentials } from '../lib/api'
 import type { Credential } from '../lib/types'
 import { downloadFile } from '../lib/export'
+import { cn } from '../lib/utils'
 import { CredentialsSkeleton } from '../components/skeletons/CredentialsSkeleton'
 import { useToast } from '../hooks/useToast'
 
@@ -17,6 +18,7 @@ function exportCredentialsCSV(creds: Credential[]) {
 export default function Credentials() {
   const { toast } = useToast()
   const [filter, setFilter] = useState('')
+  const [domainFilter, setDomainFilter] = useState('')
   const [revealed, setRevealed] = useState<Set<number>>(() => new Set())
 
   const { data: credentials, isLoading, error } = useQuery({
@@ -24,16 +26,27 @@ export default function Credentials() {
     queryFn: getCredentials,
   })
 
+  const domains = useMemo(() => {
+    if (!credentials) return []
+    return [...new Set(credentials.map(c => c.domain))].sort()
+  }, [credentials])
+
   const filtered = useMemo(() => {
     if (!credentials) return []
-    if (!filter) return credentials
-    const q = filter.toLowerCase()
-    return credentials.filter(
-      (c) =>
-        c.domain.toLowerCase().includes(q) ||
-        c.username.toLowerCase().includes(q),
-    )
-  }, [credentials, filter])
+    let list = credentials
+    if (domainFilter) list = list.filter(c => c.domain === domainFilter)
+    if (filter) {
+      const q = filter.toLowerCase()
+      list = list.filter(
+        (c) =>
+          c.domain.toLowerCase().includes(q) ||
+          c.username.toLowerCase().includes(q) ||
+          (c.source ?? '').toLowerCase().includes(q) ||
+          (c.note ?? '').toLowerCase().includes(q),
+      )
+    }
+    return list
+  }, [credentials, domainFilter, filter])
 
   function toggleReveal(id: number) {
     setRevealed((prev) => {
@@ -66,12 +79,12 @@ export default function Credentials() {
           <div className="ml-auto">
             <button
               onClick={() => {
-                if (credentials) {
-                  exportCredentialsCSV(credentials)
+                if (filtered.length > 0) {
+                  exportCredentialsCSV(filtered)
                   toast('Credentials exported (passwords excluded)', { variant: 'success' })
                 }
               }}
-              disabled={!credentials || credentials.length === 0}
+              disabled={filtered.length === 0}
               className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               title="Export credentials as CSV (passwords excluded)"
             >
@@ -82,26 +95,57 @@ export default function Credentials() {
         </div>
       </div>
 
-      <div className="border-b border-slate-200 dark:border-slate-800 px-3 md:px-4 py-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 px-3 md:px-4 py-2 border-b border-slate-200 dark:border-slate-800">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
           <input
             type="text"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder="Filter by domain or username"
-            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md py-2 pl-9 pr-9 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-500 focus:border-slate-500"
+            placeholder="Search credentials..."
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md py-2 pl-9 pr-3 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-500"
           />
-          {filter && (
-            <button
-              onClick={() => setFilter('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
         </div>
+        {domains.length > 1 && (
+          <select
+            value={domainFilter}
+            onChange={(e) => setDomainFilter(e.target.value)}
+            className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-300"
+          >
+            <option value="">All domains</option>
+            {domains.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        )}
       </div>
+
+      {domains.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 px-3 md:px-4 py-1.5 border-b border-slate-200 dark:border-slate-800 text-xs">
+          {domains.map(d => {
+            const count = credentials!.filter(c => c.domain === d).length
+            return (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDomainFilter(domainFilter === d ? '' : d)}
+                className={cn(
+                  'rounded-full px-2 py-0.5 font-medium transition-colors',
+                  domainFilter === d
+                    ? 'bg-emerald-500/15 text-emerald-500'
+                    : 'bg-slate-500/10 text-slate-500 hover:bg-slate-500/20',
+                )}
+              >
+                {d} {count}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {(filter || domainFilter) && credentials && (
+        <div className="text-xs text-slate-400 dark:text-slate-500 px-3 md:px-4 py-1">
+          Showing {filtered.length} of {credentials.length}
+        </div>
+      )}
 
       <div className="flex-1 overflow-auto">
         {error ? (

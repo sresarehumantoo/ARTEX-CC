@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, ChevronRight, Settings as SettingsIcon, ShieldCheck, Lock, Info } from 'lucide-react'
+import { ChevronDown, ChevronRight, Settings as SettingsIcon, ShieldCheck, Lock, Info, Download } from 'lucide-react'
 import { getEngagement, getConstraints } from '../lib/api'
-import type { Constraint } from '../lib/types'
+import type { Constraint, EngagementData } from '../lib/types'
 import { Skeleton } from '../components/ui/skeleton'
 import { SettingsSkeleton } from '../components/skeletons/SettingsSkeleton'
+import { Button } from '../components/ui/button'
+import { downloadFile } from '../lib/export'
+import { useToast } from '../hooks/useToast'
 import { cn } from '../lib/utils'
 
 const KIND_COLORS: Record<string, string> = {
@@ -64,7 +67,26 @@ function ConstraintsList({ constraints }: { constraints: Constraint[] }) {
   )
 }
 
+function exportEngagementJSON(engagement: EngagementData, constraints: Constraint[]) {
+  const payload = {
+    engagement: {
+      goal: engagement.goal,
+      description: engagement.description,
+      findings_total: engagement.findings_total,
+      facts: engagement.facts,
+      goals: engagement.goals.length,
+      open_intents: engagement.open_intents.length,
+      running_intents: engagement.running_intents.length,
+      done_intents: engagement.done_intents_total,
+    },
+    constraints: constraints.map(c => ({ kind: c.kind, text: c.text })),
+  }
+  const json = JSON.stringify(payload, null, 2)
+  downloadFile(json, `engagement-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
+}
+
 export default function Settings() {
+  const { toast } = useToast()
   const { data: engagement, isLoading: engLoading, error: engError } = useQuery({
     queryKey: ['engagement'],
     queryFn: getEngagement,
@@ -80,6 +102,22 @@ export default function Settings() {
       <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 md:px-4 py-3">
         <div className="flex items-center gap-3">
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Settings</h1>
+          <div className="ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!engagement}
+              onClick={() => {
+                if (engagement && constraints) {
+                  exportEngagementJSON(engagement, constraints)
+                  toast('Exported engagement data', { variant: 'success' })
+                }
+              }}
+            >
+              <Download className="h-4 w-4 mr-1" />
+              Export JSON
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -159,22 +197,17 @@ export default function Settings() {
               </div>
             </CollapsibleSection>
 
-            <CollapsibleSection title="Hints" icon={SettingsIcon} defaultOpen={(engagement?.hints?.length ?? 0) > 0}>
-              {engagement?.hints && engagement.hints.length > 0 ? (
-                <div className="space-y-2">
-                  {engagement.hints.map(h => {
-                    const text = (h.payload.text as string) ?? (h.payload.label as string) ?? `Hint #${h.id}`
-                    return (
-                      <div key={h.id} className="px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-800/50 text-sm text-slate-700 dark:text-slate-300">
-                        {text}
-                      </div>
-                    )
-                  })}
+            {engagement.hints.length > 0 && (
+              <CollapsibleSection title="Hints" icon={Info} defaultOpen={false}>
+                <div className="space-y-1">
+                  {engagement.hints.map(h => (
+                    <div key={h.id} className="px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 rounded-md bg-slate-50 dark:bg-slate-800/50">
+                      {h.payload.text as string || JSON.stringify(h.payload)}
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <p className="text-sm text-slate-500 italic py-2">No hints added</p>
-              )}
-            </CollapsibleSection>
+              </CollapsibleSection>
+            )}
           </>
         )}
       </div>
