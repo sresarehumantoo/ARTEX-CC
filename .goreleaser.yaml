@@ -26,7 +26,8 @@ builds:
 archives:
   - format_overrides:
       - goos: darwin
-        format: zip
+        formats:
+          - zip
 
 checksum:
   name_template: checksums.txt
@@ -54,13 +55,12 @@ nfpms:
     section: utils
     bindir: /usr/bin
 
-brews:
+homebrew_casks:
   - repository:
       owner: SREsAreHumanToo
       name: homebrew-tap
     skip_upload: true
     homepage: https://github.com/SREsAreHumanToo/cc-artex
     description: MCP tool server that turns ARTEX into tools Claude Code calls through your existing Claude subscription.
-    license: MIT
-    install: |
-      bin.install "cc-artex"
+    binaries:
+      - cc-artex
