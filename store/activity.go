@@ -46,6 +46,9 @@ func (s *Store) ListActivity(ctx context.Context, explorationID int64, filter to
 	if filter.Kind != "" {
 		addCond("kind = $%d", filter.Kind)
 	}
+	if filter.Since != "" {
+		addCond("created_at >= $%d::timestamptz", filter.Since)
+	}
 
 	where := " WHERE " + strings.Join(conditions, " AND ")
 

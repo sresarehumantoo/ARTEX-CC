@@ -365,6 +365,7 @@ type ActivityFilter struct {
 	NodeID int64  `json:"node_id,omitempty"`
 	Kind   string `json:"kind,omitempty"`
 	Limit  int    `json:"limit,omitempty"`
+	Since  string `json:"since,omitempty"`
 }
 
 // EngagementExport is a serializable snapshot of an engagement for export and import.

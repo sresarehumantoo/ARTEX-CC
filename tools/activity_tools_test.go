@@ -177,3 +177,118 @@ func TestLogActivityInvalidJSON(t *testing.T) {
 		t.Fatal("expected error for invalid JSON")
 	}
 }
+
+func TestParseSince_Empty(t *testing.T) {
+	t.Parallel()
+	v, err := parseSince("")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if v != "" {
+		t.Errorf("expected empty, got %q", v)
+	}
+}
+
+func TestParseSince_RFC3339(t *testing.T) {
+	t.Parallel()
+	v, err := parseSince("2024-01-15T10:30:00Z")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if v != "2024-01-15 10:30:00" {
+		t.Errorf("got %q, want 2024-01-15 10:30:00", v)
+	}
+}
+
+func TestParseSince_Duration(t *testing.T) {
+	t.Parallel()
+	v, err := parseSince("1h")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if v == "" {
+		t.Fatal("expected non-empty result for duration")
+	}
+}
+
+func TestParseSince_Invalid(t *testing.T) {
+	t.Parallel()
+	_, err := parseSince("not-a-time")
+	if err == nil {
+		t.Fatal("expected error for invalid input")
+	}
+}
+
+func TestActivityToCSV(t *testing.T) {
+	t.Parallel()
+	entries := []Activity{
+		{ID: 1, ExplorationID: 10, Kind: "tool_use", Summary: "ran nmap", CreatedAt: "2024-01-01 00:00:00"},
+		{ID: 2, ExplorationID: 10, Kind: "finding", Summary: "XSS, \"quoted\"", CreatedAt: "2024-01-01 01:00:00"},
+	}
+	csv := activityToCSV(entries)
+	if !strings.HasPrefix(csv, "id,exploration_id,") {
+		t.Errorf("expected CSV header, got: %s", csv[:40])
+	}
+	lines := strings.Split(strings.TrimSpace(csv), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("expected 3 lines (header + 2 rows), got %d", len(lines))
+	}
+	if !strings.Contains(lines[2], `"XSS, ""quoted"""`) {
+		t.Errorf("expected quoted CSV field, got line: %s", lines[2])
+	}
+}
+
+func TestListActivityCSVFormat(t *testing.T) {
+	t.Parallel()
+	ms := &activityMockStore{
+		activities: []Activity{
+			{ID: 1, Kind: "tool_use", Summary: "test"},
+		},
+	}
+	reg := NewRegistry()
+	RegisterActivityTools(reg, ms, 1)
+
+	tool, _ := reg.Lookup("list_activity")
+	r, err := tool.Run(context.Background(), json.RawMessage(`{"format": "csv"}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if r.IsError {
+		t.Fatalf("expected success, got error: %s", r.Content)
+	}
+	if !strings.HasPrefix(r.Content, "id,exploration_id,") {
+		t.Errorf("expected CSV header, got: %s", r.Content[:30])
+	}
+}
+
+func TestListActivityWithSince(t *testing.T) {
+	t.Parallel()
+	ms := &activityMockStore{activities: []Activity{}}
+	reg := NewRegistry()
+	RegisterActivityTools(reg, ms, 1)
+
+	tool, _ := reg.Lookup("list_activity")
+	r, err := tool.Run(context.Background(), json.RawMessage(`{"since": "1h"}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if r.IsError {
+		t.Fatalf("expected success, got error: %s", r.Content)
+	}
+}
+
+func TestListActivityInvalidSince(t *testing.T) {
+	t.Parallel()
+	ms := &activityMockStore{activities: []Activity{}}
+	reg := NewRegistry()
+	RegisterActivityTools(reg, ms, 1)
+
+	tool, _ := reg.Lookup("list_activity")
+	r, err := tool.Run(context.Background(), json.RawMessage(`{"since": "not-a-time"}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !r.IsError {
+		t.Fatal("expected error for invalid since")
+	}
+}
