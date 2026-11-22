@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { MessageSquare, Square } from 'lucide-react'
 import { Composer, MODELS } from '../components/chat/Composer'
 import { ConversationList, RunningDot } from '../components/chat/ConversationList'
+import { UsageBar } from '../components/chat/UsageBar'
 import { Transcript } from '../components/chat/Transcript'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -19,10 +20,6 @@ function lastUsage(events: ChatEvent[]) {
     if (events[i].kind === 'result' && events[i].usage) return events[i].usage!
   }
   return null
-}
-
-function formatTokens(n: number) {
-  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
 }
 
 export default function Chat() {
@@ -69,11 +66,7 @@ export default function Chat() {
           <div className="flex items-center gap-2 border-b border-border px-3 py-2">
             <Badge className="px-1.5 py-0 text-[10px]">{conversation.model}</Badge>
             <h2 className="min-w-0 flex-1 truncate text-sm font-medium">{conversation.title}</h2>
-            {usage && (
-              <span className="hidden text-xs text-muted-foreground sm:inline">
-                {formatTokens(usage.input_tokens)} in / {formatTokens(usage.output_tokens)} out
-              </span>
-            )}
+            <UsageBar usage={usage} />
             {status === 'running' && (
               <>
                 <span className="flex items-center gap-1.5 text-xs text-sky-600 dark:text-sky-400">
@@ -94,7 +87,7 @@ export default function Chat() {
             onTextChange={composer.setText}
             onSubmit={composer.submit}
             onStop={() => composer.stop.mutate()}
-            model={conversation.model}
+            model={conversation.model ?? 'sonnet'}
             onModelChange={m => composer.setModel.mutate(m)}
             status={status}
             sending={composer.send.isPending}
