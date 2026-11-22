@@ -34,11 +34,11 @@ function statusColor(code: number): string {
 }
 
 export default function Traffic() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { toast } = useToast()
-  const [host, setHost] = useState('')
-  const [method, setMethod] = useState('')
-  const [statusInput, setStatusInput] = useState('')
+  const [host, setHost] = useState(searchParams.get('host') ?? '')
+  const [method, setMethod] = useState(searchParams.get('method') ?? '')
+  const [statusInput, setStatusInput] = useState(searchParams.get('status') ?? '')
   const [query, setQuery] = useState('')
   const [bodySearch, setBodySearch] = useState(false)
   const [respMin, setRespMin] = useState('')
@@ -91,6 +91,18 @@ export default function Traffic() {
     respMaxTimer.current = setTimeout(() => setDebouncedRespMax(respMax), 300)
     return () => clearTimeout(respMaxTimer.current)
   }, [respMax])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams()
+      if (host) params.set('host', host)
+      if (method) params.set('method', method)
+      if (statusInput) params.set('status', statusInput)
+      if (selectedId) params.set('selected', selectedId)
+      setSearchParams(params, { replace: true })
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [host, method, statusInput, selectedId, setSearchParams])
 
   useEffect(() => {
     setPage(0)
@@ -175,7 +187,8 @@ export default function Traffic() {
     setRespMax('')
     setSortCol('')
     setSortOrder('')
-  }, [])
+    setSearchParams({}, { replace: true })
+  }, [setSearchParams])
 
   const hasFilters = host || method || statusInput || query || respMin || respMax
 

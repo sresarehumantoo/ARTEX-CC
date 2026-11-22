@@ -320,7 +320,7 @@ export default function Report() {
 
   return (
     <div className="space-y-6 p-3 md:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
+      <div className="no-print flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
         <h1 className="text-lg md:text-2xl font-semibold text-slate-900 dark:text-slate-100">
           Engagement Report
         </h1>
