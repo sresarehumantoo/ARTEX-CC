@@ -21,6 +21,7 @@ const Report = lazy(() => import('./pages/Report'))
 const Credentials = lazy(() => import('./pages/Credentials'))
 const Search = lazy(() => import('./pages/Search'))
 const Settings = lazy(() => import('./pages/Settings'))
+const Chat = lazy(() => import('./pages/Chat'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 function PageLoader() {
@@ -85,6 +86,7 @@ export default function App() {
               <Route path="/credentials" element={<Credentials />} />
               <Route path="/report" element={<Report />} />
               <Route path="/search" element={<Search />} />
+              <Route path="/chat" element={<Chat />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
