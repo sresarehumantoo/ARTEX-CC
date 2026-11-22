@@ -20,6 +20,7 @@ func RegisterTrafficTools(reg *Registry, t *traffic.Traffic, store Store, taskID
 	reg.Register(makeTrafficStats(t))
 	reg.Register(makeTrafficTimeline(t))
 	reg.Register(makeTrafficPatterns(t))
+	reg.Register(makeTrafficClear(t))
 }
 
 func makeTrafficPatterns(t *traffic.Traffic) Tool {
@@ -480,6 +481,36 @@ func parseRawRequest(raw string) (method, reqURL string, headers map[string]stri
 		}
 	}
 	return
+}
+
+func makeTrafficClear(t *traffic.Traffic) Tool {
+	return Tool{
+		Name:        "traffic_clear",
+		Description: "Delete all captured traffic for a given host substring. Returns the number of deleted exchanges.",
+		Schema: obj(map[string]any{
+			"host": str("host substring to match for deletion"),
+		}, "host"),
+		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
+			var a struct {
+				Host string `json:"host"`
+			}
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
+			host := strings.TrimSpace(a.Host)
+			if host == "" {
+				return errResult("host is required"), nil
+			}
+			n, err := t.DeleteHost(host)
+			if err != nil {
+				return errResult(err.Error()), nil
+			}
+			return jsonResult(map[string]any{
+				"deleted": n,
+				"host":    host,
+			})
+		},
+	}
 }
 
 func clip(s string, max int) string {
