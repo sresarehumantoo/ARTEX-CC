@@ -541,6 +541,9 @@ func (a *API) handleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
+	w.Write([]byte(": connected\n\n"))
+	flusher.Flush()
+
 	ch := make(chan []byte, 32)
 	a.mu.Lock()
 	a.subscribers[ch] = struct{}{}
