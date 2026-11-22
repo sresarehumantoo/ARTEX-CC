@@ -374,7 +374,7 @@ func TestConstraints(t *testing.T) {
 	ctx := context.Background()
 	_, expID := testEngagement(t, s, "constraints")
 
-	id, err := s.AddConstraint(ctx, expID, "rule", "no automated exploitation", "user")
+	id, err := s.AddConstraint(ctx, expID, "deny", "no automated exploitation", "user")
 	if err != nil {
 		t.Fatalf("AddConstraint: %v", err)
 	}
