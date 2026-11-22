@@ -18,6 +18,7 @@ import { useToast } from '../hooks/useToast'
 import { exportCSV, exportJSON } from '../lib/export'
 import { generateReport } from '../lib/report'
 import type { Finding, Severity } from '../lib/types'
+import { timeAgo } from '../lib/format'
 import { cn } from '../lib/utils'
 
 function relativeTime(iso: string): string {
@@ -513,16 +514,6 @@ function DetailPanel({
   onClose: () => void
 }) {
   const { toast } = useToast()
-  const [copied, setCopied] = useState(false)
-
-  const copyFindingId = useCallback(() => {
-    if (!detail) return
-    navigator.clipboard.writeText(`FINDING-${detail.id}`).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-      toast('Finding ID copied', { variant: 'success' })
-    })
-  }, [detail, toast])
 
   if (loading || !detail) {
     return (
@@ -552,18 +543,22 @@ function DetailPanel({
             <span className="text-xs text-slate-500">Finding #{detail.id}</span>
             <button
               type="button"
-              onClick={copyFindingId}
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              onClick={() => {
+                navigator.clipboard.writeText(String(detail.id))
+                toast('Finding ID copied', { variant: 'success' })
+              }}
+              className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
               title="Copy finding ID"
             >
               <Copy className="h-3 w-3" />
             </button>
-            {copied && <span className="text-xs text-emerald-500">Copied</span>}
           </div>
           {detail.created_at && (
-            <p className="mt-0.5 text-xs text-slate-400" title={new Date(detail.created_at).toLocaleString()}>
-              {relativeTime(detail.created_at)}
-            </p>
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              Discovered {timeAgo(detail.created_at)}
+              <span className="mx-1">&middot;</span>
+              {new Date(detail.created_at).toLocaleString()}
+            </div>
           )}
         </div>
 
@@ -581,19 +576,21 @@ function DetailPanel({
             <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">State</h3>
             <span className="text-sm text-slate-700 dark:text-slate-300">{detail.state}</span>
           </div>
-          <div>
-            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">Node</h3>
-            <div className="flex items-center gap-1.5">
-              <span className="font-mono text-sm text-slate-700 dark:text-slate-300">{detail.node_id}</span>
+          {detail.node_id && (
+            <div>
+              <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">Node</h3>
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono text-sm text-slate-700 dark:text-slate-300">{detail.node_id}</span>
+              </div>
               <Link
                 to={`/graph?focus=${detail.node_id}`}
-                className="text-slate-400 hover:text-blue-500 dark:hover:text-blue-400"
-                title="View in graph"
+                className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-emerald-500 transition-colors mt-1"
               >
-                <GitBranch className="h-3.5 w-3.5" />
+                <GitBranch className="h-3 w-3" />
+                View in graph
               </Link>
             </div>
-          </div>
+          )}
         </div>
 
         {detail.dismissed && (

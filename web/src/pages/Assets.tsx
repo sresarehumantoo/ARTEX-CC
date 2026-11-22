@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Download, GitBranch, List, Search, ShieldAlert, X, ChevronLeft, ChevronRight, Server } from 'lucide-react'
 import { AssetGraph } from '../components/AssetGraph'
@@ -29,6 +29,63 @@ const TYPE_COLORS: Record<string, string> = {
   endpoint: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
   app: 'bg-rose-500/15 text-rose-400 border-rose-500/25',
   company: 'bg-slate-500/15 text-slate-400 border-slate-500/25',
+}
+
+const TYPE_BAR_COLORS: Record<string, string> = {
+  root_domain: 'bg-emerald-500',
+  subdomain: 'bg-cyan-500',
+  ip: 'bg-violet-500',
+  service: 'bg-blue-500',
+  endpoint: 'bg-amber-500',
+  app: 'bg-rose-500',
+  company: 'bg-slate-500',
+}
+
+function AssetTypeBar({ assets }: { assets: Asset[] }) {
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {}
+    for (const a of assets) {
+      c[a.type] = (c[a.type] ?? 0) + 1
+    }
+    return c
+  }, [assets])
+
+  const total = assets.length
+  if (total === 0) return null
+
+  const segments = Object.entries(counts)
+    .sort(([, a], [, b]) => b - a)
+    .map(([type, count]) => ({
+      type,
+      count,
+      pct: (count / total) * 100,
+      color: TYPE_BAR_COLORS[type] ?? 'bg-slate-400',
+    }))
+
+  return (
+    <div className="border-b border-slate-200 dark:border-slate-800 px-3 md:px-4 py-2">
+      <div className="flex h-2 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 mb-2">
+        {segments.map(s => (
+          <div
+            key={s.type}
+            className={cn(s.color, 'transition-all duration-300')}
+            style={{ width: `${s.pct}%` }}
+            title={`${s.type}: ${s.count}`}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+        <span className="text-slate-500 font-medium">{total} total</span>
+        <span className="text-slate-300 dark:text-slate-700">|</span>
+        {segments.map(s => (
+          <span key={s.type} className="flex items-center gap-1.5">
+            <span className={cn('h-2 w-2 rounded-full', s.color)} />
+            <span className="text-slate-600 dark:text-slate-400">{s.count} {s.type}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -327,6 +384,11 @@ export default function Assets() {
       }),
   })
 
+  const { data: allData } = useQuery({
+    queryKey: ['assets-distribution'],
+    queryFn: () => fetchAssets({ limit: 1000, offset: 0 }),
+  })
+
   const { data: graphData, isLoading: graphLoading } = useQuery({
     queryKey: ['assets-graph', typeFilter, debouncedDsl],
     queryFn: () =>
@@ -413,6 +475,8 @@ export default function Assets() {
           )}
         </div>
       </div>
+
+      <AssetTypeBar assets={allData?.assets ?? []} />
 
       <div className="flex-1 overflow-auto">
         {error ? (

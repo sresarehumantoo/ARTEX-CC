@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Clock, Search, X } from 'lucide-react'
 import { Badge } from '../components/ui/badge'
@@ -81,12 +81,28 @@ function ActivityItem({ item }: { item: ActivityType }) {
   )
 }
 
+function NewEventsBar({ count, onClick }: { count: number; onClick: () => void }) {
+  if (count <= 0) return null
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="sticky top-0 z-10 flex w-full items-center justify-center gap-2 bg-emerald-500/10 border-b border-emerald-500/20 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+    >
+      <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+      {count} new event{count !== 1 ? 's' : ''}
+    </button>
+  )
+}
+
 export default function Activity() {
   const [limit, setLimit] = useState(PAGE_SIZE)
   const [kindFilter, setKindFilter] = useState('')
   const [errorsOnly, setErrorsOnly] = useState(false)
   const [toolFilter, setToolFilter] = useState('')
   const [searchText, setSearchText] = useState('')
+  const [seenCount, setSeenCount] = useState(0)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const { data, isLoading, isError, error, dataUpdatedAt } = useQuery({
     queryKey: ['activity', limit, kindFilter],
@@ -98,12 +114,30 @@ export default function Activity() {
     refetchInterval: 10_000,
   })
 
+  useEffect(() => {
+    setSeenCount(0)
+  }, [kindFilter, limit])
+
+  useEffect(() => {
+    if (data && seenCount === 0) {
+      setSeenCount(data.length)
+    }
+  }, [data, seenCount])
+
+  const newCount = (data?.length ?? 0) - seenCount
+
+  function handleNewEventsClick() {
+    setSeenCount(data?.length ?? 0)
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const clearFilters = useCallback(() => {
     setKindFilter('')
     setErrorsOnly(false)
     setToolFilter('')
     setSearchText('')
-  }, [])
+    setSeenCount(data?.length ?? 0)
+  }, [data])
 
   const uniqueKinds = useMemo(() => {
     if (!data) return []
@@ -220,7 +254,8 @@ export default function Activity() {
           <div className="text-xs text-slate-400 dark:text-slate-500">
             Showing {filtered.length} of {data.length} entries
           </div>
-          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+          <div ref={scrollRef} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+            <NewEventsBar count={newCount} onClick={handleNewEventsClick} />
             {filtered.length === 0 ? (
               <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-500">
                 <Clock className="h-12 w-12 text-slate-300 dark:text-slate-700" />

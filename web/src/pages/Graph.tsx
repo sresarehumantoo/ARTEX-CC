@@ -91,6 +91,14 @@ export function GraphPage() {
     )
   }, [data.nodes, searchQuery, kindFilter])
 
+  const nodeCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const n of data.nodes) {
+      counts[n.kind] = (counts[n.kind] ?? 0) + 1
+    }
+    return counts
+  }, [data.nodes])
+
   useEffect(() => {
     if (data.nodes.length === 0) return
     const layout = layoutGraph(data)
@@ -331,7 +339,11 @@ export function GraphPage() {
           )}
         </div>
       </div>
-      <Legend />
+      <Legend
+        nodeCounts={nodeCounts}
+        activeKind={kindFilter}
+        onKindClick={(kind) => setKindFilter(kind)}
+      />
       {selectedNode && (
         <DetailDrawer
           node={selectedNode}
