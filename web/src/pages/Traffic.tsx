@@ -30,7 +30,7 @@ function statusColor(code: number): string {
   if (code >= 300 && code < 400) return 'text-blue-400'
   if (code >= 400 && code < 500) return 'text-amber-400'
   if (code >= 500) return 'text-rose-400'
-  return 'text-slate-400'
+  return 'text-muted-foreground'
 }
 
 export default function Traffic() {
@@ -235,7 +235,7 @@ export default function Traffic() {
   return (
     <div className="flex h-full flex-col">
       {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-2 md:gap-3 border-b border-slate-200 dark:border-slate-800 px-3 md:px-4 py-2">
+      <div className="flex flex-wrap items-center gap-2 md:gap-3 border-b border-border px-3 md:px-4 py-2">
         <Input
           placeholder="Host..."
           value={host}
@@ -282,7 +282,7 @@ export default function Traffic() {
               'rounded px-2 py-1 text-[10px] font-medium whitespace-nowrap',
               bodySearch
                 ? 'bg-amber-500/20 text-amber-400'
-                : 'bg-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-300',
+                : 'bg-slate-800 text-muted-foreground hover:text-foreground dark:text-slate-300',
             )}
             title={bodySearch ? 'Searching request/response bodies' : 'Searching URLs'}
           >
@@ -305,7 +305,7 @@ export default function Traffic() {
         >
           <Download className="mr-1 h-3 w-3" /> CSV
         </Button>
-        <div className="ml-auto text-xs text-slate-500">
+        <div className="ml-auto text-xs text-muted-foreground">
           {total > 0 && `${rangeStart}-${rangeEnd} of ${total}`}
         </div>
       </div>
@@ -315,8 +315,8 @@ export default function Traffic() {
         {isLoading ? (
           <div className="p-3 md:p-4"><TableSkeleton columns={7} rows={12} /></div>
         ) : rows.length === 0 ? (
-          <div className="flex h-64 flex-col items-center justify-center gap-2 text-slate-500">
-            <Globe className="h-10 w-10 text-slate-400 dark:text-slate-600" />
+          <div className="flex h-64 flex-col items-center justify-center gap-2 text-muted-foreground">
+            <Globe className="h-10 w-10 text-muted-foreground dark:text-slate-600" />
             <p className="text-lg">No traffic captured</p>
             <p className="text-sm">
               {hasFilters
@@ -349,25 +349,25 @@ export default function Traffic() {
                   )}
                   onClick={() => setSelectedId(selectedId === row.id ? null : row.id)}
                 >
-                  <TableCell className="whitespace-nowrap text-xs text-slate-500">
+                  <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                     {relativeTime(row.ts)}
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate font-mono text-xs text-slate-700 dark:text-slate-300">
+                  <TableCell className="max-w-[200px] truncate font-mono text-xs text-foreground">
                     {row.host}
                   </TableCell>
                   <TableCell>
                     <MethodBadge method={row.method} />
                   </TableCell>
-                  <TableCell className="max-w-[200px] sm:max-w-xs md:max-w-md truncate font-mono text-xs text-slate-500 dark:text-slate-400">
+                  <TableCell className="max-w-[200px] sm:max-w-xs md:max-w-md truncate font-mono text-xs text-muted-foreground">
                     <HighlightText text={displayUrl(row)} query={!bodySearch ? debouncedQuery : ''} />
                   </TableCell>
                   <TableCell>
                     <StatusCode code={row.status} />
                   </TableCell>
-                  <TableCell className="max-w-[120px] truncate text-xs text-slate-500">
+                  <TableCell className="max-w-[120px] truncate text-xs text-muted-foreground">
                     {shortContentType(row.content_type)}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-xs text-slate-500">
+                  <TableCell className="text-right font-mono text-xs tabular-nums text-muted-foreground">
                     {formatBytes(row.resp_len)}
                   </TableCell>
                 </TableRow>
@@ -380,7 +380,7 @@ export default function Traffic() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 px-4 py-2">
+        <div className="flex items-center justify-between border-t border-border px-4 py-2">
           <Button
             variant="ghost"
             size="sm"
@@ -389,7 +389,7 @@ export default function Traffic() {
           >
             <ChevronUp className="mr-1 h-3 w-3 -rotate-90" /> Prev
           </Button>
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-muted-foreground">
             Page {page + 1} of {totalPages}
           </span>
           <Button
@@ -408,12 +408,12 @@ export default function Traffic() {
         <>
           {/* Drag handle */}
           <div
-            className="h-1.5 cursor-row-resize border-t border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
+            className="h-1.5 cursor-row-resize border-t border-border bg-muted hover:bg-accent"
             onMouseDown={onDragStart}
           />
-          <div style={{ height: detailHeight, maxHeight: '60vh' }} className="flex flex-col bg-white dark:bg-slate-900">
-            <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 px-4 py-1.5">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          <div style={{ height: detailHeight, maxHeight: '60vh' }} className="flex flex-col bg-background">
+            <div className="flex items-center gap-2 border-b border-border px-4 py-1.5">
+              <span className="text-xs font-medium text-muted-foreground">
                 {selectedId}
               </span>
               <div className="ml-auto flex items-center gap-1">
@@ -430,20 +430,20 @@ export default function Traffic() {
               {detailLoading || !detail ? (
                 <div className="flex-1 p-4 space-y-4 animate-pulse">
                   <div className="flex items-center gap-2">
-                    <div className="h-5 w-12 rounded bg-slate-200 dark:bg-slate-700" />
-                    <div className="h-5 w-48 rounded bg-slate-200 dark:bg-slate-700" />
+                    <div className="h-5 w-12 rounded bg-muted" />
+                    <div className="h-5 w-48 rounded bg-muted" />
                   </div>
                   <div className="space-y-2">
-                    <div className="h-3 w-full rounded bg-slate-200 dark:bg-slate-700" />
-                    <div className="h-3 w-3/4 rounded bg-slate-200 dark:bg-slate-700" />
-                    <div className="h-3 w-5/6 rounded bg-slate-200 dark:bg-slate-700" />
+                    <div className="h-3 w-full rounded bg-muted" />
+                    <div className="h-3 w-3/4 rounded bg-muted" />
+                    <div className="h-3 w-5/6 rounded bg-muted" />
                   </div>
-                  <div className="h-24 rounded bg-slate-200 dark:bg-slate-700" />
+                  <div className="h-24 rounded bg-muted" />
                 </div>
               ) : (
                 <>
                   <HttpPanel label="Request" content={detail.request} showCurl />
-                  <div className="w-px bg-slate-200 dark:bg-slate-800" />
+                  <div className="w-px bg-muted" />
                   <HttpPanel label="Response" content={detail.response} />
                 </>
               )}
@@ -505,14 +505,14 @@ function HttpPanel({ label, content, showCurl }: { label: string; content: strin
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-3 py-1">
-        <span className="text-xs font-medium text-slate-500">{label}</span>
+      <div className="flex items-center justify-between border-b border-border px-3 py-1">
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
         <div className="flex items-center gap-2">
           {showCurl && (
             <button
               type="button"
               onClick={copyCurl}
-              className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700 dark:text-slate-300"
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground dark:text-slate-300"
             >
               <Terminal className="h-3 w-3" />
               {copiedCurl ? 'Copied' : 'curl'}
@@ -521,7 +521,7 @@ function HttpPanel({ label, content, showCurl }: { label: string; content: strin
           <button
             type="button"
             onClick={copy}
-            className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700 dark:text-slate-300"
+            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground dark:text-slate-300"
           >
             <Clipboard className="h-3 w-3" />
             {copied ? 'Copied' : 'Copy'}
@@ -538,7 +538,7 @@ function HttpPanel({ label, content, showCurl }: { label: string; content: strin
 }
 
 function formatHttp(raw: string): React.ReactNode {
-  if (!raw) return <span className="text-slate-400 dark:text-slate-600">Empty</span>
+  if (!raw) return <span className="text-muted-foreground dark:text-slate-600">Empty</span>
 
   const headerEnd = raw.indexOf('\r\n\r\n')
   const splitPos = headerEnd >= 0 ? headerEnd : raw.indexOf('\n\n')
@@ -570,7 +570,7 @@ function highlightHeaders(text: string): React.ReactNode {
                 <span className="text-emerald-500 font-semibold">{reqMatch[1]}</span>
                 {' '}
                 <span className="text-blue-400">{reqMatch[2]}</span>
-                {reqMatch[3] && <span className="text-slate-500"> {reqMatch[3]}</span>}
+                {reqMatch[3] && <span className="text-muted-foreground"> {reqMatch[3]}</span>}
                 {'\n'}
               </span>
             )
@@ -581,10 +581,10 @@ function highlightHeaders(text: string): React.ReactNode {
             const codeColor = code < 300 ? 'text-emerald-500' : code < 400 ? 'text-blue-400' : code < 500 ? 'text-amber-500' : 'text-rose-500'
             return (
               <span key={i}>
-                <span className="text-slate-500">{resMatch[1]}</span>
+                <span className="text-muted-foreground">{resMatch[1]}</span>
                 {' '}
                 <span className={`${codeColor} font-semibold`}>{resMatch[2]}</span>
-                {resMatch[3] && <span className="text-slate-400"> {resMatch[3]}</span>}
+                {resMatch[3] && <span className="text-muted-foreground"> {resMatch[3]}</span>}
                 {'\n'}
               </span>
             )
@@ -595,8 +595,8 @@ function highlightHeaders(text: string): React.ReactNode {
           return (
             <span key={i}>
               <span className="text-violet-400">{line.slice(0, colonIdx)}</span>
-              <span className="text-slate-500">:</span>
-              <span className="text-slate-300 dark:text-slate-400">{line.slice(colonIdx + 1)}</span>
+              <span className="text-muted-foreground">:</span>
+              <span className="text-slate-300 ">{line.slice(colonIdx + 1)}</span>
               {'\n'}
             </span>
           )
@@ -621,7 +621,7 @@ function formatBody(body: string): React.ReactNode {
     }
   }
 
-  return <span className="text-slate-300 dark:text-slate-400">{body}</span>
+  return <span className="text-slate-300 ">{body}</span>
 }
 
 function highlightJson(json: string): React.ReactNode {
@@ -633,13 +633,13 @@ function highlightJson(json: string): React.ReactNode {
         <span key={i}>
           {indent}
           <span className="text-violet-400">"{key}"</span>
-          <span className="text-slate-500">{colon}</span>
+          <span className="text-muted-foreground">{colon}</span>
           {highlightJsonValue(value)}
           {'\n'}
         </span>
       )
     }
-    return <span key={i} className="text-slate-500">{line}{'\n'}</span>
+    return <span key={i} className="text-muted-foreground">{line}{'\n'}</span>
   })
 }
 
@@ -647,11 +647,11 @@ function highlightJsonValue(value: string): React.ReactNode {
   const trimmed = value.trimEnd().replace(/,$/, '')
   const trailing = value.slice(trimmed.length)
 
-  if (trimmed.startsWith('"')) return <><span className="text-amber-400">{trimmed}</span><span className="text-slate-500">{trailing}</span></>
-  if (trimmed === 'true' || trimmed === 'false') return <><span className="text-emerald-400">{trimmed}</span><span className="text-slate-500">{trailing}</span></>
-  if (trimmed === 'null') return <><span className="text-rose-400">{trimmed}</span><span className="text-slate-500">{trailing}</span></>
-  if (/^-?\d/.test(trimmed)) return <><span className="text-blue-400">{trimmed}</span><span className="text-slate-500">{trailing}</span></>
-  return <span className="text-slate-400">{value}</span>
+  if (trimmed.startsWith('"')) return <><span className="text-amber-400">{trimmed}</span><span className="text-muted-foreground">{trailing}</span></>
+  if (trimmed === 'true' || trimmed === 'false') return <><span className="text-emerald-400">{trimmed}</span><span className="text-muted-foreground">{trailing}</span></>
+  if (trimmed === 'null') return <><span className="text-rose-400">{trimmed}</span><span className="text-muted-foreground">{trailing}</span></>
+  if (/^-?\d/.test(trimmed)) return <><span className="text-blue-400">{trimmed}</span><span className="text-muted-foreground">{trailing}</span></>
+  return <span className="text-muted-foreground">{value}</span>
 }
 
 function buildCurl(request: string): string {
@@ -712,7 +712,7 @@ function SortableHead({
     <TableHead className={cn('cursor-pointer select-none', className)} onClick={() => onToggle(col)}>
       <span className="inline-flex items-center gap-0.5">
         {label}
-        <Icon className={cn('h-3 w-3', active ? 'text-slate-700 dark:text-slate-300' : 'text-slate-600')} />
+        <Icon className={cn('h-3 w-3', active ? 'text-foreground' : 'text-slate-600')} />
       </span>
     </TableHead>
   )

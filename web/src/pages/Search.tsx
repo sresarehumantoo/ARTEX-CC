@@ -55,16 +55,16 @@ export default function Search() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 md:px-4 py-3">
+      <div className="border-b border-border bg-muted px-3 md:px-4 py-3">
         <div className="flex items-center gap-3">
-          <SearchIcon className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+          <SearchIcon className="h-5 w-5 text-muted-foreground" />
           <div className="relative flex-1 max-w-lg">
             <input
               type="text"
               value={query}
               onChange={(e) => setSearchParams({ q: e.target.value }, { replace: true })}
               placeholder="Search findings, assets, nodes..."
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md py-2 px-3 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className="w-full bg-background border border-border rounded-md py-2 px-3 text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-500"
               autoFocus
             />
           </div>
@@ -73,21 +73,21 @@ export default function Search() {
 
       <div className="flex-1 overflow-y-auto p-3 md:p-6">
         {query.length < 2 ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-500">
+          <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
             <SearchIcon className="h-12 w-12 text-slate-300 dark:text-slate-700" />
             <div className="text-center">
-              <p className="text-lg font-medium text-slate-600 dark:text-slate-400">Search the engagement</p>
+              <p className="text-lg font-medium text-muted-foreground">Search the engagement</p>
               <p className="mt-1 text-sm">Type at least 2 characters to search findings, assets, and nodes</p>
             </div>
           </div>
         ) : isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map(i => (
-              <div key={i} className="animate-pulse flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
-                <div className="h-8 w-8 rounded bg-slate-200 dark:bg-slate-700" />
+              <div key={i} className="animate-pulse flex items-center gap-3 p-3 rounded-lg bg-muted">
+                <div className="h-8 w-8 rounded bg-muted" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 w-48 rounded bg-slate-200 dark:bg-slate-700" />
-                  <div className="h-3 w-32 rounded bg-slate-200 dark:bg-slate-700" />
+                  <div className="h-4 w-48 rounded bg-muted" />
+                  <div className="h-3 w-32 rounded bg-muted" />
                 </div>
               </div>
             ))}
@@ -95,10 +95,10 @@ export default function Search() {
         ) : error ? (
           <div className="text-sm text-rose-400">Search failed: {(error as Error).message}</div>
         ) : results && results.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-500">
+          <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
             <SearchIcon className="h-12 w-12 text-slate-300 dark:text-slate-700" />
             <div className="text-center">
-              <p className="text-lg font-medium text-slate-600 dark:text-slate-400">No results</p>
+              <p className="text-lg font-medium text-muted-foreground">No results</p>
               <p className="mt-1 text-sm">No matches found for &ldquo;{query}&rdquo;</p>
             </div>
           </div>
@@ -106,30 +106,30 @@ export default function Search() {
           <div className="space-y-6">
             {[...grouped.entries()].map(([type, items]) => {
               const Icon = TYPE_ICONS[type] ?? SearchIcon
-              const color = TYPE_COLORS[type] ?? 'text-slate-500'
+              const color = TYPE_COLORS[type] ?? 'text-muted-foreground'
               return (
                 <div key={type}>
-                  <h2 className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  <h2 className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
                     <Icon className={`h-4 w-4 ${color}`} />
                     <span className="capitalize">{type}s</span>
-                    <span className="text-slate-400 font-normal">({items.length})</span>
+                    <span className="text-muted-foreground font-normal">({items.length})</span>
                   </h2>
                   <div className="space-y-1">
                     {items.map((r) => (
                       <Link
                         key={`${r.type}-${r.id}`}
                         to={r.url}
-                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-accent transition-colors group"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-slate-800 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 truncate">
+                          <p className="text-sm font-medium text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 truncate">
                             {r.title}
                           </p>
                           {r.subtitle && (
-                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{r.subtitle}</p>
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subtitle}</p>
                           )}
                         </div>
-                        <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">#{r.id}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">#{r.id}</span>
                       </Link>
                     ))}
                   </div>

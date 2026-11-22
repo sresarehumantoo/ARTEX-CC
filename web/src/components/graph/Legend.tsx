@@ -25,7 +25,7 @@ interface LegendProps {
 export function Legend({ nodeCounts, activeKind, onKindClick }: LegendProps) {
   return (
     <div className="absolute bottom-3 left-3 z-10 bg-white/90 dark:bg-slate-800/90 backdrop-blur rounded-lg shadow-lg p-3 text-xs select-none">
-      <div className="font-medium text-slate-700 dark:text-slate-200 mb-1.5">Nodes</div>
+      <div className="font-medium text-foreground mb-1.5">Nodes</div>
       <div className="space-y-0.5 mb-2.5">
         {nodeKinds.map(({ kind, icon: Icon, color }) => {
           const kindLower = kind.toLowerCase()
@@ -37,18 +37,18 @@ export function Legend({ nodeCounts, activeKind, onKindClick }: LegendProps) {
               type="button"
               onClick={() => onKindClick(activeKind === kindLower ? 'all' : kindLower)}
               className={cn(
-                'flex w-full items-center gap-1.5 rounded px-1.5 py-1 transition-colors hover:bg-slate-100 dark:hover:bg-slate-700',
+                'flex w-full items-center gap-1.5 rounded px-1.5 py-1 transition-colors hover:bg-accent',
                 !isActive && 'opacity-40',
               )}
             >
               <Icon size={12} className={color} />
               <span className="text-slate-600 dark:text-slate-300 flex-1 text-left">{kind}</span>
-              <span className="text-slate-400 dark:text-slate-500 tabular-nums">{count}</span>
+              <span className="text-muted-foreground tabular-nums">{count}</span>
             </button>
           )
         })}
       </div>
-      <div className="font-medium text-slate-700 dark:text-slate-200 mb-1.5">Edges</div>
+      <div className="font-medium text-foreground mb-1.5">Edges</div>
       <div className="space-y-1">
         {edgeTypes.map(({ rel, color, label }) => (
           <div key={rel} className="flex items-center gap-1.5 px-1.5">

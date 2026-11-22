@@ -158,8 +158,8 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh] bg-black/50 backdrop-blur-sm"
       onClick={e => { if (e.target === overlayRef.current) onClose() }}
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">
-        <div className="border-b border-slate-200 dark:border-slate-700">
+      <div className="bg-background border border-border rounded-xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">
+        <div className="border-b border-border">
           <input
             ref={inputRef}
             type="text"
@@ -167,20 +167,20 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             onChange={e => setQuery(e.target.value)}
             placeholder="Search findings, assets, nodes..."
             aria-label="Search commands and content"
-            className="w-full bg-transparent px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none"
+            className="w-full bg-transparent px-4 py-3 text-sm text-foreground placeholder-slate-400 dark:placeholder-slate-500 outline-none"
           />
         </div>
 
         <div className="max-h-72 overflow-y-auto">
           {debouncedQuery.length >= 2 && results.length === 0 && (
-            <div className="px-4 py-8 text-center text-sm text-slate-500">
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">
               No results found
             </div>
           )}
 
           {groups.map(group => (
             <div key={group.type}>
-              <div className="px-4 pt-3 pb-1 text-xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              <div className="px-4 pt-3 pb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {group.label}
               </div>
               {group.items.map(item => {
@@ -192,18 +192,18 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                     key={`${item.type}-${item.id}`}
                     className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors ${
                       idx === selectedIndex
-                        ? 'bg-slate-100 dark:bg-slate-800'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        ? 'bg-muted'
+                        : 'hover:bg-accent'
                     }`}
                     onClick={() => selectResult(item)}
                     onMouseEnter={() => setSelectedIndex(idx)}
                   >
-                    <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+                    <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm text-slate-900 dark:text-slate-100">
+                      <div className="truncate text-sm text-foreground">
                         {item.title}
                       </div>
-                      <div className="truncate text-xs text-slate-500 dark:text-slate-400">
+                      <div className="truncate text-xs text-muted-foreground">
                         {item.subtitle}
                       </div>
                     </div>
@@ -215,14 +215,14 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 
           {groups.length > 0 && (
             <button
-              className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-t border-slate-100 dark:border-slate-800"
+              className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-accent transition-colors border-t border-border"
               onClick={() => {
                 navigate(`/search?q=${encodeURIComponent(query)}`)
                 onClose()
               }}
             >
-              <Search className="h-4 w-4 shrink-0 text-slate-400" />
-              <span className="text-sm text-slate-600 dark:text-slate-400">
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
                 View all results for &ldquo;{query}&rdquo;
               </span>
             </button>
@@ -230,7 +230,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 
           {debouncedQuery.length < 2 && filteredActions.length > 0 && (
             <div>
-              <div className="px-4 pt-3 pb-1 text-xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              <div className="px-4 pt-3 pb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Quick Actions
               </div>
               {filteredActions.map((action, idx) => {
@@ -240,18 +240,18 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                     key={action.id}
                     className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors ${
                       idx === selectedIndex
-                        ? 'bg-slate-100 dark:bg-slate-800'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        ? 'bg-muted'
+                        : 'hover:bg-accent'
                     }`}
                     onClick={() => action.action()}
                     onMouseEnter={() => setSelectedIndex(idx)}
                   >
-                    <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+                    <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm text-slate-900 dark:text-slate-100">
+                      <div className="truncate text-sm text-foreground">
                         {action.label}
                       </div>
-                      <div className="truncate text-xs text-slate-500 dark:text-slate-400">
+                      <div className="truncate text-xs text-muted-foreground">
                         {action.subtitle}
                       </div>
                     </div>
@@ -262,13 +262,13 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           )}
 
           {debouncedQuery.length < 2 && filteredActions.length === 0 && query.length > 0 && (
-            <div className="px-4 py-8 text-center text-sm text-slate-500">
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">
               No matching actions
             </div>
           )}
         </div>
 
-        <div className="border-t border-slate-200 dark:border-slate-700 px-4 py-2 flex items-center gap-4 text-xs text-slate-400 dark:text-slate-500">
+        <div className="border-t border-border px-4 py-2 flex items-center gap-4 text-xs text-muted-foreground">
           <span><kbd className="font-mono">↑↓</kbd> navigate</span>
           <span><kbd className="font-mono">↵</kbd> select</span>
           <span><kbd className="font-mono">esc</kbd> close</span>

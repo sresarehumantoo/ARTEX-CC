@@ -12,7 +12,7 @@ export function TableSkeleton({
   return (
     <div className="space-y-0">
       {filterBar && (
-        <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-800 px-4 py-2">
+        <div className="flex items-center gap-3 border-b border-border px-4 py-2">
           <Skeleton className="h-9 w-44" />
           <Skeleton className="h-9 w-28" />
           <Skeleton className="h-9 w-36" />
@@ -20,7 +20,7 @@ export function TableSkeleton({
       )}
 
       <div className="w-full">
-        <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800 px-3 py-3">
+        <div className="flex gap-2 border-b border-border px-3 py-3">
           {Array.from({ length: columns }).map((_, i) => (
             <Skeleton
               key={i}
@@ -33,7 +33,7 @@ export function TableSkeleton({
         {Array.from({ length: rows }).map((_, row) => (
           <div
             key={row}
-            className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800/50 px-3 py-3"
+            className="flex items-center gap-2 border-b border-border px-3 py-3"
           >
             {Array.from({ length: columns }).map((_, col) => (
               <Skeleton

@@ -18,7 +18,7 @@ const KIND_COLORS: Record<string, string> = {
 }
 
 function KindBadge({ kind }: { kind: string }) {
-  const color = KIND_COLORS[kind] ?? 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+  const color = KIND_COLORS[kind] ?? 'bg-slate-500/10 text-muted-foreground border-slate-500/20'
   return (
     <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium', color)}>
       {kind}
@@ -35,15 +35,15 @@ function CollapsibleSection({ title, icon: Icon, defaultOpen, children }: {
   const [open, setOpen] = useState(defaultOpen ?? true)
 
   return (
-    <div className="border border-slate-200 dark:border-slate-700 rounded-lg">
+    <div className="border border-border rounded-lg">
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="flex w-full items-center gap-2 px-3 md:px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-lg"
+        className="flex w-full items-center gap-2 px-3 md:px-4 py-3 text-left hover:bg-accent transition-colors rounded-lg"
       >
-        {open ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
-        <Icon className="h-4 w-4 text-slate-500" />
-        <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{title}</span>
+        {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+        <Icon className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium text-foreground">{title}</span>
       </button>
       {open && <div className="px-3 md:px-4 pb-4">{children}</div>}
     </div>
@@ -52,15 +52,15 @@ function CollapsibleSection({ title, icon: Icon, defaultOpen, children }: {
 
 function ConstraintsList({ constraints }: { constraints: Constraint[] }) {
   if (constraints.length === 0) {
-    return <p className="text-sm text-slate-500 italic py-2">No constraints set</p>
+    return <p className="text-sm text-muted-foreground italic py-2">No constraints set</p>
   }
 
   return (
     <div className="space-y-2">
       {constraints.map(c => (
-        <div key={c.id} className="flex items-start gap-3 px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-800/50">
+        <div key={c.id} className="flex items-start gap-3 px-3 py-2 rounded-md bg-muted">
           <KindBadge kind={c.kind} />
-          <span className="text-sm text-slate-700 dark:text-slate-300">{c.text}</span>
+          <span className="text-sm text-foreground">{c.text}</span>
         </div>
       ))}
     </div>
@@ -99,9 +99,9 @@ export default function Settings() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 md:px-4 py-3">
+      <div className="border-b border-border bg-muted px-3 md:px-4 py-3">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Settings</h1>
+          <h1 className="text-lg font-semibold text-foreground">Settings</h1>
           <div className="ml-auto">
             <Button
               variant="outline"
@@ -140,38 +140,38 @@ export default function Settings() {
             <CollapsibleSection title="Engagement" icon={Info} defaultOpen>
               <div className="space-y-3">
                 {engagement?.goal && (
-                  <p className="text-base font-medium text-slate-900 dark:text-slate-100">
+                  <p className="text-base font-medium text-foreground">
                     {engagement.goal}
                   </p>
                 )}
                 {engagement?.description && (
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                  <p className="text-sm text-muted-foreground">
                     {engagement.description}
                   </p>
                 )}
                 {engagement?.stats && (
-                  <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-border">
                     <div className="text-center">
-                      <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">{engagement.stats.nodes}</div>
-                      <div className="text-xs text-slate-500">Nodes</div>
+                      <div className="text-lg font-semibold text-foreground">{engagement.stats.nodes}</div>
+                      <div className="text-xs text-muted-foreground">Nodes</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">{engagement.stats.findings}</div>
-                      <div className="text-xs text-slate-500">Findings</div>
+                      <div className="text-lg font-semibold text-foreground">{engagement.stats.findings}</div>
+                      <div className="text-xs text-muted-foreground">Findings</div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-semibold text-rose-500">{engagement.stats.intents_running}</div>
-                      <div className="text-xs text-slate-500">Running</div>
+                      <div className="text-xs text-muted-foreground">Running</div>
                     </div>
                   </div>
                 )}
                 {engagement?.stats && engagement.stats.intents_total > 0 && (
                   <div className="mt-3">
-                    <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
                       <span>Intent Progress</span>
                       <span>{engagement.stats.intents_done} / {engagement.stats.intents_total}</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                       <div
                         className="h-full rounded-full bg-emerald-500 transition-all"
                         style={{ width: `${(engagement.stats.intents_done / engagement.stats.intents_total) * 100}%` }}
@@ -179,7 +179,7 @@ export default function Settings() {
                     </div>
                   </div>
                 )}
-                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500 dark:text-slate-500">
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
                   <span>Task {engagement?.task_id}</span>
                   <span>Exploration {engagement?.exploration_id}</span>
                 </div>
@@ -209,7 +209,7 @@ export default function Settings() {
             </CollapsibleSection>
 
             <CollapsibleSection title="Credentials" icon={Lock} defaultOpen={false}>
-              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>{engagement?.task_credentials?.length ?? 0} credentials stored</span>
                 <Link to="/credentials" className="text-emerald-500 hover:text-emerald-400 text-xs">View all</Link>
               </div>
@@ -219,7 +219,7 @@ export default function Settings() {
               <CollapsibleSection title="Hints" icon={Info} defaultOpen={false}>
                 <div className="space-y-1">
                   {engagement?.hints.map(h => (
-                    <div key={h.id} className="px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 rounded-md bg-slate-50 dark:bg-slate-800/50">
+                    <div key={h.id} className="px-3 py-1.5 text-sm text-foreground rounded-md bg-muted">
                       {(h as any).label || h.payload?.text as string || JSON.stringify(h.payload ?? h)}
                     </div>
                   ))}

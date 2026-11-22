@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ExportDropdown } from '../components/ExportDropdown'
 import FindingsTimeline from '../components/FindingsTimeline'
+import { StatusBadge } from '../components/StatusBadge'
 import { Badge, type BadgeVariant } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -67,8 +68,8 @@ function SeverityBar({ findings }: { findings: Finding[] }) {
     }))
 
   return (
-    <div className="border-b border-slate-200 dark:border-slate-800 px-3 md:px-4 py-2">
-      <div className="flex h-2 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 mb-2">
+    <div className="border-b border-border px-3 md:px-4 py-2">
+      <div className="flex h-2 rounded-full overflow-hidden bg-muted mb-2">
         {segments.map(s => (
           <div
             key={s.severity}
@@ -79,12 +80,12 @@ function SeverityBar({ findings }: { findings: Finding[] }) {
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-        <span className="text-slate-500 font-medium">{total} total</span>
+        <span className="text-muted-foreground font-medium">{total} total</span>
         <span className="text-slate-300 dark:text-slate-700">|</span>
         {segments.map(s => (
           <span key={s.severity} className="flex items-center gap-1.5">
             <span className={cn('h-2 w-2 rounded-full', s.color)} />
-            <span className="text-slate-600 dark:text-slate-400">{s.count} {s.label.toLowerCase()}</span>
+            <span className="text-muted-foreground">{s.count} {s.label.toLowerCase()}</span>
           </span>
         ))}
       </div>
@@ -229,7 +230,7 @@ export default function Findings() {
       <div className="flex h-full flex-col gap-3 md:gap-4 p-3 md:p-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="rounded-lg border border-slate-200 dark:border-slate-800 p-6 space-y-3">
+            <div key={i} className="rounded-lg border border-border p-6 space-y-3">
               <Skeleton className="h-4 w-16" />
               <Skeleton className="h-9 w-12" />
             </div>
@@ -330,7 +331,7 @@ export default function Findings() {
         </Select>
 
         <div className="relative w-full md:w-64 md:ml-auto">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search vulnclass or summary..."
             value={search}
@@ -341,7 +342,7 @@ export default function Findings() {
             <button
               type="button"
               onClick={() => setSearch('')}
-              className="absolute right-2.5 top-2.5 text-slate-500 hover:text-slate-300"
+              className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </button>
@@ -374,7 +375,7 @@ export default function Findings() {
           <button
             type="button"
             onClick={() => setShowTimeline(v => !v)}
-            className="flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+            className="flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-foreground  dark:hover:text-slate-200"
           >
             <ChevronDown className={cn('h-4 w-4 transition-transform', !showTimeline && '-rotate-90')} />
             <span>Timeline</span>
@@ -390,11 +391,11 @@ export default function Findings() {
           {isLoading ? (
             <TableSkeleton rows={8} columns={4} />
           ) : filtered.length === 0 ? (
-            <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-500">
+            <div className="flex h-64 flex-col items-center justify-center gap-3 text-muted-foreground">
               <Shield className="h-12 w-12 text-slate-300 dark:text-slate-700" />
               <div className="text-center">
-                <p className="text-lg font-medium text-slate-600 dark:text-slate-400">No findings discovered</p>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-500">
+                <p className="text-lg font-medium text-muted-foreground">No findings discovered</p>
+                <p className="mt-1 text-sm text-muted-foreground">
                   {findings.length > 0
                     ? 'Try adjusting your filters'
                     : 'Findings will appear as vulnerabilities are discovered'}
@@ -404,7 +405,7 @@ export default function Findings() {
           ) : (
             <>
             {selectedIds.size > 0 && (
-              <div className="flex items-center gap-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 mb-2">
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2 mb-2">
                 <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
                   {selectedIds.size} selected
                 </span>
@@ -415,7 +416,7 @@ export default function Findings() {
                     navigator.clipboard.writeText(ids)
                     toast('Finding IDs copied', { variant: 'success' })
                   }}
-                  className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium"
+                  className="text-xs text-muted-foreground hover:text-foreground font-medium"
                 >
                   Copy IDs
                 </button>
@@ -426,14 +427,14 @@ export default function Findings() {
                     exportCSV(csv, 'selected-findings.csv')
                     toast('Exported selected findings', { variant: 'success' })
                   }}
-                  className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium"
+                  className="text-xs text-muted-foreground hover:text-foreground font-medium"
                 >
                   Export selected
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedIds(new Set())}
-                  className="ml-auto text-xs text-slate-400 hover:text-slate-600"
+                  className="ml-auto text-xs text-muted-foreground hover:text-foreground"
                 >
                   Clear
                 </button>
@@ -455,7 +456,7 @@ export default function Findings() {
                               setSelectedIds(new Set())
                             }
                           }}
-                          className="rounded border-slate-300 dark:border-slate-600"
+                          className="rounded border-border"
                         />
                       </TableHead>
                       <TableHead className="w-24 cursor-pointer select-none" onClick={() => toggleSort('severity')}>
@@ -476,8 +477,8 @@ export default function Findings() {
                         data-row-id={f.id}
                         className={cn(
                           'cursor-pointer',
-                          selectedId === f.id && 'bg-slate-100 dark:bg-slate-800',
-                          i % 2 === 1 && 'bg-slate-50/50 dark:bg-slate-900/50',
+                          selectedId === f.id && 'bg-muted',
+                          i % 2 === 1 && 'bg-muted',
                         )}
                         onClick={() => setSelectedId(selectedId === f.id ? null : f.id)}
                       >
@@ -493,18 +494,18 @@ export default function Findings() {
                                 return next
                               })
                             }}
-                            className="rounded border-slate-300 dark:border-slate-600"
+                            className="rounded border-border"
                           />
                         </TableCell>
                         <TableCell>
                           <Badge variant={SEVERITY_VARIANT[f.severity]}>{f.severity}</Badge>
                         </TableCell>
-                        <TableCell className="max-w-[150px] truncate font-medium text-slate-800 dark:text-slate-200">{f.vulnclass}</TableCell>
-                        <TableCell className="max-w-md truncate text-slate-500 dark:text-slate-400">{f.summary}</TableCell>
+                        <TableCell className="max-w-[150px] truncate text-xs font-medium text-foreground">{f.vulnclass}</TableCell>
+                        <TableCell className="max-w-md truncate text-xs text-muted-foreground">{f.summary}</TableCell>
                         <TableCell>
                           <StatusText finding={f} />
                         </TableCell>
-                        <TableCell className="text-right font-mono text-slate-500">{f.id}</TableCell>
+                        <TableCell className="text-right font-mono text-xs tabular-nums text-muted-foreground">{f.id}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -518,7 +519,7 @@ export default function Findings() {
         {/* Detail panel: full-screen overlay on mobile, side panel on md+ */}
         {selectedId !== null && (
           <div className={cn(
-            'fixed inset-0 z-40 overflow-y-auto bg-white dark:bg-slate-900 border-l-4',
+            'fixed inset-0 z-40 overflow-y-auto bg-background border-l-4',
             'md:static md:inset-auto md:z-auto md:w-96 md:shrink-0 md:overflow-hidden md:rounded-lg md:border md:border-l-4 md:border-slate-200 md:dark:border-slate-800',
             detail ? severityRingClass(detail.severity) : 'border-slate-300',
           )}>
@@ -557,7 +558,7 @@ function SummaryCard({
     <Card
       className={cn(
         'cursor-pointer transition-colors hover:border-slate-700',
-        active && 'border-slate-400 dark:border-slate-600 bg-slate-100 dark:bg-slate-800',
+        active && 'border-slate-400 dark:border-slate-600 bg-muted',
       )}
       onClick={onClick}
     >
@@ -565,7 +566,7 @@ function SummaryCard({
         <CardTitle>{label}</CardTitle>
       </CardHeader>
       <CardContent>
-        <span className={cn('text-3xl font-bold', variant ? colorText[variant] : 'text-slate-900 dark:text-slate-100')}>
+        <span className={cn('text-3xl font-bold', variant ? colorText[variant] : 'text-foreground')}>
           {count}
         </span>
       </CardContent>
@@ -574,16 +575,8 @@ function SummaryCard({
 }
 
 function StatusText({ finding }: { finding: Finding }) {
-  if (finding.dismissed) return <span className="text-slate-500">Dismissed</span>
-  const color: Record<string, string> = {
-    confirmed: 'text-emerald-400',
-    pending: 'text-amber-400',
-  }
-  return (
-    <span className={color[finding.status.toLowerCase()] ?? 'text-slate-400'}>
-      {finding.status || finding.state}
-    </span>
-  )
+  if (finding.dismissed) return <StatusBadge domain="finding" value="ignored" />
+  return <StatusBadge domain="finding" value={(finding.status || finding.state || '').toLowerCase()} />
 }
 
 function DetailPanel({
@@ -601,14 +594,14 @@ function DetailPanel({
     return (
       <div className="p-4 space-y-4 animate-pulse">
         <div className="flex items-center gap-2">
-          <div className="h-5 w-16 rounded-full bg-slate-200 dark:bg-slate-700" />
-          <div className="h-5 w-24 rounded bg-slate-200 dark:bg-slate-700" />
+          <div className="h-5 w-16 rounded-full bg-muted" />
+          <div className="h-5 w-24 rounded bg-muted" />
         </div>
-        <div className="h-4 w-3/4 rounded bg-slate-200 dark:bg-slate-700" />
-        <div className="h-4 w-full rounded bg-slate-200 dark:bg-slate-700" />
-        <div className="h-4 w-5/6 rounded bg-slate-200 dark:bg-slate-700" />
-        <div className="mt-4 h-20 rounded bg-slate-200 dark:bg-slate-700" />
-        <div className="h-4 w-1/2 rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="h-4 w-3/4 rounded bg-muted" />
+        <div className="h-4 w-full rounded bg-muted" />
+        <div className="h-4 w-5/6 rounded bg-muted" />
+        <div className="mt-4 h-20 rounded bg-muted" />
+        <div className="h-4 w-1/2 rounded bg-muted" />
       </div>
     )
   }
@@ -623,30 +616,30 @@ function DetailPanel({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            className="text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{detail.vulnclass}</h2>
+          <h2 className="text-lg font-semibold text-foreground">{detail.vulnclass}</h2>
           <div className="mt-1 flex items-center gap-1.5">
-            <span className="text-xs text-slate-500">Finding #{detail.id}</span>
+            <span className="text-xs text-muted-foreground">Finding #{detail.id}</span>
             <button
               type="button"
               onClick={() => {
                 navigator.clipboard.writeText(String(detail.id))
                 toast('Finding ID copied', { variant: 'success' })
               }}
-              className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
               title="Copy finding ID"
             >
               <Copy className="h-3 w-3" />
             </button>
           </div>
           {detail.created_at && (
-            <div className="text-xs text-slate-500 dark:text-slate-400">
+            <div className="text-xs text-muted-foreground">
               Discovered {timeAgo(detail.created_at)}
               <span className="mx-1">&middot;</span>
               {new Date(detail.created_at).toLocaleString()}
@@ -655,28 +648,28 @@ function DetailPanel({
         </div>
 
         <div>
-          <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">Summary</h3>
-          <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">{detail.summary}</p>
+          <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Summary</h3>
+          <p className="text-sm leading-relaxed text-foreground">{detail.summary}</p>
         </div>
 
         <div className="flex gap-4">
           <div>
-            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">Status</h3>
+            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</h3>
             <StatusText finding={detail} />
           </div>
           <div>
-            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">State</h3>
-            <span className="text-sm text-slate-700 dark:text-slate-300">{detail.state}</span>
+            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">State</h3>
+            <span className="text-sm text-foreground">{detail.state}</span>
           </div>
           {detail.node_id && (
             <div>
-              <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">Node</h3>
+              <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Node</h3>
               <div className="flex items-center gap-1.5">
-                <span className="font-mono text-sm text-slate-700 dark:text-slate-300">{detail.node_id}</span>
+                <span className="font-mono text-sm text-foreground">{detail.node_id}</span>
               </div>
               <Link
                 to={`/graph?focus=${detail.node_id}`}
-                className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-emerald-500 transition-colors mt-1"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-emerald-500 transition-colors mt-1"
               >
                 <GitBranch className="h-3 w-3" />
                 View in graph
@@ -687,21 +680,21 @@ function DetailPanel({
 
         {detail.dismissed && (
           <div>
-            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">Dismiss reason</h3>
-            <p className="text-sm text-slate-400">{detail.dismiss_reason || 'No reason given'}</p>
+            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Dismiss reason</h3>
+            <p className="text-sm text-muted-foreground">{detail.dismiss_reason || 'No reason given'}</p>
           </div>
         )}
 
         {detail.merged_into > 0 && (
           <div>
-            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-500">Merged into</h3>
-            <span className="font-mono text-sm text-slate-700 dark:text-slate-300">#{detail.merged_into}</span>
+            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Merged into</h3>
+            <span className="font-mono text-sm text-foreground">#{detail.merged_into}</span>
           </div>
         )}
 
         {detail.traffic_bindings && detail.traffic_bindings.length > 0 && (
           <div>
-            <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">
+            <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Traffic evidence ({detail.traffic_bindings.length})
             </h3>
             <div className="flex flex-col gap-2">
@@ -709,17 +702,17 @@ function DetailPanel({
                 <Link
                   key={tb.id}
                   to={`/traffic?selected=${tb.snapshot_id}`}
-                  className="flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3 py-2 text-sm transition-colors hover:border-slate-300 dark:hover:border-slate-600"
+                  className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-sm transition-colors hover:border-slate-300 dark:hover:border-slate-600"
                 >
-                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
-                    <span className="font-mono text-slate-700 dark:text-slate-300">{tb.snapshot_id}</span>
+                    <span className="font-mono text-foreground">{tb.snapshot_id}</span>
                     {tb.role && (
                       <Badge variant="default" className="ml-2">
                         {tb.role}
                       </Badge>
                     )}
-                    {tb.note && <p className="mt-0.5 truncate text-xs text-slate-500">{tb.note}</p>}
+                    {tb.note && <p className="mt-0.5 truncate text-xs text-muted-foreground">{tb.note}</p>}
                   </div>
                 </Link>
               ))}
@@ -727,7 +720,7 @@ function DetailPanel({
           </div>
         )}
 
-        <div className="mt-2 border-t border-slate-200 dark:border-slate-800 pt-3 text-center text-xs text-slate-400">
+        <div className="mt-2 border-t border-border pt-3 text-center text-xs text-muted-foreground">
           <kbd className="font-sans">↑↓</kbd> navigate · <kbd className="font-sans">Esc</kbd> close
         </div>
       </div>

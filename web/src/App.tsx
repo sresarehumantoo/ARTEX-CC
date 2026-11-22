@@ -26,13 +26,13 @@ const NotFound = lazy(() => import('./pages/NotFound'))
 function PageLoader() {
   return (
     <div className="p-6 space-y-4 animate-pulse">
-      <div className="h-6 w-48 rounded bg-slate-200 dark:bg-slate-700" />
+      <div className="h-6 w-48 rounded bg-muted" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map(i => (
-          <div key={i} className="h-24 rounded-lg bg-slate-200 dark:bg-slate-700" />
+          <div key={i} className="h-24 rounded-lg bg-muted" />
         ))}
       </div>
-      <div className="h-64 rounded-lg bg-slate-200 dark:bg-slate-700" />
+      <div className="h-64 rounded-lg bg-muted" />
     </div>
   )
 }
@@ -59,12 +59,12 @@ export default function App() {
   }, [togglePalette])
 
   return (
-    <div className="flex h-screen bg-white dark:bg-slate-900">
+    <div className="flex h-screen bg-background">
       <Sidebar mobileOpen={mobileMenuOpen} onMobileClose={() => setMobileMenuOpen(false)} />
       <main className="flex-1 overflow-y-auto">
         <button
           type="button"
-          className="md:hidden flex items-center gap-2 px-3 py-2 border-b border-slate-200 dark:border-slate-800 w-full bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400"
+          className="md:hidden flex items-center gap-2 px-3 py-2 border-b border-border w-full bg-muted text-muted-foreground"
           onClick={() => setMobileMenuOpen(true)}
           aria-label="Open menu"
         >

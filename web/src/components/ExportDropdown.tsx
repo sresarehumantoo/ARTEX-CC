@@ -36,14 +36,14 @@ export function ExportDropdown({ options }: { options: ExportOption[] }) {
       </Button>
       {open && (
         <div className={cn(
-          'absolute right-0 top-full z-50 mt-1 min-w-[160px] rounded-md border border-slate-200 dark:border-slate-700',
-          'bg-white dark:bg-slate-900 py-1 shadow-lg',
+          'absolute right-0 top-full z-50 mt-1 min-w-[160px] rounded-md border border-border',
+          'bg-background py-1 shadow-lg',
         )}>
           {options.map(opt => (
             <button
               key={opt.label}
               type="button"
-              className="w-full px-3 py-1.5 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="w-full px-3 py-1.5 text-left text-sm text-foreground hover:bg-accent transition-colors"
               onClick={() => {
                 opt.onClick()
                 close()

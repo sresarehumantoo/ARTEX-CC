@@ -109,14 +109,14 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       />
     )}
     <aside className={cn(
-      'flex h-screen flex-col bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-all duration-200',
+      'flex h-screen flex-col bg-muted border-r border-border transition-all duration-200',
       mobileOpen
         ? 'fixed inset-y-0 left-0 z-50 w-56 shadow-xl'
         : cn(collapsed ? 'w-14' : 'w-14 md:w-56'),
     )}>
       <div className={cn('flex items-center gap-2 px-3 py-5', !collapsed && 'md:px-5')}>
         <Shield className="h-6 w-6 shrink-0 text-emerald-500" />
-        <span className={cn(showBlock, 'text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100')}>
+        <span className={cn(showBlock, 'text-lg font-semibold tracking-tight text-foreground')}>
           cc-artex
         </span>
       </div>
@@ -135,8 +135,8 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                 cn(
                   'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                   active
-                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100'
-                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200',
+                    ? 'bg-muted text-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                 )
               }
             >
@@ -185,13 +185,13 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             aria-label={sseStatus.connected ? 'Connected to server' : 'Disconnected from server'}
             title={sseStatus.connected ? 'Connected' : 'Disconnected'}
           />
-          <span className={cn(showLabels, 'text-xs text-slate-500 dark:text-slate-400')}>
+          <span className={cn(showLabels, 'text-xs text-muted-foreground')}>
             {sseStatus.connected ? 'Connected' : 'Disconnected'}
           </span>
         </div>
         {sseStatus.lastEvent && (
           <div className={cn('px-3 py-0.5', mobileOpen ? 'block' : (collapsed ? 'hidden' : 'hidden md:block'))}>
-            <span className="text-[10px] text-slate-400 dark:text-slate-500">
+            <span className="text-[10px] text-muted-foreground">
               Updated {formatRelativeTime(sseStatus.lastEvent)}
             </span>
           </div>
@@ -202,7 +202,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           type="button"
           onClick={toggleCollapsed}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="hidden md:flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200"
+          className="hidden md:flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           {collapsed ? <ChevronsRight className="h-4 w-4 shrink-0" /> : <ChevronsLeft className="h-4 w-4 shrink-0" />}
           <span className={showLabels}>{collapsed ? 'Expand' : 'Collapse'}</span>
@@ -211,7 +211,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           type="button"
           onClick={toggleTheme}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200"
+          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           {theme === 'dark' ? (
             <Sun className="h-4 w-4 shrink-0" />
