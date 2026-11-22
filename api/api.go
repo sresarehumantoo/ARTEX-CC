@@ -17,8 +17,9 @@ type API struct {
 	files     *FileStore
 	claudeBin string
 	hub       *Hub
-	chat   *ChatStore
-	runner ChatRunner
+	logs      *LogBuffer
+	chat      *ChatStore
+	runner    ChatRunner
 
 	authRequired bool
 	authMu       sync.Mutex
@@ -71,6 +72,7 @@ func (a *API) Handler() http.Handler {
 	a.registerConstraintsRoutes(mux)
 	a.registerHintsRoutes(mux)
 	a.registerEventsRoutes(mux)
+	a.registerLogsRoutes(mux)
 	a.registerTasksRoutes(mux)
 	if a.chat != nil {
 		a.registerChatRoutes(mux)

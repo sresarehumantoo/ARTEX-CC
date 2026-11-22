@@ -3,13 +3,35 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Settings as SettingsIcon, ShieldCheck, Lock, Info, Download } from 'lucide-react'
 import { getEngagement, getConstraints } from '../lib/api'
+import { getClaudeStatus } from '../lib/api/chat'
 import type { Constraint, EngagementData } from '../lib/types'
+import { usePreferences } from '../stores/preferences'
+import type { ThemeMode, ContentLayout } from '../stores/preferences'
 import { Skeleton } from '../components/ui/skeleton'
 import { SettingsSkeleton } from '../components/skeletons/SettingsSkeleton'
 import { Button } from '../components/ui/button'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card'
+import { Select } from '../components/ui/select'
+import { Switch } from '../components/ui/switch'
+import { Label } from '../components/ui/label'
 import { downloadFile } from '../lib/export'
 import { toast } from 'sonner'
 import { cn } from '../lib/utils'
+
+interface SystemInfo {
+  version: string
+  go_version: string
+  os: string
+  arch: string
+  data_dir: string
+}
+
+async function getSystem(): Promise<SystemInfo> {
+  const res = await fetch('/api/system')
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  return res.json()
+}
 
 const KIND_COLORS: Record<string, string> = {
   time: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
@@ -85,148 +107,296 @@ function exportEngagementJSON(engagement: EngagementData, constraints: Constrain
   downloadFile(json, `engagement-${new Date().toISOString().slice(0, 10)}.json`, 'application/json')
 }
 
-export default function Settings() {
+function SettingRow({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <div className="space-y-1">
+        <Label>{label}</Label>
+        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function InfoRow({ label, value }: { label: string; value?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="break-all font-mono text-sm text-foreground sm:text-right">{value || 'Unknown'}</span>
+    </div>
+  )
+}
+
+function StatusDot({ ok }: { ok: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className={cn('h-2 w-2 rounded-full', ok ? 'bg-[oklch(0.7_0.17_155)]' : 'bg-[oklch(0.63_0.22_25)]')} />
+      {ok ? 'Available' : 'Unavailable'}
+    </span>
+  )
+}
+
+function AppearanceTab() {
+  const prefs = usePreferences()
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Appearance</CardTitle>
+        <CardDescription>Stored in this browser only.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <SettingRow label="Theme" hint="System follows your OS preference.">
+          <Select value={prefs.theme_mode} onChange={e => prefs.setThemeMode(e.target.value as ThemeMode)} aria-label="Theme">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </Select>
+        </SettingRow>
+        <SettingRow label="Sidebar collapsed by default">
+          <Switch checked={prefs.sidebar_collapsed} onCheckedChange={prefs.setSidebarCollapsed} aria-label="Sidebar collapsed by default" />
+        </SettingRow>
+        <SettingRow label="Content layout">
+          <Select value={prefs.content_layout} onChange={e => prefs.setContentLayout(e.target.value as ContentLayout)} aria-label="Content layout">
+            <option value="full-width">Full width</option>
+            <option value="centered">Centered</option>
+          </Select>
+        </SettingRow>
+      </CardContent>
+    </Card>
+  )
+}
+
+function ClaudeTab() {
+  const { data, isLoading, error } = useQuery({ queryKey: ['claude-status'], queryFn: getClaudeStatus })
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Claude</CardTitle>
+        <CardDescription>Configured with CLI flags such as --claude-bin. Read-only here.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-5" />
+            <Skeleton className="h-5" />
+          </div>
+        ) : error ? (
+          <p className="text-sm text-[oklch(0.63_0.22_25)]">Failed to load status: {(error as Error).message}</p>
+        ) : (
+          <>
+            <InfoRow label="Status" value={<StatusDot ok={!!data?.available} />} />
+            <InfoRow label="Binary path" value={data?.path} />
+            <InfoRow label="Version" value={data?.version} />
+            {data?.error && <InfoRow label="Error" value={data.error} />}
+          </>
+        )}
+        <InfoRow label="Default model" value="Set per conversation, otherwise the claude CLI default" />
+      </CardContent>
+    </Card>
+  )
+}
+
+function EngagementTab() {
   const { data: engagement, isLoading: engLoading, error: engError, refetch: refetchEng } = useQuery({
     queryKey: ['engagement'],
     queryFn: getEngagement,
   })
-
   const { data: constraints, isLoading: conLoading, error: conError, refetch: refetchCon } = useQuery({
     queryKey: ['constraints'],
     queryFn: getConstraints,
   })
+  const { data: system } = useQuery({ queryKey: ['system'], queryFn: getSystem })
 
+  return (
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={!engagement || !constraints}
+          onClick={() => {
+            if (engagement && constraints) {
+              exportEngagementJSON(engagement, constraints)
+              toast.success('Exported engagement data')
+            }
+          }}
+        >
+          <Download className="h-4 w-4 mr-1" />
+          Export JSON
+        </Button>
+      </div>
+
+      {engError ? (
+        <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
+          <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load engagement: {(engError as Error).message}</p>
+          <button
+            type="button"
+            onClick={() => refetchEng()}
+            className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
+          >
+            Try again
+          </button>
+        </div>
+      ) : engLoading ? (
+        <SettingsSkeleton />
+      ) : (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Current engagement</CardTitle>
+              <CardDescription>Fixed at startup. Change it with CLI flags.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <InfoRow label="Goal" value={engagement?.goal} />
+              <InfoRow label="Task ID" value={engagement?.task_id} />
+              <InfoRow label="Exploration ID" value={engagement?.exploration_id} />
+              <InfoRow label="Data directory" value={system?.data_dir} />
+              {engagement?.description && <InfoRow label="Description" value={engagement.description} />}
+            </CardContent>
+          </Card>
+
+          <CollapsibleSection title="Overview" icon={Info} defaultOpen>
+            <div className="space-y-3">
+              {engagement?.stats && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-foreground">{engagement.stats.nodes}</div>
+                    <div className="text-xs text-muted-foreground">Nodes</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-foreground">{engagement.stats.findings}</div>
+                    <div className="text-xs text-muted-foreground">Findings</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-rose-500">{engagement.stats.intents_running}</div>
+                    <div className="text-xs text-muted-foreground">Running</div>
+                  </div>
+                </div>
+              )}
+              {engagement?.stats && engagement.stats.intents_total > 0 && (
+                <div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                    <span>Intent Progress</span>
+                    <span>{engagement.stats.intents_done} / {engagement.stats.intents_total}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all"
+                      style={{ width: `${(engagement.stats.intents_done / engagement.stats.intents_total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Constraints" icon={ShieldCheck} defaultOpen={(constraints?.length ?? 0) > 0}>
+            {conError ? (
+              <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
+                <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load constraints: {(conError as Error).message}</p>
+                <button
+                  type="button"
+                  onClick={() => refetchCon()}
+                  className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : conLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-8 rounded-md" />
+                <Skeleton className="h-8 rounded-md" />
+              </div>
+            ) : (
+              <ConstraintsList constraints={constraints ?? []} />
+            )}
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Credentials" icon={Lock} defaultOpen={false}>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>{engagement?.task_credentials?.length ?? 0} credentials stored</span>
+              <Link to="/credentials" className="text-emerald-500 hover:text-emerald-400 text-xs">View all</Link>
+            </div>
+          </CollapsibleSection>
+
+          {engagement?.hints && engagement.hints.length > 0 && (
+            <CollapsibleSection title="Hints" icon={Info} defaultOpen={false}>
+              <div className="space-y-1">
+                {engagement.hints.map(h => (
+                  <div key={h.id} className="px-3 py-1.5 text-sm text-foreground rounded-md bg-muted">
+                    {(h as any).label || h.payload?.text as string || JSON.stringify(h.payload ?? h)}
+                  </div>
+                ))}
+              </div>
+            </CollapsibleSection>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function AboutTab() {
+  const { data, isLoading, error } = useQuery({ queryKey: ['system'], queryFn: getSystem })
+  const linkClass = 'text-sm text-[oklch(0.65_0.15_250)] hover:underline'
+  return (
+    <div className="space-y-4 md:space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>cc-artex</CardTitle>
+          <CardDescription>MCP tool server and web UI for autonomous pentesting with Claude Code.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <InfoRow label="Version" value={data?.version && data.version !== '(devel)' ? data.version : 'dev build'} />
+          <div className="flex gap-4 pt-1">
+            <a className={linkClass} href="https://github.com/SREsAreHumanToo/cc-artex#readme" target="_blank" rel="noreferrer">Docs</a>
+            <a className={linkClass} href="https://github.com/SREsAreHumanToo/cc-artex" target="_blank" rel="noreferrer">GitHub</a>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>System</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {isLoading ? (
+            <Skeleton className="h-5" />
+          ) : error ? (
+            <p className="text-sm text-[oklch(0.63_0.22_25)]">Failed to load system info: {(error as Error).message}</p>
+          ) : (
+            <>
+              <InfoRow label="Go version" value={data?.go_version} />
+              <InfoRow label="OS" value={data ? `${data.os}/${data.arch}` : undefined} />
+              <InfoRow label="Data directory" value={data?.data_dir} />
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+export default function Settings() {
   return (
     <div className="flex flex-col h-full">
       <div className="border-b border-border bg-muted px-3 md:px-4 py-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold text-foreground">Settings</h1>
-          <div className="ml-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!engagement}
-              onClick={() => {
-                if (engagement && constraints) {
-                  exportEngagementJSON(engagement, constraints)
-                  toast.success('Exported engagement data')
-                }
-              }}
-            >
-              <Download className="h-4 w-4 mr-1" />
-              Export JSON
-            </Button>
-          </div>
-        </div>
+        <h1 className="text-lg font-semibold text-foreground">Settings</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6">
-        {engError ? (
-          <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
-            <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load engagement: {(engError as Error).message}</p>
-            <button
-              type="button"
-              onClick={() => refetchEng()}
-              className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
-            >
-              Try again
-            </button>
-          </div>
-        ) : engLoading ? (
-          <SettingsSkeleton />
-        ) : (
-          <>
-            <CollapsibleSection title="Engagement" icon={Info} defaultOpen>
-              <div className="space-y-3">
-                {engagement?.goal && (
-                  <p className="text-base font-medium text-foreground">
-                    {engagement.goal}
-                  </p>
-                )}
-                {engagement?.description && (
-                  <p className="text-sm text-muted-foreground">
-                    {engagement.description}
-                  </p>
-                )}
-                {engagement?.stats && (
-                  <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-border">
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-foreground">{engagement.stats.nodes}</div>
-                      <div className="text-xs text-muted-foreground">Nodes</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-foreground">{engagement.stats.findings}</div>
-                      <div className="text-xs text-muted-foreground">Findings</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-rose-500">{engagement.stats.intents_running}</div>
-                      <div className="text-xs text-muted-foreground">Running</div>
-                    </div>
-                  </div>
-                )}
-                {engagement?.stats && engagement.stats.intents_total > 0 && (
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                      <span>Intent Progress</span>
-                      <span>{engagement.stats.intents_done} / {engagement.stats.intents_total}</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-emerald-500 transition-all"
-                        style={{ width: `${(engagement.stats.intents_done / engagement.stats.intents_total) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
-                  <span>Task {engagement?.task_id}</span>
-                  <span>Exploration {engagement?.exploration_id}</span>
-                </div>
-              </div>
-            </CollapsibleSection>
-
-            <CollapsibleSection title="Constraints" icon={ShieldCheck} defaultOpen={(constraints?.length ?? 0) > 0}>
-              {conError ? (
-                <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
-                  <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load constraints: {(conError as Error).message}</p>
-                  <button
-                    type="button"
-                    onClick={() => refetchCon()}
-                    className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
-                  >
-                    Try again
-                  </button>
-                </div>
-              ) : conLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-8 rounded-md" />
-                  <Skeleton className="h-8 rounded-md" />
-                </div>
-              ) : (
-                <ConstraintsList constraints={constraints ?? []} />
-              )}
-            </CollapsibleSection>
-
-            <CollapsibleSection title="Credentials" icon={Lock} defaultOpen={false}>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>{engagement?.task_credentials?.length ?? 0} credentials stored</span>
-                <Link to="/credentials" className="text-emerald-500 hover:text-emerald-400 text-xs">View all</Link>
-              </div>
-            </CollapsibleSection>
-
-            {engagement?.hints && engagement.hints.length > 0 && (
-              <CollapsibleSection title="Hints" icon={Info} defaultOpen={false}>
-                <div className="space-y-1">
-                  {engagement?.hints.map(h => (
-                    <div key={h.id} className="px-3 py-1.5 text-sm text-foreground rounded-md bg-muted">
-                      {(h as any).label || h.payload?.text as string || JSON.stringify(h.payload ?? h)}
-                    </div>
-                  ))}
-                </div>
-              </CollapsibleSection>
-            )}
-          </>
-        )}
+      <div className="flex-1 overflow-y-auto p-3 md:p-6">
+        <Tabs defaultValue="appearance" className="mx-auto max-w-3xl">
+          <TabsList className="max-w-full overflow-x-auto">
+            <TabsTrigger value="appearance">Appearance</TabsTrigger>
+            <TabsTrigger value="claude">Claude</TabsTrigger>
+            <TabsTrigger value="engagement">Engagement</TabsTrigger>
+            <TabsTrigger value="about">About</TabsTrigger>
+          </TabsList>
+          <TabsContent value="appearance"><AppearanceTab /></TabsContent>
+          <TabsContent value="claude"><ClaudeTab /></TabsContent>
+          <TabsContent value="engagement"><EngagementTab /></TabsContent>
+          <TabsContent value="about"><AboutTab /></TabsContent>
+        </Tabs>
       </div>
     </div>
   )
