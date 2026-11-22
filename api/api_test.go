@@ -39,6 +39,11 @@ type mockStore struct {
 	listCredErr       error
 	listConstraints   []tools.Constraint
 	listConstraintErr error
+	dismissErr        error
+	addNodeID         int64
+	addNodeErr        error
+	addConstraintID   int64
+	addConstraintErr  error
 }
 
 func (m *mockStore) InsertAsset(context.Context, int64, tools.AssetInput) (int64, error) {
@@ -68,12 +73,14 @@ func (m *mockStore) FindPotentialDuplicates(context.Context, string, []int64) ([
 func (m *mockStore) MergeFindings(context.Context, int64, []int64) (*tools.MergedFinding, error) {
 	return nil, nil
 }
-func (m *mockStore) DismissFinding(context.Context, int64, string) error { return nil }
+func (m *mockStore) DismissFinding(_ context.Context, _ int64, _ string) error {
+	return m.dismissErr
+}
 func (m *mockStore) GraphOverview(_ context.Context, _ int64) (*tools.Overview, error) {
 	return m.graphOverview, m.graphOverviewErr
 }
-func (m *mockStore) AddNode(context.Context, int64, string, map[string]any, int, string, string, []int64) (int64, error) {
-	return 0, nil
+func (m *mockStore) AddNode(_ context.Context, _ int64, _ string, _ map[string]any, _ int, _ string, _ string, _ []int64) (int64, error) {
+	return m.addNodeID, m.addNodeErr
 }
 func (m *mockStore) UpdateNodeState(context.Context, int64, string) error { return nil }
 func (m *mockStore) ListNodes(_ context.Context, _ int64, _ string, _ int) ([]tools.Node, error) {
@@ -93,8 +100,8 @@ func (m *mockStore) Edges(_ context.Context, _ int64, _ int) ([]tools.Edge, erro
 func (m *mockStore) Root(_ context.Context, _ int64) (string, string, error) {
 	return m.rootDesc, m.rootGoal, m.rootErr
 }
-func (m *mockStore) AddConstraint(context.Context, int64, string, string, string) (int64, error) {
-	return 0, nil
+func (m *mockStore) AddConstraint(_ context.Context, _ int64, _ string, _ string, _ string) (int64, error) {
+	return m.addConstraintID, m.addConstraintErr
 }
 func (m *mockStore) ListConstraints(_ context.Context, _ int64) ([]tools.Constraint, error) {
 	return m.listConstraints, m.listConstraintErr
@@ -1128,5 +1135,373 @@ func TestHandler_AllRoutes(t *testing.T) {
 		if rec.Code != rt.code {
 			t.Errorf("%s: want %d, got %d", rt.path, rt.code, rec.Code)
 		}
+	}
+}
+
+func TestHandleDismissFinding_OK(t *testing.T) {
+	a := newTestAPI(&mockStore{})
+	h := a.Handler()
+
+	body := strings.NewReader(`{"reason":"duplicate"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/findings/5/dismiss", body)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d", rec.Code)
+	}
+	resp := decodeBody(t, rec)
+	if resp["status"] != "ok" {
+		t.Errorf("status: want ok, got %v", resp["status"])
+	}
+}
+
+func TestHandleDismissFinding_BadID(t *testing.T) {
+	a := newTestAPI(&mockStore{})
+	h := a.Handler()
+
+	body := strings.NewReader(`{"reason":"dup"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/findings/abc/dismiss", body)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status: want 400, got %d", rec.Code)
+	}
+}
+
+func TestHandleDismissFinding_BadBody(t *testing.T) {
+	a := newTestAPI(&mockStore{})
+	h := a.Handler()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/findings/5/dismiss", strings.NewReader(`{invalid`))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status: want 400, got %d", rec.Code)
+	}
+}
+
+func TestHandleDismissFinding_StoreError(t *testing.T) {
+	a := newTestAPI(&mockStore{dismissErr: errors.New("db down")})
+	h := a.Handler()
+
+	body := strings.NewReader(`{"reason":"dup"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/findings/5/dismiss", body)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status: want 500, got %d", rec.Code)
+	}
+}
+
+func TestHandleAddHint_OK(t *testing.T) {
+	a := newTestAPI(&mockStore{addNodeID: 42})
+	h := a.Handler()
+
+	body := strings.NewReader(`{"text":"check /admin"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/hints", body)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d", rec.Code)
+	}
+	resp := decodeBody(t, rec)
+	if resp["id"] != float64(42) {
+		t.Errorf("id: want 42, got %v", resp["id"])
+	}
+}
+
+func TestHandleAddHint_EmptyText(t *testing.T) {
+	a := newTestAPI(&mockStore{})
+	h := a.Handler()
+
+	body := strings.NewReader(`{"text":""}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/hints", body)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status: want 400, got %d", rec.Code)
+	}
+}
+
+func TestHandleAddHint_BadBody(t *testing.T) {
+	a := newTestAPI(&mockStore{})
+	h := a.Handler()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/hints", strings.NewReader(`not json`))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status: want 400, got %d", rec.Code)
+	}
+}
+
+func TestHandleAddHint_StoreError(t *testing.T) {
+	a := newTestAPI(&mockStore{addNodeErr: errors.New("db down")})
+	h := a.Handler()
+
+	body := strings.NewReader(`{"text":"some hint"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/hints", body)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status: want 500, got %d", rec.Code)
+	}
+}
+
+func TestHandleAddConstraint_OK(t *testing.T) {
+	a := newTestAPI(&mockStore{addConstraintID: 7})
+	h := a.Handler()
+
+	body := strings.NewReader(`{"kind":"scope","text":"no prod"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/constraints", body)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d", rec.Code)
+	}
+	resp := decodeBody(t, rec)
+	if resp["id"] != float64(7) {
+		t.Errorf("id: want 7, got %v", resp["id"])
+	}
+}
+
+func TestHandleAddConstraint_MissingKind(t *testing.T) {
+	a := newTestAPI(&mockStore{})
+	h := a.Handler()
+
+	body := strings.NewReader(`{"text":"no prod"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/constraints", body)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status: want 400, got %d", rec.Code)
+	}
+}
+
+func TestHandleAddConstraint_MissingText(t *testing.T) {
+	a := newTestAPI(&mockStore{})
+	h := a.Handler()
+
+	body := strings.NewReader(`{"kind":"scope"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/constraints", body)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status: want 400, got %d", rec.Code)
+	}
+}
+
+func TestHandleAddConstraint_BadBody(t *testing.T) {
+	a := newTestAPI(&mockStore{})
+	h := a.Handler()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/constraints", strings.NewReader(`{nope`))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status: want 400, got %d", rec.Code)
+	}
+}
+
+func TestHandleAddConstraint_StoreError(t *testing.T) {
+	a := newTestAPI(&mockStore{addConstraintErr: errors.New("db down")})
+	h := a.Handler()
+
+	body := strings.NewReader(`{"kind":"scope","text":"no prod"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/constraints", body)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status: want 500, got %d", rec.Code)
+	}
+}
+
+func TestHandleSearch_MatchesAssets(t *testing.T) {
+	ms := &mockStore{
+		listFindings: []tools.Finding{},
+		listAssets:   []tools.Asset{{ID: 1, Type: "domain", Label: "example.com"}},
+		listNodes:    []tools.Node{},
+	}
+	a := newTestAPI(ms)
+	h := a.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/search?q=example", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	body := decodeBody(t, rec)
+	results := body["results"].([]any)
+	if len(results) != 1 {
+		t.Fatalf("want 1 result, got %d", len(results))
+	}
+	r0 := results[0].(map[string]any)
+	if r0["type"] != "asset" {
+		t.Errorf("type: want asset, got %v", r0["type"])
+	}
+}
+
+func TestHandleSearch_FiveFindingLimit(t *testing.T) {
+	findings := make([]tools.Finding, 10)
+	for i := range findings {
+		findings[i] = tools.Finding{ID: int64(i + 1), VulnClass: "xss", Severity: "high", Summary: "xss variant"}
+	}
+	ms := &mockStore{
+		listFindings: findings,
+		listAssets:   []tools.Asset{},
+		listNodes:    []tools.Node{},
+	}
+	a := newTestAPI(ms)
+	h := a.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/search?q=xss", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	body := decodeBody(t, rec)
+	results := body["results"].([]any)
+	findingCount := 0
+	for _, r := range results {
+		if r.(map[string]any)["type"] == "finding" {
+			findingCount++
+		}
+	}
+	if findingCount != 5 {
+		t.Errorf("finding results: want 5, got %d", findingCount)
+	}
+}
+
+func TestHandleSearch_FiveNodeLimit(t *testing.T) {
+	nodes := make([]tools.Node, 10)
+	for i := range nodes {
+		nodes[i] = tools.Node{
+			ID:      int64(i + 1),
+			Kind:    "goal",
+			State:   "open",
+			Payload: map[string]any{"label": "admin related goal", "summary": "admin access"},
+		}
+	}
+	ms := &mockStore{
+		listFindings: []tools.Finding{},
+		listAssets:   []tools.Asset{},
+		listNodes:    nodes,
+	}
+	a := newTestAPI(ms)
+	h := a.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/search?q=admin", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	body := decodeBody(t, rec)
+	results := body["results"].([]any)
+	nodeCount := 0
+	for _, r := range results {
+		if r.(map[string]any)["type"] == "node" {
+			nodeCount++
+		}
+	}
+	if nodeCount != 5 {
+		t.Errorf("node results: want 5, got %d", nodeCount)
+	}
+}
+
+func TestHandleSearch_NodeStateInSubtitle(t *testing.T) {
+	ms := &mockStore{
+		listFindings: []tools.Finding{},
+		listAssets:   []tools.Asset{},
+		listNodes: []tools.Node{
+			{ID: 1, Kind: "intent", State: "done", Payload: map[string]any{"label": "scan ports"}},
+		},
+	}
+	a := newTestAPI(ms)
+	h := a.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/search?q=scan", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	body := decodeBody(t, rec)
+	results := body["results"].([]any)
+	if len(results) != 1 {
+		t.Fatalf("want 1 result, got %d", len(results))
+	}
+	subtitle := results[0].(map[string]any)["subtitle"].(string)
+	if subtitle != "intent — done" {
+		t.Errorf("subtitle: want %q, got %q", "intent — done", subtitle)
+	}
+}
+
+func TestHandleSearch_FindingsError(t *testing.T) {
+	ms := &mockStore{
+		listFindingsErr: errors.New("db fail"),
+		listAssets:      []tools.Asset{},
+		listNodes:       []tools.Node{},
+	}
+	a := newTestAPI(ms)
+	h := a.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/search?q=test", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d (search should be best-effort)", rec.Code)
+	}
+}
+
+func TestHandleFindingDetail_ListError(t *testing.T) {
+	a := newTestAPI(&mockStore{listFindingsErr: errors.New("db fail")})
+	h := a.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/findings/1", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status: want 500, got %d", rec.Code)
+	}
+}
+
+func TestHandleFindings_WithTimestamps(t *testing.T) {
+	ms := &mockStore{
+		listFindings: []tools.Finding{
+			{ID: 1, VulnClass: "xss", Severity: "high", Summary: "stored xss"},
+		},
+	}
+	a := newTestAPI(ms)
+	h := a.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/findings", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d", rec.Code)
+	}
+}
+
+func TestHandleAssetDetail_StoreError(t *testing.T) {
+	a := newTestAPI(&mockStore{listAssetsErr: errors.New("db fail")})
+	h := a.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/assets/1", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status: want 500, got %d", rec.Code)
 	}
 }

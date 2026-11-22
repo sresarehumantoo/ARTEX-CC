@@ -339,3 +339,162 @@ func TestBuildDSLWhereTextFieldUnsupportedOp(t *testing.T) {
 		t.Error("expected error for > operator on text field")
 	}
 }
+
+func TestBuildDSLWhereStatusCodeRange(t *testing.T) {
+	t.Parallel()
+	sql, args, err := buildDSLWhere("status_code>399")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sql != "status_code > $1" {
+		t.Errorf("sql = %q, want %q", sql, "status_code > $1")
+	}
+	if len(args) != 1 {
+		t.Errorf("args count = %d, want 1", len(args))
+	}
+}
+
+func TestBuildDSLWhereStatusCodeNonNumeric(t *testing.T) {
+	t.Parallel()
+	_, _, err := buildDSLWhere("status_code=abc")
+	if err == nil {
+		t.Error("expected error for non-numeric status_code")
+	}
+}
+
+func TestBuildDSLWhereTaskIDUnsupportedOp(t *testing.T) {
+	t.Parallel()
+	_, _, err := buildDSLWhere("task_id>5")
+	if err == nil {
+		t.Error("expected error for > operator on task_id")
+	}
+}
+
+func TestBuildDSLWhereCompanyIDUnsupportedOp(t *testing.T) {
+	t.Parallel()
+	_, _, err := buildDSLWhere("company_id>5")
+	if err == nil {
+		t.Error("expected error for > operator on company_id")
+	}
+}
+
+func TestBuildDSLWhereCompanyIDNonNumeric(t *testing.T) {
+	t.Parallel()
+	_, _, err := buildDSLWhere("company_id=abc")
+	if err == nil {
+		t.Error("expected error for non-numeric company_id")
+	}
+}
+
+func TestBuildDSLWhereTaskIDNonNumeric(t *testing.T) {
+	t.Parallel()
+	_, _, err := buildDSLWhere("task_id=abc")
+	if err == nil {
+		t.Error("expected error for non-numeric task_id")
+	}
+}
+
+func TestBuildDSLWhereUnexpectedRParen(t *testing.T) {
+	t.Parallel()
+	_, _, err := buildDSLWhere(")")
+	if err == nil {
+		t.Error("expected error for unexpected RParen token")
+	}
+}
+
+func TestBuildDSLWhereANDAtStart(t *testing.T) {
+	t.Parallel()
+	_, _, err := buildDSLWhere("AND domain=foo")
+	if err == nil {
+		t.Error("expected error for AND at start")
+	}
+}
+
+func TestBuildDSLWhereORAtStart(t *testing.T) {
+	t.Parallel()
+	_, _, err := buildDSLWhere("OR domain=foo")
+	if err == nil {
+		t.Error("expected error for OR at start")
+	}
+}
+
+func TestBuildDSLWherePortNumericOps(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		input   string
+		wantSQL string
+	}{
+		{"port==443", "port = $1"},
+		{"port!=80", "port != $1"},
+		{"port<1024", "port < $1"},
+		{"port>=8080", "port >= $1"},
+		{"port<=9090", "port <= $1"},
+	} {
+		sql, _, err := buildDSLWhere(tc.input)
+		if err != nil {
+			t.Errorf("%s: unexpected error: %v", tc.input, err)
+			continue
+		}
+		if sql != tc.wantSQL {
+			t.Errorf("%s: sql = %q, want %q", tc.input, sql, tc.wantSQL)
+		}
+	}
+}
+
+func TestBuildDSLWhereQuotedBareSearch(t *testing.T) {
+	t.Parallel()
+	sql, _, err := buildDSLWhere(`"hello world"`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "(domain ILIKE $1 OR ip ILIKE $1 OR url ILIKE $1 OR page_title ILIKE $1)"
+	if sql != want {
+		t.Errorf("sql = %q, want %q", sql, want)
+	}
+}
+
+func TestBuildDSLWhereOrErrorPropagation(t *testing.T) {
+	t.Parallel()
+	_, _, err := buildDSLWhere("domain=foo OR )")
+	if err == nil {
+		t.Error("expected error for OR followed by RParen")
+	}
+}
+
+func TestBuildDSLWhereNestedError(t *testing.T) {
+	t.Parallel()
+	_, _, err := buildDSLWhere("(domain=foo AND )")
+	if err == nil {
+		t.Error("expected error for AND followed by RParen inside parens")
+	}
+}
+
+func TestBuildDSLWhereImplicitANDError(t *testing.T) {
+	t.Parallel()
+	_, _, err := buildDSLWhere("domain=foo (")
+	if err == nil {
+		t.Error("expected error for unclosed paren in implicit AND")
+	}
+}
+
+func TestBuildDSLWhereCompanyIDExact(t *testing.T) {
+	t.Parallel()
+	sql, _, err := buildDSLWhere("company_id==5")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sql != "company_id = $1" {
+		t.Errorf("sql = %q, want %q", sql, "company_id = $1")
+	}
+}
+
+func TestBuildDSLWhereTaskIDExact(t *testing.T) {
+	t.Parallel()
+	sql, _, err := buildDSLWhere("task_id==10")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sql != "$1 = ANY(task_ids)" {
+		t.Errorf("sql = %q, want %q", sql, "$1 = ANY(task_ids)")
+	}
+}

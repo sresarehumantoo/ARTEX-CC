@@ -1,7 +1,9 @@
 package store
 
 import (
+	"context"
 	"net"
+	"strings"
 	"testing"
 )
 
@@ -353,4 +355,59 @@ func TestScopeDomainKindAlias(t *testing.T) {
 	if r.domain != "example.com" {
 		t.Errorf("domain = %q, want %q", r.domain, "example.com")
 	}
+}
+
+func TestAddTaskScopeValidation(t *testing.T) {
+	t.Parallel()
+	s := &Store{}
+	ctx := context.Background()
+
+	t.Run("zero task_id", func(t *testing.T) {
+		err := s.AddTaskScope(ctx, 0, "keyword", "test", "", "")
+		if err == nil || !strings.Contains(err.Error(), "task_id") {
+			t.Errorf("want task_id error, got %v", err)
+		}
+	})
+
+	t.Run("empty value", func(t *testing.T) {
+		err := s.AddTaskScope(ctx, 1, "keyword", "", "", "")
+		if err == nil || !strings.Contains(err.Error(), "value must not be empty") {
+			t.Errorf("want empty value error, got %v", err)
+		}
+	})
+
+	t.Run("unknown kind", func(t *testing.T) {
+		err := s.AddTaskScope(ctx, 1, "bogus", "test", "", "")
+		if err == nil || !strings.Contains(err.Error(), "unknown scope kind") {
+			t.Errorf("want unknown kind error, got %v", err)
+		}
+	})
+
+	t.Run("invalid IP", func(t *testing.T) {
+		err := s.AddTaskScope(ctx, 1, "ip", "not-an-ip", "", "")
+		if err == nil || !strings.Contains(err.Error(), "invalid IP") {
+			t.Errorf("want invalid IP error, got %v", err)
+		}
+	})
+
+	t.Run("invalid CIDR", func(t *testing.T) {
+		err := s.AddTaskScope(ctx, 1, "cidr", "not-a-cidr", "", "")
+		if err == nil || !strings.Contains(err.Error(), "invalid CIDR") {
+			t.Errorf("want invalid CIDR error, got %v", err)
+		}
+	})
+
+	t.Run("invalid subdomain dot only", func(t *testing.T) {
+		err := s.AddTaskScope(ctx, 1, "subdomain", ".", "", "")
+		if err == nil || !strings.Contains(err.Error(), "invalid subdomain") {
+			t.Errorf("want invalid subdomain error, got %v", err)
+		}
+	})
+
+	t.Run("default source is agent", func(t *testing.T) {
+		err := s.AddTaskScope(ctx, 1, "ip", "not-an-ip", "", "")
+		if err == nil || !strings.Contains(err.Error(), "invalid IP") {
+			t.Errorf("want invalid IP error, got %v", err)
+		}
+	})
 }
