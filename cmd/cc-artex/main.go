@@ -251,6 +251,8 @@ func shutdown(t *traffic.Traffic, s *store.Store, timeout time.Duration) {
 func cmdInit(args []string) {
 	fs := flag.NewFlagSet("init", flag.ExitOnError)
 	showVersion := fs.Bool("version", false, "print version and exit")
+	dryRun := fs.Bool("dry-run", false, "show what would be created without creating it")
+	format := fs.String("format", "text", "output format: text or json")
 	pg := pgDSN(fs)
 	goal := fs.String("goal", "", "engagement goal")
 	desc := fs.String("description", "", "target description")
@@ -262,12 +264,22 @@ func cmdInit(args []string) {
 		return
 	}
 
+	if *format != "text" && *format != "json" {
+		fmt.Fprintf(os.Stderr, "unsupported format: %s (use text or json)\n", *format)
+		os.Exit(1)
+	}
+
 	initLogging(false)
 
 	dsn := resolvePG(*pg)
 	if dsn == "" {
 		slog.Error("--pg or CC_ARTEX_PG is required")
 		os.Exit(1)
+	}
+
+	if *dryRun {
+		cmdInitDryRun(*dataDir, dsn, *goal, *desc, *format)
+		return
 	}
 
 	ctx := context.Background()
@@ -299,6 +311,23 @@ func cmdInit(args []string) {
 	certPath, err := generateCA(*dataDir)
 	if err != nil {
 		slog.Warn("failed to generate CA certificate", "err", err)
+	}
+
+	if *format == "json" {
+		info := map[string]any{
+			"task_id":        taskID,
+			"exploration_id": explorationID,
+			"config_path":    filepath.Join(*dataDir, ".cc-artex.json"),
+			"goal":           *goal,
+			"description":    *desc,
+		}
+		if certPath != "" {
+			info["ca_cert_path"] = certPath
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(info)
+		return
 	}
 
 	fmt.Printf("Engagement created:\n")
@@ -352,6 +381,56 @@ func cmdInit(args []string) {
 	fmt.Println("  --data      directory for traffic captures, evidence, and config")
 	fmt.Println("  --proxy     start the MITM recording proxy on ADDR (e.g. :8788)")
 	fmt.Println("  --debug     enable debug-level logging")
+}
+
+func cmdInitDryRun(dataDir, dsn, goal, desc, format string) {
+	configPath := filepath.Join(dataDir, ".cc-artex.json")
+	caDir := filepath.Join(dataDir, "traffic", "_ca")
+	caCertPath := filepath.Join(caDir, "mitmproxy-ca-cert.pem")
+	caKeyPath := filepath.Join(caDir, "mitmproxy-ca.pem")
+
+	type planned struct {
+		Path   string `json:"path"`
+		Action string `json:"action"`
+	}
+	var actions []planned
+
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		actions = append(actions, planned{configPath, "create"})
+	} else {
+		actions = append(actions, planned{configPath, "overwrite"})
+	}
+
+	if _, err := os.Stat(caKeyPath); os.IsNotExist(err) {
+		actions = append(actions, planned{caKeyPath, "create"})
+		actions = append(actions, planned{caCertPath, "create"})
+	} else {
+		actions = append(actions, planned{caCertPath, "exists"})
+	}
+
+	if format == "json" {
+		out := map[string]any{
+			"dry_run":     true,
+			"pg_dsn":      dsn,
+			"goal":        goal,
+			"description": desc,
+			"actions":     actions,
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(out)
+		return
+	}
+
+	fmt.Println("Dry run: the following actions would be performed:")
+	fmt.Println()
+	fmt.Printf("  Database:  connect to PostgreSQL and create engagement\n")
+	fmt.Printf("  Goal:      %s\n", goal)
+	fmt.Printf("  Desc:      %s\n", desc)
+	fmt.Println()
+	for _, a := range actions {
+		fmt.Printf("  [%s] %s\n", a.Action, a.Path)
+	}
 }
 
 func cmdVersion(args []string) {
