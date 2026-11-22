@@ -8,10 +8,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - Go Report Card, Go Reference, and License badges in README
 - Traffic rewrite rule validation tests (`rule_test.go`)
+- API package tests (74% coverage, 49 tests)
+- Good-first-issue templates (#105-#109)
+- GitHub repository topics and metadata
 
 ### Improved
-- Test coverage: config 96%, mcpserver 93.5%, hookvm 89.1%, rewrite 97.6%, evidence 87.9%
-- Fixed goreleaser web build hook (`bash -c` wrapper)
+- Migrated all `log.Printf` calls to structured `slog` in traffic/ and egress/
+- Test coverage: api 74%, config 96%, mcpserver 93.5%, hookvm 89.1%, rewrite 97.6%, evidence 87.9%, egress 98.9%, enrich 80.6%
+- 480+ test functions, 550+ test cases
+
+### Fixed
+- Goreleaser web build hook (`bash -c` wrapper)
+- Missing `Link` import in Settings.tsx
+- Homebrew tap upload permission (skipped until PAT configured)
 
 ## [0.2.0] - 2026-11-21
 
