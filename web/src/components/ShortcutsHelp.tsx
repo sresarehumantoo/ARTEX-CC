@@ -51,6 +51,8 @@ export function ShortcutsHelp({ open, onClose }: { open: boolean; onClose: () =>
   return (
     <div
       ref={overlayRef}
+      role="dialog"
+      aria-label="Keyboard shortcuts"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={e => {
         if (e.target === overlayRef.current) onClose()

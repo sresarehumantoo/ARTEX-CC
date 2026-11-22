@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Download, GitBranch, List, Search, ShieldAlert, X, ChevronLeft, ChevronRight, Server } from 'lucide-react'
 import { AssetGraph } from '../components/AssetGraph'
-import { Spinner } from '../components/ui/spinner'
+
 import { TableSkeleton } from '../components/skeletons/TableSkeleton'
 import { exportAssetCSV } from '../lib/export'
 import { useSearchParams } from 'react-router-dom'
@@ -331,7 +331,7 @@ function DetailPanel({ asset, onClose }: { asset: Asset; onClose: () => void }) 
             </h3>
             {findingsLoading ? (
               <div className="flex items-center gap-2 py-3">
-                <Spinner className="h-4 w-4" />
+                <div className="h-4 w-4 rounded-full bg-slate-300 dark:bg-slate-600 animate-pulse" />
                 <span className="text-sm text-slate-500">Loading findings...</span>
               </div>
             ) : !findings || findings.length === 0 ? (
@@ -512,7 +512,7 @@ export default function Assets() {
           <div className="p-3 md:p-4"><TableSkeleton columns={4} rows={10} /></div>
         ) : viewMode === 'graph' ? (
           graphLoading ? (
-            <div className="flex items-center justify-center h-64"><Spinner className="h-8 w-8" /></div>
+            <TableSkeleton rows={8} columns={5} />
           ) : (
             <AssetGraph assets={graphData?.assets ?? []} onSelectAsset={setSelectedAsset} />
           )

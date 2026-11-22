@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Download, Printer } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Badge, severityVariant } from '../components/ui/badge'
-import { Spinner } from '../components/ui/spinner'
+
 import { getEngagement, getFindings, getAssets, getActivity } from '../lib/api'
 import { generateFullReport, markdownToHtml, wrapHtmlDocument } from '../lib/report'
 import { downloadFile } from '../lib/export'
@@ -355,8 +355,18 @@ export default function Report() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner className="h-8 w-8" />
+      <div className="p-6 space-y-6 animate-pulse">
+        <div className="h-6 w-48 rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-16 rounded-lg bg-slate-200 dark:bg-slate-700" />
+          ))}
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-20 rounded-lg bg-slate-200 dark:bg-slate-700" />
+          ))}
+        </div>
       </div>
     )
   }

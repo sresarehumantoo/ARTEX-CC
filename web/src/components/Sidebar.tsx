@@ -46,7 +46,12 @@ function hasHighSeverity(findingList: Record<string, unknown>[]): boolean {
   })
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean
+  onMobileClose?: () => void
+}
+
+export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const { theme, toggleTheme } = useTheme()
   const [collapsed, setCollapsed] = useState(getInitialCollapsed)
   const sseStatus = useSSEStatus()
@@ -78,8 +83,8 @@ export function Sidebar() {
     })
   }
 
-  const showLabels = collapsed ? 'hidden' : 'hidden md:inline'
-  const showBlock = collapsed ? 'hidden' : 'hidden md:block'
+  const showLabels = mobileOpen ? 'inline' : (collapsed ? 'hidden' : 'hidden md:inline')
+  const showBlock = mobileOpen ? 'block' : (collapsed ? 'hidden' : 'hidden md:block')
 
   const badges: Record<string, { count: number; urgent: boolean }> = {}
   if (engagement) {
@@ -95,9 +100,19 @@ export function Sidebar() {
   }
 
   return (
+    <>
+    {mobileOpen && (
+      <div
+        className="fixed inset-0 z-40 bg-black/50 md:hidden"
+        onClick={onMobileClose}
+        aria-hidden="true"
+      />
+    )}
     <aside className={cn(
       'flex h-screen flex-col bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 transition-all duration-200',
-      collapsed ? 'w-14' : 'w-14 md:w-56',
+      mobileOpen
+        ? 'fixed inset-y-0 left-0 z-50 w-56 shadow-xl'
+        : cn(collapsed ? 'w-14' : 'w-14 md:w-56'),
     )}>
       <div className={cn('flex items-center gap-2 px-3 py-5', !collapsed && 'md:px-5')}>
         <Shield className="h-6 w-6 shrink-0 text-emerald-500" />
@@ -115,6 +130,7 @@ export function Sidebar() {
               key={to}
               to={to}
               end={to === '/'}
+              onClick={() => { if (mobileOpen && onMobileClose) onMobileClose() }}
               className={({ isActive: active }) =>
                 cn(
                   'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
@@ -126,7 +142,7 @@ export function Sidebar() {
             >
               <span className="relative shrink-0">
                 <Icon className="h-4 w-4" />
-                {badge && (
+                {badge && !mobileOpen && (
                   <span
                     className={cn(
                       'absolute -top-1 -right-1.5 block h-2 w-2 rounded-full md:hidden',
@@ -145,7 +161,7 @@ export function Sidebar() {
                 <span
                   className={cn(
                     'ml-auto items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none',
-                    collapsed ? 'hidden' : 'hidden md:inline-flex',
+                    mobileOpen ? 'inline-flex' : (collapsed ? 'hidden' : 'hidden md:inline-flex'),
                     badge.urgent
                       ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
                       : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
@@ -165,6 +181,8 @@ export function Sidebar() {
               'block h-2 w-2 shrink-0 rounded-full',
               sseStatus.connected ? 'bg-emerald-500' : 'bg-rose-500',
             )}
+            role="status"
+            aria-label={sseStatus.connected ? 'Connected to server' : 'Disconnected from server'}
             title={sseStatus.connected ? 'Connected' : 'Disconnected'}
           />
           <span className={cn(showLabels, 'text-xs text-slate-500 dark:text-slate-400')}>
@@ -172,7 +190,7 @@ export function Sidebar() {
           </span>
         </div>
         {sseStatus.lastEvent && (
-          <div className={cn('px-3 py-0.5', collapsed ? 'hidden' : 'hidden md:block')}>
+          <div className={cn('px-3 py-0.5', mobileOpen ? 'block' : (collapsed ? 'hidden' : 'hidden md:block'))}>
             <span className="text-[10px] text-slate-400 dark:text-slate-500">
               Updated {formatRelativeTime(sseStatus.lastEvent)}
             </span>
@@ -183,6 +201,7 @@ export function Sidebar() {
         <button
           type="button"
           onClick={toggleCollapsed}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           className="hidden md:flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200"
         >
           {collapsed ? <ChevronsRight className="h-4 w-4 shrink-0" /> : <ChevronsLeft className="h-4 w-4 shrink-0" />}
@@ -191,6 +210,7 @@ export function Sidebar() {
         <button
           type="button"
           onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200"
         >
           {theme === 'dark' ? (
@@ -202,5 +222,6 @@ export function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   )
 }

@@ -153,6 +153,8 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   return (
     <div
       ref={overlayRef}
+      role="dialog"
+      aria-label="Command palette"
       className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh] bg-black/50 backdrop-blur-sm"
       onClick={e => { if (e.target === overlayRef.current) onClose() }}
     >
@@ -164,6 +166,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search findings, assets, nodes..."
+            aria-label="Search commands and content"
             className="w-full bg-transparent px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none"
           />
         </div>

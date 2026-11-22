@@ -96,6 +96,7 @@ export function DetailDrawer({ node, edges, allNodes, onClose, onSelectNode }: P
         </span>
         <button
           onClick={onClose}
+          aria-label="Close detail panel"
           className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500"
         >
           <X size={16} />
