@@ -2437,6 +2437,9 @@ type TrafficStats struct {
 	EarliestTS     int64          `json:"earliest_ts,omitempty"`
 	LatestTS       int64          `json:"latest_ts,omitempty"`
 	AvgRespSize    int64          `json:"avg_resp_size"`
+	AvgReqSize     int64          `json:"avg_req_size"`
+	TotalReqBytes  int64          `json:"total_req_bytes"`
+	TotalRespBytes int64          `json:"total_resp_bytes"`
 }
 
 // Stats returns aggregate statistics about all captured traffic.
@@ -2446,8 +2449,8 @@ func (t *Traffic) Stats() (*TrafficStats, error) {
 		Methods:     map[string]int{},
 	}
 
-	err := t.db.QueryRow(`SELECT COUNT(*), COUNT(DISTINCT host), COALESCE(MIN(ts),0), COALESCE(MAX(ts),0), COALESCE(AVG(resp_len),0) FROM exchanges`).
-		Scan(&s.TotalExchanges, &s.UniqueHosts, &s.EarliestTS, &s.LatestTS, &s.AvgRespSize)
+	err := t.db.QueryRow(`SELECT COUNT(*), COUNT(DISTINCT host), COALESCE(MIN(ts),0), COALESCE(MAX(ts),0), COALESCE(AVG(resp_len),0), COALESCE(AVG(req_len),0), COALESCE(SUM(req_len),0), COALESCE(SUM(resp_len),0) FROM exchanges`).
+		Scan(&s.TotalExchanges, &s.UniqueHosts, &s.EarliestTS, &s.LatestTS, &s.AvgRespSize, &s.AvgReqSize, &s.TotalReqBytes, &s.TotalRespBytes)
 	if err != nil {
 		return nil, err
 	}

@@ -118,12 +118,30 @@ func TestWriteHealthText_PGFailed(t *testing.T) {
 
 func TestRunHealthChecks_NoDSN(t *testing.T) {
 	os.Unsetenv("CC_ARTEX_PG")
-	r := runHealthChecks("", 5*time.Second)
+	r := runHealthChecks("", t.TempDir(), 5*time.Second)
 	if r.Status != "fail" {
 		t.Errorf("status = %q, want fail", r.Status)
 	}
 	if r.Checks["pg"].Status != "fail" {
 		t.Errorf("pg status = %q, want fail", r.Checks["pg"].Status)
+	}
+}
+
+func TestCheckTrafficDB_NotPresent(t *testing.T) {
+	result := healthResult{
+		Status: "ok",
+		Checks: make(map[string]hcEntry),
+	}
+	checkTrafficDB(&result, t.TempDir())
+	if result.Status != "ok" {
+		t.Errorf("status = %q, want ok", result.Status)
+	}
+	e, ok := result.Checks["traffic_db"]
+	if !ok {
+		t.Fatal("expected traffic_db check")
+	}
+	if e.Detail != "not present" {
+		t.Errorf("detail = %q, want 'not present'", e.Detail)
 	}
 }
 

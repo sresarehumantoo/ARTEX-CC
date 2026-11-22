@@ -270,12 +270,49 @@ func TestTrafficToolsAllRegistered(t *testing.T) {
 		"traffic_search", "traffic_get", "traffic_blob",
 		"traffic_messages", "traffic_replay", "traffic_hosts",
 		"traffic_har_export", "traffic_stats", "traffic_timeline",
-		"traffic_patterns",
+		"traffic_patterns", "traffic_clear",
 	}
 	for _, name := range expected {
 		if _, ok := reg.Lookup(name); !ok {
 			t.Errorf("expected %s to be registered", name)
 		}
+	}
+}
+
+func TestTrafficClearMissingHost(t *testing.T) {
+	t.Parallel()
+	reg := NewRegistry()
+	RegisterTrafficTools(reg, nil, &mockStore{}, 1)
+
+	tool, ok := reg.Lookup("traffic_clear")
+	if !ok {
+		t.Fatal("traffic_clear not found")
+	}
+
+	r, err := tool.Run(context.Background(), json.RawMessage(`{"host": ""}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !r.IsError {
+		t.Fatal("expected error for missing host")
+	}
+	if !strings.Contains(r.Content, "host is required") {
+		t.Errorf("expected host required, got: %s", r.Content)
+	}
+}
+
+func TestTrafficClearInvalidJSON(t *testing.T) {
+	t.Parallel()
+	reg := NewRegistry()
+	RegisterTrafficTools(reg, nil, &mockStore{}, 1)
+
+	tool, _ := reg.Lookup("traffic_clear")
+	r, err := tool.Run(context.Background(), json.RawMessage(`{bad`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !r.IsError {
+		t.Fatal("expected error for invalid JSON")
 	}
 }
 

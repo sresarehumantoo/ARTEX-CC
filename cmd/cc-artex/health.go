@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "modernc.org/sqlite"
 )
 
 type healthResult struct {
@@ -28,6 +30,7 @@ type hcEntry struct {
 func cmdHealth(args []string) {
 	fs := flag.NewFlagSet("health", flag.ExitOnError)
 	pg := pgDSN(fs)
+	dataDir := fs.String("data", "", "data directory (for traffic DB health check)")
 	format := fs.String("format", "text", "output format: text or json")
 	timeout := fs.Duration("timeout", 5*time.Second, "health check timeout (e.g. 5s, 10s, 30s)")
 	fs.Parse(args)
@@ -37,7 +40,7 @@ func cmdHealth(args []string) {
 		os.Exit(1)
 	}
 
-	result := runHealthChecks(*pg, *timeout)
+	result := runHealthChecks(*pg, *dataDir, *timeout)
 	if *format == "json" {
 		writeHealthJSON(os.Stdout, result)
 	} else {
@@ -48,7 +51,7 @@ func cmdHealth(args []string) {
 	}
 }
 
-func runHealthChecks(pgFlag string, timeout time.Duration) healthResult {
+func runHealthChecks(pgFlag, dataDir string, timeout time.Duration) healthResult {
 	result := healthResult{
 		Status: "ok",
 		Checks: make(map[string]hcEntry),
@@ -111,7 +114,47 @@ func runHealthChecks(pgFlag string, timeout time.Duration) healthResult {
 		result.Checks["engagements"] = hcEntry{Status: "ok", Detail: fmt.Sprintf("%d", count)}
 	}
 
+	if dataDir != "" {
+		checkTrafficDB(&result, dataDir)
+	}
+
 	return result
+}
+
+func checkTrafficDB(result *healthResult, dataDir string) {
+	indexPath := filepath.Join(dataDir, "traffic", "_index", "index.sqlite")
+
+	info, err := os.Stat(indexPath)
+	if os.IsNotExist(err) {
+		result.Checks["traffic_db"] = hcEntry{Status: "ok", Detail: "not present"}
+		return
+	}
+	if err != nil {
+		result.Checks["traffic_db"] = hcEntry{Status: "fail", Error: err.Error()}
+		result.Status = "fail"
+		return
+	}
+
+	db, err := sql.Open("sqlite", indexPath+"?mode=ro")
+	if err != nil {
+		result.Checks["traffic_db"] = hcEntry{Status: "fail", Error: err.Error()}
+		result.Status = "fail"
+		return
+	}
+	defer db.Close()
+
+	var exchanges int
+	if err := db.QueryRow("SELECT COUNT(*) FROM exchanges").Scan(&exchanges); err != nil {
+		result.Checks["traffic_db"] = hcEntry{Status: "fail", Error: err.Error()}
+		result.Status = "fail"
+		return
+	}
+
+	sizeMB := float64(info.Size()) / (1024 * 1024)
+	result.Checks["traffic_db"] = hcEntry{
+		Status: "ok",
+		Detail: fmt.Sprintf("%d exchanges, %.1f MB", exchanges, sizeMB),
+	}
 }
 
 func writeHealthJSON(w io.Writer, r healthResult) {
@@ -148,5 +191,13 @@ func writeHealthText(w io.Writer, r healthResult) {
 
 	if e, ok := r.Checks["engagements"]; ok {
 		fmt.Fprintf(w, "Engagements: %s\n", e.Detail)
+	}
+
+	if e, ok := r.Checks["traffic_db"]; ok {
+		if e.Status == "fail" {
+			fmt.Fprintf(w, "Traffic DB: FAILED (%s)\n", e.Error)
+		} else {
+			fmt.Fprintf(w, "Traffic DB: %s\n", e.Detail)
+		}
 	}
 }
