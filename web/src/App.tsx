@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Routes, Route } from 'react-router-dom'
+import { Menu } from 'lucide-react'
 import { CommandPalette } from './components/CommandPalette'
 import { ConnectionBanner } from './components/ConnectionBanner'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -36,6 +37,7 @@ export default function App() {
   useKeyboardShortcuts()
   useDocumentTitle()
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
   const toggleHelp = useCallback(() => setShowHelp(v => !v), [])
@@ -53,8 +55,17 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-white dark:bg-slate-900">
-      <Sidebar />
+      <Sidebar mobileOpen={mobileMenuOpen} onMobileClose={() => setMobileMenuOpen(false)} />
       <main className="flex-1 overflow-y-auto">
+        <button
+          type="button"
+          className="md:hidden flex items-center gap-2 px-3 py-2 border-b border-slate-200 dark:border-slate-800 w-full bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+          <span className="text-sm font-medium">Menu</span>
+        </button>
         <ConnectionBanner />
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>

@@ -7,7 +7,7 @@ import { Input } from '../components/ui/input'
 import { ScrollArea } from '../components/ui/scroll-area'
 import { Select } from '../components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
-import { Spinner } from '../components/ui/spinner'
+
 import { TableSkeleton } from '../components/skeletons/TableSkeleton'
 import { type TrafficFilters, useTraffic, useTrafficDetail } from '../hooks/useTraffic'
 import { useToast } from '../hooks/useToast'
@@ -419,7 +419,18 @@ export default function Traffic() {
             </div>
             <div className="flex min-h-0 flex-1">
               {detailLoading || !detail ? (
-                <div className="flex flex-1 items-center justify-center"><Spinner className="h-8 w-8" /></div>
+                <div className="flex-1 p-4 space-y-4 animate-pulse">
+                  <div className="flex items-center gap-2">
+                    <div className="h-5 w-12 rounded bg-slate-200 dark:bg-slate-700" />
+                    <div className="h-5 w-48 rounded bg-slate-200 dark:bg-slate-700" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-3 w-full rounded bg-slate-200 dark:bg-slate-700" />
+                    <div className="h-3 w-3/4 rounded bg-slate-200 dark:bg-slate-700" />
+                    <div className="h-3 w-5/6 rounded bg-slate-200 dark:bg-slate-700" />
+                  </div>
+                  <div className="h-24 rounded bg-slate-200 dark:bg-slate-700" />
+                </div>
               ) : (
                 <>
                   <HttpPanel label="Request" content={detail.request} showCurl />
