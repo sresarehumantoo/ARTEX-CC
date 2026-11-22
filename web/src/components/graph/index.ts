@@ -1,3 +1,4 @@
+export { NodeTooltip } from './NodeTooltip'
 export { GoalNode } from './GoalNode'
 export { IntentNode } from './IntentNode'
 export { FactNode } from './FactNode'

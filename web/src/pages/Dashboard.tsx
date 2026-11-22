@@ -11,6 +11,7 @@ import {
   Wrench,
   CheckCircle,
   Target,
+  Crosshair,
 } from 'lucide-react'
 import { DashboardSkeleton } from '../components/skeletons/DashboardSkeleton'
 import { Spinner } from '../components/ui/spinner'
@@ -540,15 +541,6 @@ export function Dashboard() {
     <div className="space-y-4 md:space-y-6 p-3 md:p-6">
       <h1 className="text-lg md:text-2xl font-semibold text-slate-900 dark:text-slate-100">Dashboard</h1>
 
-      {e?.goal && (
-        <div>
-          <p className="text-base md:text-lg text-slate-600 dark:text-slate-300">{e.goal}</p>
-          {e.description && (
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{e.description}</p>
-          )}
-        </div>
-      )}
-
       {engagement.isLoading && <DashboardSkeleton />}
       {engagement.isError && (
         <p className="text-sm text-rose-400">
@@ -558,6 +550,20 @@ export function Dashboard() {
 
       {e && (
         <>
+          {e.goal && (
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 md:p-4">
+              <div className="flex items-start gap-3">
+                <Crosshair className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{e.goal}</h2>
+                  {e.description && (
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{e.description}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard icon={Server} title="Assets" value={e.facts} to="/assets">
               {e.recent_facts.length > 0 && (

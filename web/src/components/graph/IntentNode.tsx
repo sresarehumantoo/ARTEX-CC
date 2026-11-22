@@ -1,6 +1,8 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { Zap } from 'lucide-react'
 import type { GraphNode } from '../../lib/types'
+import { truncate } from '../../lib/utils'
+import { NodeTooltip } from './NodeTooltip'
 
 function stateBadge(state: string) {
   switch (state) {
@@ -17,7 +19,8 @@ export function IntentNode({ data }: NodeProps & { data: GraphNode }) {
   const text = (data.payload.text ?? data.payload.summary ?? '') as string
   const isRunning = data.state === 'running'
   return (
-    <div className={`w-[180px] bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-[3px] border-blue-500 overflow-hidden ${isRunning ? 'node-running' : ''}`}>
+    <div className={`group relative w-[180px] bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-[3px] border-blue-500 overflow-hidden ${isRunning ? 'node-running' : ''}`}>
+      <NodeTooltip lines={[`Intent #${data.id}`, truncate(text, 80), `State: ${data.state}`]} />
       <Handle type="target" position={Position.Left} className="!bg-blue-500 !w-2 !h-2" />
       <div className="p-2.5">
         <div className="flex items-center gap-1.5 mb-1">

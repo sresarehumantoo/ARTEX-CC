@@ -1,9 +1,18 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Eye, EyeOff, Copy, Key, Search, X } from 'lucide-react'
+import { Eye, EyeOff, Copy, Key, Search, X, Download } from 'lucide-react'
 import { getCredentials } from '../lib/api'
+import type { Credential } from '../lib/types'
+import { downloadFile } from '../lib/export'
 import { CredentialsSkeleton } from '../components/skeletons/CredentialsSkeleton'
 import { useToast } from '../hooks/useToast'
+
+function exportCredentialsCSV(creds: Credential[]) {
+  const headers = ['Domain', 'Username', 'Source', 'Note']
+  const rows = creds.map(c => [c.domain, c.username, c.source ?? '', c.note ?? ''])
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n')
+  downloadFile(csv, `credentials-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv')
+}
 
 export default function Credentials() {
   const { toast } = useToast()
@@ -49,6 +58,27 @@ export default function Credentials() {
         <div className="flex items-center gap-2">
           <Key className="h-5 w-5 text-slate-500 dark:text-slate-400" />
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Credentials</h1>
+          {credentials && (
+            <span className="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">
+              {credentials.length}
+            </span>
+          )}
+          <div className="ml-auto">
+            <button
+              onClick={() => {
+                if (credentials) {
+                  exportCredentialsCSV(credentials)
+                  toast('Credentials exported (passwords excluded)', { variant: 'success' })
+                }
+              }}
+              disabled={!credentials || credentials.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Export credentials as CSV (passwords excluded)"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export
+            </button>
+          </div>
         </div>
       </div>
 

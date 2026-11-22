@@ -8,6 +8,7 @@ import {
   KeyRound,
   LayoutDashboard,
   Moon,
+  Search,
   Server,
   ShieldAlert,
   Sun,
@@ -208,6 +209,21 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
               })}
             </div>
           ))}
+
+          {groups.length > 0 && (
+            <button
+              className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-t border-slate-100 dark:border-slate-800"
+              onClick={() => {
+                navigate(`/search?q=${encodeURIComponent(query)}`)
+                onClose()
+              }}
+            >
+              <Search className="h-4 w-4 shrink-0 text-slate-400" />
+              <span className="text-sm text-slate-600 dark:text-slate-400">
+                View all results for &ldquo;{query}&rdquo;
+              </span>
+            </button>
+          )}
 
           {debouncedQuery.length < 2 && filteredActions.length > 0 && (
             <div>
