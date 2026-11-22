@@ -5,6 +5,7 @@ import { AssetGraph } from '../components/AssetGraph'
 import { Spinner } from '../components/ui/spinner'
 import { TableSkeleton } from '../components/skeletons/TableSkeleton'
 import { exportAssetCSV } from '../lib/export'
+import { useSearchParams } from 'react-router-dom'
 import { useToast } from '../hooks/useToast'
 import { cn } from '../lib/utils'
 import { fetchAssets, getAssetFindings, type Asset } from '../lib/api'
@@ -361,17 +362,33 @@ function DetailPanel({ asset, onClose }: { asset: Asset; onClose: () => void }) 
 
 export default function Assets() {
   const { toast } = useToast()
-  const [typeFilter, setTypeFilter] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [typeFilter, setTypeFilter] = useState(searchParams.get('type') ?? '')
   const [dslInput, setDslInput] = useState('')
   const [page, setPage] = useState(0)
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('table')
+  const pendingAssetId = useRef<number | null>(
+    searchParams.get('id') ? Number(searchParams.get('id')) : null
+  )
 
   const debouncedDsl = useDebounce(dslInput, 300)
 
   useEffect(() => {
     setPage(0)
   }, [typeFilter, debouncedDsl])
+
+  const selectedId = selectedAsset?.id ?? null
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams()
+      if (typeFilter) params.set('type', typeFilter)
+      if (selectedId != null) params.set('id', String(selectedId))
+      setSearchParams(params, { replace: true })
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [typeFilter, selectedId, setSearchParams])
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['assets', typeFilter, debouncedDsl, page],
@@ -406,6 +423,14 @@ export default function Assets() {
   const start = page * PAGE_SIZE + 1
   const end = Math.min((page + 1) * PAGE_SIZE, total)
   const headers = COLUMN_HEADERS[typeFilter] ?? COLUMN_HEADERS['']
+
+  useEffect(() => {
+    if (pendingAssetId.current != null && assets.length > 0) {
+      const match = assets.find(a => a.id === pendingAssetId.current)
+      if (match) setSelectedAsset(match)
+      pendingAssetId.current = null
+    }
+  }, [assets])
 
   const handleClose = useCallback(() => setSelectedAsset(null), [])
 

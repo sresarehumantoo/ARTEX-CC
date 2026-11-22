@@ -110,11 +110,23 @@ export default function Findings() {
   const { toast } = useToast()
   const { data: findings = [], isLoading, error } = useFindings()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [severityFilter, setSeverityFilter] = useState<Severity | null>(null)
+  const [severityFilter, setSeverityFilter] = useState<Severity | null>(() => {
+    const param = searchParams.get('severity')
+    if (param && param in SEVERITY_ORDER) return param as Severity
+    return null
+  })
   const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
-  const [sortField, setSortField] = useState<SortField>('severity')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [sortField, setSortField] = useState<SortField>(() => {
+    const param = searchParams.get('sort')
+    if (param === 'severity' || param === 'id') return param
+    return 'severity'
+  })
+  const [sortDir, setSortDir] = useState<SortDir>(() => {
+    const param = searchParams.get('dir')
+    if (param === 'asc' || param === 'desc') return param
+    return 'asc'
+  })
   const [selectedId, setSelectedId] = useState<number | null>(() => {
     const idParam = searchParams.get('id')
     if (idParam) {
@@ -126,16 +138,16 @@ export default function Findings() {
   const [showTimeline, setShowTimeline] = useState(true)
 
   useEffect(() => {
-    if (selectedId !== null) {
-      setSearchParams({ id: String(selectedId) }, { replace: true })
-    } else {
-      setSearchParams(prev => {
-        const next = new URLSearchParams(prev)
-        next.delete('id')
-        return next
-      }, { replace: true })
-    }
-  }, [selectedId, setSearchParams])
+    const timer = setTimeout(() => {
+      const next = new URLSearchParams()
+      if (selectedId !== null) next.set('id', String(selectedId))
+      if (sortField !== 'severity') next.set('sort', sortField)
+      if (sortDir !== 'asc') next.set('dir', sortDir)
+      if (severityFilter) next.set('severity', severityFilter)
+      setSearchParams(next, { replace: true })
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [selectedId, sortField, sortDir, severityFilter, setSearchParams])
 
   const { data: detail, isLoading: detailLoading } = useFindingDetail(selectedId)
 

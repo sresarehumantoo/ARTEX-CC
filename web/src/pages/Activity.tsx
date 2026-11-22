@@ -1,13 +1,41 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, ChevronRight, Clock, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, Clock, Download, Search, X } from 'lucide-react'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
 import { ActivitySkeleton } from '../components/skeletons/ActivitySkeleton'
 import { getActivity } from '../lib/api'
+import { downloadFile } from '../lib/export'
+import { useToast } from '../hooks/useToast'
+import { cn } from '../lib/utils'
 import type { Activity as ActivityType } from '../lib/types'
+
+const KIND_COLORS: Record<string, string> = {
+  finding: 'bg-rose-500/15 text-rose-500',
+  intent: 'bg-blue-500/15 text-blue-500',
+  asset: 'bg-amber-500/15 text-amber-500',
+  node: 'bg-emerald-500/15 text-emerald-500',
+  edge: 'bg-violet-500/15 text-violet-500',
+  coverage: 'bg-cyan-500/15 text-cyan-500',
+}
+
+function exportActivityCSV(items: ActivityType[]) {
+  const headers = ['Timestamp', 'Kind', 'Tool', 'Summary', 'Detail', 'Node ID', 'Worker', 'Error']
+  const rows = items.map(a => [
+    a.created_at ? new Date(a.created_at).toISOString() : '',
+    a.kind,
+    a.tool,
+    a.summary,
+    a.detail ?? '',
+    a.node_id != null ? String(a.node_id) : '',
+    a.worker ?? '',
+    a.is_error ? 'true' : 'false',
+  ])
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n')
+  downloadFile(csv, `activity-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv')
+}
 
 function relativeTime(iso: string): string {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
@@ -103,6 +131,7 @@ export default function Activity() {
   const [searchText, setSearchText] = useState('')
   const [seenCount, setSeenCount] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const { toast } = useToast()
 
   const { data, isLoading, isError, error, dataUpdatedAt } = useQuery({
     queryKey: ['activity', limit, kindFilter],
@@ -151,6 +180,15 @@ export default function Activity() {
     return Array.from(tools).sort()
   }, [data])
 
+  const kindCounts = useMemo(() => {
+    if (!data) return {} as Record<string, number>
+    const counts: Record<string, number> = {}
+    for (const a of data) {
+      counts[a.kind] = (counts[a.kind] ?? 0) + 1
+    }
+    return counts
+  }, [data])
+
   const filtered = useMemo(() => {
     if (!data) return []
     let items = data
@@ -190,6 +228,20 @@ export default function Activity() {
             Live
           </span>
         )}
+        <div className="ml-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!filtered.length}
+            onClick={() => {
+              exportActivityCSV(filtered)
+              toast('Activity exported', { variant: 'success' })
+            }}
+          >
+            <Download className="h-4 w-4 mr-1" />
+            Download
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
@@ -240,6 +292,16 @@ export default function Activity() {
           )}
         </div>
       </div>
+
+      {Object.keys(kindCounts).length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 px-3 md:px-4 py-1.5 border-b border-slate-200 dark:border-slate-800 text-xs">
+          {Object.entries(kindCounts).map(([kind, count]) => (
+            <span key={kind} className={cn('rounded-full px-2 py-0.5 font-medium', KIND_COLORS[kind] ?? 'bg-slate-500/15 text-slate-500')}>
+              {kind} {count}
+            </span>
+          ))}
+        </div>
+      )}
 
       {isLoading && <ActivitySkeleton />}
 
