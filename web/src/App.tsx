@@ -15,6 +15,7 @@ import { useSSERefresh } from './hooks/useSSERefresh'
 import { AUTH_REQUIRED_EVENT, checkAuthStatus } from './lib/auth'
 import { Dashboard } from './pages/Dashboard'
 
+const Tasks = lazy(() => import('./pages/Tasks'))
 const Graph = lazy(() => import('./pages/Graph'))
 const Findings = lazy(() => import('./pages/Findings'))
 const Traffic = lazy(() => import('./pages/Traffic'))
@@ -106,6 +107,7 @@ function MainLayout() {
                 <Route path="/coverage" element={<Coverage />} />
                 <Route path="/credentials" element={<Credentials />} />
                 <Route path="/report" element={<Report />} />
+                <Route path="/tasks" element={<Tasks />} />
                 <Route path="/chat" element={<Chat />} />
                 <Route path="/agents" element={<Agents />} />
                 <Route path="/mcp" element={<Mcp />} />

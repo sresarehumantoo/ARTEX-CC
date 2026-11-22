@@ -71,6 +71,7 @@ func (a *API) Handler() http.Handler {
 	a.registerConstraintsRoutes(mux)
 	a.registerHintsRoutes(mux)
 	a.registerEventsRoutes(mux)
+	a.registerTasksRoutes(mux)
 	if a.chat != nil {
 		a.registerChatRoutes(mux)
 	}
