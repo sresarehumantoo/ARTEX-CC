@@ -73,9 +73,9 @@ type TransparentTCPConfig struct {
 	origDst func(conn net.Conn) (net.IP, int, error)
 }
 
-// TransparentTCPConfigFromEnv parses ARTEX_TRANSPARENT_TCP_ENABLED and
+// transparentTCPConfigFromEnv parses ARTEX_TRANSPARENT_TCP_ENABLED and
 // ARTEX_TRANSPARENT_TCP_ADDR. Returns (cfg, false) when disabled (default).
-func TransparentTCPConfigFromEnv() (TransparentTCPConfig, bool) {
+func transparentTCPConfigFromEnv() (TransparentTCPConfig, bool) {
 	rawEnabled := strings.ToLower(strings.TrimSpace(os.Getenv(TransparentTCPEnabledEnv)))
 	rawAddr := strings.TrimSpace(os.Getenv(TransparentTCPAddrEnv))
 	switch rawEnabled {

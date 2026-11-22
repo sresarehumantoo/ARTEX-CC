@@ -102,7 +102,7 @@ func OnRequest(req *Request) error { return nil }`
 func OnResponse(req *Request, resp *Response) error { return nil }`
 
 	t.Run("valid_request_hook", func(t *testing.T) {
-		err := ValidateHookDef(HookDef{
+		err := validateHookDef(HookDef{
 			Name:   "test-hook",
 			Phase:  rewrite.PhaseRequest,
 			Source: validReqSrc,
@@ -113,7 +113,7 @@ func OnResponse(req *Request, resp *Response) error { return nil }`
 	})
 
 	t.Run("valid_response_hook", func(t *testing.T) {
-		err := ValidateHookDef(HookDef{
+		err := validateHookDef(HookDef{
 			Name:   "resp-hook",
 			Phase:  rewrite.PhaseResponse,
 			Source: validRespSrc,
@@ -124,7 +124,7 @@ func OnResponse(req *Request, resp *Response) error { return nil }`
 	})
 
 	t.Run("empty_name", func(t *testing.T) {
-		err := ValidateHookDef(HookDef{
+		err := validateHookDef(HookDef{
 			Name:   "",
 			Phase:  rewrite.PhaseRequest,
 			Source: validReqSrc,
@@ -135,7 +135,7 @@ func OnResponse(req *Request, resp *Response) error { return nil }`
 	})
 
 	t.Run("whitespace_name", func(t *testing.T) {
-		err := ValidateHookDef(HookDef{
+		err := validateHookDef(HookDef{
 			Name:   "   ",
 			Phase:  rewrite.PhaseRequest,
 			Source: validReqSrc,
@@ -146,7 +146,7 @@ func OnResponse(req *Request, resp *Response) error { return nil }`
 	})
 
 	t.Run("invalid_phase", func(t *testing.T) {
-		err := ValidateHookDef(HookDef{
+		err := validateHookDef(HookDef{
 			Name:   "bad-phase",
 			Phase:  rewrite.Phase("invalid"),
 			Source: validReqSrc,
@@ -157,7 +157,7 @@ func OnResponse(req *Request, resp *Response) error { return nil }`
 	})
 
 	t.Run("invalid_source", func(t *testing.T) {
-		err := ValidateHookDef(HookDef{
+		err := validateHookDef(HookDef{
 			Name:   "bad-src",
 			Phase:  rewrite.PhaseRequest,
 			Source: "not valid go",
@@ -190,9 +190,9 @@ func OnRequest(req *Request) error {
 		Response: rewrite.Response{Status: 200, Header: http.Header{}},
 	}
 
-	res, err := DryRunHook(def, in, []byte("trace-key-32-bytes-long-0000000"))
+	res, err := dryRunHook(def, in, []byte("trace-key-32-bytes-long-0000000"))
 	if err != nil {
-		t.Fatalf("DryRunHook: %v", err)
+		t.Fatalf("dryRunHook: %v", err)
 	}
 	if res.Request.Header.Get("X-Dry") != "yes" {
 		t.Fatalf("header not set: %v", res.Request.Header)
@@ -200,7 +200,7 @@ func OnRequest(req *Request) error {
 
 	t.Run("invalid_def_returns_error", func(t *testing.T) {
 		bad := HookDef{Name: "", Phase: rewrite.PhaseRequest, Source: src}
-		_, err := DryRunHook(bad, in, nil)
+		_, err := dryRunHook(bad, in, nil)
 		if err == nil {
 			t.Fatal("expected error for empty name")
 		}
@@ -213,9 +213,9 @@ func OnResponse(req *Request, resp *Response) error {
 	return nil
 }`
 		def := HookDef{ID: 43, Name: "dry-resp", Phase: rewrite.PhaseResponse, Source: respSrc}
-		res, err := DryRunHook(def, in, nil)
+		res, err := dryRunHook(def, in, nil)
 		if err != nil {
-			t.Fatalf("DryRunHook response: %v", err)
+			t.Fatalf("dryRunHook response: %v", err)
 		}
 		if res.Response.Header.Get("X-DryResp") != "done" {
 			t.Fatalf("response header not set: %v", res.Response.Header)
@@ -307,7 +307,7 @@ func TestIsLoopbackRemoteExtended(t *testing.T) {
 func TestCompileHooksDisabledSkipped(t *testing.T) {
 	src := `package hook
 func OnRequest(req *Request) error { return nil }`
-	hs, errs := CompileHooks([]HookDef{
+	hs, errs := compileHooks([]HookDef{
 		{ID: 1, Name: "enabled", Enabled: true, Phase: rewrite.PhaseRequest, Source: src},
 		{ID: 2, Name: "disabled", Enabled: false, Phase: rewrite.PhaseRequest, Source: src},
 	}, nil)
@@ -320,7 +320,7 @@ func OnRequest(req *Request) error { return nil }`
 }
 
 func TestCompileHooksInvalidReportsError(t *testing.T) {
-	_, errs := CompileHooks([]HookDef{
+	_, errs := compileHooks([]HookDef{
 		{ID: 1, Name: "bad", Enabled: true, Phase: rewrite.PhaseRequest, Source: "not go"},
 	}, nil)
 	if len(errs) != 1 {
@@ -334,7 +334,7 @@ func TestCompileHooksInvalidReportsError(t *testing.T) {
 func TestCompileHooksPriorityOrder(t *testing.T) {
 	src := `package hook
 func OnRequest(req *Request) error { return nil }`
-	hs, errs := CompileHooks([]HookDef{
+	hs, errs := compileHooks([]HookDef{
 		{ID: 3, Name: "low-pri", Enabled: true, Phase: rewrite.PhaseRequest, Priority: 10, Source: src},
 		{ID: 1, Name: "high-pri", Enabled: true, Phase: rewrite.PhaseRequest, Priority: 1, Source: src},
 		{ID: 2, Name: "mid-pri", Enabled: true, Phase: rewrite.PhaseRequest, Priority: 5, Source: src},
