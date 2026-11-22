@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { useSSE, type SSEEvent } from './useSSE'
 import { useToast } from './useToast'
+import { incrementUnread } from './useUnreadFindings'
 
 function eventLabel(data: unknown): string | undefined {
   if (data && typeof data === 'object') {
@@ -27,6 +28,7 @@ export function useSSERefresh() {
           queryClient.invalidateQueries({ queryKey: ['engagement'] })
           queryClient.invalidateQueries({ queryKey: ['activity'] })
           queryClient.invalidateQueries({ queryKey: ['coverage'] })
+          incrementUnread()
           toast(label ? `New finding: ${label}` : 'New finding discovered', { variant: 'warning' })
           break
         case 'asset_added':

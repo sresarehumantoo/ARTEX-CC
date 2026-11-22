@@ -2,9 +2,11 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Eye, EyeOff, Copy, Key, Search, X } from 'lucide-react'
 import { getCredentials } from '../lib/api'
-import { Spinner } from '../components/ui/spinner'
+import { CredentialsSkeleton } from '../components/skeletons/CredentialsSkeleton'
+import { useToast } from '../hooks/useToast'
 
 export default function Credentials() {
+  const { toast } = useToast()
   const [filter, setFilter] = useState('')
   const [revealed, setRevealed] = useState<Set<number>>(() => new Set())
 
@@ -38,6 +40,7 @@ export default function Credentials() {
 
   function copyPassword(password: string) {
     navigator.clipboard.writeText(password)
+    toast('Password copied', { variant: 'success' })
   }
 
   return (
@@ -76,9 +79,7 @@ export default function Credentials() {
             Failed to load credentials: {(error as Error).message}
           </div>
         ) : isLoading ? (
-          <div className="flex items-center justify-center h-48">
-            <Spinner className="h-8 w-8" />
-          </div>
+          <CredentialsSkeleton />
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-2 text-slate-500">
             <Key className="h-10 w-10 text-slate-400 dark:text-slate-600" />

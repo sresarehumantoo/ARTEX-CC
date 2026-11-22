@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Settings as SettingsIcon, ShieldCheck, Lock, Info } from 'lucide-react'
 import { getEngagement, getConstraints } from '../lib/api'
 import type { Constraint } from '../lib/types'
-import { Spinner } from '../components/ui/spinner'
+import { Skeleton } from '../components/ui/skeleton'
+import { SettingsSkeleton } from '../components/skeletons/SettingsSkeleton'
 import { cn } from '../lib/utils'
 
 const KIND_COLORS: Record<string, string> = {
@@ -85,7 +86,7 @@ export default function Settings() {
         {engError ? (
           <div className="text-sm text-rose-400">Failed to load engagement: {(engError as Error).message}</div>
         ) : engLoading ? (
-          <div className="flex items-center justify-center h-48"><Spinner className="h-8 w-8" /></div>
+          <SettingsSkeleton />
         ) : (
           <>
             <CollapsibleSection title="Engagement" icon={Info} defaultOpen>
@@ -111,7 +112,10 @@ export default function Settings() {
               {conError ? (
                 <div className="text-sm text-rose-400">Failed to load constraints: {(conError as Error).message}</div>
               ) : conLoading ? (
-                <div className="flex items-center justify-center h-16"><Spinner className="h-6 w-6" /></div>
+                <div className="space-y-2">
+                  <Skeleton className="h-8 rounded-md" />
+                  <Skeleton className="h-8 rounded-md" />
+                </div>
               ) : (
                 <ConstraintsList constraints={constraints ?? []} />
               )}

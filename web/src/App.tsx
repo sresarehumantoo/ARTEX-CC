@@ -6,6 +6,7 @@ import { ShortcutsHelp } from './components/ShortcutsHelp'
 import { Sidebar } from './components/Sidebar'
 import { Spinner } from './components/ui/spinner'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useDocumentTitle } from './hooks/useDocumentTitle'
 import { useSSERefresh } from './hooks/useSSERefresh'
 import { Dashboard } from './pages/Dashboard'
 
@@ -30,6 +31,7 @@ function PageLoader() {
 export default function App() {
   useSSERefresh()
   useKeyboardShortcuts()
+  useDocumentTitle()
 
   const [showHelp, setShowHelp] = useState(false)
   const [showPalette, setShowPalette] = useState(false)

@@ -15,6 +15,11 @@ const SHORTCUTS = [
       { key: '3', label: 'Findings' },
       { key: '4', label: 'Traffic' },
       { key: '5', label: 'Assets' },
+      { key: '6', label: 'Activity' },
+      { key: '7', label: 'Coverage' },
+      { key: '8', label: 'Credentials' },
+      { key: '9', label: 'Report' },
+      { key: '0', label: 'Settings' },
     ],
   },
   {

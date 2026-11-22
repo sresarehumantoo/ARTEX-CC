@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Spinner } from '../components/ui/spinner'
 import { TableSkeleton } from '../components/skeletons/TableSkeleton'
 import { useFindingDetail, useFindings } from '../hooks/useFindings'
+import { useToast } from '../hooks/useToast'
 import { exportCSV, exportJSON } from '../lib/export'
 import { generateReport } from '../lib/report'
 import type { Finding, Severity } from '../lib/types'
@@ -49,6 +50,7 @@ type SortField = 'severity' | 'id'
 type SortDir = 'asc' | 'desc'
 
 export default function Findings() {
+  const { toast } = useToast()
   const { data: findings = [], isLoading, error } = useFindings()
   const [searchParams, setSearchParams] = useSearchParams()
   const [severityFilter, setSeverityFilter] = useState<Severity | null>(null)
@@ -275,8 +277,8 @@ export default function Findings() {
         </div>
 
         <ExportDropdown options={[
-          { label: 'Export CSV', onClick: () => exportCSV(filtered, 'findings.csv') },
-          { label: 'Export JSON', onClick: () => exportJSON(filtered, 'findings.json') },
+          { label: 'Export CSV', onClick: () => { exportCSV(filtered, 'findings.csv'); toast('Exported as CSV', { variant: 'success' }) } },
+          { label: 'Export JSON', onClick: () => { exportJSON(filtered, 'findings.json'); toast('Exported as JSON', { variant: 'success' }) } },
           {
             label: 'Generate Report',
             onClick: () => {
@@ -450,6 +452,7 @@ function DetailPanel({
   loading: boolean
   onClose: () => void
 }) {
+  const { toast } = useToast()
   const [copied, setCopied] = useState(false)
 
   const copyFindingId = useCallback(() => {
@@ -457,8 +460,9 @@ function DetailPanel({
     navigator.clipboard.writeText(`FINDING-${detail.id}`).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
+      toast('Finding ID copied', { variant: 'success' })
     })
-  }, [detail])
+  }, [detail, toast])
 
   if (loading || !detail) {
     return (
