@@ -14,7 +14,7 @@ import '@xyflow/react/dist/style.css'
 import '../graph.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Search, X, Filter } from 'lucide-react'
+import { GitBranch, Search, X, Filter } from 'lucide-react'
 import { GraphSkeleton } from '../components/skeletons/GraphSkeleton'
 import {
   GoalNode,
@@ -245,7 +245,13 @@ export function GraphPage() {
   if (data.nodes.length === 0) {
     return (
       <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="text-slate-400 dark:text-slate-500 text-sm">No exploration nodes yet.</div>
+        <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-500">
+          <GitBranch className="h-12 w-12 text-slate-300 dark:text-slate-700" />
+          <div className="text-center">
+            <p className="text-lg font-medium text-slate-600 dark:text-slate-400">No graph nodes yet</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-500">Nodes will appear as the exploration runs</p>
+          </div>
+        </div>
       </div>
     )
   }

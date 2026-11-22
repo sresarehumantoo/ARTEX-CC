@@ -428,12 +428,16 @@ export default function Assets() {
             <AssetGraph assets={graphData?.assets ?? []} onSelectAsset={setSelectedAsset} />
           )
         ) : assets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 gap-2 text-slate-500">
-            <Server className="h-10 w-10 text-slate-400 dark:text-slate-600" />
-            <p className="text-sm">No assets found</p>
-            {dslInput && (
-              <p className="text-xs mt-1">Try adjusting your search query</p>
-            )}
+          <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-500">
+            <Server className="h-12 w-12 text-slate-300 dark:text-slate-700" />
+            <div className="text-center">
+              <p className="text-lg font-medium text-slate-600 dark:text-slate-400">No assets discovered</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-500">
+                {(dslInput || typeFilter)
+                  ? 'Try adjusting your filters'
+                  : 'Assets will appear as the engagement discovers hosts, services, and endpoints'}
+              </p>
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto">

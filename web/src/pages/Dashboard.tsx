@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
@@ -7,6 +7,7 @@ import {
   GitBranch,
   Layers,
   AlertCircle,
+  Clock,
   Wrench,
   CheckCircle,
   Target,
@@ -290,6 +291,138 @@ function CoverageRing({ coverage, frontierOpen }: { coverage: Record<string, unk
   )
 }
 
+interface TimeBucket {
+  label: string
+  count: number
+}
+
+function FindingsTimeline({ activities }: { activities: Activity[] }) {
+  const buckets = useMemo(() => {
+    const findings = activities
+      .filter(a => a.kind === 'finding' && a.created_at)
+      .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
+
+    if (findings.length < 2) return null
+
+    const first = new Date(findings[0].created_at!).getTime()
+    const last = new Date(findings[findings.length - 1].created_at!).getTime()
+    const rangeMs = last - first
+
+    const HOUR = 3_600_000
+    const DAY = 86_400_000
+
+    let bucketMs: number
+    let formatLabel: (d: Date) => string
+    if (rangeMs < DAY) {
+      bucketMs = HOUR
+      formatLabel = d => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    } else if (rangeMs < 7 * DAY) {
+      bucketMs = 6 * HOUR
+      formatLabel = d => {
+        const day = d.toLocaleDateString([], { weekday: 'short' })
+        const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        return `${day} ${time}`
+      }
+    } else {
+      bucketMs = DAY
+      formatLabel = d => d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+    }
+
+    const bucketStart = Math.floor(first / bucketMs) * bucketMs
+    const bucketEnd = Math.floor(last / bucketMs) * bucketMs + bucketMs
+    const bucketCount = Math.ceil((bucketEnd - bucketStart) / bucketMs)
+
+    const result: TimeBucket[] = []
+    for (let i = 0; i < bucketCount; i++) {
+      result.push({
+        label: formatLabel(new Date(bucketStart + i * bucketMs)),
+        count: 0,
+      })
+    }
+
+    for (const f of findings) {
+      const t = new Date(f.created_at!).getTime()
+      const idx = Math.min(Math.floor((t - bucketStart) / bucketMs), bucketCount - 1)
+      result[idx].count++
+    }
+
+    return result
+  }, [activities])
+
+  if (!buckets) return null
+
+  const maxCount = Math.max(...buckets.map(b => b.count))
+  const totalFindings = buckets.reduce((s, b) => s + b.count, 0)
+
+  const chartHeight = 160
+  const chartPadding = 24
+  const barGap = 2
+  const labelCount = Math.min(5, buckets.length)
+  const labelIndices: number[] = []
+  if (labelCount >= 2) {
+    for (let i = 0; i < labelCount; i++) {
+      labelIndices.push(Math.round((i / (labelCount - 1)) * (buckets.length - 1)))
+    }
+  } else if (buckets.length > 0) {
+    labelIndices.push(0)
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+            <CardTitle>Finding Timeline</CardTitle>
+          </div>
+          <span className="text-sm text-slate-500 dark:text-slate-400">
+            {totalFindings} finding{totalFindings !== 1 ? 's' : ''}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <svg
+          width="100%"
+          height={chartHeight + chartPadding}
+          viewBox={`0 0 ${buckets.length * 20} ${chartHeight + chartPadding}`}
+          preserveAspectRatio="none"
+          className="overflow-visible"
+        >
+          {buckets.map((b, i) => {
+            const barWidth = 20 - barGap
+            const barHeight = maxCount > 0 ? (b.count / maxCount) * chartHeight : 0
+            const x = i * 20 + barGap / 2
+            const y = chartHeight - barHeight
+            return (
+              <rect
+                key={i}
+                x={x}
+                y={y}
+                width={barWidth}
+                height={Math.max(barHeight, b.count > 0 ? 3 : 0)}
+                rx={2}
+                className="fill-emerald-500/80"
+              />
+            )
+          })}
+          {labelIndices.map(idx => (
+            <text
+              key={idx}
+              x={idx * 20 + (20 - barGap) / 2}
+              y={chartHeight + chartPadding - 2}
+              textAnchor="middle"
+              className="fill-slate-500 dark:fill-slate-400"
+              style={{ fontSize: 10 }}
+            >
+              {buckets[idx].label}
+            </text>
+          ))}
+        </svg>
+      </CardContent>
+    </Card>
+  )
+}
+
 function IntentProgressBar({ done, running, open }: { done: number; running: number; open: number }) {
   const total = done + running + open
   if (total === 0) return null
@@ -393,6 +526,8 @@ export function Dashboard() {
             running={e.running_intents.length}
             open={e.open_intents.length}
           />
+
+          <FindingsTimeline activities={activity.data ?? []} />
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <GoalProgress goals={e.goals} />

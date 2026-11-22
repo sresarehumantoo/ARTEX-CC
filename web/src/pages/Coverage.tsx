@@ -85,9 +85,12 @@ function CoverageMatrix({ entries }: { entries: CoverageEntry[] }) {
 
   if (surfaces.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <Target className="h-10 w-10 text-slate-400 dark:text-slate-600 mb-2" />
-        <p className="text-sm">No coverage data recorded yet</p>
+      <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-500">
+        <Target className="h-12 w-12 text-slate-300 dark:text-slate-700" />
+        <div className="text-center">
+          <p className="text-lg font-medium text-slate-600 dark:text-slate-400">No coverage data</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-500">Coverage tracking will show tested and untested attack surfaces</p>
+        </div>
       </div>
     )
   }

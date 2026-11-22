@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, ChevronRight, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, Clock, Search, X } from 'lucide-react'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -222,9 +222,17 @@ export default function Activity() {
           </div>
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
             {filtered.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-slate-500">
-                No matching activity.
-              </p>
+              <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-500">
+                <Clock className="h-12 w-12 text-slate-300 dark:text-slate-700" />
+                <div className="text-center">
+                  <p className="text-lg font-medium text-slate-600 dark:text-slate-400">No activity recorded</p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-500">
+                    {hasFilters
+                      ? 'Try adjusting your filters'
+                      : 'Activity events will appear as the engagement runs'}
+                  </p>
+                </div>
+              </div>
             ) : (
               filtered.map(item => (
                 <ActivityItem key={item.id} item={item} />
