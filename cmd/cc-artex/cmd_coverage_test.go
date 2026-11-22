@@ -344,7 +344,7 @@ func TestWriteHealthText_SchemaFail(t *testing.T) {
 
 func TestRunHealthChecks_InvalidDSN(t *testing.T) {
 	t.Setenv("CC_ARTEX_PG", "")
-	r := runHealthChecks("postgres://invalid:99/db", 100*1e6)
+	r := runHealthChecks("postgres://invalid:99/db", t.TempDir(), 100*1e6)
 	if r.Status != "fail" {
 		t.Fatalf("status = %q, want fail", r.Status)
 	}
