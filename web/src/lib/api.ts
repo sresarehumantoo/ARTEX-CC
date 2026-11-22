@@ -1,8 +1,13 @@
+import { AUTH_REQUIRED_EVENT } from './auth'
 import type { EngagementData, GraphData, Finding, FindingDetail, Asset, TrafficPage, TrafficDetail, Activity, CoverageStats, CoverageGaps, Credential, Constraint } from './types'
 
 export type { Asset } from './types'
 
 const BASE = '/api'
+
+function notifyUnauthorized(res: Response) {
+  if (res.status === 401) window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT))
+}
 
 async function fetchJSON<T>(path: string, params?: Record<string, string>): Promise<T> {
   const url = new URL(path, window.location.origin)
@@ -12,6 +17,7 @@ async function fetchJSON<T>(path: string, params?: Record<string, string>): Prom
     }
   }
   const res = await fetch(url.toString())
+  notifyUnauthorized(res)
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   return res.json()
 }
@@ -54,12 +60,14 @@ export async function fetchAssets(params: {
   sp.set('offset', String(params.offset ?? 0))
 
   const res = await fetch(`${BASE}/assets?${sp}`)
+  notifyUnauthorized(res)
   if (!res.ok) throw new Error(`GET /api/assets: ${res.status}`)
   return res.json()
 }
 
 export async function fetchAsset(id: number): Promise<Asset> {
   const res = await fetch(`${BASE}/assets/${id}`)
+  notifyUnauthorized(res)
   if (!res.ok) throw new Error(`GET /api/assets/${id}: ${res.status}`)
   return res.json()
 }

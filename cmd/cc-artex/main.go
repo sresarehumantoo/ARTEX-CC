@@ -6,11 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -79,6 +81,23 @@ func resolvePG(val string) string {
 	return ""
 }
 
+func envEnabled(name string) bool {
+	v, err := strconv.ParseBool(os.Getenv(name))
+	return err == nil && v
+}
+
+func isLoopbackAddr(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr
+	}
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 func initLogging(debug bool) {
 	level := slog.LevelInfo
 	if debug {
@@ -92,6 +111,7 @@ func cmdServe(args []string) {
 	listen := fs.String("listen", "", "HTTP listen address (or CC_ARTEX_LISTEN env, default localhost:9400)")
 	stdio := fs.Bool("stdio", false, "use stdio transport instead of HTTP")
 	webUI := fs.Bool("web", false, "enable web UI and REST API")
+	authFlag := fs.Bool("auth", false, "require password login for the web UI (or CC_ARTEX_AUTH env; always on for non-loopback listeners)")
 	debug := fs.Bool("debug", false, "enable debug-level logging")
 	showVersion := fs.Bool("version", false, "print version and exit")
 	pg := pgDSN(fs)
@@ -189,7 +209,8 @@ func cmdServe(args []string) {
 	}
 	var restAPI *api.API
 	if *webUI {
-		apiOpts := []api.Option{api.WithDataDir(*dataDir)}
+		authRequired := *authFlag || envEnabled("CC_ARTEX_AUTH") || !isLoopbackAddr(*listen)
+		apiOpts := []api.Option{api.WithDataDir(*dataDir), api.WithAuthRequired(authRequired)}
 		if *claudeBin != "" {
 			apiOpts = append(apiOpts, api.WithClaudeBin(*claudeBin))
 		}

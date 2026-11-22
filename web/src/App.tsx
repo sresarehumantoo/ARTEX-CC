@@ -1,5 +1,5 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import { CommandPalette } from './components/CommandPalette'
 import { ConnectionBanner } from './components/ConnectionBanner'
@@ -9,6 +9,7 @@ import { Sidebar } from './components/Sidebar'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useDocumentTitle } from './hooks/useDocumentTitle'
 import { useSSERefresh } from './hooks/useSSERefresh'
+import { AUTH_REQUIRED_EVENT, checkAuthStatus } from './lib/auth'
 import { Dashboard } from './pages/Dashboard'
 
 const Graph = lazy(() => import('./pages/Graph'))
@@ -22,6 +23,8 @@ const Credentials = lazy(() => import('./pages/Credentials'))
 const Search = lazy(() => import('./pages/Search'))
 const Settings = lazy(() => import('./pages/Settings'))
 const NotFound = lazy(() => import('./pages/NotFound'))
+const Login = lazy(() => import('./pages/Login'))
+const Setup = lazy(() => import('./pages/Setup'))
 
 function PageLoader() {
   return (
@@ -37,7 +40,7 @@ function PageLoader() {
   )
 }
 
-export default function App() {
+function MainLayout() {
   useSSERefresh()
   useKeyboardShortcuts()
   useDocumentTitle()
@@ -94,5 +97,49 @@ export default function App() {
       <ShortcutsHelp open={showHelp} onClose={() => setShowHelp(false)} />
       <CommandPalette open={showPalette} onClose={() => setShowPalette(false)} />
     </div>
+  )
+}
+
+function AuthGate({ children }: { children: ReactNode }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const path = location.pathname
+
+  useEffect(() => {
+    if (path === '/login' || path === '/setup') return
+    let cancelled = false
+    checkAuthStatus()
+      .then(({ initialized, auth_required }) => {
+        if (!cancelled && auth_required && !initialized) navigate('/setup', { replace: true })
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [path, navigate])
+
+  useEffect(() => {
+    const onUnauthorized = () => {
+      if (path === '/login' || path === '/setup') return
+      navigate('/login', { replace: true, state: { from: path + location.search } })
+    }
+    window.addEventListener(AUTH_REQUIRED_EVENT, onUnauthorized)
+    return () => window.removeEventListener(AUTH_REQUIRED_EVENT, onUnauthorized)
+  }, [path, location.search, navigate])
+
+  return children
+}
+
+export default function App() {
+  return (
+    <AuthGate>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/setup" element={<Setup />} />
+          <Route path="*" element={<MainLayout />} />
+        </Routes>
+      </Suspense>
+    </AuthGate>
   )
 }
