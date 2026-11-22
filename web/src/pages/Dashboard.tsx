@@ -14,7 +14,6 @@ import {
   Crosshair,
 } from 'lucide-react'
 import { DashboardSkeleton } from '../components/skeletons/DashboardSkeleton'
-import { Spinner } from '../components/ui/spinner'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Badge, severityVariant } from '../components/ui/badge'
 import { getEngagement, getActivity } from '../lib/api'
@@ -628,7 +627,17 @@ export function Dashboard() {
         </CardHeader>
         <CardContent>
           {activity.isLoading && (
-            <div className="flex items-center justify-center h-64"><Spinner className="h-8 w-8" /></div>
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="animate-pulse flex items-start gap-3 py-2">
+                  <div className="h-2 w-2 rounded-full bg-slate-200 dark:bg-slate-700 mt-1.5 shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3.5 w-3/4 rounded bg-slate-200 dark:bg-slate-700" />
+                    <div className="h-3 w-1/3 rounded bg-slate-200 dark:bg-slate-700" />
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
           {activity.isError && (
             <p className="text-sm text-rose-400">

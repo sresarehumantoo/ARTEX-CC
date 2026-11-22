@@ -102,6 +102,36 @@ export default function Settings() {
                     {engagement.description}
                   </p>
                 )}
+                {engagement?.stats && (
+                  <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">{engagement.stats.nodes}</div>
+                      <div className="text-xs text-slate-500">Nodes</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">{engagement.stats.findings}</div>
+                      <div className="text-xs text-slate-500">Findings</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-rose-500">{engagement.stats.intents_running}</div>
+                      <div className="text-xs text-slate-500">Running</div>
+                    </div>
+                  </div>
+                )}
+                {engagement?.stats && engagement.stats.intents_total > 0 && (
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                      <span>Intent Progress</span>
+                      <span>{engagement.stats.intents_done} / {engagement.stats.intents_total}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        style={{ width: `${(engagement.stats.intents_done / engagement.stats.intents_total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500 dark:text-slate-500">
                   <span>Task {engagement?.task_id}</span>
                   <span>Exploration {engagement?.exploration_id}</span>

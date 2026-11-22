@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import { CommandPalette } from './components/CommandPalette'
 import { ConnectionBanner } from './components/ConnectionBanner'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -21,6 +21,7 @@ const Report = lazy(() => import('./pages/Report'))
 const Credentials = lazy(() => import('./pages/Credentials'))
 const Search = lazy(() => import('./pages/Search'))
 const Settings = lazy(() => import('./pages/Settings'))
+const NotFound = lazy(() => import('./pages/NotFound'))
 
 function PageLoader() {
   return (
@@ -69,7 +70,7 @@ export default function App() {
               <Route path="/report" element={<Report />} />
               <Route path="/search" element={<Search />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
         </ErrorBoundary>
