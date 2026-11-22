@@ -373,7 +373,7 @@ A pentest has a lot of bookkeeping: what you have tested, what you found, what i
 
 ## Configuration
 
-cc-artex reads its PostgreSQL connection string from `--pg` or the `CC_ARTEX_PG` environment variable. The engagement state lives in `.cc-artex.json` in the data directory (`--data`, defaults to `.`).
+cc-artex reads its PostgreSQL connection string from `--pg` or the `CC_ARTEX_PG` environment variable. The engagement state lives in `.cc-artex.json` in the data directory (`--data`, defaults to `.`). Config files can be JSON or TOML (the file extension determines the parser).
 
 ```sh
 # Serve over stdio (Claude Code)

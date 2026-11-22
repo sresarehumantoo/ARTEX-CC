@@ -3,6 +3,7 @@ module github.com/SREsAreHumanToo/cc-artex
 go 1.26.11
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/jackc/pgx/v5 v5.13.0
 	github.com/lqqyt2423/go-mitmproxy v1.9.5
 	github.com/mark3labs/mcp-go v1.6.0
