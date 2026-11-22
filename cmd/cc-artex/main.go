@@ -96,6 +96,7 @@ func cmdServe(args []string) {
 	showVersion := fs.Bool("version", false, "print version and exit")
 	pg := pgDSN(fs)
 	dataDir := fs.String("data", ".", "data directory for traffic, evidence, etc.")
+	claudeBin := fs.String("claude-bin", "", "path to the claude CLI binary (or CC_ARTEX_CLAUDE_BIN env, default claude)")
 	proxyAddr := fs.String("proxy", "", "start the recording proxy on ADDR (e.g., :8788)")
 	shutdownSecs := fs.Int("timeout", 30, "graceful shutdown timeout in seconds")
 	fs.Parse(args)
@@ -103,6 +104,10 @@ func cmdServe(args []string) {
 	if *showVersion {
 		fmt.Println("cc-artex " + version)
 		return
+	}
+
+	if *claudeBin == "" {
+		*claudeBin = os.Getenv("CC_ARTEX_CLAUDE_BIN")
 	}
 
 	if *listen == "" {
@@ -184,7 +189,11 @@ func cmdServe(args []string) {
 	}
 	var restAPI *api.API
 	if *webUI {
-		restAPI = api.New(s, t, engCfg.TaskID, engCfg.ExplorationID)
+		apiOpts := []api.Option{api.WithDataDir(*dataDir)}
+		if *claudeBin != "" {
+			apiOpts = append(apiOpts, api.WithClaudeBin(*claudeBin))
+		}
+		restAPI = api.New(s, t, engCfg.TaskID, engCfg.ExplorationID, apiOpts...)
 		srvOpts = append(srvOpts, mcpserver.WithNotifier(restAPI.NotifyChange))
 	}
 	srv := mcpserver.New(reg, srvOpts...)

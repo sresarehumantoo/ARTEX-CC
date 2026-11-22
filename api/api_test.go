@@ -180,7 +180,7 @@ func newTestAPI(s tools.Store) *API {
 	return New(s, nil, 1, 10)
 }
 
-func decodeBody(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {
+func decodeRecorder(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {
 	t.Helper()
 	var m map[string]any
 	if err := json.NewDecoder(rec.Body).Decode(&m); err != nil {
@@ -224,9 +224,9 @@ func TestCorsMiddleware_PassThrough(t *testing.T) {
 	}
 }
 
-func TestJsonResponse(t *testing.T) {
+func TestWriteJSON(t *testing.T) {
 	rec := httptest.NewRecorder()
-	jsonResponse(rec, http.StatusCreated, map[string]string{"ok": "true"})
+	writeJSON(rec, http.StatusCreated, map[string]string{"ok": "true"})
 
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("status: want 201, got %d", rec.Code)
@@ -241,9 +241,9 @@ func TestJsonResponse(t *testing.T) {
 	}
 }
 
-func TestJsonError(t *testing.T) {
+func TestWriteError(t *testing.T) {
 	rec := httptest.NewRecorder()
-	jsonError(rec, http.StatusBadRequest, "bad input")
+	writeError(rec, http.StatusBadRequest, "bad input")
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status: want 400, got %d", rec.Code)
@@ -314,7 +314,7 @@ func TestHandleEngagement_OK(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	body := decodeBody(t, rec)
+	body := decodeRecorder(t, rec)
 	if body["description"] != "pentest acme" {
 		t.Errorf("description: want 'pentest acme', got %v", body["description"])
 	}
@@ -360,7 +360,7 @@ func TestHandleGraph_OK(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	body := decodeBody(t, rec)
+	body := decodeRecorder(t, rec)
 	nodes, ok := body["nodes"].([]any)
 	if !ok || len(nodes) != 2 {
 		t.Fatalf("nodes: want 2 items, got %v", body["nodes"])
@@ -453,7 +453,7 @@ func TestHandleFindingDetail_OK(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	body := decodeBody(t, rec)
+	body := decodeRecorder(t, rec)
 	if body["vulnclass"] != "xss" {
 		t.Errorf("vulnclass: want xss, got %v", body["vulnclass"])
 	}
@@ -504,7 +504,7 @@ func TestHandleAssets_OK(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	body := decodeBody(t, rec)
+	body := decodeRecorder(t, rec)
 	assets, ok := body["assets"].([]any)
 	if !ok || len(assets) != 1 {
 		t.Fatalf("assets: want 1, got %v", body["assets"])
@@ -612,7 +612,7 @@ func TestHandleTraffic_NilTraffic(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	body := decodeBody(t, rec)
+	body := decodeRecorder(t, rec)
 	if body["total"] != float64(0) {
 		t.Errorf("total: want 0, got %v", body["total"])
 	}
@@ -686,7 +686,7 @@ func TestHandleSearch_EmptyQuery(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	body := decodeBody(t, rec)
+	body := decodeRecorder(t, rec)
 	results, ok := body["results"].([]any)
 	if !ok || len(results) != 0 {
 		t.Fatalf("want empty results, got %v", body["results"])
@@ -712,7 +712,7 @@ func TestHandleSearch_MatchesFindings(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	body := decodeBody(t, rec)
+	body := decodeRecorder(t, rec)
 	results := body["results"].([]any)
 	if len(results) != 1 {
 		t.Fatalf("want 1 result for 'xss', got %d", len(results))
@@ -738,7 +738,7 @@ func TestHandleSearch_MatchesNodes(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
-	body := decodeBody(t, rec)
+	body := decodeRecorder(t, rec)
 	results := body["results"].([]any)
 	if len(results) != 1 {
 		t.Fatalf("want 1 result for 'admin', got %d", len(results))
@@ -759,7 +759,7 @@ func TestHandleCoverage_NoCoverageStatter(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	body := decodeBody(t, rec)
+	body := decodeRecorder(t, rec)
 	entries := body["entries"].([]any)
 	if len(entries) != 0 {
 		t.Fatalf("want empty entries, got %v", entries)
@@ -786,7 +786,7 @@ func TestHandleCoverage_WithStats(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	body := decodeBody(t, rec)
+	body := decodeRecorder(t, rec)
 	entries := body["entries"].([]any)
 	if len(entries) != 1 {
 		t.Fatalf("want 1 entry, got %d", len(entries))
@@ -900,10 +900,7 @@ func TestHandleConstraints_Error(t *testing.T) {
 func TestBroadcast(t *testing.T) {
 	a := newTestAPI(&mockStore{})
 
-	ch := make(chan []byte, 32)
-	a.mu.Lock()
-	a.subscribers[ch] = struct{}{}
-	a.mu.Unlock()
+	ch, _ := a.hub.Subscribe(globalTopic)
 
 	a.Broadcast("test_event", map[string]string{"key": "val"})
 
@@ -927,11 +924,10 @@ func TestBroadcast_NoSubscribers(t *testing.T) {
 func TestBroadcast_FullChannel(t *testing.T) {
 	a := newTestAPI(&mockStore{})
 
-	ch := make(chan []byte, 1)
-	ch <- []byte("full")
-	a.mu.Lock()
-	a.subscribers[ch] = struct{}{}
-	a.mu.Unlock()
+	a.hub.Subscribe(globalTopic)
+	for i := 0; i < subscriberBuffer; i++ {
+		a.Broadcast("fill", nil)
+	}
 
 	a.Broadcast("overflow", nil)
 }
@@ -943,10 +939,7 @@ func TestNotifyChange_GraphTools(t *testing.T) {
 	}
 	a := newTestAPI(ms)
 
-	ch := make(chan []byte, 32)
-	a.mu.Lock()
-	a.subscribers[ch] = struct{}{}
-	a.mu.Unlock()
+	ch, _ := a.hub.Subscribe(globalTopic)
 
 	for _, tool := range []string{"insert_node", "add_hint", "add_intent", "record_fact", "prove_goal", "update_intent"} {
 		a.NotifyChange(tool)
@@ -966,10 +959,7 @@ func TestNotifyChange_GraphTools(t *testing.T) {
 func TestNotifyChange_FindingTools(t *testing.T) {
 	a := newTestAPI(&mockStore{})
 
-	ch := make(chan []byte, 32)
-	a.mu.Lock()
-	a.subscribers[ch] = struct{}{}
-	a.mu.Unlock()
+	ch, _ := a.hub.Subscribe(globalTopic)
 
 	for _, tool := range []string{"add_finding", "confirm_finding", "report_finding"} {
 		a.NotifyChange(tool)
@@ -989,10 +979,7 @@ func TestNotifyChange_FindingTools(t *testing.T) {
 func TestNotifyChange_AssetTools(t *testing.T) {
 	a := newTestAPI(&mockStore{})
 
-	ch := make(chan []byte, 32)
-	a.mu.Lock()
-	a.subscribers[ch] = struct{}{}
-	a.mu.Unlock()
+	ch, _ := a.hub.Subscribe(globalTopic)
 
 	a.NotifyChange("insert_asset")
 	select {
@@ -1010,10 +997,7 @@ func TestNotifyChange_AssetTools(t *testing.T) {
 func TestNotifyChange_DefaultTool(t *testing.T) {
 	a := newTestAPI(&mockStore{})
 
-	ch := make(chan []byte, 32)
-	a.mu.Lock()
-	a.subscribers[ch] = struct{}{}
-	a.mu.Unlock()
+	ch, _ := a.hub.Subscribe(globalTopic)
 
 	a.NotifyChange("some_other_tool")
 	select {
@@ -1047,9 +1031,9 @@ func TestHandleSSE_ReceivesEvents(t *testing.T) {
 
 	deadline := time.After(2 * time.Second)
 	for {
-		a.mu.RLock()
-		n := len(a.subscribers)
-		a.mu.RUnlock()
+		a.hub.mu.RLock()
+		n := len(a.hub.topics[globalTopic])
+		a.hub.mu.RUnlock()
 		if n > 0 {
 			break
 		}
@@ -1092,8 +1076,15 @@ func TestNew(t *testing.T) {
 	if a.explorationID != 99 {
 		t.Errorf("explorationID: want 99, got %d", a.explorationID)
 	}
-	if a.subscribers == nil {
-		t.Fatal("subscribers map not initialized")
+	if a.hub == nil {
+		t.Fatal("hub not initialized")
+	}
+	if a.claudeBin != "claude" {
+		t.Errorf("claudeBin: want claude, got %q", a.claudeBin)
+	}
+	b := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()), WithClaudeBin("/x/claude"))
+	if b.files == nil || b.claudeBin != "/x/claude" {
+		t.Error("options not applied")
 	}
 }
 
@@ -1150,7 +1141,7 @@ func TestHandleDismissFinding_OK(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	resp := decodeBody(t, rec)
+	resp := decodeRecorder(t, rec)
 	if resp["status"] != "ok" {
 		t.Errorf("status: want ok, got %v", resp["status"])
 	}
@@ -1209,7 +1200,7 @@ func TestHandleAddHint_OK(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	resp := decodeBody(t, rec)
+	resp := decodeRecorder(t, rec)
 	if resp["id"] != float64(42) {
 		t.Errorf("id: want 42, got %v", resp["id"])
 	}
@@ -1268,7 +1259,7 @@ func TestHandleAddConstraint_OK(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: want 200, got %d", rec.Code)
 	}
-	resp := decodeBody(t, rec)
+	resp := decodeRecorder(t, rec)
 	if resp["id"] != float64(7) {
 		t.Errorf("id: want 7, got %v", resp["id"])
 	}
@@ -1342,7 +1333,7 @@ func TestHandleSearch_MatchesAssets(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
-	body := decodeBody(t, rec)
+	body := decodeRecorder(t, rec)
 	results := body["results"].([]any)
 	if len(results) != 1 {
 		t.Fatalf("want 1 result, got %d", len(results))
@@ -1370,7 +1361,7 @@ func TestHandleSearch_FiveFindingLimit(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
-	body := decodeBody(t, rec)
+	body := decodeRecorder(t, rec)
 	results := body["results"].([]any)
 	findingCount := 0
 	for _, r := range results {
@@ -1405,7 +1396,7 @@ func TestHandleSearch_FiveNodeLimit(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
-	body := decodeBody(t, rec)
+	body := decodeRecorder(t, rec)
 	results := body["results"].([]any)
 	nodeCount := 0
 	for _, r := range results {
@@ -1433,7 +1424,7 @@ func TestHandleSearch_NodeStateInSubtitle(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
-	body := decodeBody(t, rec)
+	body := decodeRecorder(t, rec)
 	results := body["results"].([]any)
 	if len(results) != 1 {
 		t.Fatalf("want 1 result, got %d", len(results))
