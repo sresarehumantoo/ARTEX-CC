@@ -54,6 +54,9 @@ func (a *API) Handler() http.Handler {
 	mux.HandleFunc("GET /api/credentials", a.handleCredentials)
 	mux.HandleFunc("GET /api/constraints", a.handleConstraints)
 	mux.HandleFunc("GET /api/events", a.handleSSE)
+	mux.HandleFunc("POST /api/findings/{id}/dismiss", a.handleDismissFinding)
+	mux.HandleFunc("POST /api/hints", a.handleAddHint)
+	mux.HandleFunc("POST /api/constraints", a.handleAddConstraint)
 	return corsMiddleware(mux)
 }
 
@@ -99,7 +102,7 @@ func (a *API) NotifyChange(toolName string) {
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
@@ -606,6 +609,66 @@ func (a *API) handleCredentials(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonResponse(w, http.StatusOK, creds)
+}
+
+func (a *API) handleDismissFinding(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(r)
+	if !ok {
+		jsonError(w, http.StatusBadRequest, "invalid finding id")
+		return
+	}
+	var body struct {
+		Reason string `json:"reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		jsonError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	if err := a.store.DismissFinding(r.Context(), id, body.Reason); err != nil {
+		slog.Error("dismiss finding", "err", err)
+		jsonError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	a.Broadcast("store_changed", map[string]any{"action": "dismiss", "finding_id": id})
+	jsonResponse(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (a *API) handleAddHint(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Text string `json:"text"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Text == "" {
+		jsonError(w, http.StatusBadRequest, "text is required")
+		return
+	}
+	payload := map[string]any{"text": body.Text}
+	id, err := a.store.AddNode(r.Context(), a.explorationID, "hint", payload, 0, "open", "web-ui", nil)
+	if err != nil {
+		slog.Error("add hint", "err", err)
+		jsonError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	a.Broadcast("node_added", map[string]any{"id": id, "kind": "hint", "label": body.Text})
+	jsonResponse(w, http.StatusOK, map[string]any{"id": id})
+}
+
+func (a *API) handleAddConstraint(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Kind string `json:"kind"`
+		Text string `json:"text"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Text == "" || body.Kind == "" {
+		jsonError(w, http.StatusBadRequest, "kind and text are required")
+		return
+	}
+	id, err := a.store.AddConstraint(r.Context(), a.explorationID, body.Kind, body.Text, "web-ui")
+	if err != nil {
+		slog.Error("add constraint", "err", err)
+		jsonError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	a.Broadcast("store_changed", map[string]any{"action": "add_constraint", "id": id})
+	jsonResponse(w, http.StatusOK, map[string]any{"id": id})
 }
 
 func (a *API) handleConstraints(w http.ResponseWriter, r *http.Request) {
