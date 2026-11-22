@@ -160,7 +160,7 @@ function GoalProgress({ goals }: { goals: GraphNode[] }) {
               <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${goalStateDot(g.state)}`} />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  {(g.payload.text as string) || `Goal #${g.id}`}
+                  {(g as any).label || (g.payload?.text as string) || `Goal #${g.id}`}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{goalStateLabel(g.state)}</p>
               </div>
@@ -196,7 +196,7 @@ function RunningIntents({ intents }: { intents: GraphNode[] }) {
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-blue-500" />
                 </span>
                 <p className="text-sm text-slate-700 dark:text-slate-300">
-                  {(i.payload.text as string) || `Intent #${i.id}`}
+                  {(i as any).label || (i.payload?.text as string) || `Intent #${i.id}`}
                 </p>
               </div>
             ))}
@@ -556,7 +556,17 @@ export function Dashboard() {
     refetchInterval: 10_000,
   })
 
-  const e = engagement.data
+  const raw = engagement.data
+  const e = raw ? {
+    ...raw,
+    running_intents: raw.running_intents ?? [],
+    open_intents: raw.open_intents ?? [],
+    goals: raw.goals ?? [],
+    finding_list: raw.finding_list ?? [],
+    recent_facts: raw.recent_facts ?? [],
+    hints: raw.hints ?? [],
+    task_credentials: raw.task_credentials ?? [],
+  } : undefined
 
   return (
     <div className="space-y-4 md:space-y-6 p-3 md:p-6">
@@ -641,7 +651,7 @@ export function Dashboard() {
               <CardContent>
                 <ul className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
                   {e.hints.map((h) => (
-                    <li key={h.id}>{h.payload.text as string || JSON.stringify(h.payload)}</li>
+                    <li key={h.id}>{(h as any).label || (h as any).text || (h.payload?.text as string) || JSON.stringify(h.payload ?? h)}</li>
                   ))}
                 </ul>
               </CardContent>
