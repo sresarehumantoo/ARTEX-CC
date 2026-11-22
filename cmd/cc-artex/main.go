@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -106,6 +109,17 @@ func initLogging(debug bool) {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
 }
 
+func bearerAuth(token string, next http.Handler) http.Handler {
+	want := []byte("Bearer " + token)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), want) != 1 {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func cmdServe(args []string) {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	listen := fs.String("listen", "", "HTTP listen address (or CC_ARTEX_LISTEN env, default localhost:9400)")
@@ -208,12 +222,27 @@ func cmdServe(args []string) {
 		srvOpts = append(srvOpts, mcpserver.WithTraffic(t))
 	}
 	var restAPI *api.API
+	var runner *api.Runner
+	var mcpToken string
 	if *webUI {
 		authRequired := *authFlag || envEnabled("CC_ARTEX_AUTH") || !isLoopbackAddr(*listen)
 		apiOpts := []api.Option{api.WithDataDir(*dataDir), api.WithAuthRequired(authRequired)}
 		if *claudeBin != "" {
 			apiOpts = append(apiOpts, api.WithClaudeBin(*claudeBin))
 		}
+		tokenBytes := make([]byte, 32)
+		if _, err := rand.Read(tokenBytes); err != nil {
+			slog.Error("generating mcp token failed", "err", err)
+			os.Exit(1)
+		}
+		mcpToken = hex.EncodeToString(tokenBytes)
+		mcpConfig, err := api.WriteMCPConfig(*dataDir, *listen, mcpToken)
+		if err != nil {
+			slog.Error("writing mcp config failed", "err", err)
+			os.Exit(1)
+		}
+		runner = api.NewRunner(*claudeBin, mcpConfig, *dataDir, 0)
+		apiOpts = append(apiOpts, api.WithRunner(runner))
 		restAPI = api.New(s, t, engCfg.TaskID, engCfg.ExplorationID, apiOpts...)
 		srvOpts = append(srvOpts, mcpserver.WithNotifier(restAPI.NotifyChange))
 	}
@@ -228,7 +257,7 @@ func cmdServe(args []string) {
 		mux := http.NewServeMux()
 
 		mcpHandler := server.NewStreamableHTTPServer(srv.MCPServer())
-		mux.Handle("/mcp", mcpHandler)
+		mux.Handle("/mcp", bearerAuth(mcpToken, mcpHandler))
 
 		mux.Handle("/api/", restAPI.Handler())
 
@@ -249,6 +278,7 @@ func cmdServe(args []string) {
 			sdCtx, sdCancel := context.WithTimeout(context.Background(), time.Duration(*shutdownSecs)*time.Second)
 			defer sdCancel()
 			httpServer.Shutdown(sdCtx)
+			runner.StopAll()
 		}
 	} else {
 		slog.Info("serving", "addr", *listen)
