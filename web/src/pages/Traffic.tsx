@@ -125,7 +125,7 @@ export default function Traffic() {
     [debouncedHost, method, debouncedStatus, debouncedQuery, bodySearch, debouncedRespMin, debouncedRespMax, sortCol, sortOrder, page],
   )
 
-  const { data, isLoading, error } = useTraffic(filters)
+  const { data, isLoading, error, refetch } = useTraffic(filters)
   const { data: detail, isLoading: detailLoading } = useTrafficDetail(selectedId)
 
   const rows = data?.rows ?? []
@@ -217,8 +217,17 @@ export default function Traffic() {
 
   if (error) {
     return (
-      <div className="flex h-96 items-center justify-center text-slate-500">
-        Failed to load traffic: {(error as Error).message}
+      <div className="flex h-96 items-center justify-center">
+        <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
+          <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load traffic: {(error as Error).message}</p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
+          >
+            Try again
+          </button>
+        </div>
       </div>
     )
   }
@@ -349,7 +358,7 @@ export default function Traffic() {
                   <TableCell>
                     <MethodBadge method={row.method} />
                   </TableCell>
-                  <TableCell className="max-w-md truncate font-mono text-xs text-slate-500 dark:text-slate-400">
+                  <TableCell className="max-w-[200px] sm:max-w-xs md:max-w-md truncate font-mono text-xs text-slate-500 dark:text-slate-400">
                     <HighlightText text={displayUrl(row)} query={!bodySearch ? debouncedQuery : ''} />
                   </TableCell>
                   <TableCell>

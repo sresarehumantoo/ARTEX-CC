@@ -135,7 +135,7 @@ export default function Activity() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
 
-  const { data, isLoading, isError, error, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isError, error, dataUpdatedAt, refetch } = useQuery({
     queryKey: ['activity', limit, kindFilter],
     queryFn: () =>
       getActivity({
@@ -321,9 +321,16 @@ export default function Activity() {
       {isLoading && <ActivitySkeleton />}
 
       {isError && (
-        <p className="text-sm text-rose-400">
-          Failed to load activity: {(error as Error).message}
-        </p>
+        <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
+          <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load activity: {(error as Error).message}</p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
+          >
+            Try again
+          </button>
+        </div>
       )}
 
       {data && (

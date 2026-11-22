@@ -21,7 +21,7 @@ export default function Credentials() {
   const [domainFilter, setDomainFilter] = useState('')
   const [revealed, setRevealed] = useState<Set<number>>(() => new Set())
 
-  const { data: credentials, isLoading, error } = useQuery({
+  const { data: credentials, isLoading, error, refetch } = useQuery({
     queryKey: ['credentials'],
     queryFn: getCredentials,
   })
@@ -149,8 +149,17 @@ export default function Credentials() {
 
       <div className="flex-1 overflow-auto">
         {error ? (
-          <div className="flex items-center justify-center h-48 text-sm text-rose-400">
-            Failed to load credentials: {(error as Error).message}
+          <div className="flex items-center justify-center h-48">
+            <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
+              <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load credentials: {(error as Error).message}</p>
+              <button
+                type="button"
+                onClick={() => refetch()}
+                className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
+              >
+                Try again
+              </button>
+            </div>
           </div>
         ) : isLoading ? (
           <CredentialsSkeleton />

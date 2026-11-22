@@ -107,7 +107,7 @@ type SortDir = 'asc' | 'desc'
 
 export default function Findings() {
   const { toast } = useToast()
-  const { data: findings = [], isLoading, error } = useFindings()
+  const { data: findings = [], isLoading, error, refetch } = useFindings()
   const [searchParams, setSearchParams] = useSearchParams()
   const [severityFilter, setSeverityFilter] = useState<Severity | null>(() => {
     const param = searchParams.get('severity')
@@ -252,8 +252,17 @@ export default function Findings() {
 
   if (error) {
     return (
-      <div className="flex h-96 items-center justify-center text-slate-500 dark:text-slate-500">
-        Failed to load findings: {(error as Error).message}
+      <div className="flex h-96 items-center justify-center">
+        <div className="rounded-lg border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/20 p-4">
+          <p className="text-sm text-rose-600 dark:text-rose-400">Failed to load findings: {(error as Error).message}</p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="mt-2 text-xs font-medium text-rose-500 hover:text-rose-700 dark:hover:text-rose-300"
+          >
+            Try again
+          </button>
+        </div>
       </div>
     )
   }
@@ -500,7 +509,7 @@ export default function Findings() {
                         <TableCell>
                           <Badge variant={SEVERITY_VARIANT[f.severity]}>{f.severity}</Badge>
                         </TableCell>
-                        <TableCell className="font-medium text-slate-800 dark:text-slate-200">{f.vulnclass}</TableCell>
+                        <TableCell className="max-w-[150px] truncate font-medium text-slate-800 dark:text-slate-200">{f.vulnclass}</TableCell>
                         <TableCell className="max-w-md truncate text-slate-500 dark:text-slate-400">{f.summary}</TableCell>
                         <TableCell>
                           <StatusText finding={f} />
