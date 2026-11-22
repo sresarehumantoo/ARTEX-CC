@@ -220,7 +220,7 @@ export default function Settings() {
                 <div className="space-y-1">
                   {engagement?.hints.map(h => (
                     <div key={h.id} className="px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 rounded-md bg-slate-50 dark:bg-slate-800/50">
-                      {h.payload.text as string || JSON.stringify(h.payload)}
+                      {(h as any).label || h.payload?.text as string || JSON.stringify(h.payload ?? h)}
                     </div>
                   ))}
                 </div>

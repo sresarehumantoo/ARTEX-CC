@@ -510,7 +510,7 @@ function RecentFindings({ findings }: { findings: Record<string, unknown>[] }) {
           {recent.map((f) => {
             const id = f.id as number
             const severity = (f.severity as string) ?? 'info'
-            const summary = (f.summary as string) ?? 'Untitled finding'
+            const summary = (f.label as string) ?? (f.summary as string) ?? 'Untitled finding'
             const vulnclass = f.vulnclass as string | undefined
             return (
               <Link

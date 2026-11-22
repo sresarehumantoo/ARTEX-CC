@@ -298,7 +298,7 @@ function GoalsTable({ engagement }: { engagement: EngagementData }) {
           </thead>
           <tbody>
             {engagement.goals.map(g => {
-              const label = (g.payload.label as string) ?? (g.payload.description as string) ?? `Goal #${g.id}`
+              const label = (g as any).label || (g.payload?.label as string) || (g.payload?.description as string) || `Goal #${g.id}`
               return (
                 <tr key={g.id} className="border-b border-slate-100 dark:border-slate-800">
                   <td className="py-1.5 px-3 text-slate-900 dark:text-slate-100">{label}</td>
@@ -331,7 +331,17 @@ export default function Report() {
   const isLoading = engagementQ.isLoading || findingsQ.isLoading || assetsQ.isLoading || activityQ.isLoading
   const isError = engagementQ.isError || findingsQ.isError || assetsQ.isError || activityQ.isError
 
-  const engagement = engagementQ.data
+  const rawEngagement = engagementQ.data
+  const engagement = rawEngagement ? {
+    ...rawEngagement,
+    running_intents: rawEngagement.running_intents ?? [],
+    open_intents: rawEngagement.open_intents ?? [],
+    goals: rawEngagement.goals ?? [],
+    finding_list: rawEngagement.finding_list ?? [],
+    recent_facts: rawEngagement.recent_facts ?? [],
+    hints: rawEngagement.hints ?? [],
+    task_credentials: rawEngagement.task_credentials ?? [],
+  } : undefined
   const findings = findingsQ.data ?? []
   const assets = assetsQ.data?.assets ?? []
   const activity = activityQ.data ?? []
@@ -468,7 +478,7 @@ export default function Report() {
                   <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">Hints</h3>
                   <ul className="list-disc pl-5 text-sm text-slate-600 dark:text-slate-400 space-y-1">
                     {engagement.hints.map(h => {
-                      const text = (h.payload.text as string) ?? (h.payload.label as string) ?? `Hint #${h.id}`
+                      const text = (h as any).label || (h as any).text || (h.payload?.text as string) || (h.payload?.label as string) || `Hint #${h.id}`
                       return <li key={h.id}>{text}</li>
                     })}
                   </ul>
