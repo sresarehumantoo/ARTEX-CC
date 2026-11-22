@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"sync"
 
 	"github.com/SREsAreHumanToo/cc-artex/tools"
 	"github.com/SREsAreHumanToo/cc-artex/traffic"
@@ -16,6 +17,9 @@ type API struct {
 	files     *FileStore
 	claudeBin string
 	hub       *Hub
+
+	authRequired bool
+	authMu       sync.Mutex
 }
 
 type Option func(*API)
@@ -55,7 +59,8 @@ func (a *API) Handler() http.Handler {
 	a.registerConstraintsRoutes(mux)
 	a.registerHintsRoutes(mux)
 	a.registerEventsRoutes(mux)
-	return corsMiddleware(mux)
+	a.registerAuthRoutes(mux)
+	return corsMiddleware(a.authMiddleware(mux))
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
