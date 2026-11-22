@@ -5,16 +5,19 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/BurntSushi/toml"
 )
 
 const engagementFile = ".cc-artex.json"
 
 type Config struct {
-	Listen    string `json:"listen"`
-	PGDSN     string `json:"pg_dsn"`
-	ProxyAddr string `json:"proxy_addr,omitempty"`
-	DataDir   string `json:"data_dir"`
-	SkillDir  string `json:"skill_dir,omitempty"`
+	Listen    string `json:"listen" toml:"listen"`
+	PGDSN     string `json:"pg_dsn" toml:"pg_dsn"`
+	ProxyAddr string `json:"proxy_addr,omitempty" toml:"proxy_addr"`
+	DataDir   string `json:"data_dir" toml:"data_dir"`
+	SkillDir  string `json:"skill_dir,omitempty" toml:"skill_dir"`
 }
 
 type EngagementConfig struct {
@@ -56,6 +59,9 @@ func SaveEngagement(dataDir string, cfg EngagementConfig) error {
 	return os.WriteFile(filepath.Join(dataDir, engagementFile), data, 0644)
 }
 
+// LoadOrDefault reads a config file at path. Both JSON (.json) and TOML (.toml)
+// formats are supported; the file extension determines the parser. A missing
+// file returns Default().
 func LoadOrDefault(path string) (Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -65,8 +71,15 @@ func LoadOrDefault(path string) (Config, error) {
 		return Config{}, err
 	}
 	cfg := Default()
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	if err := unmarshalConfig(path, data, &cfg); err != nil {
 		return Config{}, err
 	}
 	return cfg, nil
+}
+
+func unmarshalConfig(path string, data []byte, cfg *Config) error {
+	if strings.HasSuffix(path, ".toml") {
+		return toml.Unmarshal(data, cfg)
+	}
+	return json.Unmarshal(data, cfg)
 }
