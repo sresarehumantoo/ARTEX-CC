@@ -19,6 +19,31 @@ func RegisterTrafficTools(reg *Registry, t *traffic.Traffic, store Store, taskID
 	reg.Register(makeTrafficHARExport(t))
 	reg.Register(makeTrafficStats(t))
 	reg.Register(makeTrafficTimeline(t))
+	reg.Register(makeTrafficPatterns(t))
+}
+
+func makeTrafficPatterns(t *traffic.Traffic) Tool {
+	return Tool{
+		Name:        "traffic_patterns",
+		Description: "Identify traffic patterns: most-requested paths (by url_template), hosts with the most HTTP errors (4xx/5xx with status breakdown), and endpoints that appeared recently. Optionally filter by host.",
+		ReadOnly:    true,
+		Schema: obj(map[string]any{
+			"host": str("host substring filter (optional; empty analyzes all traffic)"),
+		}),
+		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
+			var a struct {
+				Host string `json:"host"`
+			}
+			if err := json.Unmarshal(in, &a); err != nil {
+				return errResult("invalid input: " + err.Error()), nil
+			}
+			patterns, err := t.Patterns(a.Host)
+			if err != nil {
+				return errResult(err.Error()), nil
+			}
+			return jsonResult(patterns)
+		},
+	}
 }
 
 func makeTrafficSearch(t *traffic.Traffic) Tool {
