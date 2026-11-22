@@ -1,6 +1,8 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { ShieldAlert } from 'lucide-react'
 import type { GraphNode } from '../../lib/types'
+import { truncate } from '../../lib/utils'
+import { NodeTooltip } from './NodeTooltip'
 
 const severityColors: Record<string, string> = {
   critical: 'bg-rose-500 text-white',
@@ -16,7 +18,8 @@ export function FindingNode({ data }: NodeProps & { data: GraphNode }) {
   const severity = ((data.payload.severity ?? 'medium') as string).toLowerCase()
   const colorClass = severityColors[severity] ?? severityColors.medium
   return (
-    <div className="w-[180px] bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-[3px] border-rose-500 overflow-hidden">
+    <div className="group relative w-[180px] bg-white dark:bg-slate-800 rounded-lg shadow-md border-l-[3px] border-rose-500 overflow-hidden">
+      <NodeTooltip lines={[`Finding #${data.id}: ${truncate(name, 60)}`, truncate(summary, 80), `Severity: ${severity}`]} />
       <Handle type="target" position={Position.Left} className="!bg-rose-500 !w-2 !h-2" />
       <div className="p-2.5">
         <div className="flex items-center gap-1.5 mb-1">
