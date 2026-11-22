@@ -1,6 +1,5 @@
 import type {
   ChatEvent,
-  ClaudeStatus,
   Conversation,
   CreateConversationRequest,
   SendMessageRequest,
@@ -72,6 +71,13 @@ export function sendMessage(id: string, req: SendMessageRequest) {
 
 export function stopConversation(id: string) {
   return request<void>(`${BASE}/conversations/${id}/stop`, { method: 'POST' })
+}
+
+export interface ClaudeStatus {
+  available: boolean
+  path?: string
+  version?: string
+  error?: string
 }
 
 export function getClaudeStatus() {

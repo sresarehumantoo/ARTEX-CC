@@ -1,7 +1,7 @@
 import { useEffect, useReducer } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { getMessages } from '../lib/api/chat'
-import type { ChatEvent, ConversationStatus, SSEEvent } from '../lib/chat-types'
+import type { ChatEvent, ConversationStatus } from '../lib/chat-types'
 import { conversationsKey } from './useConversations'
 
 export interface StreamState {
@@ -26,12 +26,7 @@ export function streamReducer(state: StreamState, action: StreamAction): StreamS
       if (action.events.length === 0) return state
       const bySeq = new Map(state.events.map(e => [e.seq, e]))
       for (const e of action.events) bySeq.set(e.seq, e)
-      const events = [...bySeq.values()].sort((a, b) => a.seq - b.seq)
-      let status = state.status
-      for (const e of action.events) {
-        if (e.kind === 'status' && e.status) status = e.status
-      }
-      return { ...state, events, status }
+      return { ...state, events: [...bySeq.values()].sort((a, b) => a.seq - b.seq) }
     }
     case 'status':
       return { ...state, status: action.status }
@@ -70,18 +65,11 @@ export function useConversationStream(id: string | null) {
 
       es.onmessage = (e: MessageEvent<string>) => {
         try {
-          const msg = JSON.parse(e.data) as SSEEvent
-          const seq = msg.data?.seq ?? msg.seq
-          if (typeof seq === 'number' && seq > lastSeq) lastSeq = seq
-          if (msg.type === 'status') {
-            if (msg.data.status) dispatch({ type: 'status', status: msg.data.status })
-            refreshList()
-          } else if (msg.type === 'error') {
-            dispatch({ type: 'merge', events: [msg.data] })
-          } else if (msg.type === 'message' || msg.type === 'delta') {
-            dispatch({ type: 'merge', events: [msg.data] })
-            if (msg.data.kind === 'result') refreshList()
-          }
+          const ev = JSON.parse(e.data) as ChatEvent
+          if (ev.seq > lastSeq) lastSeq = ev.seq
+          dispatch({ type: 'merge', events: [ev] })
+          if (ev.kind === 'error') refreshList()
+          if (ev.kind === 'result') refreshList()
         } catch {
           return
         }

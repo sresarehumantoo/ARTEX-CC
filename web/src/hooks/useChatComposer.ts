@@ -9,7 +9,7 @@ export function useChatComposer(conversationId: string | null) {
   const invalidate = () => qc.invalidateQueries({ queryKey: conversationsKey })
 
   const send = useMutation({
-    mutationFn: (value: string) => sendMessage(conversationId!, { text: value }),
+    mutationFn: (value: string) => sendMessage(conversationId!, { message: value }),
     onSuccess: invalidate,
   })
 

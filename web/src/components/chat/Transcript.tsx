@@ -45,19 +45,19 @@ function Expandable({
 }
 
 function ToolCard({ event, result }: { event: ChatEvent; result?: ChatEvent }) {
-  const tool = event.tool!
-  const res = result?.tool_result
-  const arg = keyArg(tool.input)
-  const preview = res ? res.content.replace(/\s+/g, ' ').slice(0, RESULT_PREVIEW) : ''
+  const arg = event.input ? keyArg(event.input) : ''
+  const resText = result?.text ?? ''
+  const resError = result?.is_error ?? false
+  const preview = resText.replace(/\s+/g, ' ').slice(0, RESULT_PREVIEW)
 
   return (
     <Expandable
       header={
         <>
-          <span className="shrink-0 font-mono text-sky-600 dark:text-sky-400">{tool.name}</span>
+          <span className="shrink-0 font-mono text-sky-600 dark:text-sky-400">{event.tool_name}</span>
           <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">{arg}</span>
-          {res &&
-            (res.is_error ? (
+          {result &&
+            (resError ? (
               <X className="size-3.5 shrink-0 text-destructive" aria-label="Error" />
             ) : (
               <Check className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="Success" />
@@ -67,10 +67,10 @@ function ToolCard({ event, result }: { event: ChatEvent; result?: ChatEvent }) {
     >
       <div className="space-y-2">
         <pre className="max-h-64 overflow-auto font-mono text-xs whitespace-pre-wrap break-all">
-          {JSON.stringify(tool.input, null, 2)}
+          {JSON.stringify(event.input, null, 2)}
         </pre>
-        {res && (
-          <ResultBlock content={res.content} isError={res.is_error} preview={preview} />
+        {result && (
+          <ResultBlock content={resText} isError={resError} preview={preview} />
         )}
       </div>
     </Expandable>
@@ -99,9 +99,9 @@ function ResultBlock({ content, isError, preview }: { content: string; isError: 
 }
 
 function OrphanResult({ event }: { event: ChatEvent }) {
-  const res = event.tool_result!
+  const content = event.text ?? ''
   return (
-    <ResultBlock content={res.content} isError={res.is_error} preview={res.content.slice(0, RESULT_PREVIEW)} />
+    <ResultBlock content={content} isError={event.is_error ?? false} preview={content.slice(0, RESULT_PREVIEW)} />
   )
 }
 
@@ -114,7 +114,7 @@ function Thinking({ text }: { text: string }) {
 }
 
 function EventRow({ event, results }: { event: ChatEvent; results: Map<string, ChatEvent> }) {
-  if (event.kind === 'text' && event.role === 'user') {
+  if (event.kind === 'user') {
     return (
       <div className="flex justify-end">
         <div className="max-w-[85%] rounded-2xl bg-primary px-3 py-2 text-sm whitespace-pre-wrap break-words text-primary-foreground">
@@ -134,7 +134,7 @@ function EventRow({ event, results }: { event: ChatEvent; results: Map<string, C
     )
   }
   if (event.kind === 'thinking') return <Thinking text={event.text ?? ''} />
-  if (event.kind === 'tool_use' && event.tool) return <ToolCard event={event} result={results.get(event.tool.id)} />
+  if (event.kind === 'tool_use' && event.tool_id) return <ToolCard event={event} result={results.get(event.tool_id)} />
   if (event.kind === 'error') {
     return (
       <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -155,14 +155,14 @@ export function Transcript({ events }: { events: ChatEvent[] }) {
     const results = new Map<string, ChatEvent>()
     const toolIds = new Set<string>()
     for (const e of events) {
-      if (e.kind === 'tool_use' && e.tool) toolIds.add(e.tool.id)
+      if (e.kind === 'tool_use' && e.tool_id) toolIds.add(e.tool_id)
     }
     for (const e of events) {
-      if (e.kind === 'tool_result' && e.tool_result) results.set(e.tool_result.tool_use_id, e)
+      if (e.kind === 'tool_result' && e.tool_id) results.set(e.tool_id, e)
     }
     const rows = events.filter(e => {
-      if (e.kind === 'result' || e.kind === 'status') return false
-      if (e.kind === 'tool_result') return !e.tool_result || !toolIds.has(e.tool_result.tool_use_id)
+      if (e.kind === 'result') return false
+      if (e.kind === 'tool_result') return !e.tool_id || !toolIds.has(e.tool_id)
       return true
     })
     return { rows, results }
