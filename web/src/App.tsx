@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { CommandPalette } from './components/CommandPalette'
+import { ConnectionBanner } from './components/ConnectionBanner'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ShortcutsHelp } from './components/ShortcutsHelp'
 import { Sidebar } from './components/Sidebar'
@@ -52,6 +53,7 @@ export default function App() {
     <div className="flex h-screen bg-white dark:bg-slate-900">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
+        <ConnectionBanner />
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
             <Routes>

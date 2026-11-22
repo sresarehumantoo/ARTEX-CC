@@ -17,6 +17,7 @@ import { Spinner } from '../components/ui/spinner'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Badge, severityVariant } from '../components/ui/badge'
 import { getEngagement, getActivity } from '../lib/api'
+import { cn } from '../lib/utils'
 import type { Activity, EngagementData, GraphNode } from '../lib/types'
 
 function relativeTime(iso: string): string {
@@ -454,6 +455,68 @@ function IntentProgressBar({ done, running, open }: { done: number; running: num
   )
 }
 
+const SEVERITY_DOT: Record<string, string> = {
+  critical: 'bg-rose-500',
+  high: 'bg-orange-500',
+  medium: 'bg-amber-500',
+  low: 'bg-blue-500',
+  info: 'bg-slate-400',
+}
+
+function RecentFindings({ findings }: { findings: Record<string, unknown>[] }) {
+  const recent = findings.slice(0, 5)
+  if (recent.length === 0) return null
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+            <CardTitle>Recent Findings</CardTitle>
+          </div>
+          <Link
+            to="/findings"
+            className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          >
+            View all
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {recent.map((f) => {
+            const id = f.id as number
+            const severity = (f.severity as string) ?? 'info'
+            const summary = (f.summary as string) ?? 'Untitled finding'
+            const vulnclass = f.vulnclass as string | undefined
+            return (
+              <Link
+                key={id}
+                to={`/findings?id=${id}`}
+                className="flex items-start gap-3 rounded-md px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+              >
+                <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', SEVERITY_DOT[severity] ?? 'bg-slate-400')} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-slate-800 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-slate-100 truncate">
+                    {summary}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[11px] font-medium text-slate-500 capitalize">{severity}</span>
+                    {vulnclass && (
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{vulnclass}</span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 const ACTIVITY_PAGE_SIZE = 20
 
 export function Dashboard() {
@@ -533,6 +596,8 @@ export function Dashboard() {
             <GoalProgress goals={e.goals} />
             <RunningIntents intents={e.running_intents} />
           </div>
+
+          <RecentFindings findings={e.finding_list} />
 
           {e.hints.length > 0 && (
             <Card>
