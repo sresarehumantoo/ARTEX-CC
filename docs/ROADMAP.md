@@ -9,11 +9,11 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 
 **Tool count:** 59 registered tools (core + traffic + evidence + enrich + ingest + scope + intent + activity + triage + coverage).
 
-**Test count:** 890+ test runs across all packages.
+**Test count:** 910+ test runs across all packages.
 
 **What works today:**
 
-- **CLI:** `serve` (stdio and HTTP transports), `init` (creates engagement, schema, CA cert), `version` (with `--json`), `health` (PostgreSQL connectivity check), `completion` (bash/zsh/fish). `--version` flag on all subcommands. `--timeout` for graceful shutdown. `CC_ARTEX_PG` env var override.
+- **CLI:** `serve` (stdio and HTTP transports), `init` (creates engagement, schema, CA cert), `version` (with `--json`), `health` (PostgreSQL connectivity check, `--format json`, `--timeout`), `completion` (bash/zsh/fish). `--version` flag on all subcommands. `--timeout` for graceful shutdown. `CC_ARTEX_PG` env var override.
 - **Store (PostgreSQL):** Full schema with auto-migration. Assets (6 types), companies, company scope, task scope, exploration graph (nodes, edges, anchors, constraints), findings, credentials, coverage ledger with history, intercept rules, activity log. Engagement export/import to portable JSON archives.
 - **Exploration graph:** Goals, intents, facts, findings, hints, constraints. Edges connect them (derived_from, yields, spawns, proves). Frontier query. Graph overview for situational awareness. Prove-goal workflow with confidence gating. Intent lifecycle (start, complete, cancel).
 - **Asset management:** Bulk insert with upsert, DSL-based queries (fuzzy, exact, exclusion, numeric comparisons, boolean combinators, parentheses), untested-asset queries, company scope attribution.
@@ -113,7 +113,7 @@ Done. CSV export format for findings, assets, and nodes alongside existing markd
 
 ### ✅ 4.1 Test coverage
 
-890+ test runs across all packages. Integration-level multi-tool workflow tests added. Coverage reporting via Codecov. Nine packages above 85% coverage.
+910+ test runs across all packages. Integration-level multi-tool workflow tests added. Coverage reporting via Codecov. Nine packages above 85% coverage.
 
 ### ✅ 4.2 Error message consistency
 
