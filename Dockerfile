@@ -1,7 +1,15 @@
 # syntax=docker/dockerfile:1
 #
-# Multi-stage build for cc-artex. CGO is off (modernc.org/sqlite is pure Go),
-# so the builder cross-compiles without QEMU and the final image is minimal.
+# Multi-stage build for cc-artex. Frontend is built in a Node stage, then
+# embedded into the Go binary via go:embed.
+
+# -------------------------------------------------------------- frontend ---
+FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
+WORKDIR /src/web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ .
+RUN npm run build
 
 # --------------------------------------------------------------- builder ---
 FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
@@ -9,6 +17,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+COPY --from=frontend /src/web/dist /src/web/dist
 ARG TARGETOS
 ARG TARGETARCH
 ARG CC_ARTEX_VERSION=dev

@@ -31,4 +31,5 @@ exec /app/cc-artex serve \
     --pg "$PG_DSN" \
     --data /app/data \
     --proxy "${CC_ARTEX_PROXY:-:8788}" \
+    --web \
     "$@"
