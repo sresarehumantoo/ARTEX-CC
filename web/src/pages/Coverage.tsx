@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Target, AlertTriangle, CheckCircle2, XCircle, HelpCircle, MinusCircle } from 'lucide-react'
 import { getCoverage, getCoverageGaps } from '../lib/api'
@@ -52,6 +52,60 @@ function OutcomeBadge({ outcome }: { outcome: string }) {
       <Icon className="h-3 w-3" />
       {config.label}
     </span>
+  )
+}
+
+function OutcomeFilter({ entries, active, onToggle }: {
+  entries: CoverageEntry[]
+  active: string | null
+  onToggle: (outcome: string | null) => void
+}) {
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {}
+    for (const e of entries) {
+      c[e.outcome] = (c[e.outcome] ?? 0) + 1
+    }
+    return c
+  }, [entries])
+
+  const total = entries.length
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-3 md:px-4 py-2 border-b border-slate-200 dark:border-slate-800">
+      <button
+        type="button"
+        onClick={() => onToggle(null)}
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+          active === null
+            ? 'border-slate-400 dark:border-slate-500 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200'
+            : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300 dark:hover:border-slate-600',
+        )}
+      >
+        All <span className="text-slate-400">{total}</span>
+      </button>
+      {Object.entries(OUTCOME_CONFIG).map(([key, config]) => {
+        const count = counts[key] ?? 0
+        if (count === 0) return null
+        const Icon = config.icon
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onToggle(active === key ? null : key)}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+              active === key
+                ? config.className + ' border-current'
+                : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300 dark:hover:border-slate-600',
+            )}
+          >
+            <Icon className="h-3 w-3" />
+            {config.label} <span className="opacity-60">{count}</span>
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -259,6 +313,8 @@ function StructuralGaps({ gaps }: { gaps: CoverageGaps }) {
 }
 
 export default function Coverage() {
+  const [outcomeFilter, setOutcomeFilter] = useState<string | null>(null)
+
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['coverage'],
     queryFn: getCoverage,
@@ -268,6 +324,12 @@ export default function Coverage() {
     queryKey: ['coverage-gaps'],
     queryFn: getCoverageGaps,
   })
+
+  const entries = stats?.entries ?? []
+  const filteredEntries = useMemo(() => {
+    if (!outcomeFilter) return entries
+    return entries.filter(e => e.outcome === outcomeFilter)
+  }, [entries, outcomeFilter])
 
   const entryCount = stats?.entries.length ?? 0
   const gapCount = stats?.gaps.length ?? 0
@@ -298,7 +360,10 @@ export default function Coverage() {
                 Coverage Matrix
               </h2>
               <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
-                <CoverageMatrix entries={stats?.entries ?? []} />
+                {entries.length > 0 && (
+                  <OutcomeFilter entries={entries} active={outcomeFilter} onToggle={setOutcomeFilter} />
+                )}
+                <CoverageMatrix entries={filteredEntries} />
               </div>
             </section>
 

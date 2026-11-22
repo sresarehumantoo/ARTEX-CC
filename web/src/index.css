@@ -36,19 +36,93 @@ body {
 }
 
 @media print {
-  aside, .print\:hidden { display: none !important; }
-  main { overflow: visible !important; }
+  /* Hide non-content elements */
+  aside,
+  nav,
+  .no-print,
+  .print\:hidden,
+  [data-no-print] {
+    display: none !important;
+  }
+
+  /* Full-width content */
+  main {
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Reset background colors for printing */
+  body,
+  .dark {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Cards print with borders, no shadows */
+  [class*="card"],
+  [class*="Card"] {
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+    break-inside: avoid;
+  }
+
+  /* Tables */
+  table {
+    break-inside: auto;
+  }
+  tr {
+    break-inside: avoid;
+  }
+  thead {
+    display: table-header-group;
+  }
+
+  /* Badges keep colors */
+  [class*="badge"],
+  [class*="Badge"] {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Links show URL */
+  a[href]:not([class*="nav"]):after {
+    content: none;
+  }
+
+  /* Page margins */
+  @page {
+    margin: 1.5cm;
+  }
+
+  /* Report preview: clean print layout */
   .report-preview {
     border: none !important;
     padding: 0 !important;
     color: #000 !important;
     background: #fff !important;
   }
-  .report-preview * { color: inherit !important; background: transparent !important; border-color: #cbd5e1 !important; }
-  .report-preview h1, .report-preview h2, .report-preview h3, .report-preview h4 { color: #000 !important; }
-  .report-preview th { background: #f1f5f9 !important; }
-  .report-preview .rounded-lg { border-radius: 0 !important; }
-  table { page-break-inside: auto; }
-  tr { page-break-inside: avoid; }
-  h2, h3 { page-break-after: avoid; }
+  .report-preview * {
+    color: inherit !important;
+    background: transparent !important;
+    border-color: #cbd5e1 !important;
+  }
+  .report-preview h1,
+  .report-preview h2,
+  .report-preview h3,
+  .report-preview h4 {
+    color: #000 !important;
+  }
+  .report-preview th {
+    background: #f1f5f9 !important;
+  }
+  .report-preview .rounded-lg {
+    border-radius: 0 !important;
+  }
+
+  h2, h3 {
+    page-break-after: avoid;
+  }
 }
