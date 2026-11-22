@@ -1,11 +1,11 @@
-import { cn } from "@/lib/utils";
+import { cn } from "../lib/utils"
 import {
   statusMeta,
   toneClasses,
   toneDot,
   type StatusDomain,
   type Tone,
-} from "@/lib/status";
+} from "../lib/status"
 
 export function StatusBadge({
   domain,
