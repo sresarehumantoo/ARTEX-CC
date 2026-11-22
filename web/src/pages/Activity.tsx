@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Clock, Download, Search, X } from 'lucide-react'
 import { Badge } from '../components/ui/badge'
@@ -124,11 +125,12 @@ function NewEventsBar({ count, onClick }: { count: number; onClick: () => void }
 }
 
 export default function Activity() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [limit, setLimit] = useState(PAGE_SIZE)
-  const [kindFilter, setKindFilter] = useState('')
-  const [errorsOnly, setErrorsOnly] = useState(false)
-  const [toolFilter, setToolFilter] = useState('')
-  const [searchText, setSearchText] = useState('')
+  const [kindFilter, setKindFilter] = useState(() => searchParams.get('kind') ?? '')
+  const [errorsOnly, setErrorsOnly] = useState(() => searchParams.get('errors') === 'true')
+  const [toolFilter, setToolFilter] = useState(() => searchParams.get('tool') ?? '')
+  const [searchText, setSearchText] = useState(() => searchParams.get('q') ?? '')
   const [seenCount, setSeenCount] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
@@ -153,6 +155,18 @@ export default function Activity() {
     }
   }, [data, seenCount])
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const next = new URLSearchParams()
+      if (kindFilter) next.set('kind', kindFilter)
+      if (errorsOnly) next.set('errors', 'true')
+      if (toolFilter) next.set('tool', toolFilter)
+      if (searchText) next.set('q', searchText)
+      setSearchParams(next, { replace: true })
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [kindFilter, errorsOnly, toolFilter, searchText, setSearchParams])
+
   const newCount = (data?.length ?? 0) - seenCount
 
   function handleNewEventsClick() {
@@ -166,7 +180,8 @@ export default function Activity() {
     setToolFilter('')
     setSearchText('')
     setSeenCount(data?.length ?? 0)
-  }, [data])
+    setSearchParams({}, { replace: true })
+  }, [data, setSearchParams])
 
   const uniqueKinds = useMemo(() => {
     if (!data) return []

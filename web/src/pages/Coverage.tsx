@@ -1,11 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, ChevronRight, Target, AlertTriangle, CheckCircle2, XCircle, HelpCircle, MinusCircle } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { ChevronDown, ChevronRight, Download, Target, AlertTriangle, CheckCircle2, XCircle, HelpCircle, MinusCircle } from 'lucide-react'
 import { getCoverage, getCoverageGaps } from '../lib/api'
 import type { CoverageEntry, CoverageGap, CoverageGaps } from '../lib/types'
 import { Badge } from '../components/ui/badge'
+import { Button } from '../components/ui/button'
 import { Skeleton } from '../components/ui/skeleton'
 import { CoverageSkeleton } from '../components/skeletons/CoverageSkeleton'
+import { useToast } from '../hooks/useToast'
+import { downloadFile } from '../lib/export'
 import { cn } from '../lib/utils'
 
 const OUTCOME_CONFIG: Record<string, { label: string; className: string; icon: typeof CheckCircle2 }> = {
@@ -312,8 +316,28 @@ function StructuralGaps({ gaps }: { gaps: CoverageGaps }) {
   )
 }
 
+function exportCoverageCSV(entries: CoverageEntry[]) {
+  const headers = ['Surface', 'Risk Area', 'Outcome', 'Evidence', 'Reason', 'Worker', 'Updated']
+  const rows = entries.map(e => [
+    e.surface, e.risk_area, e.outcome, e.evidence, e.reason, e.worker ?? '', e.updated_at,
+  ])
+  const csv = [headers, ...rows].map(r => r.map(v => `"${(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
+  downloadFile(csv, `coverage-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv')
+}
+
 export default function Coverage() {
-  const [outcomeFilter, setOutcomeFilter] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [outcomeFilter, setOutcomeFilter] = useState<string | null>(() => searchParams.get('outcome'))
+  const { toast } = useToast()
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const next = new URLSearchParams()
+      if (outcomeFilter) next.set('outcome', outcomeFilter)
+      setSearchParams(next, { replace: true })
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [outcomeFilter, setSearchParams])
 
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['coverage'],
@@ -345,6 +369,20 @@ export default function Coverage() {
               {entryCount}
             </span>
           )}
+          <div className="ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!entries.length}
+              onClick={() => {
+                exportCoverageCSV(filteredEntries)
+                toast('Coverage exported', { variant: 'success' })
+              }}
+            >
+              <Download className="h-4 w-4 mr-1" />
+              Download
+            </Button>
+          </div>
         </div>
       </div>
 
