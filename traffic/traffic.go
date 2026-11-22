@@ -532,7 +532,7 @@ func (t *Traffic) SetUpstreamProxy(raw string) error {
 		t.upstream.Store(nil)
 		return nil
 	}
-	u, err := ValidateProxyURL(raw)
+	u, err := validateProxyURL(raw)
 	if err != nil {
 		return err
 	}
@@ -548,10 +548,9 @@ func (t *Traffic) SetRewriteRules(s *rewrite.Set) { t.rewriteRules.Store(s) }
 // RewriteRules returns the snapshot last published, nil when there is none.
 func (t *Traffic) RewriteRules() *rewrite.Set { return t.rewriteRules.Load() }
 
-// ValidateProxyURL parses and checks a proxy URL (http/https/socks5, optional
-// user:pass), returning the parsed URL. Exposed so callers can validate a global
-// proxy before persisting it even when the traffic proxy itself is disabled.
-func ValidateProxyURL(raw string) (*url.URL, error) {
+// validateProxyURL parses and checks a proxy URL (http/https/socks5, optional
+// user:pass), returning the parsed URL.
+func validateProxyURL(raw string) (*url.URL, error) {
 	raw = strings.TrimSpace(raw)
 	u, err := url.Parse(raw)
 	if err != nil {

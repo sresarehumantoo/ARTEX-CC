@@ -29,8 +29,8 @@ const (
 	DefaultPhaseHookTimeout = 100 * time.Millisecond
 )
 
-// TamperHooksEnabledFromEnv reports whether ARTEX_TAMPER_HOOKS_ENABLED is truthy.
-func TamperHooksEnabledFromEnv() bool {
+// tamperHooksEnabledFromEnv reports whether ARTEX_TAMPER_HOOKS_ENABLED is truthy.
+func tamperHooksEnabledFromEnv() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv(TamperHooksEnabledEnv))) {
 	case "1", "true", "yes", "on":
 		return true
@@ -111,8 +111,8 @@ type HookSet struct {
 	maxMemory    int64
 }
 
-// ValidateHookDef validates metadata, matchers, and Go-subset AST for one hook.
-func ValidateHookDef(def HookDef) error {
+// validateHookDef validates metadata, matchers, and Go-subset AST for one hook.
+func validateHookDef(def HookDef) error {
 	_, err := compileHookDef(def)
 	return err
 }
@@ -153,9 +153,9 @@ func compileHookDef(def HookDef) (*compiledHook, error) {
 	}, nil
 }
 
-// CompileHooks compiles enabled hooks in (priority ASC, id ASC) order. Invalid
+// compileHooks compiles enabled hooks in (priority ASC, id ASC) order. Invalid
 // enabled hooks are omitted and reported in loadErrors.
-func CompileHooks(defs []HookDef, traceKey []byte) (*HookSet, map[int64]string) {
+func compileHooks(defs []HookDef, traceKey []byte) (*HookSet, map[int64]string) {
 	sorted := append([]HookDef(nil), defs...)
 	sort.Slice(sorted, func(i, j int) bool {
 		if sorted[i].Priority != sorted[j].Priority {
@@ -209,9 +209,9 @@ func (s *HookSet) LastError(id int64) *rewrite.LastError {
 	return s.errors.get(id)
 }
 
-// DryRunHook compiles and executes a single hook (regardless of Enabled) on a
+// dryRunHook compiles and executes a single hook (regardless of Enabled) on a
 // copy of in without affecting live traffic.
-func DryRunHook(def HookDef, in rewrite.Input, traceKey []byte) (rewrite.Result, error) {
+func dryRunHook(def HookDef, in rewrite.Input, traceKey []byte) (rewrite.Result, error) {
 	ch, err := compileHookDef(def)
 	if err != nil {
 		return rewrite.Result{}, err

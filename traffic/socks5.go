@@ -139,9 +139,9 @@ type RawTCPCapture struct {
 	Paced     bool
 }
 
-// SOCKS5ConfigFromEnv parses ARTEX_SOCKS5_ENABLED, ARTEX_SOCKS5_ADDR, and
+// socks5ConfigFromEnv parses ARTEX_SOCKS5_ENABLED, ARTEX_SOCKS5_ADDR, and
 // ARTEX_SOCKS5_UDP_ENABLED. Returns (cfg, false) when disabled (the default).
-func SOCKS5ConfigFromEnv() (SOCKS5Config, bool) {
+func socks5ConfigFromEnv() (SOCKS5Config, bool) {
 	rawEnabled := strings.ToLower(strings.TrimSpace(os.Getenv(SOCKS5EnabledEnv)))
 	rawAddr := strings.TrimSpace(os.Getenv(SOCKS5AddrEnv))
 	rawUDP := strings.ToLower(strings.TrimSpace(os.Getenv(SOCKS5UDPEnabledEnv)))
