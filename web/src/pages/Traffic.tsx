@@ -518,124 +518,107 @@ function formatHttp(raw: string): React.ReactNode {
   return (
     <>
       {highlightHeaders(headers)}
-      {'\n\n'}
-      {formatBody(body)}
+      {'\n'}
+      {body ? formatBody(body) : null}
     </>
   )
 }
 
 function highlightHeaders(text: string): React.ReactNode {
   const lines = text.split(/\r?\n/)
-  return lines.map((line, i) => {
-    const colonIdx = line.indexOf(':')
-    if (i === 0 || colonIdx < 0) {
-      return (
-        <span key={i}>
-          <span className="font-semibold text-slate-800 dark:text-slate-200">{line}</span>
-          {i < lines.length - 1 ? '\n' : ''}
-        </span>
-      )
-    }
-    const name = line.slice(0, colonIdx)
-    const value = line.slice(colonIdx)
-    return (
-      <span key={i}>
-        <span className="text-blue-400">{name}</span>
-        <span className="text-slate-500 dark:text-slate-400">{value}</span>
-        {i < lines.length - 1 ? '\n' : ''}
-      </span>
-    )
-  })
+  return (
+    <>
+      {lines.map((line, i) => {
+        if (i === 0) {
+          const reqMatch = line.match(/^(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD)\s+(\S+)\s*(HTTP\/\S+)?$/)
+          if (reqMatch) {
+            return (
+              <span key={i}>
+                <span className="text-emerald-500 font-semibold">{reqMatch[1]}</span>
+                {' '}
+                <span className="text-blue-400">{reqMatch[2]}</span>
+                {reqMatch[3] && <span className="text-slate-500"> {reqMatch[3]}</span>}
+                {'\n'}
+              </span>
+            )
+          }
+          const resMatch = line.match(/^(HTTP\/\S+)\s+(\d{3})\s*(.*)$/)
+          if (resMatch) {
+            const code = parseInt(resMatch[2], 10)
+            const codeColor = code < 300 ? 'text-emerald-500' : code < 400 ? 'text-blue-400' : code < 500 ? 'text-amber-500' : 'text-rose-500'
+            return (
+              <span key={i}>
+                <span className="text-slate-500">{resMatch[1]}</span>
+                {' '}
+                <span className={`${codeColor} font-semibold`}>{resMatch[2]}</span>
+                {resMatch[3] && <span className="text-slate-400"> {resMatch[3]}</span>}
+                {'\n'}
+              </span>
+            )
+          }
+        }
+        const colonIdx = line.indexOf(':')
+        if (colonIdx > 0 && i > 0) {
+          return (
+            <span key={i}>
+              <span className="text-violet-400">{line.slice(0, colonIdx)}</span>
+              <span className="text-slate-500">:</span>
+              <span className="text-slate-300 dark:text-slate-400">{line.slice(colonIdx + 1)}</span>
+              {'\n'}
+            </span>
+          )
+        }
+        return <span key={i}>{line}{'\n'}</span>
+      })}
+    </>
+  )
 }
 
 function formatBody(body: string): React.ReactNode {
   const trimmed = body.trim()
   if (!trimmed) return null
-  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+
+  if ((trimmed.startsWith('{') || trimmed.startsWith('[')) && (trimmed.endsWith('}') || trimmed.endsWith(']'))) {
     try {
-      const formatted = JSON.stringify(JSON.parse(trimmed), null, 2)
-      return highlightJson(formatted)
+      const parsed = JSON.parse(trimmed)
+      const pretty = JSON.stringify(parsed, null, 2)
+      return highlightJson(pretty)
     } catch {
       // not valid JSON
     }
   }
-  if (trimmed.startsWith('<')) {
-    return highlightMarkup(trimmed)
-  }
-  return <span className="text-slate-700 dark:text-slate-300">{body}</span>
+
+  return <span className="text-slate-300 dark:text-slate-400">{body}</span>
 }
 
 function highlightJson(json: string): React.ReactNode {
-  const nodes: React.ReactNode[] = []
-  const re = /("(?:[^"\\]|\\.)*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(\btrue\b|\bfalse\b|\bnull\b)|([{}[\]:,])/g
-  let m: RegExpExecArray | null
-  let last = 0
-  let k = 0
-
-  while ((m = re.exec(json)) !== null) {
-    if (m.index > last) nodes.push(json.slice(last, m.index))
-    last = re.lastIndex
-
-    if (m[1]) {
-      if (m[2]) {
-        nodes.push(<span key={k++} className="text-cyan-400">{m[1]}</span>)
-        nodes.push(m[2])
-      } else {
-        nodes.push(<span key={k++} className="text-emerald-400">{m[1]}</span>)
-      }
-    } else if (m[3]) {
-      nodes.push(<span key={k++} className="text-amber-400">{m[3]}</span>)
-    } else if (m[4]) {
-      nodes.push(<span key={k++} className="text-purple-400">{m[4]}</span>)
-    } else if (m[5]) {
-      nodes.push(<span key={k++} className="text-slate-500">{m[5]}</span>)
+  return json.split('\n').map((line, i) => {
+    const kvMatch = line.match(/^(\s*)"([^"]+)"(\s*:\s*)(.*)$/)
+    if (kvMatch) {
+      const [, indent, key, colon, value] = kvMatch
+      return (
+        <span key={i}>
+          {indent}
+          <span className="text-violet-400">"{key}"</span>
+          <span className="text-slate-500">{colon}</span>
+          {highlightJsonValue(value)}
+          {'\n'}
+        </span>
+      )
     }
-  }
-
-  if (last < json.length) nodes.push(json.slice(last))
-  return <>{nodes}</>
+    return <span key={i} className="text-slate-500">{line}{'\n'}</span>
+  })
 }
 
-function highlightMarkup(html: string): React.ReactNode {
-  const nodes: React.ReactNode[] = []
-  const tagRe = /<\/?[a-zA-Z][\w:.-]*(?:\s[^>]*)?\/?>/g
-  let m: RegExpExecArray | null
-  let last = 0
-  let k = 0
+function highlightJsonValue(value: string): React.ReactNode {
+  const trimmed = value.trimEnd().replace(/,$/, '')
+  const trailing = value.slice(trimmed.length)
 
-  while ((m = tagRe.exec(html)) !== null) {
-    if (m.index > last) nodes.push(html.slice(last, m.index))
-    last = tagRe.lastIndex
-
-    const tag = m[0]
-    const tm = tag.match(/^(<\/?)([a-zA-Z][\w:.-]*)([\s\S]*?)(\/?>)$/)
-    if (!tm) { nodes.push(tag); continue }
-
-    nodes.push(<span key={k++} className="text-slate-500">{tm[1]}</span>)
-    nodes.push(<span key={k++} className="text-blue-400">{tm[2]}</span>)
-
-    if (tm[3]) {
-      const attrRe = /(\s+)([\w:.-]+)(?:(=)("[^"]*"|'[^']*'|\S+))?/g
-      let am: RegExpExecArray | null
-      let aLast = 0
-      while ((am = attrRe.exec(tm[3])) !== null) {
-        if (am.index > aLast) nodes.push(tm[3].slice(aLast, am.index))
-        aLast = attrRe.lastIndex
-        nodes.push(am[1])
-        nodes.push(<span key={k++} className="text-amber-400">{am[2]}</span>)
-        if (am[3]) {
-          nodes.push(am[3])
-          nodes.push(<span key={k++} className="text-emerald-400">{am[4]}</span>)
-        }
-      }
-      if (aLast < tm[3].length) nodes.push(tm[3].slice(aLast))
-    }
-
-    nodes.push(<span key={k++} className="text-slate-500">{tm[4]}</span>)
-  }
-
-  if (last < html.length) nodes.push(html.slice(last))
-  return <>{nodes}</>
+  if (trimmed.startsWith('"')) return <><span className="text-amber-400">{trimmed}</span><span className="text-slate-500">{trailing}</span></>
+  if (trimmed === 'true' || trimmed === 'false') return <><span className="text-emerald-400">{trimmed}</span><span className="text-slate-500">{trailing}</span></>
+  if (trimmed === 'null') return <><span className="text-rose-400">{trimmed}</span><span className="text-slate-500">{trailing}</span></>
+  if (/^-?\d/.test(trimmed)) return <><span className="text-blue-400">{trimmed}</span><span className="text-slate-500">{trailing}</span></>
+  return <span className="text-slate-400">{value}</span>
 }
 
 function buildCurl(request: string): string {

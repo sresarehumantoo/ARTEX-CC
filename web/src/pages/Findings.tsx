@@ -88,7 +88,7 @@ function SeverityBar({ findings }: { findings: Finding[] }) {
           />
         ))}
       </div>
-      <div className="flex items-center gap-3 text-xs">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <span className="text-slate-500 font-medium">{total} total</span>
         <span className="text-slate-300 dark:text-slate-700">|</span>
         {segments.map(s => (
