@@ -8,7 +8,7 @@ import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Skeleton } from '../components/ui/skeleton'
 import { CoverageSkeleton } from '../components/skeletons/CoverageSkeleton'
-import { useToast } from '../hooks/useToast'
+import { toast } from 'sonner'
 import { downloadFile } from '../lib/export'
 import { cn } from '../lib/utils'
 
@@ -333,7 +333,6 @@ function exportCoverageCSV(entries: CoverageEntry[]) {
 export default function Coverage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [outcomeFilter, setOutcomeFilter] = useState<string | null>(() => searchParams.get('outcome'))
-  const { toast } = useToast()
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -381,7 +380,7 @@ export default function Coverage() {
               disabled={!entries.length}
               onClick={() => {
                 exportCoverageCSV(filteredEntries)
-                toast('Coverage exported', { variant: 'success' })
+                toast.success('Coverage exported')
               }}
             >
               <Download className="h-4 w-4 mr-1" />

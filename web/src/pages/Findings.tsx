@@ -13,7 +13,7 @@ import { Skeleton } from '../components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 import { TableSkeleton } from '../components/skeletons/TableSkeleton'
 import { useFindingDetail, useFindings } from '../hooks/useFindings'
-import { useToast } from '../hooks/useToast'
+import { toast } from 'sonner'
 import { exportCSV, exportJSON } from '../lib/export'
 import { generateReport } from '../lib/report'
 import type { Finding, Severity } from '../lib/types'
@@ -96,7 +96,6 @@ type SortField = 'severity' | 'id'
 type SortDir = 'asc' | 'desc'
 
 export default function Findings() {
-  const { toast } = useToast()
   const { data: findings = [], isLoading, error, refetch } = useFindings()
   const [searchParams, setSearchParams] = useSearchParams()
   const [severityFilter, setSeverityFilter] = useState<Severity | null>(() => {
@@ -349,8 +348,8 @@ export default function Findings() {
         </div>
 
         <ExportDropdown options={[
-          { label: 'Export CSV', onClick: () => { exportCSV(filtered, 'findings.csv'); toast('Exported as CSV', { variant: 'success' }) } },
-          { label: 'Export JSON', onClick: () => { exportJSON(filtered, 'findings.json'); toast('Exported as JSON', { variant: 'success' }) } },
+          { label: 'Export CSV', onClick: () => { exportCSV(filtered, 'findings.csv'); toast.success('Exported as CSV') } },
+          { label: 'Export JSON', onClick: () => { exportJSON(filtered, 'findings.json'); toast.success('Exported as JSON') } },
           {
             label: 'Generate Report',
             onClick: () => {
@@ -413,7 +412,7 @@ export default function Findings() {
                   onClick={() => {
                     const ids = [...selectedIds].sort((a, b) => a - b).join(', ')
                     navigator.clipboard.writeText(ids)
-                    toast('Finding IDs copied', { variant: 'success' })
+                    toast.success('Finding IDs copied')
                   }}
                   className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium"
                 >
@@ -424,7 +423,7 @@ export default function Findings() {
                   onClick={() => {
                     const csv = filtered.filter(f => selectedIds.has(f.id))
                     exportCSV(csv, 'selected-findings.csv')
-                    toast('Exported selected findings', { variant: 'success' })
+                    toast.success('Exported selected findings')
                   }}
                   className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium"
                 >
@@ -595,7 +594,6 @@ function DetailPanel({
   loading: boolean
   onClose: () => void
 }) {
-  const { toast } = useToast()
 
   if (loading || !detail) {
     return (
@@ -637,7 +635,7 @@ function DetailPanel({
               type="button"
               onClick={() => {
                 navigator.clipboard.writeText(String(detail.id))
-                toast('Finding ID copied', { variant: 'success' })
+                toast.success('Finding ID copied')
               }}
               className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
               title="Copy finding ID"
