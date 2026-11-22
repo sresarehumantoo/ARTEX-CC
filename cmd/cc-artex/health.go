@@ -14,6 +14,7 @@ import (
 func cmdHealth(args []string) {
 	fs := flag.NewFlagSet("health", flag.ExitOnError)
 	pg := pgDSN(fs)
+	timeout := fs.Duration("timeout", 5*time.Second, "health check timeout (e.g. 5s, 10s, 30s)")
 	fs.Parse(args)
 
 	dsn := resolvePG(*pg)
@@ -23,7 +24,7 @@ func cmdHealth(args []string) {
 		os.Exit(1)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 
 	db, err := sql.Open("pgx", dsn)
