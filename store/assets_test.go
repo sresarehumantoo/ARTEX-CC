@@ -39,6 +39,10 @@ func TestRootDomain(t *testing.T) {
 		{"deep.sub.example.com", "example.com", false},
 		{"", "", true},
 		{"10.10.10.1", "10.10.10.1", true},
+		{"com", "com", true},
+		{"co.uk", "co.uk", true},
+		{"example.com.", "example.com", true},
+		{"SUB.Example.Com", "example.com", false},
 	}
 	for _, tt := range tests {
 		root, isApex := RootDomain(tt.input)

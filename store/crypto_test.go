@@ -102,6 +102,41 @@ func TestDecryptCiphertextTooShort(t *testing.T) {
 	}
 }
 
+func TestEncryptBadKeySize(t *testing.T) {
+	t.Parallel()
+	_, err := aesGCMEncrypt(make([]byte, 15), "data")
+	if err == nil {
+		t.Error("expected error for 15-byte key")
+	}
+}
+
+func TestDecryptBadKeySize(t *testing.T) {
+	t.Parallel()
+	_, err := aesGCMDecrypt(make([]byte, 15), hex.EncodeToString(make([]byte, 32)))
+	if err == nil {
+		t.Error("expected error for 15-byte key")
+	}
+}
+
+func TestEncryptEmptyString(t *testing.T) {
+	t.Parallel()
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		t.Fatal(err)
+	}
+	encrypted, err := aesGCMEncrypt(key, "")
+	if err != nil {
+		t.Fatalf("encrypt empty: %v", err)
+	}
+	decrypted, err := aesGCMDecrypt(key, encrypted)
+	if err != nil {
+		t.Fatalf("decrypt: %v", err)
+	}
+	if decrypted != "" {
+		t.Errorf("decrypted = %q, want empty string", decrypted)
+	}
+}
+
 func TestParseCredentialKey(t *testing.T) {
 	t.Parallel()
 
