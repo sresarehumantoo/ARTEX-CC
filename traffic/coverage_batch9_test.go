@@ -290,7 +290,7 @@ func TestHARImportRoundtrip(t *testing.T) {
 				Response: HARResponse{
 					Status: 200, StatusText: "OK", HTTPVersion: "HTTP/1.1",
 					Cookies: []HARCookie{}, Headers: []HARHeader{{Name: "Content-Type", Value: "text/html"}},
-					Content: HARContent{Size: 4, MimeType: "text/html", Text: "test"},
+					Content:     HARContent{Size: 4, MimeType: "text/html", Text: "test"},
 					RedirectURL: "", HeadersSize: -1, BodySize: 4,
 				},
 				Cache: HARCache{}, Timings: HARTimings{Send: -1, Wait: -1, Receive: -1},
@@ -334,7 +334,7 @@ func TestHARImportIdempotent(t *testing.T) {
 				Response: HARResponse{
 					Status: 200, HTTPVersion: "HTTP/1.1",
 					Cookies: []HARCookie{}, Headers: []HARHeader{},
-					Content: HARContent{Size: 2, MimeType: "text/plain", Text: "ok"},
+					Content:     HARContent{Size: 2, MimeType: "text/plain", Text: "ok"},
 					RedirectURL: "", HeadersSize: -1, BodySize: 2,
 				},
 				Cache: HARCache{}, Timings: HARTimings{Send: -1, Wait: -1, Receive: -1},
