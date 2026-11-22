@@ -92,6 +92,59 @@ function StatsTable({ engagement, assets }: { engagement: EngagementData; assets
   )
 }
 
+function ExecutiveSummary({ findings, assetCount }: { findings: Finding[]; assetCount: number }) {
+  const active = findings.filter(f => !f.dismissed && !f.merged_into)
+  const counts = {
+    critical: active.filter(f => f.severity === 'critical').length,
+    high: active.filter(f => f.severity === 'high').length,
+    medium: active.filter(f => f.severity === 'medium').length,
+    low: active.filter(f => f.severity === 'low').length,
+    info: active.filter(f => f.severity === 'info').length,
+  }
+  const total = active.length
+
+  const SEVERITY_COLORS: Record<string, string> = {
+    critical: 'bg-rose-500',
+    high: 'bg-orange-500',
+    medium: 'bg-amber-500',
+    low: 'bg-blue-500',
+    info: 'bg-slate-400',
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+      <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-3">Executive Summary</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{total}</div>
+          <div className="text-xs text-slate-500">Active Findings</div>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-rose-500">{counts.critical + counts.high}</div>
+          <div className="text-xs text-slate-500">Critical + High</div>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{assetCount}</div>
+          <div className="text-xs text-slate-500">Assets</div>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{findings.length - total}</div>
+          <div className="text-xs text-slate-500">Dismissed</div>
+        </div>
+      </div>
+      {total > 0 && (
+        <div className="mt-3 flex h-2 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+          {(['critical', 'high', 'medium', 'low', 'info'] as const).map(sev => {
+            const pct = (counts[sev] / total) * 100
+            if (pct === 0) return null
+            return <div key={sev} className={`${SEVERITY_COLORS[sev]}`} style={{ width: `${pct}%` }} />
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function FindingsTable({ findings }: { findings: Finding[] }) {
   const active = sortBySeverity(findings.filter(f => !f.dismissed && !f.merged_into))
 
@@ -339,6 +392,10 @@ export default function Report() {
           </Button>
         </div>
       </div>
+
+      {findings.length > 0 && (
+        <ExecutiveSummary findings={findings} assetCount={assets.length} />
+      )}
 
       <div className="report-preview rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 md:p-8 space-y-8">
         {/* Title Block */}
