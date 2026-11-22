@@ -14,7 +14,7 @@ import (
 )
 
 type healthResult struct {
-	Status string              `json:"status"`
+	Status string             `json:"status"`
 	Checks map[string]hcEntry `json:"checks"`
 }
 
