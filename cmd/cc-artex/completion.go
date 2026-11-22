@@ -43,7 +43,7 @@ const bashCompletion = `_cc_artex() {
             COMPREPLY=( $(compgen -W "--goal --description --pg --data --version" -- "${cur}") )
             ;;
         health)
-            COMPREPLY=( $(compgen -W "--pg" -- "${cur}") )
+            COMPREPLY=( $(compgen -W "--pg --timeout" -- "${cur}") )
             ;;
         completion)
             COMPREPLY=( $(compgen -W "bash zsh fish" -- "${cur}") )
@@ -98,7 +98,8 @@ _cc_artex() {
                     ;;
                 health)
                     _arguments \
-                        '--pg[PostgreSQL connection string]:dsn:'
+                        '--pg[PostgreSQL connection string]:dsn:' \
+                        '--timeout[Health check timeout]:duration:'
                     ;;
                 completion)
                     _arguments '1:shell:(bash zsh fish)'
@@ -135,6 +136,7 @@ complete -c cc-artex -n '__fish_seen_subcommand_from init' -l data -d 'Data dire
 complete -c cc-artex -n '__fish_seen_subcommand_from init' -l version -d 'Print version and exit'
 
 complete -c cc-artex -n '__fish_seen_subcommand_from health' -l pg -d 'PostgreSQL connection string' -r
+complete -c cc-artex -n '__fish_seen_subcommand_from health' -l timeout -d 'Health check timeout' -r
 
 complete -c cc-artex -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
 `
