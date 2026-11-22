@@ -4,7 +4,8 @@ import { ChevronDown, ChevronRight, Target, AlertTriangle, CheckCircle2, XCircle
 import { getCoverage, getCoverageGaps } from '../lib/api'
 import type { CoverageEntry, CoverageGap, CoverageGaps } from '../lib/types'
 import { Badge } from '../components/ui/badge'
-import { Spinner } from '../components/ui/spinner'
+import { Skeleton } from '../components/ui/skeleton'
+import { CoverageSkeleton } from '../components/skeletons/CoverageSkeleton'
 import { cn } from '../lib/utils'
 
 const OUTCOME_CONFIG: Record<string, { label: string; className: string; icon: typeof CheckCircle2 }> = {
@@ -286,7 +287,7 @@ export default function Coverage() {
         {statsError ? (
           <div className="text-sm text-rose-400">Failed to load coverage: {(statsError as Error).message}</div>
         ) : statsLoading ? (
-          <div className="flex items-center justify-center h-48"><Spinner className="h-8 w-8" /></div>
+          <CoverageSkeleton />
         ) : (
           <>
             <section>
@@ -331,7 +332,11 @@ export default function Coverage() {
           {gapsError ? (
             <div className="text-sm text-rose-400">Failed to load gaps: {(gapsError as Error).message}</div>
           ) : gapsLoading ? (
-            <div className="flex items-center justify-center h-24"><Spinner className="h-6 w-6" /></div>
+            <div className="space-y-2">
+              <Skeleton className="h-8 rounded-md" />
+              <Skeleton className="h-8 rounded-md" />
+              <Skeleton className="h-8 rounded-md" />
+            </div>
           ) : (
             <StructuralGaps gaps={gaps!} />
           )}

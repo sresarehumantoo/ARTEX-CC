@@ -5,6 +5,7 @@ import { AssetGraph } from '../components/AssetGraph'
 import { Spinner } from '../components/ui/spinner'
 import { TableSkeleton } from '../components/skeletons/TableSkeleton'
 import { exportAssetCSV } from '../lib/export'
+import { useToast } from '../hooks/useToast'
 import { cn } from '../lib/utils'
 import { fetchAssets, getAssetFindings, type Asset } from '../lib/api'
 
@@ -302,6 +303,7 @@ function DetailPanel({ asset, onClose }: { asset: Asset; onClose: () => void }) 
 }
 
 export default function Assets() {
+  const { toast } = useToast()
   const [typeFilter, setTypeFilter] = useState('')
   const [dslInput, setDslInput] = useState('')
   const [page, setPage] = useState(0)
@@ -380,7 +382,7 @@ export default function Assets() {
               </button>
             </div>
             <button
-              onClick={() => exportAssetCSV(assets, 'assets.csv')}
+              onClick={() => { exportAssetCSV(assets, 'assets.csv'); toast('Assets exported as CSV', { variant: 'success' }) }}
               disabled={assets.length === 0}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed"
             >

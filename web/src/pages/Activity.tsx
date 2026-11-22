@@ -5,7 +5,7 @@ import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
-import { Spinner } from '../components/ui/spinner'
+import { ActivitySkeleton } from '../components/skeletons/ActivitySkeleton'
 import { getActivity } from '../lib/api'
 import type { Activity as ActivityType } from '../lib/types'
 
@@ -207,11 +207,7 @@ export default function Activity() {
         </div>
       </div>
 
-      {isLoading && (
-        <div className="flex items-center justify-center h-64">
-          <Spinner className="h-8 w-8" />
-        </div>
-      )}
+      {isLoading && <ActivitySkeleton />}
 
       {isError && (
         <p className="text-sm text-rose-400">

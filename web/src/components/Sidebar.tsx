@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { LayoutDashboard, GitBranch, Shield, Globe, Clock, Server, Target, FileText, KeyRound, Settings as SettingsIcon, Sun, Moon, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useTheme } from '../hooks/useTheme'
 import { getEngagement } from '../lib/api'
 import { useSSEStatus } from '../hooks/useSSEStatus'
+import { useUnreadFindings, clearUnread } from '../hooks/useUnreadFindings'
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -49,7 +50,13 @@ export function Sidebar() {
   const { theme, toggleTheme } = useTheme()
   const [collapsed, setCollapsed] = useState(getInitialCollapsed)
   const sseStatus = useSSEStatus()
+  const unread = useUnreadFindings()
+  const location = useLocation()
   const [, tick] = useState(0)
+
+  useEffect(() => {
+    if (location.pathname === '/findings') clearUnread()
+  }, [location.pathname])
 
   useEffect(() => {
     if (!sseStatus.lastEvent) return
@@ -101,15 +108,17 @@ export function Sidebar() {
       <nav className={cn('flex-1 space-y-1 px-2 py-2', !collapsed && 'md:px-3')}>
         {links.map(({ to, icon: Icon, label, badgeKey }) => {
           const badge = badgeKey ? badges[badgeKey] : undefined
+          const isActive = to === '/' ? location.pathname === '/' : location.pathname === to
+          const showUnreadDot = to === '/findings' && unread > 0 && !isActive
           return (
             <NavLink
               key={to}
               to={to}
               end={to === '/'}
-              className={({ isActive }) =>
+              className={({ isActive: active }) =>
                 cn(
                   'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
+                  active
                     ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100'
                     : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200',
                 )
@@ -126,6 +135,9 @@ export function Sidebar() {
                         : 'bg-slate-400 dark:bg-slate-500',
                     )}
                   />
+                )}
+                {showUnreadDot && (
+                  <span className="absolute -top-0.5 -right-0.5 block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 )}
               </span>
               <span className={showLabels}>{label}</span>
