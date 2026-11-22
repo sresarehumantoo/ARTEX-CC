@@ -74,6 +74,9 @@ func (a *API) Handler() http.Handler {
 	if a.chat != nil {
 		a.registerChatRoutes(mux)
 	}
+	if a.files != nil {
+		a.registerAgentsRoutes(mux)
+	}
 	a.registerAuthRoutes(mux)
 	return corsMiddleware(a.authMiddleware(mux))
 }
