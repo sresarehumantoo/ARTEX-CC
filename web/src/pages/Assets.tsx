@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { TableSkeleton } from '../components/skeletons/TableSkeleton'
 import { exportAssetCSV } from '../lib/export'
 import { useSearchParams } from 'react-router-dom'
-import { useToast } from '../hooks/useToast'
+import { toast } from 'sonner'
 import { cn } from '../lib/utils'
 import { fetchAssets, getAssetFindings, type Asset } from '../lib/api'
 
@@ -343,7 +343,6 @@ function DetailPanel({ asset, onClose }: { asset: Asset; onClose: () => void }) 
 }
 
 export default function Assets() {
-  const { toast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
   const [typeFilter, setTypeFilter] = useState(searchParams.get('type') ?? '')
   const [dslInput, setDslInput] = useState('')
@@ -451,7 +450,7 @@ export default function Assets() {
               </button>
             </div>
             <button
-              onClick={() => { exportAssetCSV(assets, 'assets.csv'); toast('Assets exported as CSV', { variant: 'success' }) }}
+              onClick={() => { exportAssetCSV(assets, 'assets.csv'); toast.success('Assets exported as CSV') }}
               disabled={assets.length === 0}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors border border-border text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
             >

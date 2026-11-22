@@ -7,7 +7,7 @@ import { Badge, severityVariant } from '../components/ui/badge'
 import { getEngagement, getFindings, getAssets, getActivity } from '../lib/api'
 import { generateFullReport, markdownToHtml, wrapHtmlDocument } from '../lib/report'
 import { downloadFile } from '../lib/export'
-import { useToast } from '../hooks/useToast'
+import { toast } from 'sonner'
 import type { Activity, Asset, EngagementData, Finding } from '../lib/types'
 
 const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low', 'info'] as const
@@ -316,7 +316,6 @@ function GoalsTable({ engagement }: { engagement: EngagementData }) {
 }
 
 export default function Report() {
-  const { toast } = useToast()
   const engagementQ = useQuery({ queryKey: ['engagement'], queryFn: getEngagement })
   const findingsQ = useQuery({ queryKey: ['findings'], queryFn: getFindings })
   const assetsQ = useQuery({
@@ -351,7 +350,7 @@ export default function Report() {
     if (!engagement) return
     const md = generateFullReport(engagement, findings, assets, activity)
     downloadFile(md, `engagement-report-${now}.md`, 'text/markdown')
-    toast('Report downloaded as Markdown', { variant: 'success' })
+    toast.success('Report downloaded as Markdown')
   }
 
   function handleDownloadHtml() {
@@ -360,7 +359,7 @@ export default function Report() {
     const bodyHtml = markdownToHtml(md)
     const html = wrapHtmlDocument(bodyHtml, 'Engagement Report')
     downloadFile(html, `engagement-report-${now}.html`, 'text/html')
-    toast('Report downloaded as HTML', { variant: 'success' })
+    toast.success('Report downloaded as HTML')
   }
 
   if (isLoading) {

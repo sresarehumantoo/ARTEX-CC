@@ -1,33 +1,14 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { LayoutDashboard, GitBranch, Shield, Globe, Clock, Server, Target, FileText, KeyRound, Settings as SettingsIcon, Sun, Moon, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { ChevronDown, ChevronsLeft, ChevronsRight, Shield } from 'lucide-react'
 import { cn } from '../lib/utils'
-import { useTheme } from '../hooks/useTheme'
+import { navGroups } from '../lib/nav'
 import { getEngagement } from '../lib/api'
 import { useSSEStatus } from '../hooks/useSSEStatus'
 import { useUnreadFindings, clearUnread } from '../hooks/useUnreadFindings'
-
-const links = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/graph', icon: GitBranch, label: 'Graph' },
-  { to: '/findings', icon: Shield, label: 'Findings', badgeKey: 'findings' as const },
-  { to: '/traffic', icon: Globe, label: 'Traffic' },
-  { to: '/activity', icon: Clock, label: 'Activity' },
-  { to: '/assets', icon: Server, label: 'Assets', badgeKey: 'assets' as const },
-  { to: '/coverage', icon: Target, label: 'Coverage' },
-  { to: '/credentials', icon: KeyRound, label: 'Credentials' },
-  { to: '/report', icon: FileText, label: 'Report' },
-  { to: '/settings', icon: SettingsIcon, label: 'Settings' },
-]
-
-function getInitialCollapsed(): boolean {
-  try {
-    return localStorage.getItem('sidebar-collapsed') === 'true'
-  } catch {
-    return false
-  }
-}
+import { usePreferences } from '../stores/preferences'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible'
 
 function formatRelativeTime(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
@@ -52,12 +33,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
-  const { theme, toggleTheme } = useTheme()
-  const [collapsed, setCollapsed] = useState(getInitialCollapsed)
+  const { sidebar_collapsed: collapsed, setSidebarCollapsed } = usePreferences()
   const sseStatus = useSSEStatus()
   const unread = useUnreadFindings()
   const location = useLocation()
   const [, tick] = useState(0)
+  const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (location.pathname === '/findings') clearUnread()
@@ -74,14 +55,6 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     queryFn: getEngagement,
     refetchInterval: 30_000,
   })
-
-  function toggleCollapsed() {
-    setCollapsed(prev => {
-      const next = !prev
-      try { localStorage.setItem('sidebar-collapsed', String(next)) } catch {}
-      return next
-    })
-  }
 
   const showLabels = mobileOpen ? 'inline' : (collapsed ? 'hidden' : 'hidden md:inline')
   const showBlock = mobileOpen ? 'block' : (collapsed ? 'hidden' : 'hidden md:block')
@@ -109,68 +82,94 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       />
     )}
     <aside className={cn(
-      'flex h-screen flex-col bg-muted border-r border-border transition-all duration-200',
+      'flex flex-col bg-card text-card-foreground border-r border-border transition-all duration-200',
       mobileOpen
         ? 'fixed inset-y-0 left-0 z-50 w-56 shadow-xl'
-        : cn(collapsed ? 'w-14' : 'w-14 md:w-56'),
+        : cn('h-full', collapsed ? 'w-14' : 'w-14 md:w-56'),
     )}>
-      <div className={cn('flex items-center gap-2 px-3 py-5', !collapsed && 'md:px-5')}>
-        <Shield className="h-6 w-6 shrink-0 text-emerald-500" />
-        <span className={cn(showBlock, 'text-lg font-semibold tracking-tight text-foreground')}>
+      <div className={cn('flex items-center gap-2 px-3 py-4', !collapsed && 'md:px-5')}>
+        <Shield className="h-6 w-6 shrink-0 text-primary" />
+        <span className={cn(showBlock, 'text-lg font-semibold tracking-tight')}>
           cc-artex
         </span>
       </div>
-      <nav className={cn('flex-1 space-y-1 px-2 py-2', !collapsed && 'md:px-3')}>
-        {links.map(({ to, icon: Icon, label, badgeKey }) => {
-          const badge = badgeKey ? badges[badgeKey] : undefined
-          const isActive = to === '/' ? location.pathname === '/' : location.pathname === to
-          const showUnreadDot = to === '/findings' && unread > 0 && !isActive
+      <nav className={cn('flex-1 space-y-2 overflow-y-auto px-2 py-2', !collapsed && 'md:px-3')}>
+        {navGroups.map((group) => {
+          const open = !closedGroups[group.label]
           return (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              onClick={() => { if (mobileOpen && onMobileClose) onMobileClose() }}
-              className={({ isActive: active }) =>
-                cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                  active
-                    ? 'bg-muted text-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                )
-              }
+            <Collapsible
+              key={group.label}
+              open={open}
+              onOpenChange={(v) => setClosedGroups((prev) => ({ ...prev, [group.label]: !v }))}
             >
-              <span className="relative shrink-0">
-                <Icon className="h-4 w-4" />
-                {badge && !mobileOpen && (
-                  <span
-                    className={cn(
-                      'absolute -top-1 -right-1.5 block h-2 w-2 rounded-full md:hidden',
-                      badge.urgent
-                        ? 'bg-rose-500'
-                        : 'bg-slate-400 dark:bg-slate-500',
-                    )}
-                  />
+              <CollapsibleTrigger
+                className={cn(
+                  'items-center justify-between w-full px-3 py-1 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground',
+                  mobileOpen ? 'flex' : (collapsed ? 'hidden' : 'hidden md:flex'),
                 )}
-                {showUnreadDot && (
-                  <span className="absolute -top-0.5 -right-0.5 block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              >
+                {group.label}
+                <ChevronDown className={cn('h-3 w-3 transition-transform', !open && '-rotate-90')} />
+              </CollapsibleTrigger>
+              <CollapsibleContent
+                forceMount
+                className={cn(
+                  'space-y-1 pt-1',
+                  !mobileOpen && (collapsed ? 'data-[state=closed]:block' : 'data-[state=closed]:max-md:block'),
                 )}
-              </span>
-              <span className={showLabels}>{label}</span>
-              {badge && (
-                <span
-                  className={cn(
-                    'ml-auto items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none',
-                    mobileOpen ? 'inline-flex' : (collapsed ? 'hidden' : 'hidden md:inline-flex'),
-                    badge.urgent
-                      ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
-                      : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
-                  )}
-                >
-                  {badge.count}
-                </span>
-              )}
-            </NavLink>
+              >
+                {group.items.map(({ to, icon: Icon, label, badgeKey }) => {
+                  const badge = badgeKey ? badges[badgeKey] : undefined
+                  const isActive = location.pathname === to
+                  const showUnreadDot = to === '/findings' && unread > 0 && !isActive
+                  return (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      end={to === '/'}
+                      onClick={() => { if (mobileOpen && onMobileClose) onMobileClose() }}
+                      className={({ isActive: active }) =>
+                        cn(
+                          'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                          active
+                            ? 'bg-accent text-accent-foreground'
+                            : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground',
+                        )
+                      }
+                    >
+                      <span className="relative shrink-0">
+                        <Icon className="h-4 w-4" />
+                        {badge && !mobileOpen && (
+                          <span
+                            className={cn(
+                              'absolute -top-1 -right-1.5 block h-2 w-2 rounded-full md:hidden',
+                              badge.urgent ? 'bg-destructive' : 'bg-muted-foreground',
+                            )}
+                          />
+                        )}
+                        {showUnreadDot && (
+                          <span className="absolute -top-0.5 -right-0.5 block h-2 w-2 rounded-full bg-primary animate-pulse" />
+                        )}
+                      </span>
+                      <span className={showLabels}>{label}</span>
+                      {badge && (
+                        <span
+                          className={cn(
+                            'ml-auto items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none',
+                            mobileOpen ? 'inline-flex' : (collapsed ? 'hidden' : 'hidden md:inline-flex'),
+                            badge.urgent
+                              ? 'bg-destructive/15 text-destructive'
+                              : 'bg-muted text-muted-foreground',
+                          )}
+                        >
+                          {badge.count}
+                        </span>
+                      )}
+                    </NavLink>
+                  )
+                })}
+              </CollapsibleContent>
+            </Collapsible>
           )
         })}
       </nav>
@@ -179,7 +178,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           <span
             className={cn(
               'block h-2 w-2 shrink-0 rounded-full',
-              sseStatus.connected ? 'bg-emerald-500' : 'bg-rose-500',
+              sseStatus.connected ? 'bg-primary' : 'bg-destructive',
             )}
             role="status"
             aria-label={sseStatus.connected ? 'Connected to server' : 'Disconnected from server'}
@@ -190,7 +189,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           </span>
         </div>
         {sseStatus.lastEvent && (
-          <div className={cn('px-3 py-0.5', mobileOpen ? 'block' : (collapsed ? 'hidden' : 'hidden md:block'))}>
+          <div className={cn('px-3 py-0.5', showBlock)}>
             <span className="text-[10px] text-muted-foreground">
               Updated {formatRelativeTime(sseStatus.lastEvent)}
             </span>
@@ -200,25 +199,12 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       <div className={cn('px-2 py-3', !collapsed && 'md:px-3')}>
         <button
           type="button"
-          onClick={toggleCollapsed}
+          onClick={() => setSidebarCollapsed(!collapsed)}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="hidden md:flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="hidden md:flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-accent-foreground"
         >
           {collapsed ? <ChevronsRight className="h-4 w-4 shrink-0" /> : <ChevronsLeft className="h-4 w-4 shrink-0" />}
           <span className={showLabels}>{collapsed ? 'Expand' : 'Collapse'}</span>
-        </button>
-        <button
-          type="button"
-          onClick={toggleTheme}
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        >
-          {theme === 'dark' ? (
-            <Sun className="h-4 w-4 shrink-0" />
-          ) : (
-            <Moon className="h-4 w-4 shrink-0" />
-          )}
-          <span className={showLabels}>{theme === 'dark' ? 'Light' : 'Dark'}</span>
         </button>
       </div>
     </aside>

@@ -10,7 +10,7 @@ import { Select } from '../components/ui/select'
 import { ActivitySkeleton } from '../components/skeletons/ActivitySkeleton'
 import { getActivity } from '../lib/api'
 import { downloadFile } from '../lib/export'
-import { useToast } from '../hooks/useToast'
+import { toast } from 'sonner'
 import { cn } from '../lib/utils'
 import type { Activity as ActivityType } from '../lib/types'
 
@@ -125,7 +125,6 @@ export default function Activity() {
   const [searchText, setSearchText] = useState(() => searchParams.get('q') ?? '')
   const [seenCount, setSeenCount] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const { toast } = useToast()
 
   const { data, isLoading, isError, error, dataUpdatedAt, refetch } = useQuery({
     queryKey: ['activity', limit, kindFilter],
@@ -242,7 +241,7 @@ export default function Activity() {
             disabled={!filtered.length}
             onClick={() => {
               exportActivityCSV(filtered)
-              toast('Activity exported', { variant: 'success' })
+              toast.success('Activity exported')
             }}
           >
             <Download className="h-4 w-4 mr-1" />

@@ -8,7 +8,7 @@ import { Skeleton } from '../components/ui/skeleton'
 import { SettingsSkeleton } from '../components/skeletons/SettingsSkeleton'
 import { Button } from '../components/ui/button'
 import { downloadFile } from '../lib/export'
-import { useToast } from '../hooks/useToast'
+import { toast } from 'sonner'
 import { cn } from '../lib/utils'
 
 const KIND_COLORS: Record<string, string> = {
@@ -86,7 +86,6 @@ function exportEngagementJSON(engagement: EngagementData, constraints: Constrain
 }
 
 export default function Settings() {
-  const { toast } = useToast()
   const { data: engagement, isLoading: engLoading, error: engError, refetch: refetchEng } = useQuery({
     queryKey: ['engagement'],
     queryFn: getEngagement,
@@ -110,7 +109,7 @@ export default function Settings() {
               onClick={() => {
                 if (engagement && constraints) {
                   exportEngagementJSON(engagement, constraints)
-                  toast('Exported engagement data', { variant: 'success' })
+                  toast.success('Exported engagement data')
                 }
               }}
             >

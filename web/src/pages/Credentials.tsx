@@ -6,7 +6,7 @@ import type { Credential } from '../lib/types'
 import { downloadFile } from '../lib/export'
 import { cn } from '../lib/utils'
 import { CredentialsSkeleton } from '../components/skeletons/CredentialsSkeleton'
-import { useToast } from '../hooks/useToast'
+import { toast } from 'sonner'
 
 function exportCredentialsCSV(creds: Credential[]) {
   const headers = ['Domain', 'Username', 'Source', 'Note']
@@ -16,7 +16,6 @@ function exportCredentialsCSV(creds: Credential[]) {
 }
 
 export default function Credentials() {
-  const { toast } = useToast()
   const [filter, setFilter] = useState('')
   const [domainFilter, setDomainFilter] = useState('')
   const [revealed, setRevealed] = useState<Set<number>>(() => new Set())
@@ -62,7 +61,7 @@ export default function Credentials() {
 
   function copyPassword(password: string) {
     navigator.clipboard.writeText(password)
-    toast('Password copied', { variant: 'success' })
+    toast.success('Password copied')
   }
 
   return (
@@ -81,7 +80,7 @@ export default function Credentials() {
               onClick={() => {
                 if (filtered.length > 0) {
                   exportCredentialsCSV(filtered)
-                  toast('Credentials exported (passwords excluded)', { variant: 'success' })
+                  toast.success('Credentials exported (passwords excluded)')
                 }
               }}
               disabled={filtered.length === 0}

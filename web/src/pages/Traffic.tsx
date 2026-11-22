@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 
 import { TableSkeleton } from '../components/skeletons/TableSkeleton'
 import { type TrafficFilters, useTraffic, useTrafficDetail } from '../hooks/useTraffic'
-import { useToast } from '../hooks/useToast'
+import { toast } from 'sonner'
 import { exportTrafficCSV } from '../lib/export'
 import type { TrafficExchange } from '../lib/types'
 import { cn, formatBytes, relativeTime } from '../lib/utils'
@@ -35,7 +35,6 @@ function statusColor(code: number): string {
 
 export default function Traffic() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const { toast } = useToast()
   const [host, setHost] = useState(searchParams.get('host') ?? '')
   const [method, setMethod] = useState(searchParams.get('method') ?? '')
   const [statusInput, setStatusInput] = useState(searchParams.get('status') ?? '')
@@ -299,7 +298,7 @@ export default function Traffic() {
           size="sm"
           onClick={() => {
             exportTrafficCSV(rows, 'traffic.csv')
-            toast('Exported traffic as CSV', { variant: 'success' })
+            toast.success('Exported traffic as CSV')
           }}
           disabled={rows.length === 0}
         >
@@ -480,7 +479,6 @@ function shortContentType(ct: string): string {
 }
 
 function HttpPanel({ label, content, showCurl }: { label: string; content: string; showCurl?: boolean }) {
-  const { toast } = useToast()
   const [copied, setCopied] = useState(false)
   const [copiedCurl, setCopiedCurl] = useState(false)
   const formatted = useMemo(() => formatHttp(content), [content])
@@ -489,9 +487,9 @@ function HttpPanel({ label, content, showCurl }: { label: string; content: strin
     navigator.clipboard.writeText(content).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
-      toast('Copied to clipboard', { variant: 'success' })
+      toast.success('Copied to clipboard')
     })
-  }, [content, toast])
+  }, [content])
 
   const copyCurl = useCallback(() => {
     const cmd = buildCurl(content)
@@ -499,9 +497,9 @@ function HttpPanel({ label, content, showCurl }: { label: string; content: strin
     navigator.clipboard.writeText(cmd).then(() => {
       setCopiedCurl(true)
       setTimeout(() => setCopiedCurl(false), 1500)
-      toast('Copied curl command', { variant: 'success' })
+      toast.success('Copied curl command')
     })
-  }, [content, toast])
+  }, [content])
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
