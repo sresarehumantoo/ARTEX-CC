@@ -135,6 +135,11 @@ export default function Findings() {
     return null
   })
   const [showTimeline, setShowTimeline] = useState(true)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [severityFilter, statusFilter, search])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -398,11 +403,62 @@ export default function Findings() {
               </div>
             </div>
           ) : (
+            <>
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 mb-2">
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                  {selectedIds.size} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ids = [...selectedIds].sort((a, b) => a - b).join(', ')
+                    navigator.clipboard.writeText(ids)
+                    toast('Finding IDs copied', { variant: 'success' })
+                  }}
+                  className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium"
+                >
+                  Copy IDs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const csv = filtered.filter(f => selectedIds.has(f.id))
+                    exportCSV(csv, 'selected-findings.csv')
+                    toast('Exported selected findings', { variant: 'success' })
+                  }}
+                  className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium"
+                >
+                  Export selected
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="ml-auto text-xs text-slate-400 hover:text-slate-600"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
             <ScrollArea className="h-full">
               <div className="overflow-x-auto">
                 <Table className="min-w-[600px]">
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8 px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedIds(new Set(filtered.map(f => f.id)))
+                            } else {
+                              setSelectedIds(new Set())
+                            }
+                          }}
+                          className="rounded border-slate-300 dark:border-slate-600"
+                        />
+                      </TableHead>
                       <TableHead className="w-24 cursor-pointer select-none" onClick={() => toggleSort('severity')}>
                         Severity <SortIcon field="severity" />
                       </TableHead>
@@ -426,6 +482,21 @@ export default function Findings() {
                         )}
                         onClick={() => setSelectedId(selectedId === f.id ? null : f.id)}
                       >
+                        <TableCell className="w-8 px-3 py-2" onClick={e => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(f.id)}
+                            onChange={() => {
+                              setSelectedIds(prev => {
+                                const next = new Set(prev)
+                                if (next.has(f.id)) next.delete(f.id)
+                                else next.add(f.id)
+                                return next
+                              })
+                            }}
+                            className="rounded border-slate-300 dark:border-slate-600"
+                          />
+                        </TableCell>
                         <TableCell>
                           <Badge variant={SEVERITY_VARIANT[f.severity]}>{f.severity}</Badge>
                         </TableCell>
@@ -441,6 +512,7 @@ export default function Findings() {
                 </Table>
               </div>
             </ScrollArea>
+            </>
           )}
         </div>
 

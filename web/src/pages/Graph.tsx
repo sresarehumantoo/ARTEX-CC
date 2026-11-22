@@ -14,7 +14,7 @@ import '@xyflow/react/dist/style.css'
 import '../graph.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { GitBranch, Search, X, Filter } from 'lucide-react'
+import { GitBranch, Search, X, Filter, Maximize2 } from 'lucide-react'
 import { GraphSkeleton } from '../components/skeletons/GraphSkeleton'
 import {
   GoalNode,
@@ -208,6 +208,18 @@ export function GraphPage() {
     setSelectedNode(null)
   }, [])
 
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (e.key === 'f' && !e.ctrlKey && !e.metaKey) {
+        rfInstance?.fitView({ padding: 0.2, duration: 500 })
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [rfInstance])
+
   const proofArrowMarker = useMemo(
     () => (
       <svg style={{ position: 'absolute', width: 0, height: 0 }}>
@@ -294,6 +306,15 @@ export function GraphPage() {
         />
       </ReactFlow>
       <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => rfInstance?.fitView({ padding: 0.2, duration: 500 })}
+          className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm px-2.5 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800"
+          aria-label="Fit graph to view"
+        >
+          <Maximize2 className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Fit</span>
+        </button>
         <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm px-2.5 py-1.5">
           <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           <input
@@ -337,6 +358,13 @@ export function GraphPage() {
               )}
             </>
           )}
+        </div>
+      </div>
+      <div className="absolute top-3 left-3 z-10">
+        <div className="flex items-center gap-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm px-2.5 py-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <span>{data.nodes.length} nodes</span>
+          <span className="text-slate-300 dark:text-slate-600">|</span>
+          <span>{data.edges.length} edges</span>
         </div>
       </div>
       <Legend

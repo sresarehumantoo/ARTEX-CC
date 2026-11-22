@@ -96,27 +96,33 @@ function ActivityFeed({ items }: { items: Activity[] }) {
 
   return (
     <div className="space-y-1">
-      {items.map((a) => (
-        <div
-          key={a.id}
-          className="flex items-start gap-3 rounded-md px-3 py-2 hover:bg-slate-100/50 dark:hover:bg-slate-800/50"
-        >
-          <div className="mt-0.5 shrink-0">
-            {a.is_error ? (
-              <AlertCircle className="h-4 w-4 text-rose-400" />
-            ) : (
-              <Wrench className="h-4 w-4 text-slate-500" />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{a.tool}</span>
-              {a.created_at && <span className="text-xs text-slate-400 dark:text-slate-600">{relativeTime(a.created_at)}</span>}
+      {items.map((a) => {
+        const content = (
+          <div className="flex items-start gap-3 rounded-md px-3 py-2 hover:bg-slate-100/50 dark:hover:bg-slate-800/50">
+            <div className="mt-0.5 shrink-0">
+              {a.is_error ? (
+                <AlertCircle className="h-4 w-4 text-rose-400" />
+              ) : (
+                <Wrench className="h-4 w-4 text-slate-500" />
+              )}
             </div>
-            <p className="truncate text-sm text-slate-500 dark:text-slate-400">{a.summary}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{a.tool}</span>
+                {a.created_at && <span className="text-xs text-slate-400 dark:text-slate-600">{relativeTime(a.created_at)}</span>}
+              </div>
+              <p className="truncate text-sm text-slate-500 dark:text-slate-400">{a.summary}</p>
+            </div>
           </div>
-        </div>
-      ))}
+        )
+        return a.node_id ? (
+          <Link key={a.id} to={`/graph?focus=${a.node_id}`} className="block">
+            {content}
+          </Link>
+        ) : (
+          <div key={a.id}>{content}</div>
+        )
+      })}
     </div>
   )
 }
@@ -211,9 +217,17 @@ function CoverageRing({ coverage, frontierOpen }: { coverage: Record<string, unk
     return (
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <Layers className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-            <CardTitle>Coverage</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Layers className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+              <CardTitle>Coverage</CardTitle>
+            </div>
+            <Link
+              to="/coverage"
+              className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            >
+              View all
+            </Link>
           </div>
         </CardHeader>
         <CardContent>
@@ -248,9 +262,17 @@ function CoverageRing({ coverage, frontierOpen }: { coverage: Record<string, unk
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <Layers className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-          <CardTitle>Coverage</CardTitle>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+            <CardTitle>Coverage</CardTitle>
+          </div>
+          <Link
+            to="/coverage"
+            className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          >
+            View all
+          </Link>
         </div>
       </CardHeader>
       <CardContent>
@@ -623,7 +645,15 @@ export function Dashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Recent Activity</CardTitle>
+            <Link
+              to="/activity"
+              className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            >
+              View all
+            </Link>
+          </div>
         </CardHeader>
         <CardContent>
           {activity.isLoading && (

@@ -1,11 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, ChevronRight, Target, AlertTriangle, CheckCircle2, XCircle, HelpCircle, MinusCircle } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ArrowRight, ChevronDown, ChevronRight, Download, Target, AlertTriangle, CheckCircle2, XCircle, HelpCircle, MinusCircle } from 'lucide-react'
 import { getCoverage, getCoverageGaps } from '../lib/api'
 import type { CoverageEntry, CoverageGap, CoverageGaps } from '../lib/types'
 import { Badge } from '../components/ui/badge'
+import { Button } from '../components/ui/button'
 import { Skeleton } from '../components/ui/skeleton'
 import { CoverageSkeleton } from '../components/skeletons/CoverageSkeleton'
+import { useToast } from '../hooks/useToast'
+import { downloadFile } from '../lib/export'
 import { cn } from '../lib/utils'
 
 const OUTCOME_CONFIG: Record<string, { label: string; className: string; icon: typeof CheckCircle2 }> = {
@@ -281,11 +285,11 @@ function CollapsibleSection({ title, count, defaultOpen, children }: {
 
 function StructuralGaps({ gaps }: { gaps: CoverageGaps }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sections: { title: string; items: any[]; render: (item: any) => string }[] = [
-    { title: 'Untargeted Assets', items: gaps.untargeted_assets, render: (a: CoverageGaps['untargeted_assets'][0]) => `${a.type}: ${a.label}` },
-    { title: 'Unresolved Intents', items: gaps.unresolved_intents, render: (n: CoverageGaps['unresolved_intents'][0]) => (n.payload.label as string) || `Intent #${n.id}` },
-    { title: 'Unproven Goals', items: gaps.unproven_goals, render: (n: CoverageGaps['unproven_goals'][0]) => (n.payload.label as string) || `Goal #${n.id}` },
-    { title: 'Unenriched Services', items: gaps.unenriched_services, render: (a: CoverageGaps['unenriched_services'][0]) => a.label },
+  const sections: { title: string; items: any[]; render: (item: any) => string; link: (item: any) => string }[] = [
+    { title: 'Untargeted Assets', items: gaps.untargeted_assets, render: (a: CoverageGaps['untargeted_assets'][0]) => `${a.type}: ${a.label}`, link: (a) => `/assets?id=${a.id}` },
+    { title: 'Unresolved Intents', items: gaps.unresolved_intents, render: (n: CoverageGaps['unresolved_intents'][0]) => (n.payload.label as string) || `Intent #${n.id}`, link: (n) => `/graph?focus=${n.id}` },
+    { title: 'Unproven Goals', items: gaps.unproven_goals, render: (n: CoverageGaps['unproven_goals'][0]) => (n.payload.label as string) || `Goal #${n.id}`, link: (n) => `/graph?focus=${n.id}` },
+    { title: 'Unenriched Services', items: gaps.unenriched_services, render: (a: CoverageGaps['unenriched_services'][0]) => a.label, link: (a) => `/assets?id=${a.id}` },
   ]
 
   const totalGaps = sections.reduce((sum, s) => sum + s.items.length, 0)
@@ -295,14 +299,19 @@ function StructuralGaps({ gaps }: { gaps: CoverageGaps }) {
 
   return (
     <div className="space-y-3">
-      {sections.map(({ title, items, render }) => (
+      {sections.map(({ title, items, render, link }) => (
         items.length > 0 && (
           <CollapsibleSection key={title} title={title} count={items.length}>
             <div className="space-y-1">
               {items.map((item, i) => (
-                <div key={i} className="px-2 md:px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 rounded-md bg-slate-50 dark:bg-slate-800/50 break-words">
-                  {render(item)}
-                </div>
+                <Link
+                  key={i}
+                  to={link(item)}
+                  className="flex items-center gap-2 px-2 md:px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 rounded-md bg-slate-50 dark:bg-slate-800/50 break-words hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors group"
+                >
+                  <span className="min-w-0 truncate">{render(item)}</span>
+                  <ArrowRight className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                </Link>
               ))}
             </div>
           </CollapsibleSection>
@@ -312,8 +321,28 @@ function StructuralGaps({ gaps }: { gaps: CoverageGaps }) {
   )
 }
 
+function exportCoverageCSV(entries: CoverageEntry[]) {
+  const headers = ['Surface', 'Risk Area', 'Outcome', 'Evidence', 'Reason', 'Worker', 'Updated']
+  const rows = entries.map(e => [
+    e.surface, e.risk_area, e.outcome, e.evidence, e.reason, e.worker ?? '', e.updated_at,
+  ])
+  const csv = [headers, ...rows].map(r => r.map(v => `"${(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
+  downloadFile(csv, `coverage-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv')
+}
+
 export default function Coverage() {
-  const [outcomeFilter, setOutcomeFilter] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [outcomeFilter, setOutcomeFilter] = useState<string | null>(() => searchParams.get('outcome'))
+  const { toast } = useToast()
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const next = new URLSearchParams()
+      if (outcomeFilter) next.set('outcome', outcomeFilter)
+      setSearchParams(next, { replace: true })
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [outcomeFilter, setSearchParams])
 
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ['coverage'],
@@ -345,6 +374,20 @@ export default function Coverage() {
               {entryCount}
             </span>
           )}
+          <div className="ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!entries.length}
+              onClick={() => {
+                exportCoverageCSV(filteredEntries)
+                toast('Coverage exported', { variant: 'success' })
+              }}
+            >
+              <Download className="h-4 w-4 mr-1" />
+              Download
+            </Button>
+          </div>
         </div>
       </div>
 
