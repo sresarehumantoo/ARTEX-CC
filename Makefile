@@ -1,4 +1,4 @@
-.PHONY: all build web install dev test lint fmt fmt-check vet ci clean help
+.PHONY: all build web install dev test lint fmt fmt-check vet ci clean coverage help
 
 all: build
 
@@ -15,6 +15,7 @@ help:
 	@echo "  fmt-check   Check Go formatting (CI)"
 	@echo "  vet         Run go vet"
 	@echo "  ci          Run fmt-check + vet + test"
+	@echo "  coverage    Generate HTML coverage report"
 	@echo "  clean       Remove build artifacts"
 
 web: web/node_modules
@@ -50,6 +51,11 @@ vet:
 	go vet ./...
 
 ci: fmt-check vet test
+
+coverage:
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report written to coverage.html"
 
 clean:
 	rm -rf web/dist cc-artex
