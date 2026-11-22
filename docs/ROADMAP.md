@@ -121,7 +121,7 @@ Done. Standardized error format across all tools.
 
 ### ✅ 4.3 Structured logging
 
-Done. `slog`-based JSON logging across most packages. 57 `log.Printf` calls remain in `traffic/` and `eval/` for slog migration.
+Done. `slog`-based JSON logging across all packages. Only `log.Fatal` calls remain in `eval/` entry points.
 
 ### ✅ 4.4 README accuracy
 
