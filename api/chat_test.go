@@ -1,0 +1,496 @@
+package api
+
+import (
+	"bufio"
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+)
+
+func newTestChatStore(t *testing.T) *ChatStore {
+	t.Helper()
+	return NewChatStore(NewFileStore(t.TempDir()))
+}
+
+func TestChatStoreLifecycle(t *testing.T) {
+	s := newTestChatStore(t)
+
+	first, err := s.Create(CreateConversationRequest{Title: "one", Model: "sonnet"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := s.Create(CreateConversationRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Title == "" || second.Status != ChatStatusIdle {
+		t.Fatalf("unexpected defaults: %+v", second)
+	}
+
+	if _, err := s.Update(first.ID, func(c *Conversation) { c.Title = "renamed" }); err != nil {
+		t.Fatal(err)
+	}
+	list, err := s.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 2 || list[0].ID != first.ID || list[0].Title != "renamed" {
+		t.Fatalf("list order or content wrong: %+v", list)
+	}
+
+	for _, text := range []string{"a", "b", "c"} {
+		if _, err := s.AppendEvent(first.ID, ChatEvent{Kind: ChatKindText, Text: text}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	all, err := s.Events(first.ID, 0)
+	if err != nil || len(all) != 3 || all[2].Seq != 3 {
+		t.Fatalf("events = %+v, err = %v", all, err)
+	}
+	tail, err := s.Events(first.ID, 2)
+	if err != nil || len(tail) != 1 || tail[0].Text != "c" {
+		t.Fatalf("tail = %+v, err = %v", tail, err)
+	}
+
+	reopened := NewChatStore(s.files)
+	ev, err := reopened.AppendEvent(first.ID, ChatEvent{Kind: ChatKindText, Text: "d"})
+	if err != nil || ev.Seq != 4 {
+		t.Fatalf("seq after reopen = %d, err = %v", ev.Seq, err)
+	}
+
+	if err := s.Delete(first.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Get(first.ID); err != ErrConversationNotFound {
+		t.Fatalf("expected not found, got %v", err)
+	}
+	if _, err := s.Get("../etc"); err != ErrConversationNotFound {
+		t.Fatalf("expected not found for bad id, got %v", err)
+	}
+}
+
+func TestChatStoreListEmpty(t *testing.T) {
+	list, err := newTestChatStore(t).List()
+	if err != nil || list == nil || len(list) != 0 {
+		t.Fatalf("list = %v, err = %v", list, err)
+	}
+}
+
+func TestParseClaudeFixture(t *testing.T) {
+	f, err := os.Open("testdata/claude_stream.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	var events []ChatEvent
+	var sessionID string
+	var turnDone bool
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		p, err := parseClaudeLine(sc.Bytes())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.sessionID != "" {
+			sessionID = p.sessionID
+		}
+		turnDone = turnDone || p.turnDone
+		events = append(events, p.events...)
+	}
+
+	if sessionID != "sess-123" || !turnDone {
+		t.Fatalf("sessionID = %q, turnDone = %v", sessionID, turnDone)
+	}
+	var kinds []string
+	for _, e := range events {
+		kinds = append(kinds, e.Kind)
+	}
+	want := "thinking,text,tool_use,tool_result,text,result"
+	if got := strings.Join(kinds, ","); got != want {
+		t.Fatalf("kinds = %s, want %s", got, want)
+	}
+	if events[2].ToolName != "mcp__cc-artex__graph_overview" || string(events[2].Input) != `{"depth":2}` {
+		t.Fatalf("tool_use = %+v", events[2])
+	}
+	if events[3].ToolID != "toolu_1" || events[3].Text != "3 nodes" {
+		t.Fatalf("tool_result = %+v", events[3])
+	}
+	u := events[5].Usage
+	if u == nil || u.InputTokens != 100 || u.OutputTokens != 50 || u.CacheReadTokens != 10 || u.CostUSD != 0.0123 || u.NumTurns != 2 {
+		t.Fatalf("usage = %+v", u)
+	}
+}
+
+func TestParseClaudeLineInvalid(t *testing.T) {
+	if _, err := parseClaudeLine([]byte("not json")); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestWriteMCPConfig(t *testing.T) {
+	dir := t.TempDir()
+	path, err := WriteMCPConfig(dir, "localhost:9400", "tok")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(path)
+	var cfg struct {
+		MCPServers map[string]struct {
+			URL     string            `json:"url"`
+			Headers map[string]string `json:"headers"`
+		} `json:"mcpServers"`
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	srv := cfg.MCPServers["cc-artex"]
+	if srv.URL != "http://127.0.0.1:9400/mcp" || srv.Headers["Authorization"] != "Bearer tok" {
+		t.Fatalf("config = %+v", srv)
+	}
+	if _, err := WriteMCPConfig(dir, "nonsense", "tok"); err == nil {
+		t.Fatal("expected error for bad address")
+	}
+}
+
+type mockRunner struct {
+	mu        sync.Mutex
+	store     *ChatStore
+	hub       *Hub
+	available bool
+	running   map[string]bool
+	sent      []string
+	stopped   []string
+	startErr  error
+}
+
+func newMockRunner(available bool) *mockRunner {
+	return &mockRunner{available: available, running: map[string]bool{}}
+}
+
+func (m *mockRunner) Bind(s *ChatStore, h *Hub) { m.store, m.hub = s, h }
+func (m *mockRunner) Available() bool           { return m.available }
+func (m *mockRunner) Running(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.running[id]
+}
+func (m *mockRunner) Start(_ context.Context, id, _, _, _ string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.startErr != nil {
+		return m.startErr
+	}
+	m.running[id] = true
+	return nil
+}
+func (m *mockRunner) Send(id, msg string) error {
+	m.mu.Lock()
+	m.sent = append(m.sent, msg)
+	m.mu.Unlock()
+	emitChatEvent(m.store, m.hub, id, ChatEvent{Kind: ChatKindText, Text: "echo " + msg})
+	return nil
+}
+func (m *mockRunner) Stop(id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.stopped = append(m.stopped, id)
+	delete(m.running, id)
+	return nil
+}
+
+func newChatTestServer(t *testing.T, runner *mockRunner) (*httptest.Server, *API) {
+	t.Helper()
+	opts := []Option{WithDataDir(t.TempDir())}
+	if runner != nil {
+		opts = append(opts, WithRunner(runner))
+	}
+	a := New(&mockStore{}, nil, 1, 1, opts...)
+	srv := httptest.NewServer(a.Handler())
+	t.Cleanup(srv.Close)
+	return srv, a
+}
+
+func doJSON(t *testing.T, method, url string, body any) (*http.Response, []byte) {
+	t.Helper()
+	var payload string
+	if body != nil {
+		b, _ := json.Marshal(body)
+		payload = string(b)
+	}
+	req, _ := http.NewRequest(method, url, strings.NewReader(payload))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	data, _ := io.ReadAll(resp.Body)
+	return resp, data
+}
+
+func createConv(t *testing.T, base string) Conversation {
+	t.Helper()
+	resp, body := doJSON(t, "POST", base+"/api/conversations", CreateConversationRequest{Title: "t"})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create status = %d: %s", resp.StatusCode, body)
+	}
+	var c Conversation
+	if err := json.Unmarshal(body, &c); err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+func TestChatRoutesCRUD(t *testing.T) {
+	srv, _ := newChatTestServer(t, newMockRunner(true))
+	c := createConv(t, srv.URL)
+
+	resp, body := doJSON(t, "PATCH", srv.URL+"/api/conversations/"+c.ID, map[string]string{"title": "new", "model": "opus"})
+	var updated Conversation
+	json.Unmarshal(body, &updated)
+	if resp.StatusCode != 200 || updated.Title != "new" || updated.Model != "opus" {
+		t.Fatalf("patch: %d %s", resp.StatusCode, body)
+	}
+
+	resp, body = doJSON(t, "GET", srv.URL+"/api/conversations", nil)
+	var list []Conversation
+	json.Unmarshal(body, &list)
+	if resp.StatusCode != 200 || len(list) != 1 {
+		t.Fatalf("list: %d %s", resp.StatusCode, body)
+	}
+
+	if resp, _ = doJSON(t, "GET", srv.URL+"/api/conversations/"+c.ID, nil); resp.StatusCode != 200 {
+		t.Fatalf("get: %d", resp.StatusCode)
+	}
+	if resp, _ = doJSON(t, "GET", srv.URL+"/api/conversations/not-a-uuid", nil); resp.StatusCode != 404 {
+		t.Fatalf("bad id: %d", resp.StatusCode)
+	}
+	if resp, _ = doJSON(t, "DELETE", srv.URL+"/api/conversations/"+c.ID, nil); resp.StatusCode != 204 {
+		t.Fatalf("delete: %d", resp.StatusCode)
+	}
+	if resp, _ = doJSON(t, "GET", srv.URL+"/api/conversations/"+c.ID, nil); resp.StatusCode != 404 {
+		t.Fatalf("get after delete: %d", resp.StatusCode)
+	}
+}
+
+func TestChatSendMessageAndMessages(t *testing.T) {
+	runner := newMockRunner(true)
+	srv, _ := newChatTestServer(t, runner)
+	c := createConv(t, srv.URL)
+
+	resp, body := doJSON(t, "POST", srv.URL+"/api/conversations/"+c.ID+"/messages", SendMessageRequest{Message: "hi"})
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("send: %d %s", resp.StatusCode, body)
+	}
+	if !runner.Running(c.ID) || len(runner.sent) != 1 || runner.sent[0] != "hi" {
+		t.Fatalf("runner state: %+v", runner)
+	}
+
+	_, body = doJSON(t, "GET", srv.URL+"/api/conversations/"+c.ID+"/messages", nil)
+	var events []ChatEvent
+	json.Unmarshal(body, &events)
+	if len(events) != 2 || events[0].Kind != ChatKindUser || events[1].Text != "echo hi" {
+		t.Fatalf("events = %+v", events)
+	}
+	_, body = doJSON(t, "GET", srv.URL+"/api/conversations/"+c.ID+"/messages?after=1", nil)
+	events = nil
+	json.Unmarshal(body, &events)
+	if len(events) != 1 || events[0].Seq != 2 {
+		t.Fatalf("after=1 events = %+v", events)
+	}
+
+	if resp, _ = doJSON(t, "POST", srv.URL+"/api/conversations/"+c.ID+"/messages", SendMessageRequest{}); resp.StatusCode != 400 {
+		t.Fatalf("empty message: %d", resp.StatusCode)
+	}
+
+	if resp, _ = doJSON(t, "POST", srv.URL+"/api/conversations/"+c.ID+"/stop", nil); resp.StatusCode != 204 {
+		t.Fatalf("stop: %d", resp.StatusCode)
+	}
+	if runner.Running(c.ID) {
+		t.Fatal("runner still running after stop")
+	}
+}
+
+func TestChatSendMessageUnavailable(t *testing.T) {
+	for name, runner := range map[string]*mockRunner{
+		"no runner":   nil,
+		"unavailable": newMockRunner(false),
+	} {
+		t.Run(name, func(t *testing.T) {
+			srv, _ := newChatTestServer(t, runner)
+			c := createConv(t, srv.URL)
+			resp, _ := doJSON(t, "POST", srv.URL+"/api/conversations/"+c.ID+"/messages", SendMessageRequest{Message: "hi"})
+			if resp.StatusCode != http.StatusServiceUnavailable {
+				t.Fatalf("status = %d", resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestChatSendMessageAtCapacity(t *testing.T) {
+	runner := newMockRunner(true)
+	runner.startErr = ErrRunnerAtCapacity
+	srv, _ := newChatTestServer(t, runner)
+	c := createConv(t, srv.URL)
+	resp, _ := doJSON(t, "POST", srv.URL+"/api/conversations/"+c.ID+"/messages", SendMessageRequest{Message: "hi"})
+	if resp.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+}
+
+func TestChatDeleteStopsRunner(t *testing.T) {
+	runner := newMockRunner(true)
+	srv, _ := newChatTestServer(t, runner)
+	c := createConv(t, srv.URL)
+	doJSON(t, "DELETE", srv.URL+"/api/conversations/"+c.ID, nil)
+	if len(runner.stopped) != 1 || runner.stopped[0] != c.ID {
+		t.Fatalf("stopped = %v", runner.stopped)
+	}
+}
+
+func TestClaudeStatus(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()), WithClaudeBin("/nonexistent/claude"))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+	_, body := doJSON(t, "GET", srv.URL+"/api/claude/status", nil)
+	var st map[string]any
+	json.Unmarshal(body, &st)
+	if st["available"] != false {
+		t.Fatalf("status = %s", body)
+	}
+}
+
+func TestChatStream(t *testing.T) {
+	srv, a := newChatTestServer(t, nil)
+	c := createConv(t, srv.URL)
+	for _, text := range []string{"one", "two"} {
+		emitChatEvent(a.chat, a.hub, c.ID, ChatEvent{Kind: ChatKindText, Text: text})
+	}
+
+	req, _ := http.NewRequest("GET", srv.URL+"/api/conversations/"+c.ID+"/stream", nil)
+	req.Header.Set("Last-Event-ID", "1")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
+		t.Fatalf("content type = %s", ct)
+	}
+
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		emitChatEvent(a.chat, a.hub, c.ID, ChatEvent{Kind: ChatKindText, Text: "three"})
+	}()
+	var lines []string
+	sc := bufio.NewScanner(resp.Body)
+	for sc.Scan() {
+		if line := sc.Text(); line != "" {
+			lines = append(lines, line)
+		}
+		if len(lines) == 5 {
+			break
+		}
+	}
+	got := strings.Join(lines, "|")
+	if !strings.HasPrefix(got, ": connected|id: 2|data: {") || !strings.Contains(got, "|id: 3|data: {") || strings.Contains(got, `"one"`) {
+		t.Fatalf("stream = %s", got)
+	}
+}
+
+func writeFakeClaude(t *testing.T, body string) string {
+	t.Helper()
+	path := t.TempDir() + "/claude"
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func waitFor(t *testing.T, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if cond() {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("condition not met in time")
+}
+
+func TestRunnerStreamsFixture(t *testing.T) {
+	fixturePath, err := filepath.Abs("testdata/claude_stream.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bin := writeFakeClaude(t, "read line\ncat "+fixturePath+"\nsleep 30\n")
+
+	store := newTestChatStore(t)
+	r := NewRunner(bin, "/tmp/mcp.json", t.TempDir(), 1)
+	r.Bind(store, NewHub())
+	conv, _ := store.Create(CreateConversationRequest{})
+
+	if err := r.Start(context.Background(), conv.ID, "sonnet", "", "be brief"); err != nil {
+		t.Fatal(err)
+	}
+	if !r.Running(conv.ID) {
+		t.Fatal("expected running")
+	}
+	other, _ := store.Create(CreateConversationRequest{})
+	if err := r.Start(context.Background(), other.ID, "", "", ""); err != ErrRunnerAtCapacity {
+		t.Fatalf("expected capacity error, got %v", err)
+	}
+	if err := r.Send(conv.ID, "hello"); err != nil {
+		t.Fatal(err)
+	}
+
+	waitFor(t, func() bool {
+		evs, _ := store.Events(conv.ID, 0)
+		return len(evs) == 6
+	})
+	waitFor(t, func() bool {
+		c, _ := store.Get(conv.ID)
+		return c.SessionID == "sess-123" && c.Status == ChatStatusIdle
+	})
+
+	if err := r.Stop(conv.ID); err != nil {
+		t.Fatal(err)
+	}
+	if r.Running(conv.ID) {
+		t.Fatal("still running after stop")
+	}
+	evs, _ := store.Events(conv.ID, 0)
+	for _, e := range evs {
+		if e.Kind == ChatKindError {
+			t.Fatalf("unexpected error event after stop: %+v", e)
+		}
+	}
+}
+
+func TestRunnerEmitsErrorOnNonZeroExit(t *testing.T) {
+	bin := writeFakeClaude(t, "echo boom >&2\nexit 3\n")
+	store := newTestChatStore(t)
+	r := NewRunner(bin, "/tmp/mcp.json", t.TempDir(), 0)
+	r.Bind(store, NewHub())
+	conv, _ := store.Create(CreateConversationRequest{})
+
+	if err := r.Start(context.Background(), conv.ID, "", "", ""); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, func() bool {
+		evs, _ := store.Events(conv.ID, 0)
+		return len(evs) == 1 && evs[0].Kind == ChatKindError && strings.Contains(evs[0].Text, "boom")
+	})
+	waitFor(t, func() bool { return !r.Running(conv.ID) })
+}
