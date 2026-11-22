@@ -9,7 +9,7 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 
 **Tool count:** 59 registered tools (core + traffic + evidence + enrich + ingest + scope + intent + activity + triage + coverage).
 
-**Test count:** 430+ test functions, 500+ test cases including subtests.
+**Test count:** 890+ test runs across all packages.
 
 **What works today:**
 
@@ -113,7 +113,7 @@ Done. CSV export format for findings, assets, and nodes alongside existing markd
 
 ### ✅ 4.1 Test coverage
 
-430+ test functions across all packages. Integration-level multi-tool workflow tests added. Coverage reporting via Codecov. Nine packages above 85% coverage.
+890+ test runs across all packages. Integration-level multi-tool workflow tests added. Coverage reporting via Codecov. Nine packages above 85% coverage.
 
 ### ✅ 4.2 Error message consistency
 

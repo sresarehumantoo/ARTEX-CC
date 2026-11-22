@@ -10,13 +10,13 @@ import (
 
 type explorationMockStore struct {
 	mockStore
-	overviewErr error
-	addNodeID   int64
-	addNodeErr  error
-	nodeMap     map[int64]*Node
-	listErr     error
-	listNodes   []Node
-	edgeErr     error
+	overviewErr   error
+	addNodeID     int64
+	addNodeErr    error
+	nodeMap       map[int64]*Node
+	listErr       error
+	listNodes     []Node
+	edgeErr       error
 	constraintErr error
 }
 
