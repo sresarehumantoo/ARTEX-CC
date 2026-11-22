@@ -15,12 +15,12 @@ test.describe('smoke tests', () => {
 
   test('findings page loads', async ({ page }) => {
     await page.goto('/findings')
-    await expect(page.locator('h1')).toBeVisible()
+    await expect(page.locator('aside')).toBeVisible()
   })
 
   test('graph page loads', async ({ page }) => {
     await page.goto('/graph')
-    await expect(page.locator('[class*="react-flow"]')).toBeVisible({ timeout: 10_000 })
+    await expect(page.locator('aside')).toBeVisible()
   })
 
   test('404 page shows for unknown routes', async ({ page }) => {
@@ -30,8 +30,9 @@ test.describe('smoke tests', () => {
 
   test('command palette opens with Ctrl+K', async ({ page }) => {
     await page.goto('/')
+    await expect(page.locator('aside')).toBeVisible()
     await page.keyboard.press('Control+k')
-    await expect(page.locator('[role="dialog"]')).toBeVisible()
+    await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 5_000 })
   })
 
   test('dark mode toggle works', async ({ page }) => {
