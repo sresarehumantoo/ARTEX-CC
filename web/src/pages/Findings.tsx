@@ -46,6 +46,62 @@ const SEVERITY_VARIANT: Record<Severity, BadgeVariant> = {
   info: 'info',
 }
 
+const SEVERITY_BAR_CONFIG: Record<string, { color: string; bg: string; label: string; order: number }> = {
+  critical: { color: 'bg-rose-600', bg: 'bg-rose-500/10', label: 'Critical', order: 0 },
+  high:     { color: 'bg-orange-500', bg: 'bg-orange-500/10', label: 'High', order: 1 },
+  medium:   { color: 'bg-amber-500', bg: 'bg-amber-500/10', label: 'Medium', order: 2 },
+  low:      { color: 'bg-blue-500', bg: 'bg-blue-500/10', label: 'Low', order: 3 },
+  info:     { color: 'bg-slate-400', bg: 'bg-slate-400/10', label: 'Info', order: 4 },
+}
+
+function SeverityBar({ findings }: { findings: Finding[] }) {
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {}
+    for (const f of findings) {
+      c[f.severity] = (c[f.severity] ?? 0) + 1
+    }
+    return c
+  }, [findings])
+
+  const total = findings.length
+  if (total === 0) return null
+
+  const segments = Object.entries(SEVERITY_BAR_CONFIG)
+    .filter(([sev]) => (counts[sev] ?? 0) > 0)
+    .sort(([, a], [, b]) => a.order - b.order)
+    .map(([sev, config]) => ({
+      severity: sev,
+      count: counts[sev] ?? 0,
+      pct: ((counts[sev] ?? 0) / total) * 100,
+      ...config,
+    }))
+
+  return (
+    <div className="border-b border-slate-200 dark:border-slate-800 px-3 md:px-4 py-2">
+      <div className="flex h-2 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 mb-2">
+        {segments.map(s => (
+          <div
+            key={s.severity}
+            className={cn(s.color, 'transition-all duration-300')}
+            style={{ width: `${s.pct}%` }}
+            title={`${s.label}: ${s.count}`}
+          />
+        ))}
+      </div>
+      <div className="flex items-center gap-3 text-xs">
+        <span className="text-slate-500 font-medium">{total} total</span>
+        <span className="text-slate-300 dark:text-slate-700">|</span>
+        {segments.map(s => (
+          <span key={s.severity} className="flex items-center gap-1.5">
+            <span className={cn('h-2 w-2 rounded-full', s.color)} />
+            <span className="text-slate-600 dark:text-slate-400">{s.count} {s.label.toLowerCase()}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 type SortField = 'severity' | 'id'
 type SortDir = 'asc' | 'desc'
 
@@ -295,6 +351,8 @@ export default function Findings() {
         ]} />
       </div>
 
+      <SeverityBar findings={findings} />
+
       {filtered.length >= 2 && (
         <div>
           <button
@@ -316,14 +374,16 @@ export default function Findings() {
           {isLoading ? (
             <div className="flex h-64 items-center justify-center"><Spinner className="h-8 w-8" /></div>
           ) : filtered.length === 0 ? (
-            <div className="flex h-64 flex-col items-center justify-center gap-2 text-slate-500">
-              <Shield className="h-10 w-10 text-slate-400 dark:text-slate-600" />
-              <p className="text-lg">No findings</p>
-              <p className="text-sm">
-                {findings.length > 0
-                  ? 'Try adjusting your filters'
-                  : 'Findings will appear here as the engagement progresses'}
-              </p>
+            <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-500">
+              <Shield className="h-12 w-12 text-slate-300 dark:text-slate-700" />
+              <div className="text-center">
+                <p className="text-lg font-medium text-slate-600 dark:text-slate-400">No findings discovered</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-500">
+                  {findings.length > 0
+                    ? 'Try adjusting your filters'
+                    : 'Findings will appear as vulnerabilities are discovered'}
+                </p>
+              </div>
             </div>
           ) : (
             <ScrollArea className="h-full">

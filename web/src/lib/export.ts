@@ -1,4 +1,4 @@
-import type { Finding } from './types'
+import type { Finding, TrafficExchange } from './types'
 
 export function downloadFile(content: string, filename: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType })
@@ -29,6 +29,22 @@ export function exportCSV(findings: Finding[], filename: string) {
 export function exportJSON(findings: Finding[], filename: string) {
   const json = JSON.stringify(findings, null, 2)
   downloadFile(json, filename, 'application/json')
+}
+
+export function exportTrafficCSV(rows: TrafficExchange[], filename: string) {
+  const headers = ['Timestamp', 'Host', 'Method', 'URL', 'Status', 'Content-Type', 'Size', 'Rewritten']
+  const csvRows = rows.map(r => [
+    new Date(r.ts * 1000).toISOString(),
+    r.host,
+    r.method,
+    `"${(r.url_template || r.url).replace(/"/g, '""')}"`,
+    r.status,
+    r.content_type,
+    r.resp_len,
+    r.rewritten,
+  ])
+  const csv = [headers.join(','), ...csvRows.map(r => r.join(','))].join('\n')
+  downloadFile(csv, filename, 'text/csv')
 }
 
 export function exportAssetCSV(assets: { id: number; type: string; label: string; data: Record<string, unknown> }[], filename: string) {

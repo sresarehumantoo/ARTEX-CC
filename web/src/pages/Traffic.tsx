@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronUp, Clipboard, Globe, Terminal, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronUp, Clipboard, Download, Globe, Terminal, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Badge, type BadgeVariant } from '../components/ui/badge'
@@ -10,6 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Spinner } from '../components/ui/spinner'
 import { TableSkeleton } from '../components/skeletons/TableSkeleton'
 import { type TrafficFilters, useTraffic, useTrafficDetail } from '../hooks/useTraffic'
+import { useToast } from '../hooks/useToast'
+import { exportTrafficCSV } from '../lib/export'
 import type { TrafficExchange } from '../lib/types'
 import { cn, formatBytes, relativeTime } from '../lib/utils'
 
@@ -33,6 +35,7 @@ function statusColor(code: number): string {
 
 export default function Traffic() {
   const [searchParams] = useSearchParams()
+  const { toast } = useToast()
   const [host, setHost] = useState('')
   const [method, setMethod] = useState('')
   const [statusInput, setStatusInput] = useState('')
@@ -269,6 +272,17 @@ export default function Traffic() {
             <X className="mr-1 h-3 w-3" /> Clear
           </Button>
         )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            exportTrafficCSV(rows, 'traffic.csv')
+            toast('Exported traffic as CSV', { variant: 'success' })
+          }}
+          disabled={rows.length === 0}
+        >
+          <Download className="mr-1 h-3 w-3" /> CSV
+        </Button>
         <div className="ml-auto text-xs text-slate-500">
           {total > 0 && `${rangeStart}-${rangeEnd} of ${total}`}
         </div>
@@ -433,6 +447,7 @@ function shortContentType(ct: string): string {
 }
 
 function HttpPanel({ label, content, showCurl }: { label: string; content: string; showCurl?: boolean }) {
+  const { toast } = useToast()
   const [copied, setCopied] = useState(false)
   const [copiedCurl, setCopiedCurl] = useState(false)
   const formatted = useMemo(() => formatHttp(content), [content])
@@ -441,8 +456,9 @@ function HttpPanel({ label, content, showCurl }: { label: string; content: strin
     navigator.clipboard.writeText(content).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
+      toast('Copied to clipboard', { variant: 'success' })
     })
-  }, [content])
+  }, [content, toast])
 
   const copyCurl = useCallback(() => {
     const cmd = buildCurl(content)
@@ -450,8 +466,9 @@ function HttpPanel({ label, content, showCurl }: { label: string; content: strin
     navigator.clipboard.writeText(cmd).then(() => {
       setCopiedCurl(true)
       setTimeout(() => setCopiedCurl(false), 1500)
+      toast('Copied curl command', { variant: 'success' })
     })
-  }, [content])
+  }, [content, toast])
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
