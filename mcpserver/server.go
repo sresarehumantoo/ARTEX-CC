@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -20,6 +21,7 @@ type ToolNotifier func(toolName string)
 type Server struct {
 	mcp      *server.MCPServer
 	registry *tools.Registry
+	sessions *SessionManager
 
 	store         tools.Store
 	taskID        int64
@@ -61,20 +63,34 @@ func WithNotifier(fn ToolNotifier) Option {
 func New(registry *tools.Registry, opts ...Option) *Server {
 	s := &Server{
 		registry: registry,
+		sessions: NewSessionManager(),
 	}
 	for _, opt := range opts {
 		opt(s)
 	}
 
+	hooks := &server.Hooks{}
+	hooks.AddOnRegisterSession(func(_ context.Context, cs server.ClientSession) {
+		s.sessions.GetOrCreate(cs.SessionID())
+		slog.Debug("session registered", "id", cs.SessionID())
+	})
+	hooks.AddOnUnregisterSession(func(_ context.Context, cs server.ClientSession) {
+		s.sessions.Remove(cs.SessionID())
+		slog.Debug("session unregistered", "id", cs.SessionID())
+	})
+
 	s.mcp = server.NewMCPServer(
 		"cc-artex",
 		"0.1.0",
 		server.WithToolCapabilities(false),
+		server.WithHooks(hooks),
 	)
 
 	for _, t := range registry.Tools() {
 		s.mcp.AddTool(convertTool(t), makeHandlerWithNotifier(t, s.notifier))
 	}
+
+	s.registerListSessions()
 
 	if s.store != nil && s.explorationID > 0 {
 		s.registerEngagementResource()
@@ -84,8 +100,43 @@ func New(registry *tools.Registry, opts ...Option) *Server {
 	return s
 }
 
+// Sessions returns the session manager for external inspection.
+func (s *Server) Sessions() *SessionManager { return s.sessions }
+
 // MCPServer returns the underlying mcp-go server for use as an http.Handler.
 func (s *Server) MCPServer() *server.MCPServer { return s.mcp }
+
+func (s *Server) registerListSessions() {
+	tool := mcp.Tool{
+		Name:        "list_sessions",
+		Description: "List all active MCP client sessions connected to this server.",
+		InputSchema: mcp.ToolInputSchema{
+			Type:       "object",
+			Properties: map[string]any{},
+		},
+	}
+	tool.Annotations.ReadOnlyHint = mcp.ToBoolPtr(true)
+
+	s.mcp.AddTool(tool, func(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		sessions := s.sessions.List()
+		out, _ := json.Marshal(map[string]any{
+			"count":    len(sessions),
+			"sessions": sessions,
+		})
+		return mcp.NewToolResultText(string(out)), nil
+	})
+}
+
+// SessionFromContext returns the application-level Session for the client
+// that sent the current request. It bridges mcp-go's transport session
+// to our SessionManager. Returns nil if the context has no session.
+func (s *Server) SessionFromContext(ctx context.Context) *Session {
+	cs := server.ClientSessionFromContext(ctx)
+	if cs == nil {
+		return nil
+	}
+	return s.sessions.Get(cs.SessionID())
+}
 
 const engagementURI = "artex://engagement"
 
