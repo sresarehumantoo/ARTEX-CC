@@ -572,9 +572,9 @@ func TestValidateProxyURL(t *testing.T) {
 		{"http://", true},
 		{"", true},
 	} {
-		_, err := ValidateProxyURL(tc.raw)
+		_, err := validateProxyURL(tc.raw)
 		if (err != nil) != tc.wantErr {
-			t.Fatalf("ValidateProxyURL(%q) err=%v, wantErr=%v", tc.raw, err, tc.wantErr)
+			t.Fatalf("validateProxyURL(%q) err=%v, wantErr=%v", tc.raw, err, tc.wantErr)
 		}
 	}
 }
