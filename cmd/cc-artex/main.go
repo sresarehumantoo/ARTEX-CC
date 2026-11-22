@@ -89,7 +89,7 @@ func initLogging(debug bool) {
 
 func cmdServe(args []string) {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
-	listen := fs.String("listen", "localhost:9400", "HTTP listen address")
+	listen := fs.String("listen", "", "HTTP listen address (or CC_ARTEX_LISTEN env, default localhost:9400)")
 	stdio := fs.Bool("stdio", false, "use stdio transport instead of HTTP")
 	webUI := fs.Bool("web", false, "enable web UI and REST API")
 	debug := fs.Bool("debug", false, "enable debug-level logging")
@@ -103,6 +103,14 @@ func cmdServe(args []string) {
 	if *showVersion {
 		fmt.Println("cc-artex " + version)
 		return
+	}
+
+	if *listen == "" {
+		if v := os.Getenv("CC_ARTEX_LISTEN"); v != "" {
+			*listen = v
+		} else {
+			*listen = "localhost:9400"
+		}
 	}
 
 	initLogging(*debug)
