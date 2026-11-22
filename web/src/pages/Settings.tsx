@@ -197,10 +197,10 @@ export default function Settings() {
               </div>
             </CollapsibleSection>
 
-            {engagement.hints.length > 0 && (
+            {engagement?.hints && engagement.hints.length > 0 && (
               <CollapsibleSection title="Hints" icon={Info} defaultOpen={false}>
                 <div className="space-y-1">
-                  {engagement.hints.map(h => (
+                  {engagement?.hints.map(h => (
                     <div key={h.id} className="px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 rounded-md bg-slate-50 dark:bg-slate-800/50">
                       {h.payload.text as string || JSON.stringify(h.payload)}
                     </div>

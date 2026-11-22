@@ -18,6 +18,13 @@ export interface EngagementData {
   coverage: Record<string, unknown>
   task_credentials: Record<string, unknown>[]
   hints: GraphNode[]
+  stats?: {
+    nodes: number
+    findings: number
+    intents_running: number
+    intents_done: number
+    intents_total: number
+  }
 }
 
 export interface GraphNode {
