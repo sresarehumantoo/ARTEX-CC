@@ -270,6 +270,7 @@ func TestTrafficToolsAllRegistered(t *testing.T) {
 		"traffic_search", "traffic_get", "traffic_blob",
 		"traffic_messages", "traffic_replay", "traffic_hosts",
 		"traffic_har_export", "traffic_stats", "traffic_timeline",
+		"traffic_patterns",
 	}
 	for _, name := range expected {
 		if _, ok := reg.Lookup(name); !ok {

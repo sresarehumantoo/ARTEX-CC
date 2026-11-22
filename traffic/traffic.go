@@ -2544,6 +2544,148 @@ func (t *Traffic) Timeline(host, bucket string) ([]TimelineBucket, error) {
 	return out, rows.Err()
 }
 
+type PathCount struct {
+	Path  string `json:"path"`
+	Count int    `json:"count"`
+}
+
+type ErrorHost struct {
+	Host    string         `json:"host"`
+	Total   int            `json:"total"`
+	Codes4x int            `json:"codes_4xx"`
+	Codes5x int            `json:"codes_5xx"`
+	Samples map[string]int `json:"status_samples"`
+}
+
+type NewEndpoint struct {
+	Host    string `json:"host"`
+	Path    string `json:"path"`
+	FirstTS int64  `json:"first_ts"`
+	Count   int    `json:"count"`
+}
+
+type TrafficPatterns struct {
+	TopPaths     []PathCount   `json:"top_paths"`
+	ErrorHosts   []ErrorHost   `json:"error_hosts"`
+	NewEndpoints []NewEndpoint `json:"new_endpoints"`
+}
+
+func (t *Traffic) Patterns(host string) (*TrafficPatterns, error) {
+	p := &TrafficPatterns{}
+	if t == nil || t.db == nil {
+		return p, nil
+	}
+	where := ""
+	var args []any
+	if h := strings.TrimSpace(host); h != "" {
+		where = " WHERE host LIKE ?"
+		args = []any{"%" + h + "%"}
+	}
+	topPathQ := `SELECT url_template, COUNT(*) AS n FROM exchanges` + where + ` GROUP BY url_template ORDER BY n DESC LIMIT 20`
+	rows, err := t.db.Query(topPathQ, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var pc PathCount
+		if err := rows.Scan(&pc.Path, &pc.Count); err != nil {
+			return nil, err
+		}
+		p.TopPaths = append(p.TopPaths, pc)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	errQ := `SELECT host, COUNT(*) AS total, SUM(CASE WHEN status>=400 AND status<500 THEN 1 ELSE 0 END), SUM(CASE WHEN status>=500 THEN 1 ELSE 0 END) FROM exchanges` + where + ` GROUP BY host HAVING SUM(CASE WHEN status>=400 THEN 1 ELSE 0 END) > 0 ORDER BY total DESC LIMIT 10`
+	rows, err = t.db.Query(errQ, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	errorHosts := map[string]*ErrorHost{}
+	var errorHostOrder []string
+	for rows.Next() {
+		var eh ErrorHost
+		if err := rows.Scan(&eh.Host, &eh.Total, &eh.Codes4x, &eh.Codes5x); err != nil {
+			return nil, err
+		}
+		eh.Samples = map[string]int{}
+		errorHosts[eh.Host] = &eh
+		errorHostOrder = append(errorHostOrder, eh.Host)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(errorHosts) > 0 {
+		sampleArgs := make([]any, len(errorHostOrder))
+		placeholders := make([]string, len(errorHostOrder))
+		for i, h := range errorHostOrder {
+			sampleArgs[i] = h
+			placeholders[i] = "?"
+		}
+		sampleQ := `SELECT host, CAST(status AS TEXT), COUNT(*) FROM exchanges WHERE status>=400 AND host IN (` + strings.Join(placeholders, ",") + `) GROUP BY host, status ORDER BY host, COUNT(*) DESC`
+		rows, err = t.db.Query(sampleQ, sampleArgs...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var h, code string
+			var n int
+			if err := rows.Scan(&h, &code, &n); err != nil {
+				return nil, err
+			}
+			if eh, ok := errorHosts[h]; ok {
+				eh.Samples[code] = n
+			}
+		}
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+	}
+	for _, h := range errorHostOrder {
+		p.ErrorHosts = append(p.ErrorHosts, *errorHosts[h])
+	}
+	var earliest, latest int64
+	tsQ := `SELECT COALESCE(MIN(ts),0), COALESCE(MAX(ts),0) FROM exchanges` + where
+	if err := t.db.QueryRow(tsQ, args...).Scan(&earliest, &latest); err != nil {
+		return nil, err
+	}
+	span := latest - earliest
+	if span <= 0 {
+		return p, nil
+	}
+	recentThreshold := latest - span/4
+	if recentThreshold < earliest {
+		recentThreshold = earliest
+	}
+	newArgs := append(append([]any{}, args...), recentThreshold, recentThreshold)
+	newWhere := where
+	if newWhere == "" {
+		newWhere = " WHERE"
+	} else {
+		newWhere += " AND"
+	}
+	newQ := `SELECT e.host, e.url_template, MIN(e.ts), COUNT(*) FROM exchanges e` + newWhere + ` e.url_template IN (SELECT url_template FROM exchanges` + where + ` GROUP BY url_template HAVING MIN(ts) >= ?) AND e.ts >= ? GROUP BY e.host, e.url_template ORDER BY MIN(e.ts) DESC LIMIT 20`
+	rows, err = t.db.Query(newQ, newArgs...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var ne NewEndpoint
+		if err := rows.Scan(&ne.Host, &ne.Path, &ne.FirstTS, &ne.Count); err != nil {
+			return nil, err
+		}
+		p.NewEndpoints = append(p.NewEndpoints, ne)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
 func clip(s string, max int) string {
 	if len(s) <= max {
 		return s

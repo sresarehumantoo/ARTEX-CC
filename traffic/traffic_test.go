@@ -19,11 +19,16 @@ func openTestTraffic(t *testing.T) *Traffic {
 
 func seedExchange(t *testing.T, tr *Traffic, id, host, method, tmpl, rawURL string, status int, ct string, reqLen, respLen int, reqHead string, reqBody []byte, respHead string, respBody []byte) {
 	t.Helper()
+	seedExchangeAt(t, tr, id, host, method, tmpl, rawURL, status, ct, reqLen, respLen, reqHead, reqBody, respHead, respBody, time.Now().Unix())
+}
+
+func seedExchangeAt(t *testing.T, tr *Traffic, id, host, method, tmpl, rawURL string, status int, ct string, reqLen, respLen int, reqHead string, reqBody []byte, respHead string, respBody []byte, ts int64) {
+	t.Helper()
 	db := tr.DB()
 	_, err := db.Exec(
 		`INSERT INTO exchanges(id,ts,host,method,url_template,url,status,content_type,req_len,resp_len,path)
 		VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
-		id, time.Now().Unix(), host, method, tmpl, rawURL, status, ct, reqLen, respLen, "")
+		id, ts, host, method, tmpl, rawURL, status, ct, reqLen, respLen, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,4 +194,101 @@ func TestTrafficMultipleHosts(t *testing.T) {
 			t.Fatalf("beta.test count = %d, want 2", counts["beta.test"])
 		}
 	})
+}
+
+func TestPatternsTopPaths(t *testing.T) {
+	t.Parallel()
+	tr := openTestTraffic(t)
+	now := time.Now().Unix()
+	for i := 0; i < 5; i++ {
+		id := "tp-" + strings.Repeat("0", 3) + string(rune('1'+i))
+		seedExchangeAt(t, tr, id, "example.com", "GET", "/api/users", "https://example.com/api/users", 200, "application/json", 0, 100, "", nil, "HTTP 200\n", nil, now-int64(i))
+	}
+	for i := 0; i < 2; i++ {
+		id := "tp2-" + string(rune('1'+i))
+		seedExchangeAt(t, tr, id, "example.com", "POST", "/api/login", "https://example.com/api/login", 200, "application/json", 50, 0, "", nil, "HTTP 200\n", nil, now-int64(i))
+	}
+	p, err := tr.Patterns("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.TopPaths) == 0 {
+		t.Fatal("expected at least one top path")
+	}
+	if p.TopPaths[0].Path != "/api/users" {
+		t.Errorf("top path = %q, want /api/users", p.TopPaths[0].Path)
+	}
+	if p.TopPaths[0].Count != 5 {
+		t.Errorf("top path count = %d, want 5", p.TopPaths[0].Count)
+	}
+}
+
+func TestPatternsErrorHosts(t *testing.T) {
+	t.Parallel()
+	tr := openTestTraffic(t)
+	now := time.Now().Unix()
+	seedExchangeAt(t, tr, "e-01", "err.test", "GET", "/missing", "https://err.test/missing", 404, "text/html", 0, 100, "", nil, "HTTP 404\n", nil, now)
+	seedExchangeAt(t, tr, "e-02", "err.test", "GET", "/broken", "https://err.test/broken", 500, "text/html", 0, 100, "", nil, "HTTP 500\n", nil, now)
+	seedExchangeAt(t, tr, "e-03", "err.test", "GET", "/ok", "https://err.test/ok", 200, "text/html", 0, 100, "", nil, "HTTP 200\n", nil, now)
+	seedExchangeAt(t, tr, "e-04", "clean.test", "GET", "/", "https://clean.test/", 200, "text/html", 0, 100, "", nil, "HTTP 200\n", nil, now)
+	p, err := tr.Patterns("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.ErrorHosts) != 1 {
+		t.Fatalf("got %d error hosts, want 1", len(p.ErrorHosts))
+	}
+	eh := p.ErrorHosts[0]
+	if eh.Host != "err.test" {
+		t.Errorf("error host = %q, want err.test", eh.Host)
+	}
+	if eh.Codes4x != 1 {
+		t.Errorf("4xx count = %d, want 1", eh.Codes4x)
+	}
+	if eh.Codes5x != 1 {
+		t.Errorf("5xx count = %d, want 1", eh.Codes5x)
+	}
+}
+
+func TestPatternsNewEndpoints(t *testing.T) {
+	t.Parallel()
+	tr := openTestTraffic(t)
+	seedExchangeAt(t, tr, "old-01", "app.test", "GET", "/old-path", "https://app.test/old-path", 200, "text/html", 0, 100, "", nil, "HTTP 200\n", nil, 1000)
+	seedExchangeAt(t, tr, "old-02", "app.test", "GET", "/old-path", "https://app.test/old-path", 200, "text/html", 0, 100, "", nil, "HTTP 200\n", nil, 1100)
+	seedExchangeAt(t, tr, "new-01", "app.test", "GET", "/new-endpoint", "https://app.test/new-endpoint", 200, "text/html", 0, 100, "", nil, "HTTP 200\n", nil, 2000)
+	seedExchangeAt(t, tr, "new-02", "app.test", "GET", "/new-endpoint", "https://app.test/new-endpoint", 200, "text/html", 0, 100, "", nil, "HTTP 200\n", nil, 2010)
+	p, err := tr.Patterns("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, ne := range p.NewEndpoints {
+		if ne.Path == "/new-endpoint" {
+			found = true
+			if ne.Count != 2 {
+				t.Errorf("new endpoint count = %d, want 2", ne.Count)
+			}
+		}
+	}
+	if !found {
+		t.Error("/new-endpoint not found in new endpoints")
+	}
+}
+
+func TestPatternsEmpty(t *testing.T) {
+	t.Parallel()
+	tr := openTestTraffic(t)
+	p, err := tr.Patterns("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.TopPaths) != 0 {
+		t.Errorf("expected no top paths, got %d", len(p.TopPaths))
+	}
+	if len(p.ErrorHosts) != 0 {
+		t.Errorf("expected no error hosts, got %d", len(p.ErrorHosts))
+	}
+	if len(p.NewEndpoints) != 0 {
+		t.Errorf("expected no new endpoints, got %d", len(p.NewEndpoints))
+	}
 }
