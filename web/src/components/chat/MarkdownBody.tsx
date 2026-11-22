@@ -9,6 +9,7 @@ import {
   TableRow,
 } from '../ui/table'
 import { cn } from '../../lib/utils'
+import { CodeBlock } from './CodeBlock'
 
 export function MarkdownBody({ text, className }: { text: string; className?: string }) {
   return (
@@ -28,15 +29,19 @@ export function MarkdownBody({ text, className }: { text: string; className?: st
           blockquote: ({ node: _node, ...props }) => (
             <blockquote {...props} className="border-l-2 border-border pl-3 text-muted-foreground" />
           ),
-          pre: ({ node: _node, ...props }) => (
-            <pre {...props} className="overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs" />
-          ),
-          code: ({ node: _node, className: cls, ...props }) => (
-            <code
-              {...props}
-              className={cn(cls ? 'font-mono' : 'rounded bg-muted px-1 py-0.5 font-mono text-xs', cls)}
-            />
-          ),
+          pre: ({ children }) => <>{children}</>,
+          code: ({ node: _node, className: cls, children, ...props }) => {
+            const lang = /language-(\w+)/.exec(cls ?? '')?.[1]
+            const text = String(children)
+            if (!lang && !text.includes('\n')) {
+              return (
+                <code {...props} className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
+                  {children}
+                </code>
+              )
+            }
+            return <CodeBlock code={text.replace(/\n$/, '')} language={lang} />
+          },
           table: ({ node: _node, ...props }) => <Table {...props} />,
           thead: ({ node: _node, ...props }) => <TableHeader {...props} />,
           tbody: ({ node: _node, ...props }) => <TableBody {...props} />,
