@@ -28,6 +28,7 @@ services:
       - "127.0.0.1:8788:8788"
     volumes:
       - data:/app/data
+      - ${HOME}/.claude:/root/.claude
     restart: unless-stopped
 
 volumes:

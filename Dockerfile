@@ -28,7 +28,9 @@ RUN CGO_ENABLED=0 GOOS="${TARGETOS:-linux}" GOARCH="${TARGETARCH:-amd64}" \
 
 # --------------------------------------------------------------- runtime ---
 FROM alpine:3.21
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates nodejs npm \
+    && npm install -g @anthropic-ai/claude-code@latest \
+    && npm cache clean --force
 WORKDIR /app
 COPY --from=build /out/cc-artex /app/cc-artex
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
