@@ -18,6 +18,7 @@ type Config struct {
 	ProxyAddr string `json:"proxy_addr,omitempty" toml:"proxy_addr"`
 	DataDir   string `json:"data_dir" toml:"data_dir"`
 	SkillDir  string `json:"skill_dir,omitempty" toml:"skill_dir"`
+	PluginDir string `json:"plugin_dir,omitempty" toml:"plugin_dir"`
 }
 
 type EngagementConfig struct {
