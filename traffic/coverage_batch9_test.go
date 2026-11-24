@@ -700,19 +700,31 @@ func TestStats(t *testing.T) {
 		200, "text/html", 0, 100, "GET / HTTP/1.1\n", nil, "HTTP/1.1 200 OK\n", bytes.Repeat([]byte("x"), 100))
 	seedExchange(t, tr, "stat-2", "stats.test", "POST", "/api", "https://stats.test/api",
 		500, "application/json", 50, 200, "POST /api HTTP/1.1\n", []byte("data"), "HTTP/1.1 500 Internal Server Error\n", bytes.Repeat([]byte("y"), 200))
+	seedExchange(t, tr, "stat-3", "stats.test", "GET", "/odd", "https://stats.test/odd",
+		200, "text/plain", 0, 101, "GET /odd HTTP/1.1\n", nil, "HTTP/1.1 200 OK\n", bytes.Repeat([]byte("z"), 101))
 
 	s, err = tr.Stats()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.TotalExchanges != 2 {
+	if s.TotalExchanges != 3 {
 		t.Fatalf("total=%d", s.TotalExchanges)
 	}
 	if s.UniqueHosts != 1 {
 		t.Fatalf("hosts=%d", s.UniqueHosts)
 	}
-	if s.StatusCodes["2xx"] != 1 || s.StatusCodes["5xx"] != 1 {
+	if s.StatusCodes["2xx"] != 2 || s.StatusCodes["5xx"] != 1 {
 		t.Fatalf("status codes=%v", s.StatusCodes)
+	}
+	if s.AvgRespSize != 133 {
+		t.Fatalf("avg resp size=%d, want 133", s.AvgRespSize)
+	}
+
+	if ok, err := tr.Exists("stat-1"); err != nil || !ok {
+		t.Fatalf("Exists(stat-1) = %v, %v; want true", ok, err)
+	}
+	if ok, err := tr.Exists("missing"); err != nil || ok {
+		t.Fatalf("Exists(missing) = %v, %v; want false", ok, err)
 	}
 }
 

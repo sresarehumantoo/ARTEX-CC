@@ -16,18 +16,31 @@ func TestAddFindingMock(t *testing.T) {
 	s, mock := newRegexpMockStore(t)
 	ctx := context.Background()
 
+	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO findings`).
-		WithArgs(int64(1), nil, "xss", "Reflected XSS", "high", "XSS in search", "evidence", "worker1", "[]", FindingStatusPending).
+		WithArgs(int64(1), "xss", "Reflected XSS", "high", "XSS in search", "evidence", "worker1", "[]", FindingStatusPending).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(42))
+	mock.ExpectQuery(`INSERT INTO exploration_nodes`).
+		WithArgs(int64(7), KindFinding, sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(500))
+	mock.ExpectExec(`INSERT INTO exploration_edges`).
+		WithArgs(int64(7), int64(3), RelYields, int64(500)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`UPDATE findings SET node_id`).
+		WithArgs(int64(500), int64(42)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
 
-	id, err := s.AddFinding(ctx, tools.FindingInput{
-		TaskID:    1,
-		VulnClass: "xss",
-		Name:      "Reflected XSS",
-		Severity:  "high",
-		Summary:   "XSS in search",
-		Evidence:  "evidence",
-		Worker:    "worker1",
+	id, _, err := s.AddFinding(ctx, tools.FindingInput{
+		TaskID:        1,
+		ExplorationID: 7,
+		IntentID:      3,
+		VulnClass:     "xss",
+		Name:          "Reflected XSS",
+		Severity:      "high",
+		Summary:       "XSS in search",
+		Evidence:      "evidence",
+		Worker:        "worker1",
 	})
 	if err != nil {
 		t.Fatalf("AddFinding: %v", err)
@@ -45,17 +58,31 @@ func TestAddFindingWithAssetIDsMock(t *testing.T) {
 	s, mock := newRegexpMockStore(t)
 	ctx := context.Background()
 
+	mock.ExpectBegin()
 	mock.ExpectQuery(`INSERT INTO findings`).
-		WithArgs(int64(1), nil, "sqli", "SQL Injection", "critical", "SQLi found", "", "", "[10,20]", FindingStatusPending).
+		WithArgs(int64(1), "sqli", "SQL Injection", "critical", "SQLi found", "", "", "[10,20]", FindingStatusPending).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(99))
+	mock.ExpectQuery(`INSERT INTO exploration_nodes`).
+		WithArgs(int64(7), KindFinding, sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(501))
+	for _, asset := range []int64{10, 20} {
+		mock.ExpectExec(`INSERT INTO exploration_anchors`).
+			WithArgs(int64(501), asset).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+	}
+	mock.ExpectExec(`UPDATE findings SET node_id`).
+		WithArgs(int64(501), int64(99)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
 
-	id, err := s.AddFinding(ctx, tools.FindingInput{
-		TaskID:    1,
-		VulnClass: "sqli",
-		Name:      "SQL Injection",
-		Severity:  "critical",
-		Summary:   "SQLi found",
-		AssetIDs:  []int64{10, 20},
+	id, _, err := s.AddFinding(ctx, tools.FindingInput{
+		TaskID:        1,
+		ExplorationID: 7,
+		VulnClass:     "sqli",
+		Name:          "SQL Injection",
+		Severity:      "critical",
+		Summary:       "SQLi found",
+		AssetIDs:      []int64{10, 20},
 	})
 	if err != nil {
 		t.Fatalf("AddFinding: %v", err)
@@ -291,10 +318,16 @@ func TestDismissFindingMock(t *testing.T) {
 		mock.ExpectExec(`UPDATE findings SET dismissed = true`).
 			WithArgs("false positive", FindingStatusFalsePositive, int64(1)).
 			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec(`UPDATE exploration_nodes SET state = 'dismissed'`).
+			WithArgs(int64(1)).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 
 		err := s.DismissFinding(context.Background(), 1, "false positive")
 		if err != nil {
 			t.Fatalf("DismissFinding: %v", err)
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("unmet expectations: %v", err)
 		}
 	})
 

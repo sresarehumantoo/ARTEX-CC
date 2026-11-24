@@ -25,8 +25,8 @@ func (m *ingestMockStore) InsertAsset(_ context.Context, _ int64, _ AssetInput) 
 	return m.insertedID, nil
 }
 
-func (m *ingestMockStore) AddFinding(_ context.Context, _ FindingInput) (int64, error) {
-	return m.addFindID, m.addFindErr
+func (m *ingestMockStore) AddFinding(_ context.Context, _ FindingInput) (int64, int64, error) {
+	return m.addFindID, 0, m.addFindErr
 }
 
 func TestIngestScannerOutputMissingScanner(t *testing.T) {

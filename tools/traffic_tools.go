@@ -21,6 +21,7 @@ func RegisterTrafficTools(reg *Registry, t *traffic.Traffic, store Store, taskID
 	reg.Register(makeTrafficTimeline(t))
 	reg.Register(makeTrafficPatterns(t))
 	reg.Register(makeTrafficClear(t))
+	reg.Register(makeBindFindingTraffic(store, t.Exists))
 }
 
 func makeTrafficPatterns(t *traffic.Traffic) Tool {
@@ -80,9 +81,11 @@ func makeTrafficSearch(t *traffic.Traffic) Tool {
 				a.Limit = 10
 			}
 			results, _, err := t.Page(traffic.PageQuery{
-				Host:  a.Host,
-				Query: a.Query,
-				Body:  a.BodyContains,
+				Host:    a.Host,
+				Query:   a.Query,
+				Body:    a.BodyContains,
+				RespMin: -1,
+				RespMax: -1,
 			}, a.Page, a.Limit)
 			if err != nil {
 				return errResult(err.Error()), nil
@@ -377,9 +380,11 @@ func makeTrafficHARExport(t *traffic.Traffic) Tool {
 			}
 
 			doc, meta, err := t.ExportHAR(traffic.PageQuery{
-				Host:   a.Host,
-				Method: a.Method,
-				Status: a.Status,
+				Host:    a.Host,
+				Method:  a.Method,
+				Status:  a.Status,
+				RespMin: -1,
+				RespMax: -1,
 			}, traffic.HARExportOptions{})
 			if err != nil {
 				return errResult(err.Error()), nil

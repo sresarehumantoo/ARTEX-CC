@@ -10,23 +10,25 @@ import (
 
 type findingMockStore struct {
 	mockStore
-	addFindingID   int64
-	addFindingErr  error
-	findings       []Finding
-	findingsErr    error
-	trafficErr     error
-	trafficList    []TrafficBinding
-	bindErr        error
-	mergedFinding  *MergedFinding
-	mergeErr       error
-	dismissErr     error
-	dupes          []int64
-	trafficCount   int
-	trafficCountFn func(int64) (int, error)
+	addFindingID     int64
+	addFindingErr    error
+	addFindingNodeID int64
+	findings         []Finding
+	findingsErr      error
+	trafficErr       error
+	trafficList      []TrafficBinding
+	bindErr          error
+	mergedFinding    *MergedFinding
+	mergeErr         error
+	dismissErr       error
+	dupes            []int64
+	trafficCount     int
+	trafficCountFn   func(int64) (int, error)
+	boundSnapshot    string
 }
 
-func (m *findingMockStore) AddFinding(_ context.Context, _ FindingInput) (int64, error) {
-	return m.addFindingID, m.addFindingErr
+func (m *findingMockStore) AddFinding(_ context.Context, _ FindingInput) (int64, int64, error) {
+	return m.addFindingID, m.addFindingNodeID, m.addFindingErr
 }
 
 func (m *findingMockStore) ListFindings(_ context.Context, _ int64) ([]Finding, error) {
@@ -37,7 +39,8 @@ func (m *findingMockStore) ListFindingTraffic(_ context.Context, _ int64) ([]Tra
 	return m.trafficList, m.trafficErr
 }
 
-func (m *findingMockStore) BindFindingTraffic(_ context.Context, _ int64, _, _, _ string, _ int) error {
+func (m *findingMockStore) BindFindingTraffic(_ context.Context, _ int64, snapshotID, _, _ string, _ int) error {
+	m.boundSnapshot = snapshotID
 	return m.bindErr
 }
 
@@ -62,7 +65,7 @@ func (m *findingMockStore) FindPotentialDuplicates(_ context.Context, _ string, 
 
 func TestReportFindingHappyPath(t *testing.T) {
 	t.Parallel()
-	ms := &findingMockStore{addFindingID: 7}
+	ms := &findingMockStore{addFindingID: 7, addFindingNodeID: 40}
 	reg := NewRegistry()
 	RegisterFindingTools(reg, ms, 1, 1)
 
@@ -85,6 +88,9 @@ func TestReportFindingHappyPath(t *testing.T) {
 	}
 	if !strings.Contains(r.Content, `"finding_id":7`) {
 		t.Errorf("expected finding_id 7, got: %s", r.Content)
+	}
+	if !strings.Contains(r.Content, `"node_id":40`) {
+		t.Errorf("expected node_id 40, got: %s", r.Content)
 	}
 }
 
@@ -355,16 +361,29 @@ func TestListFindingsWithTrafficCount(t *testing.T) {
 	}
 }
 
+func snapshotFound(string) (bool, error) { return true, nil }
+
+func TestBindFindingTrafficUnknownSnapshot(t *testing.T) {
+	t.Parallel()
+	ms := &findingMockStore{}
+	tool := makeBindFindingTraffic(ms, func(string) (bool, error) { return false, nil })
+
+	r, err := tool.Run(context.Background(), json.RawMessage(`{"finding_id": 7, "snapshot_id": "does-not-exist"}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !r.IsError || !strings.Contains(r.Content, "not found") {
+		t.Fatalf("expected not-found error, got: %s", r.Content)
+	}
+	if ms.boundSnapshot != "" {
+		t.Errorf("store.BindFindingTraffic called with %q for unknown snapshot", ms.boundSnapshot)
+	}
+}
+
 func TestBindFindingTrafficHappyPath(t *testing.T) {
 	t.Parallel()
 	ms := &findingMockStore{trafficList: []TrafficBinding{{ID: 1}}}
-	reg := NewRegistry()
-	RegisterFindingTools(reg, ms, 1, 1)
-
-	tool, ok := reg.Lookup("bind_finding_traffic")
-	if !ok {
-		t.Fatal("bind_finding_traffic not found")
-	}
+	tool := makeBindFindingTraffic(ms, snapshotFound)
 
 	r, err := tool.Run(context.Background(), json.RawMessage(`{
 		"finding_id": 7,
@@ -389,10 +408,7 @@ func TestBindFindingTrafficHappyPath(t *testing.T) {
 func TestBindFindingTrafficDefaultRole(t *testing.T) {
 	t.Parallel()
 	ms := &findingMockStore{}
-	reg := NewRegistry()
-	RegisterFindingTools(reg, ms, 1, 1)
-
-	tool, _ := reg.Lookup("bind_finding_traffic")
+	tool := makeBindFindingTraffic(ms, snapshotFound)
 	r, err := tool.Run(context.Background(), json.RawMessage(`{
 		"finding_id": 7,
 		"snapshot_id": "snap-def456"
@@ -411,10 +427,7 @@ func TestBindFindingTrafficDefaultRole(t *testing.T) {
 func TestBindFindingTrafficMissingFindingID(t *testing.T) {
 	t.Parallel()
 	ms := &findingMockStore{}
-	reg := NewRegistry()
-	RegisterFindingTools(reg, ms, 1, 1)
-
-	tool, _ := reg.Lookup("bind_finding_traffic")
+	tool := makeBindFindingTraffic(ms, snapshotFound)
 	r, err := tool.Run(context.Background(), json.RawMessage(`{
 		"snapshot_id": "snap-123"
 	}`))
@@ -432,10 +445,7 @@ func TestBindFindingTrafficMissingFindingID(t *testing.T) {
 func TestBindFindingTrafficMissingSnapshotID(t *testing.T) {
 	t.Parallel()
 	ms := &findingMockStore{}
-	reg := NewRegistry()
-	RegisterFindingTools(reg, ms, 1, 1)
-
-	tool, _ := reg.Lookup("bind_finding_traffic")
+	tool := makeBindFindingTraffic(ms, snapshotFound)
 	r, err := tool.Run(context.Background(), json.RawMessage(`{
 		"finding_id": 7,
 		"snapshot_id": ""
@@ -454,10 +464,7 @@ func TestBindFindingTrafficMissingSnapshotID(t *testing.T) {
 func TestBindFindingTrafficInvalidRole(t *testing.T) {
 	t.Parallel()
 	ms := &findingMockStore{}
-	reg := NewRegistry()
-	RegisterFindingTools(reg, ms, 1, 1)
-
-	tool, _ := reg.Lookup("bind_finding_traffic")
+	tool := makeBindFindingTraffic(ms, snapshotFound)
 	r, err := tool.Run(context.Background(), json.RawMessage(`{
 		"finding_id": 7,
 		"snapshot_id": "snap-123",
@@ -477,10 +484,7 @@ func TestBindFindingTrafficInvalidRole(t *testing.T) {
 func TestBindFindingTrafficStoreError(t *testing.T) {
 	t.Parallel()
 	ms := &findingMockStore{bindErr: fmt.Errorf("foreign key")}
-	reg := NewRegistry()
-	RegisterFindingTools(reg, ms, 1, 1)
-
-	tool, _ := reg.Lookup("bind_finding_traffic")
+	tool := makeBindFindingTraffic(ms, snapshotFound)
 	r, err := tool.Run(context.Background(), json.RawMessage(`{
 		"finding_id": 7,
 		"snapshot_id": "snap-123",
@@ -500,10 +504,7 @@ func TestBindFindingTrafficStoreError(t *testing.T) {
 func TestBindFindingTrafficInvalidJSON(t *testing.T) {
 	t.Parallel()
 	ms := &findingMockStore{}
-	reg := NewRegistry()
-	RegisterFindingTools(reg, ms, 1, 1)
-
-	tool, _ := reg.Lookup("bind_finding_traffic")
+	tool := makeBindFindingTraffic(ms, snapshotFound)
 	r, err := tool.Run(context.Background(), json.RawMessage(`not json`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

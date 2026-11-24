@@ -33,8 +33,8 @@ func (m *mockStore) AddCompanyScope(_ context.Context, _ int64, _ []string, _ st
 	return 0, 0, 0, nil, nil
 }
 
-func (m *mockStore) AddFinding(_ context.Context, _ FindingInput) (int64, error) {
-	return 1, nil
+func (m *mockStore) AddFinding(_ context.Context, _ FindingInput) (int64, int64, error) {
+	return 1, 0, nil
 }
 
 func (m *mockStore) ListFindings(_ context.Context, _ int64) ([]Finding, error) {

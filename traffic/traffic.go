@@ -1360,6 +1360,13 @@ func (t *Traffic) Page(f PageQuery, page, size int) (rows []ExchangeMeta, total 
 	return rows, total, rs.Err()
 }
 
+// Exists reports whether an exchange with the given id has been captured.
+func (t *Traffic) Exists(id string) (bool, error) {
+	var found bool
+	err := t.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM exchanges WHERE id=?)`, id).Scan(&found)
+	return found, err
+}
+
 // Get returns the full request/response text of one exchange. Bodies come from
 // the database; rows recorded before bodies moved into SQLite carry a non-empty
 // path and are read from the legacy on-disk tree instead, so history stays
@@ -2440,7 +2447,7 @@ func (t *Traffic) Stats() (*TrafficStats, error) {
 		Methods:     map[string]int{},
 	}
 
-	err := t.db.QueryRow(`SELECT COUNT(*), COUNT(DISTINCT host), COALESCE(MIN(ts),0), COALESCE(MAX(ts),0), COALESCE(AVG(resp_len),0), COALESCE(AVG(req_len),0), COALESCE(SUM(req_len),0), COALESCE(SUM(resp_len),0) FROM exchanges`).
+	err := t.db.QueryRow(`SELECT COUNT(*), COUNT(DISTINCT host), COALESCE(MIN(ts),0), COALESCE(MAX(ts),0), CAST(COALESCE(AVG(resp_len),0) AS INTEGER), CAST(COALESCE(AVG(req_len),0) AS INTEGER), COALESCE(SUM(req_len),0), COALESCE(SUM(resp_len),0) FROM exchanges`).
 		Scan(&s.TotalExchanges, &s.UniqueHosts, &s.EarliestTS, &s.LatestTS, &s.AvgRespSize, &s.AvgReqSize, &s.TotalReqBytes, &s.TotalRespBytes)
 	if err != nil {
 		return nil, err

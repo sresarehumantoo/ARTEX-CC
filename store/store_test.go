@@ -224,7 +224,7 @@ func TestFindingLifecycle(t *testing.T) {
 	ctx := context.Background()
 	taskID, expID := testEngagement(t, s, "finding-lifecycle")
 
-	findingID, err := s.AddFinding(ctx, tools.FindingInput{
+	findingID, _, err := s.AddFinding(ctx, tools.FindingInput{
 		TaskID:        taskID,
 		ExplorationID: expID,
 		VulnClass:     "xss",
@@ -259,6 +259,24 @@ func TestFindingLifecycle(t *testing.T) {
 	}
 	if f.Status != FindingStatusPending {
 		t.Errorf("Status = %q, want %q", f.Status, FindingStatusPending)
+	}
+
+	node, err := s.NodeDetail(ctx, f.NodeID)
+	if err != nil || node == nil {
+		t.Fatalf("NodeDetail(%d): %v", f.NodeID, err)
+	}
+	if node.Kind != KindFinding {
+		t.Errorf("node kind = %q, want %q", node.Kind, KindFinding)
+	}
+	if got, _ := node.Payload["finding_id"].(float64); int64(got) != findingID {
+		t.Errorf("node payload finding_id = %v, want %d", node.Payload["finding_id"], findingID)
+	}
+	ov, err := s.GraphOverview(ctx, expID)
+	if err != nil {
+		t.Fatalf("GraphOverview: %v", err)
+	}
+	if ov.FindingsTotal < 1 {
+		t.Errorf("FindingsTotal = %d, want >= 1", ov.FindingsTotal)
 	}
 }
 
