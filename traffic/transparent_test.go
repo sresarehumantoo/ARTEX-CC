@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-
 func TestTransparentTCPConfigWithDefaults(t *testing.T) {
 	t.Parallel()
 

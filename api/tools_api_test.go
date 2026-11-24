@@ -11,22 +11,22 @@ import (
 
 func TestToolCategory(t *testing.T) {
 	for input, want := range map[string]string{
-		"Bash":                            "system",
-		"Read":                            "system",
-		"add_finding":                     "findings",
-		"insert_asset":                    "assets",
+		"Bash":                         "system",
+		"Read":                         "system",
+		"add_finding":                  "findings",
+		"insert_asset":                 "assets",
 		"mcp__artex__add_finding":      "findings",
 		"mcp__artex__insert_asset":     "assets",
 		"mcp__artex__traffic_snapshot": "traffic",
 		"mcp__artex__evidence_capture": "evidence",
-		"record_coverage":                 "coverage",
-		"save_credential":                 "credentials",
-		"graph_overview":                  "graph",
-		"insert_node":                     "graph",
-		"ingest_data":                     "enrichment",
-		"log_activity":                    "activity",
-		"create_engagement":               "engagement",
-		"something_random":                "other",
+		"record_coverage":              "coverage",
+		"save_credential":              "credentials",
+		"graph_overview":               "graph",
+		"insert_node":                  "graph",
+		"ingest_data":                  "enrichment",
+		"log_activity":                 "activity",
+		"create_engagement":            "engagement",
+		"something_random":             "other",
 	} {
 		got := toolCategory(input)
 		if got != want {

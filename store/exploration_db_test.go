@@ -20,11 +20,6 @@ func nodeRows() *sqlmock.Rows {
 	})
 }
 
-func addNodeRow(rows *sqlmock.Rows, id int64, kind, state, origin string) *sqlmock.Rows {
-	now := time.Now()
-	return rows.AddRow(id, kind, []byte(`{}`), 5, state, origin, "", "", "", "[]", now, now)
-}
-
 func TestCreateExploration(t *testing.T) {
 	t.Parallel()
 	s, mock := newRegexpMockStore(t)
@@ -602,4 +597,3 @@ func TestMockListConstraints(t *testing.T) {
 		t.Error(err)
 	}
 }
-
