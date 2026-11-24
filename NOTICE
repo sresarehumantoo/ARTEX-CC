@@ -1,0 +1,61 @@
+ARTEX-CC
+Copyright (C) 2026 SREsAreHumanToo
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, version 3. See LICENSE for the full text.
+
+Source code: https://github.com/SREsAreHumanToo/ARTEX-CC
+
+
+Derived from ARTEX
+------------------
+
+Parts of this program are derived from ARTEX:
+
+  https://github.com/BaaRai/ARTEX
+  Copyright (C) 2026 Autumn-27, BaaRai and the ARTEX contributors
+  Licensed under the GNU Affero General Public License, version 3
+
+The following files and directories contain code copied from ARTEX and were
+modified by SREsAreHumanToo starting 2026-11-21:
+
+  traffic/                          (including traffic/hookvm and traffic/rewrite)
+  egress/
+  report/
+  store/schema.sql
+  store/store.go, and parts of other files in store/ and tools/
+  web/src/lib/status.ts
+  web/src/components/StatusBadge.tsx
+  web/src/components/AuthShell.tsx
+  web/src/index.css
+
+The rest of the program is original work by SREsAreHumanToo. As part of this
+combined work it is distributed under the same license.
+
+
+shadcn/ui
+---------
+
+The components in web/src/components/ui are based on shadcn/ui
+(https://ui.shadcn.com), used under the MIT License:
+
+  Copyright (c) 2023 shadcn
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.

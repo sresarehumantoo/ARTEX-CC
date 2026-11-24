@@ -40,7 +40,7 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 - **CI:** GitHub Actions with fmt-check, `go build`, `go vet`, `go test`, Codecov coverage reporting, and store tests against a real PostgreSQL instance.
 - **Distribution:** v0.1.1 released with cross-platform binaries (goreleaser), .deb packaging, Dockerfile, Homebrew formula auto-generated.
 - **Documentation:** Tool reference (docs/TOOLS.md), MCP client configs (docs/MCP_CLIENTS.md), AGENTS.md contributor guide, demo GIF.
-- **Community files:** MIT license, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, example engagement walkthrough, godoc comments on all exported types. Zero open issues, 76+ PRs merged.
+- **Community files:** AGPL-3.0 license, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, example engagement walkthrough, godoc comments on all exported types. Zero open issues, 76+ PRs merged.
 
 
 ## 2. P0: Ship blockers (all complete)

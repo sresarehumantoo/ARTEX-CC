@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- Relicensed from MIT to AGPL-3.0-only. Parts of ARTEX-CC are derived from AGPL-3.0 [ARTEX](https://github.com/BaaRai/ARTEX); see NOTICE. Releases v0.1.0 through v0.3.0 carried an MIT license file in error and are AGPL-3.0 as well.
+- Web UI links to its source code (AGPL section 13).
+
 ## [0.3.0] - 2026-11-22
 
 ### Added

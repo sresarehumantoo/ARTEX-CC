@@ -15,7 +15,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/SREsAreHumanToo/ARTEX-CC)](https://goreportcard.com/report/github.com/SREsAreHumanToo/ARTEX-CC)
 [![Go Reference](https://pkg.go.dev/badge/github.com/SREsAreHumanToo/ARTEX-CC.svg)](https://pkg.go.dev/github.com/SREsAreHumanToo/ARTEX-CC)
 [![Go 1.26+](https://img.shields.io/badge/go-1.26%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/SREsAreHumanToo/ARTEX-CC?style=flat&logo=github)](https://github.com/SREsAreHumanToo/ARTEX-CC/stargazers)
 
 </div>
@@ -376,7 +376,7 @@ The server speaks [MCP](https://modelcontextprotocol.io/) over stdio (for Claude
 | **Evidence chains** | Yes (findings linked to assets, coverage, traffic) | No | No | No |
 | **Traffic capture** | Built-in recording proxy with replay | No | No | No |
 | **Multi-client support** | Any MCP client (Claude Code, Cline, Cursor) | Own interface | Claude Code | Claude Code |
-| **License** | MIT | Research | Unknown | Unknown |
+| **License** | AGPL-3.0 | Research | Unknown | Unknown |
 
 ARTEX's differentiator is not tool count. It is the exploration graph and evidence chain model: every finding traces back to the asset, the coverage record, and the captured traffic that produced it.
 
@@ -391,6 +391,7 @@ ARTEX's differentiator is not tool count. It is the exploration graph and eviden
 | Exploration tracking | Yes | Same model |
 | Findings | Yes | Same model |
 | Human oversight | Watch the agent run | You steer Claude directly |
+| License | AGPL-3.0 | AGPL-3.0, with ARTEX-derived code credited in NOTICE |
 
 ## ARTEX vs manual pentesting
 
@@ -430,4 +431,10 @@ service enumeration, vulnerability testing, and report generation.
 
 ## License
 
-[MIT](LICENSE)
+ARTEX-CC is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only).
+
+Parts of it, including the traffic proxy, egress governor, report generation and database schema, are derived from [ARTEX](https://github.com/BaaRai/ARTEX) by Autumn-27, BaaRai and the ARTEX contributors, which is also AGPL-3.0. [NOTICE](NOTICE) lists the derived files and third-party notices.
+
+If you run a modified version as a network service, AGPL section 13 requires you to offer its users the corresponding source. The web UI links to the source for this reason.
+
+Releases v0.1.0 through v0.3.0 were published with an MIT license file in error. They contain the same ARTEX-derived code and are distributed under AGPL-3.0 as well.
