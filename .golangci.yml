@@ -1,0 +1,44 @@
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gosec
+  disable-all: true
+
+linters-settings:
+  gosec:
+    excludes:
+      - G101  # hardcoded credential heuristic flags test fixtures and DSN constants
+      - G112  # Slowloris: internal server behind a reverse proxy, not internet-facing
+      - G115  # integer overflow on int->uint16: checked by protocol bounds
+      - G202  # SQL concatenation: query builder, not user input
+      - G204  # exec.Command args are user-controlled by design (pentest orchestrator)
+      - G306  # WriteFile 0644: evidence/report files are intentionally world-readable
+      - G402  # InsecureSkipVerify implements --insecure for HTB targets
+      - G404  # weak RNG: used for non-security identifiers
+  errcheck:
+    exclude-functions:
+      - encoding/binary.Write
+      - (*encoding/json.Encoder).Encode
+      - encoding/json.Unmarshal
+      - (*flag.FlagSet).Parse
+      - (*database/sql.Tx).Rollback
+      - fmt.Fprintf
+      - fmt.Sscanf
+      - (net/http.ResponseWriter).Write
+      - (*net/http.Server).Shutdown
+      - crypto/rand.Read
+
+issues:
+  exclude-dirs:
+    - web
+    - dist
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec

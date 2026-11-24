@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"os"
+
 	"strconv"
 	"strings"
 	"sync"
@@ -71,31 +71,6 @@ type TransparentTCPConfig struct {
 
 	// origDst overrides kernel SO_ORIGINAL_DST lookup in unit tests.
 	origDst func(conn net.Conn) (net.IP, int, error)
-}
-
-// transparentTCPConfigFromEnv parses ARTEX_TRANSPARENT_TCP_ENABLED and
-// ARTEX_TRANSPARENT_TCP_ADDR. Returns (cfg, false) when disabled (default).
-func transparentTCPConfigFromEnv() (TransparentTCPConfig, bool) {
-	rawEnabled := strings.ToLower(strings.TrimSpace(os.Getenv(TransparentTCPEnabledEnv)))
-	rawAddr := strings.TrimSpace(os.Getenv(TransparentTCPAddrEnv))
-	switch rawEnabled {
-	case "0", "false", "no", "off":
-		return TransparentTCPConfig{}, false
-	case "1", "true", "yes", "on":
-		addr := rawAddr
-		if addr == "" {
-			addr = DefaultTransparentTCPAddr
-		}
-		return TransparentTCPConfig{Addr: addr}, true
-	case "":
-		if rawAddr == "" {
-			return TransparentTCPConfig{}, false
-		}
-		return TransparentTCPConfig{Addr: rawAddr}, true
-	default:
-		slog.Warn("transparent TCP env var is not a boolean, leaving disabled", "env", TransparentTCPEnabledEnv, "value", rawEnabled)
-		return TransparentTCPConfig{}, false
-	}
 }
 
 func (c TransparentTCPConfig) withDefaults() TransparentTCPConfig {

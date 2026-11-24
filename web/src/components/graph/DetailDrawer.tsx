@@ -1,5 +1,6 @@
 import { X, ExternalLink, ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { StatusBadge } from '../StatusBadge'
 import type { GraphNode, GraphEdge } from '../../lib/types'
 
 const kindColors: Record<string, string> = {
@@ -8,14 +9,6 @@ const kindColors: Record<string, string> = {
   fact: 'bg-amber-500',
   finding: 'bg-rose-500',
   hint: 'bg-violet-500',
-}
-
-const stateColors: Record<string, string> = {
-  done: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  proven: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  running: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  open: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  failed: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
 }
 
 interface Props {
@@ -31,8 +24,8 @@ function PayloadField({ label, value }: { label: string; value: unknown }) {
   const display = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)
   return (
     <div className="mb-2">
-      <dt className="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-0.5">{label}</dt>
-      <dd className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap break-words">{display}</dd>
+      <dt className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">{label}</dt>
+      <dd className="text-sm text-foreground whitespace-pre-wrap break-words">{display}</dd>
     </div>
   )
 }
@@ -81,23 +74,23 @@ export function DetailDrawer({ node, edges, allNodes, onClose, onSelectNode }: P
 
   const hasLinks =
     (node.kind === 'finding' && typeof payload.finding_id === 'number') ||
-    (node.kind === 'fact' && typeof payload.asset_id === 'number') ||
-    node.kind === 'intent' ||
-    node.kind === 'goal'
+    (node.kind === 'fact' && typeof payload.asset_id === 'number')
 
   return (
-    <div className="drawer-enter absolute top-0 right-0 z-20 h-full w-80 bg-white dark:bg-slate-800 shadow-2xl border-l border-slate-200 dark:border-slate-700 flex flex-col">
-      <div className="flex items-center gap-2 p-3 border-b border-slate-200 dark:border-slate-700">
+    <div className="drawer-enter absolute top-0 right-0 z-20 h-full w-80 bg-card text-card-foreground shadow-2xl border-l border-border flex flex-col">
+      <div className="flex items-center gap-2 p-3 border-b border-border">
         <span className={`w-2.5 h-2.5 rounded-full ${kindColors[node.kind] ?? 'bg-slate-400'}`} />
-        <span className="text-sm font-medium text-slate-800 dark:text-slate-100 capitalize">{node.kind}</span>
-        <span className="text-xs text-slate-400 dark:text-slate-500">#{node.id}</span>
-        <span className="ml-auto px-1.5 py-0.5 text-[10px] font-medium rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-          {node.state}
-        </span>
+        <span className="text-sm font-medium text-foreground capitalize">{node.kind}</span>
+        <span className="text-xs text-muted-foreground">#{node.id}</span>
+        <StatusBadge
+          domain={node.kind === 'intent' ? 'intent' : node.kind === 'goal' ? 'goal' : 'node'}
+          value={node.state}
+          className="ml-auto px-1.5 text-[10px]"
+        />
         <button
           onClick={onClose}
           aria-label="Close detail panel"
-          className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500"
+          className="p-1 rounded hover:bg-accent text-muted-foreground"
         >
           <X size={16} />
         </button>
@@ -114,12 +107,12 @@ export function DetailDrawer({ node, edges, allNodes, onClose, onSelectNode }: P
         </dl>
 
         {hasLinks && (
-          <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-            <h4 className="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-2">Links</h4>
+          <div className="mt-3 pt-3 border-t border-border">
+            <h4 className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">Links</h4>
             {node.kind === 'finding' && typeof payload.finding_id === 'number' && (
               <Link
                 to={`/findings?id=${payload.finding_id}`}
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-muted text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors"
               >
                 <ExternalLink size={12} />
                 Finding #{payload.finding_id}
@@ -128,34 +121,27 @@ export function DetailDrawer({ node, edges, allNodes, onClose, onSelectNode }: P
             {node.kind === 'fact' && typeof payload.asset_id === 'number' && (
               <Link
                 to={`/assets?id=${payload.asset_id}`}
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-muted text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors"
               >
                 <ExternalLink size={12} />
                 Asset #{payload.asset_id}
               </Link>
             )}
-            {(node.kind === 'intent' || node.kind === 'goal') && (
-              <span
-                className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${stateColors[node.state] ?? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}
-              >
-                {node.state}
-              </span>
-            )}
           </div>
         )}
 
         {neighbors.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-            <h4 className="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-2">Connections</h4>
+          <div className="mt-3 pt-3 border-t border-border">
+            <h4 className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">Connections</h4>
             {[...groupedByRel.entries()].map(([rel, items]) => (
               <div key={rel} className="mb-2">
-                <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">{rel}</span>
+                <span className="text-[10px] font-medium text-muted-foreground">{rel}</span>
                 <div className="mt-1 space-y-0.5">
                   {items.map((neighbor) => (
                     <button
                       key={`${neighbor.node.id}-${neighbor.direction}`}
                       onClick={() => onSelectNode(neighbor.node.id)}
-                      className="w-full flex items-center gap-1.5 px-2 py-1 rounded text-left hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group"
+                      className="w-full flex items-center gap-1.5 px-2 py-1 rounded text-left hover:bg-accent transition-colors group"
                     >
                       <span className={`w-2 h-2 rounded-full shrink-0 ${kindColors[neighbor.node.kind] ?? 'bg-slate-400'}`} />
                       <span className="text-xs text-slate-600 dark:text-slate-300 truncate flex-1">

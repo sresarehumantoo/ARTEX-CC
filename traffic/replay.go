@@ -79,13 +79,6 @@ func consumeReplayNonce(nonce string) bool {
 	return ok
 }
 
-func replayNonceCount() int {
-	replayNonces.mu.Lock()
-	n := len(replayNonces.live)
-	replayNonces.mu.Unlock()
-	return n
-}
-
 // ErrReplayInvalid marks a replay request rejected before anything is sent.
 var ErrReplayInvalid = errors.New("invalid replay request")
 

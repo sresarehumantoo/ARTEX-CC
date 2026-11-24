@@ -3,24 +3,15 @@ import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Clock, Download, Search, X } from 'lucide-react'
 import { Badge } from '../components/ui/badge'
+import { StatusBadge } from '../components/StatusBadge'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
 import { ActivitySkeleton } from '../components/skeletons/ActivitySkeleton'
 import { getActivity } from '../lib/api'
 import { downloadFile } from '../lib/export'
-import { useToast } from '../hooks/useToast'
-import { cn } from '../lib/utils'
+import { toast } from 'sonner'
 import type { Activity as ActivityType } from '../lib/types'
-
-const KIND_COLORS: Record<string, string> = {
-  finding: 'bg-rose-500/15 text-rose-500',
-  intent: 'bg-blue-500/15 text-blue-500',
-  asset: 'bg-amber-500/15 text-amber-500',
-  node: 'bg-emerald-500/15 text-emerald-500',
-  edge: 'bg-violet-500/15 text-violet-500',
-  coverage: 'bg-cyan-500/15 text-cyan-500',
-}
 
 function exportActivityCSV(items: ActivityType[]) {
   const headers = ['Timestamp', 'Kind', 'Tool', 'Summary', 'Detail', 'Node ID', 'Worker', 'Error']
@@ -54,11 +45,11 @@ function ActivityItem({ item }: { item: ActivityType }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <div className="border-b border-slate-100 dark:border-slate-800 last:border-0">
+    <div className="border-b border-border last:border-0">
       <button
         type="button"
         onClick={() => setExpanded(v => !v)}
-        className="flex w-full items-start gap-2 md:gap-3 px-3 md:px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+        className="flex w-full items-start gap-2 md:gap-3 px-3 md:px-4 py-3 text-left hover:bg-accent transition-colors"
       >
         <div className="mt-1.5 shrink-0">
           <span
@@ -67,29 +58,29 @@ function ActivityItem({ item }: { item: ActivityType }) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate max-w-[150px] sm:max-w-none">
+            <span className="text-sm font-medium text-foreground truncate max-w-[150px] sm:max-w-none">
               {item.tool}
             </span>
-            <Badge variant="default">{item.kind}</Badge>
+            <StatusBadge domain="activity" value={item.kind} />
             {item.is_error && <Badge variant="critical">error</Badge>}
             {item.worker && (
-              <span className="text-xs text-slate-400 dark:text-slate-500">
+              <span className="text-xs text-muted-foreground">
                 {item.worker}
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
+          <p className="mt-0.5 text-sm text-muted-foreground line-clamp-2">
             {item.summary}
           </p>
         </div>
         <div className="shrink-0 flex items-center gap-2">
           {item.created_at && (
-            <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
               {relativeTime(item.created_at)}
             </span>
           )}
           {item.detail && (
-            <span className="text-slate-400 dark:text-slate-500">
+            <span className="text-muted-foreground">
               {expanded ? (
                 <ChevronDown className="h-4 w-4" />
               ) : (
@@ -101,7 +92,7 @@ function ActivityItem({ item }: { item: ActivityType }) {
       </button>
       {expanded && item.detail && (
         <div className="px-3 md:px-4 pb-3 pl-7 md:pl-9">
-          <pre className="whitespace-pre-wrap break-words rounded-md bg-slate-100 dark:bg-slate-800 p-2 md:p-3 text-xs text-slate-700 dark:text-slate-300 max-h-96 overflow-y-auto overflow-x-auto">
+          <pre className="whitespace-pre-wrap break-words rounded-md bg-muted p-2 md:p-3 text-xs text-foreground max-h-96 overflow-y-auto overflow-x-auto">
             {item.detail}
           </pre>
         </div>
@@ -133,7 +124,6 @@ export default function Activity() {
   const [searchText, setSearchText] = useState(() => searchParams.get('q') ?? '')
   const [seenCount, setSeenCount] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const { toast } = useToast()
 
   const { data, isLoading, isError, error, dataUpdatedAt, refetch } = useQuery({
     queryKey: ['activity', limit, kindFilter],
@@ -231,11 +221,11 @@ export default function Activity() {
   return (
     <div className="space-y-4 p-3 md:p-6">
       <div className="flex items-center gap-3">
-        <h1 className="text-lg md:text-2xl font-semibold text-slate-900 dark:text-slate-100">
+        <h1 className="text-lg md:text-2xl font-semibold text-foreground">
           Activity Log
         </h1>
         {isLive && (
-          <span className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
@@ -250,7 +240,7 @@ export default function Activity() {
             disabled={!filtered.length}
             onClick={() => {
               exportActivityCSV(filtered)
-              toast('Activity exported', { variant: 'success' })
+              toast.success('Activity exported')
             }}
           >
             <Download className="h-4 w-4 mr-1" />
@@ -261,7 +251,7 @@ export default function Activity() {
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
         <div className="relative min-w-0 w-full sm:w-auto sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search summary, tool, worker..."
             value={searchText}
@@ -309,10 +299,11 @@ export default function Activity() {
       </div>
 
       {Object.keys(kindCounts).length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 px-3 md:px-4 py-1.5 border-b border-slate-200 dark:border-slate-800 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 px-3 md:px-4 py-1.5 border-b border-border text-xs">
           {Object.entries(kindCounts).map(([kind, count]) => (
-            <span key={kind} className={cn('rounded-full px-2 py-0.5 font-medium', KIND_COLORS[kind] ?? 'bg-slate-500/15 text-slate-500')}>
-              {kind} {count}
+            <span key={kind} className="inline-flex items-center gap-1">
+              <StatusBadge domain="activity" value={kind} />
+              <span className="tabular-nums text-muted-foreground">{count}</span>
             </span>
           ))}
         </div>
@@ -335,17 +326,17 @@ export default function Activity() {
 
       {data && (
         <>
-          <div className="text-xs text-slate-400 dark:text-slate-500">
+          <div className="text-xs text-muted-foreground">
             Showing {filtered.length} of {data.length} entries
           </div>
-          <div ref={scrollRef} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+          <div ref={scrollRef} className="rounded-lg border border-border bg-background overflow-hidden">
             <NewEventsBar count={newCount} onClick={handleNewEventsClick} />
             {filtered.length === 0 ? (
-              <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-500">
+              <div className="flex h-64 flex-col items-center justify-center gap-3 text-muted-foreground">
                 <Clock className="h-12 w-12 text-slate-300 dark:text-slate-700" />
                 <div className="text-center">
-                  <p className="text-lg font-medium text-slate-600 dark:text-slate-400">No activity recorded</p>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-500">
+                  <p className="text-lg font-medium text-muted-foreground">No activity recorded</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {hasFilters
                       ? 'Try adjusting your filters'
                       : 'Activity events will appear as the engagement runs'}

@@ -269,7 +269,7 @@ export default function FindingsTimeline({ findings, className }: FindingsTimeli
             {' '}
             <span className="text-slate-300">{tooltip.finding.vulnclass}</span>
           </div>
-          <div className="text-slate-400">
+          <div className="text-muted-foreground">
             {useRealTime ? formatTooltipTime(new Date(tooltip.finding.ts)) : `Finding #${tooltip.finding.id}`}
           </div>
         </div>

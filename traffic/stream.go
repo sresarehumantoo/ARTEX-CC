@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode/utf8"
 	"unsafe"
 
 	"github.com/SREsAreHumanToo/cc-artex/traffic/rewrite"
@@ -36,9 +35,6 @@ const (
 	// maxStreamInline is the inline threshold for message payloads: anything
 	// longer spills to the blob store, so a page of 200 rows stays bounded.
 	maxStreamInline = streamPreview
-	// toolStreamPreview caps one message's preview in traffic_messages, so a page
-	// of messages stays small in the agent's context.
-	toolStreamPreview = 1024
 )
 
 // streamState tracks one live stream. mu serializes the two WebSocket forwarding
@@ -632,21 +628,4 @@ func (t *Traffic) StreamInfo(exchangeID string) (count int, kind string, err err
 		return 0, "", err
 	}
 	return count, kind, nil
-}
-
-// streamToolPreview renders one message for traffic_messages: at most 1 KiB of
-// text (hex for binary), plus the blob hash when the payload spilled.
-func streamToolPreview(m StreamMessage) string {
-	if m.Encoding == "base64" {
-		raw, _ := base64.StdEncoding.DecodeString(m.Payload)
-		return "hex:" + fmt.Sprintf("%x", clipBytes(raw, toolStreamPreview/2))
-	}
-	p := m.Payload
-	if len(p) > toolStreamPreview {
-		p = truncateUTF8([]byte(p), toolStreamPreview)
-	}
-	if !utf8.ValidString(p) {
-		p = strings.ToValidUTF8(p, "�")
-	}
-	return p
 }

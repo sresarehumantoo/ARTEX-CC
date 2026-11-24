@@ -18,6 +18,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Badge, severityVariant } from '../components/ui/badge'
 import { getEngagement, getActivity } from '../lib/api'
 import { cn } from '../lib/utils'
+import { StatusBadge } from '../components/StatusBadge'
 import type { Activity, EngagementData, GraphNode } from '../lib/types'
 
 function relativeTime(iso: string): string {
@@ -47,13 +48,13 @@ function StatCard({
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+          <Icon className="h-4 w-4 text-muted-foreground" />
           <CardTitle>{title}</CardTitle>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{value}</div>
-        {children && <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">{children}</div>}
+        <div className="text-3xl font-bold text-foreground">{value}</div>
+        {children && <div className="mt-2 text-sm text-muted-foreground">{children}</div>}
       </CardContent>
     </Card>
   )
@@ -91,27 +92,27 @@ function SeverityBreakdown({ findings }: { findings: EngagementData['finding_lis
 
 function ActivityFeed({ items }: { items: Activity[] }) {
   if (items.length === 0) {
-    return <p className="text-sm text-slate-500">No recent activity.</p>
+    return <p className="text-sm text-muted-foreground">No recent activity.</p>
   }
 
   return (
     <div className="space-y-1">
       {items.map((a) => {
         const content = (
-          <div className="flex items-start gap-3 rounded-md px-3 py-2 hover:bg-slate-100/50 dark:hover:bg-slate-800/50">
+          <div className="flex items-start gap-3 rounded-md px-3 py-2 hover:bg-accent">
             <div className="mt-0.5 shrink-0">
               {a.is_error ? (
                 <AlertCircle className="h-4 w-4 text-rose-400" />
               ) : (
-                <Wrench className="h-4 w-4 text-slate-500" />
+                <Wrench className="h-4 w-4 text-muted-foreground" />
               )}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{a.tool}</span>
-                {a.created_at && <span className="text-xs text-slate-400 dark:text-slate-600">{relativeTime(a.created_at)}</span>}
+                <span className="text-xs font-medium text-foreground">{a.tool}</span>
+                {a.created_at && <span className="text-xs text-muted-foreground dark:text-slate-600">{relativeTime(a.created_at)}</span>}
               </div>
-              <p className="truncate text-sm text-slate-500 dark:text-slate-400">{a.summary}</p>
+              <p className="truncate text-sm text-muted-foreground">{a.summary}</p>
             </div>
           </div>
         )
@@ -127,21 +128,6 @@ function ActivityFeed({ items }: { items: Activity[] }) {
   )
 }
 
-function goalStateDot(state: string) {
-  if (state.includes('proven'))
-    return 'bg-emerald-500'
-  if (state === 'running' || state === 'in_progress')
-    return 'bg-amber-500'
-  return 'bg-slate-400 dark:bg-slate-500'
-}
-
-function goalStateLabel(state: string) {
-  if (state.includes('proven')) return 'Proven'
-  if (state === 'disproven') return 'Disproven'
-  if (state === 'running' || state === 'in_progress') return 'In progress'
-  return 'Open'
-}
-
 function GoalProgress({ goals }: { goals: GraphNode[] }) {
   if (goals.length === 0) return null
 
@@ -149,7 +135,7 @@ function GoalProgress({ goals }: { goals: GraphNode[] }) {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Target className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+          <Target className="h-4 w-4 text-muted-foreground" />
           <CardTitle>Goals</CardTitle>
         </div>
       </CardHeader>
@@ -157,13 +143,12 @@ function GoalProgress({ goals }: { goals: GraphNode[] }) {
         <div className="space-y-3">
           {goals.map((g) => (
             <div key={g.id} className="flex items-start gap-3">
-              <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${goalStateDot(g.state)}`} />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                <p className="text-sm font-medium text-foreground">
                   {(g as any).label || (g.payload?.text as string) || `Goal #${g.id}`}
                 </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{goalStateLabel(g.state)}</p>
               </div>
+              <StatusBadge domain="goal" value={g.state.includes('proven') && g.state !== 'disproven' ? 'proven' : g.state} dot />
             </div>
           ))}
         </div>
@@ -177,13 +162,13 @@ function RunningIntents({ intents }: { intents: GraphNode[] }) {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Wrench className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+          <Wrench className="h-4 w-4 text-muted-foreground" />
           <CardTitle>Active Intents</CardTitle>
         </div>
       </CardHeader>
       <CardContent>
         {intents.length === 0 ? (
-          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CheckCircle className="h-4 w-4" />
             <span>No active intents</span>
           </div>
@@ -191,13 +176,10 @@ function RunningIntents({ intents }: { intents: GraphNode[] }) {
           <div className="space-y-2">
             {intents.map((i) => (
               <div key={i.id} className="flex items-start gap-3">
-                <span className="relative mt-1.5 flex h-2.5 w-2.5 shrink-0">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-blue-500" />
-                </span>
-                <p className="text-sm text-slate-700 dark:text-slate-300">
+                <p className="min-w-0 flex-1 text-sm text-foreground">
                   {(i as any).label || (i.payload?.text as string) || `Intent #${i.id}`}
                 </p>
+                <StatusBadge domain="intent" value={i.state} dot />
               </div>
             ))}
           </div>
@@ -219,20 +201,20 @@ function CoverageRing({ coverage, frontierOpen }: { coverage: Record<string, unk
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Layers className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+              <Layers className="h-4 w-4 text-muted-foreground" />
               <CardTitle>Coverage</CardTitle>
             </div>
             <Link
               to="/coverage"
-              className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+              className="text-xs text-muted-foreground hover:text-foreground"
             >
               View all
             </Link>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">0</div>
-          <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">No coverage data yet</div>
+          <div className="text-3xl font-bold text-foreground">0</div>
+          <div className="mt-2 text-sm text-muted-foreground">No coverage data yet</div>
         </CardContent>
       </Card>
     )
@@ -264,12 +246,12 @@ function CoverageRing({ coverage, frontierOpen }: { coverage: Record<string, unk
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Layers className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+            <Layers className="h-4 w-4 text-muted-foreground" />
             <CardTitle>Coverage</CardTitle>
           </div>
           <Link
             to="/coverage"
-            className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            className="text-xs text-muted-foreground hover:text-foreground"
           >
             View all
           </Link>
@@ -295,14 +277,14 @@ function CoverageRing({ coverage, frontierOpen }: { coverage: Record<string, unk
               ))}
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">{entries}</span>
+              <span className="text-2xl font-bold text-foreground">{entries}</span>
             </div>
           </div>
           <div className="space-y-1.5 text-xs">
             {segments.map((s, idx) => (
               <div key={idx} className="flex items-center gap-2">
                 <span className={`inline-block h-2.5 w-2.5 rounded-full bg-current ${s.color}`} />
-                <span className="text-slate-600 dark:text-slate-400">
+                <span className="text-muted-foreground">
                   {s.label}: {s.value}
                 </span>
               </div>
@@ -395,10 +377,10 @@ function FindingsTimeline({ activities }: { activities: Activity[] }) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+            <Clock className="h-4 w-4 text-muted-foreground" />
             <CardTitle>Finding Timeline</CardTitle>
           </div>
-          <span className="text-sm text-slate-500 dark:text-slate-400">
+          <span className="text-sm text-muted-foreground">
             {totalFindings} finding{totalFindings !== 1 ? 's' : ''}
           </span>
         </div>
@@ -455,11 +437,11 @@ function IntentProgressBar({ done, running, open }: { done: number; running: num
 
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>Intent progress</span>
         <span>{done} done, {running} running, {open} open</span>
       </div>
-      <div className="flex h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+      <div className="flex h-2 overflow-hidden rounded-full bg-muted">
         {pctDone > 0 && (
           <div
             className="bg-emerald-500 transition-all"
@@ -494,12 +476,12 @@ function RecentFindings({ findings }: { findings: Record<string, unknown>[] }) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+            <Shield className="h-4 w-4 text-muted-foreground" />
             <CardTitle>Recent Findings</CardTitle>
           </div>
           <Link
             to="/findings"
-            className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            className="text-xs text-muted-foreground hover:text-foreground"
           >
             View all
           </Link>
@@ -516,17 +498,17 @@ function RecentFindings({ findings }: { findings: Record<string, unknown>[] }) {
               <Link
                 key={id}
                 to={`/findings?id=${id}`}
-                className="flex items-start gap-3 rounded-md px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+                className="flex items-start gap-3 rounded-md px-3 py-2 hover:bg-accent transition-colors group"
               >
                 <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', SEVERITY_DOT[severity] ?? 'bg-slate-400')} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-slate-800 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-slate-100 truncate">
+                  <p className="text-sm text-foreground group-hover:text-slate-900 dark:group-hover:text-slate-100 truncate">
                     {summary}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[11px] font-medium text-slate-500 capitalize">{severity}</span>
+                    <span className="text-[11px] font-medium text-muted-foreground capitalize">{severity}</span>
                     {vulnclass && (
-                      <span className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{vulnclass}</span>
+                      <span className="text-[11px] text-muted-foreground truncate">{vulnclass}</span>
                     )}
                   </div>
                 </div>
@@ -570,7 +552,7 @@ export function Dashboard() {
 
   return (
     <div className="space-y-4 md:space-y-6 p-3 md:p-6">
-      <h1 className="text-lg md:text-2xl font-semibold text-slate-900 dark:text-slate-100">Dashboard</h1>
+      <h1 className="text-lg md:text-2xl font-semibold text-foreground">Dashboard</h1>
 
       {engagement.isLoading && <DashboardSkeleton />}
       {engagement.isError && (
@@ -589,13 +571,13 @@ export function Dashboard() {
       {e && (
         <>
           {e.goal && (
-            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 md:p-4">
+            <div className="rounded-lg border border-border bg-background p-3 md:p-4">
               <div className="flex items-start gap-3">
                 <Crosshair className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
                 <div className="min-w-0">
-                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{e.goal}</h2>
+                  <h2 className="text-sm font-semibold text-foreground">{e.goal}</h2>
                   {e.description && (
-                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{e.description}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{e.description}</p>
                   )}
                 </div>
               </div>
@@ -649,7 +631,7 @@ export function Dashboard() {
                 <CardTitle>Hints</CardTitle>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
+                <ul className="space-y-1 text-sm text-foreground">
                   {e.hints.map((h) => (
                     <li key={h.id}>{(h as any).label || (h as any).text || (h.payload?.text as string) || JSON.stringify(h.payload ?? h)}</li>
                   ))}
@@ -666,7 +648,7 @@ export function Dashboard() {
             <CardTitle>Recent Activity</CardTitle>
             <Link
               to="/activity"
-              className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+              className="text-xs text-muted-foreground hover:text-foreground"
             >
               View all
             </Link>
@@ -677,10 +659,10 @@ export function Dashboard() {
             <div className="space-y-3">
               {[1, 2, 3, 4, 5].map(i => (
                 <div key={i} className="animate-pulse flex items-start gap-3 py-2">
-                  <div className="h-2 w-2 rounded-full bg-slate-200 dark:bg-slate-700 mt-1.5 shrink-0" />
+                  <div className="h-2 w-2 rounded-full bg-muted mt-1.5 shrink-0" />
                   <div className="flex-1 space-y-1.5">
-                    <div className="h-3.5 w-3/4 rounded bg-slate-200 dark:bg-slate-700" />
-                    <div className="h-3 w-1/3 rounded bg-slate-200 dark:bg-slate-700" />
+                    <div className="h-3.5 w-3/4 rounded bg-muted" />
+                    <div className="h-3 w-1/3 rounded bg-muted" />
                   </div>
                 </div>
               ))}
@@ -705,7 +687,7 @@ export function Dashboard() {
                 <div className="mt-3 text-center">
                   <button
                     type="button"
-                    className="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                    className="text-sm text-muted-foreground hover:text-foreground"
                     onClick={() => setActivityLimit(prev => prev + ACTIVITY_PAGE_SIZE)}
                   >
                     Load more activity

@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { useSSE, type SSEEvent } from './useSSE'
-import { useToast } from './useToast'
+import { toast } from 'sonner'
 import { incrementUnread } from './useUnreadFindings'
 
 function eventLabel(data: unknown): string | undefined {
@@ -16,7 +16,6 @@ function eventLabel(data: unknown): string | undefined {
 
 export function useSSERefresh() {
   const queryClient = useQueryClient()
-  const { toast } = useToast()
 
   const handleEvent = useCallback(
     (event: SSEEvent) => {
@@ -29,13 +28,13 @@ export function useSSERefresh() {
           queryClient.invalidateQueries({ queryKey: ['activity'] })
           queryClient.invalidateQueries({ queryKey: ['coverage'] })
           incrementUnread()
-          toast(label ? `New finding: ${label}` : 'New finding discovered', { variant: 'warning' })
+          toast.warning(label ? `New finding: ${label}` : 'New finding discovered')
           break
         case 'asset_added':
           queryClient.invalidateQueries({ queryKey: ['assets'] })
           queryClient.invalidateQueries({ queryKey: ['engagement'] })
           queryClient.invalidateQueries({ queryKey: ['activity'] })
-          toast(label ? `New asset: ${label}` : 'New asset identified', { variant: 'info' })
+          toast.info(label ? `New asset: ${label}` : 'New asset identified')
           break
         case 'full_refresh':
           queryClient.invalidateQueries({ queryKey: ['engagement'] })
@@ -44,13 +43,13 @@ export function useSSERefresh() {
           queryClient.invalidateQueries({ queryKey: ['coverage'] })
           queryClient.invalidateQueries({ queryKey: ['coverage-gaps'] })
           queryClient.invalidateQueries({ queryKey: ['credentials'] })
-          toast('Data refreshed', { variant: 'success' })
+          toast.success('Data refreshed')
           break
         case 'node_added':
           queryClient.invalidateQueries({ queryKey: ['engagement'] })
           queryClient.invalidateQueries({ queryKey: ['activity'] })
           queryClient.invalidateQueries({ queryKey: ['graph'] })
-          toast(label ? `Graph updated: ${label}` : 'Graph updated', { variant: 'info' })
+          toast.info(label ? `Graph updated: ${label}` : 'Graph updated')
           break
         case 'node_updated':
         case 'edge_added':
@@ -67,7 +66,7 @@ export function useSSERefresh() {
           break
       }
     },
-    [queryClient, toast],
+    [queryClient],
   )
 
   useSSE('/api/events', handleEvent)

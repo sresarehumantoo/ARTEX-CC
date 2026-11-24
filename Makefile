@@ -1,4 +1,4 @@
-.PHONY: all build web install dev test lint fmt fmt-check vet ci clean coverage help
+.PHONY: all build web install dev test lint golangci-lint fmt fmt-check vet ci pre-commit hooks clean coverage help
 
 all: build
 
@@ -14,7 +14,10 @@ help:
 	@echo "  fmt         Format Go code"
 	@echo "  fmt-check   Check Go formatting (CI)"
 	@echo "  vet         Run go vet"
-	@echo "  ci          Run fmt-check + vet + test"
+	@echo "  golangci-lint Run golangci-lint"
+	@echo "  ci          Run fmt-check + vet + golangci-lint + test"
+	@echo "  pre-commit  Run fmt-check + vet + lint (for git hook)"
+	@echo "  hooks       Install git pre-commit hook"
 	@echo "  coverage    Generate HTML coverage report"
 	@echo "  clean       Remove build artifacts"
 
@@ -50,7 +53,18 @@ fmt-check:
 vet:
 	go vet ./...
 
-ci: fmt-check vet test
+golangci-lint:
+	golangci-lint run ./...
+
+ci: fmt-check vet golangci-lint test
+
+pre-commit: fmt-check vet lint
+
+hooks:
+	@mkdir -p .git/hooks
+	@printf '#!/bin/sh\nmake pre-commit\n' > .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "Pre-commit hook installed."
 
 coverage:
 	go test -coverprofile=coverage.out ./...

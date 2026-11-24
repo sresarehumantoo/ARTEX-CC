@@ -6,7 +6,7 @@ import type { Credential } from '../lib/types'
 import { downloadFile } from '../lib/export'
 import { cn } from '../lib/utils'
 import { CredentialsSkeleton } from '../components/skeletons/CredentialsSkeleton'
-import { useToast } from '../hooks/useToast'
+import { toast } from 'sonner'
 
 function exportCredentialsCSV(creds: Credential[]) {
   const headers = ['Domain', 'Username', 'Source', 'Note']
@@ -16,7 +16,6 @@ function exportCredentialsCSV(creds: Credential[]) {
 }
 
 export default function Credentials() {
-  const { toast } = useToast()
   const [filter, setFilter] = useState('')
   const [domainFilter, setDomainFilter] = useState('')
   const [revealed, setRevealed] = useState<Set<number>>(() => new Set())
@@ -62,17 +61,17 @@ export default function Credentials() {
 
   function copyPassword(password: string) {
     navigator.clipboard.writeText(password)
-    toast('Password copied', { variant: 'success' })
+    toast.success('Password copied')
   }
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 md:px-4 py-2 md:py-3">
+      <div className="border-b border-border bg-muted px-3 md:px-4 py-2 md:py-3">
         <div className="flex items-center gap-2">
-          <Key className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Credentials</h1>
+          <Key className="h-5 w-5 text-muted-foreground" />
+          <h1 className="text-lg font-semibold text-foreground">Credentials</h1>
           {credentials && (
-            <span className="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">
               {credentials.length}
             </span>
           )}
@@ -81,11 +80,11 @@ export default function Credentials() {
               onClick={() => {
                 if (filtered.length > 0) {
                   exportCredentialsCSV(filtered)
-                  toast('Credentials exported (passwords excluded)', { variant: 'success' })
+                  toast.success('Credentials exported (passwords excluded)')
                 }
               }}
               disabled={filtered.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card text-card-foreground px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               title="Export credentials as CSV (passwords excluded)"
             >
               <Download className="h-3.5 w-3.5" />
@@ -95,22 +94,22 @@ export default function Credentials() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 px-3 md:px-4 py-2 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 px-3 md:px-4 py-2 border-b border-border">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder="Search credentials..."
-            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md py-2 pl-9 pr-3 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            className="w-full bg-background border border-border rounded-md py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-500"
           />
         </div>
         {domains.length > 1 && (
           <select
             value={domainFilter}
             onChange={(e) => setDomainFilter(e.target.value)}
-            className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-300"
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
           >
             <option value="">All domains</option>
             {domains.map(d => <option key={d} value={d}>{d}</option>)}
@@ -119,7 +118,7 @@ export default function Credentials() {
       </div>
 
       {domains.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 px-3 md:px-4 py-1.5 border-b border-slate-200 dark:border-slate-800 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 px-3 md:px-4 py-1.5 border-b border-border text-xs">
           {domains.map(d => {
             const count = credentials!.filter(c => c.domain === d).length
             return (
@@ -131,7 +130,7 @@ export default function Credentials() {
                   'rounded-full px-2 py-0.5 font-medium transition-colors',
                   domainFilter === d
                     ? 'bg-emerald-500/15 text-emerald-500'
-                    : 'bg-slate-500/10 text-slate-500 hover:bg-slate-500/20',
+                    : 'bg-slate-500/10 text-muted-foreground hover:bg-slate-500/20',
                 )}
               >
                 {d} {count}
@@ -142,7 +141,7 @@ export default function Credentials() {
       )}
 
       {(filter || domainFilter) && credentials && (
-        <div className="text-xs text-slate-400 dark:text-slate-500 px-3 md:px-4 py-1">
+        <div className="text-xs text-muted-foreground px-3 md:px-4 py-1">
           Showing {filtered.length} of {credentials.length}
         </div>
       )}
@@ -164,8 +163,8 @@ export default function Credentials() {
         ) : isLoading ? (
           <CredentialsSkeleton />
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 gap-2 text-slate-500">
-            <Key className="h-10 w-10 text-slate-400 dark:text-slate-600" />
+          <div className="flex flex-col items-center justify-center h-48 gap-2 text-muted-foreground">
+            <Key className="h-10 w-10 text-muted-foreground dark:text-slate-600" />
             <p className="text-sm">
               {credentials && credentials.length > 0
                 ? 'No credentials match your filter'
@@ -176,30 +175,30 @@ export default function Credentials() {
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[600px]">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-                  <th className="px-3 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Domain</th>
-                  <th className="px-3 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Username</th>
-                  <th className="px-3 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Password</th>
-                  <th className="px-3 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Source</th>
-                  <th className="px-3 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Note</th>
+                <tr className="border-b border-border bg-muted">
+                  <th className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Domain</th>
+                  <th className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Username</th>
+                  <th className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Password</th>
+                  <th className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Source</th>
+                  <th className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Note</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((cred) => (
                   <tr
                     key={cred.id}
-                    className="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors"
+                    className="border-b border-border hover:bg-accent transition-colors"
                   >
-                    <td className="px-3 py-2 text-slate-800 dark:text-slate-200 text-sm">{cred.domain}</td>
-                    <td className="px-3 py-2 text-slate-800 dark:text-slate-200 text-sm font-mono">{cred.username}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 text-foreground text-xs">{cred.domain}</td>
+                    <td className="px-3 py-2 text-foreground text-xs font-mono">{cred.username}</td>
+                    <td className="px-3 py-2 text-xs">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm text-slate-800 dark:text-slate-200 font-mono">
+                        <span className="text-sm text-foreground font-mono">
                           {revealed.has(cred.id) ? (cred.password ?? '') : '••••••••'}
                         </span>
                         <button
                           onClick={() => toggleReveal(cred.id)}
-                          className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                          className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                           title={revealed.has(cred.id) ? 'Hide password' : 'Show password'}
                         >
                           {revealed.has(cred.id) ? (
@@ -211,7 +210,7 @@ export default function Credentials() {
                         {cred.password && (
                           <button
                             onClick={() => copyPassword(cred.password!)}
-                            className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                             title="Copy password"
                           >
                             <Copy className="w-3.5 h-3.5" />
@@ -219,8 +218,8 @@ export default function Credentials() {
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{cred.source ?? ''}</td>
-                    <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{cred.note ?? ''}</td>
+                    <td className="px-3 py-2 text-muted-foreground text-xs">{cred.source ?? ''}</td>
+                    <td className="px-3 py-2 text-muted-foreground text-xs">{cred.note ?? ''}</td>
                   </tr>
                 ))}
               </tbody>

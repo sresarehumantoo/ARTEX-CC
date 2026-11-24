@@ -2,7 +2,7 @@ import { Skeleton } from '../ui/skeleton'
 
 export function GraphSkeleton() {
   return (
-    <div className="h-full w-full relative bg-slate-50 dark:bg-slate-900 overflow-hidden">
+    <div className="h-full w-full relative bg-muted overflow-hidden">
       <svg className="absolute inset-0 w-full h-full" aria-hidden="true">
         <line
           x1="20%" y1="25%" x2="50%" y2="15%"

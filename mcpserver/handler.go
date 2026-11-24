@@ -17,10 +17,6 @@ func convertTool(t tools.Tool) mcp.Tool {
 	return tool
 }
 
-func makeHandler(t tools.Tool) server.ToolHandlerFunc {
-	return makeHandlerWithNotifier(t, nil)
-}
-
 func makeHandlerWithNotifier(t tools.Tool, notifier ToolNotifier) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		slog.Info("tool called", "tool", t.Name)

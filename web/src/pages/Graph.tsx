@@ -247,13 +247,13 @@ export function GraphPage() {
 
   if (error) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+      <div className="h-full flex items-center justify-center bg-muted">
         <div className="text-center">
           <p className="text-rose-500 text-sm mb-2">Failed to load graph</p>
-          <p className="text-slate-400 text-xs mb-3">{error}</p>
+          <p className="text-muted-foreground text-xs mb-3">{error}</p>
           <button
             onClick={() => fetchGraph()}
-            className="px-3 py-1.5 text-xs rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600"
+            className="px-3 py-1.5 text-xs rounded bg-muted text-foreground hover:bg-slate-300 dark:hover:bg-slate-600"
           >
             Retry
           </button>
@@ -264,12 +264,12 @@ export function GraphPage() {
 
   if (data.nodes.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-500">
+      <div className="h-full flex items-center justify-center bg-muted">
+        <div className="flex h-64 flex-col items-center justify-center gap-3 text-muted-foreground">
           <GitBranch className="h-12 w-12 text-slate-300 dark:text-slate-700" />
           <div className="text-center">
-            <p className="text-lg font-medium text-slate-600 dark:text-slate-400">No graph nodes yet</p>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-500">Nodes will appear as the exploration runs</p>
+            <p className="text-lg font-medium text-muted-foreground">No graph nodes yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">Nodes will appear as the exploration runs</p>
           </div>
         </div>
       </div>
@@ -277,7 +277,7 @@ export function GraphPage() {
   }
 
   return (
-    <div className="h-full w-full relative bg-slate-50 dark:bg-slate-900">
+    <div className="h-full w-full relative bg-muted">
       {proofArrowMarker}
       <ReactFlow
         nodes={nodes}
@@ -295,12 +295,12 @@ export function GraphPage() {
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={16} size={1} className="!bg-slate-50 dark:!bg-slate-900" />
-        <Controls className="!bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700 [&>button]:!bg-white dark:[&>button]:!bg-slate-800 [&>button]:!border-slate-200 dark:[&>button]:!border-slate-700 [&>button]:!text-slate-600 dark:[&>button]:!text-slate-300" />
+        <Background variant={BackgroundVariant.Dots} gap={16} size={1} className="!bg-muted dark:!bg-slate-900" />
+        <Controls className="!bg-white dark:!bg-slate-800 !border-border dark:!border-slate-700 [&>button]:!bg-white dark:[&>button]:!bg-slate-800 [&>button]:!border-border dark:[&>button]:!border-slate-700 [&>button]:!text-slate-600 dark:[&>button]:!text-slate-300" />
         <MiniMap
           nodeColor={nodeColor}
           maskColor="rgba(0, 0, 0, 0.1)"
-          className="!bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700"
+          className="!bg-white dark:!bg-slate-800 !border-border dark:!border-slate-700"
           pannable
           zoomable
         />
@@ -309,28 +309,28 @@ export function GraphPage() {
         <button
           type="button"
           onClick={() => rfInstance?.fitView({ padding: 0.2, duration: 500 })}
-          className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm px-2.5 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800"
+          className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg border border-border shadow-sm px-2.5 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800"
           aria-label="Fit graph to view"
         >
           <Maximize2 className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Fit</span>
         </button>
-        <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm px-2.5 py-1.5">
-          <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+        <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg border border-border shadow-sm px-2.5 py-1.5">
+          <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search nodes..."
-            className="bg-transparent text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none w-40"
+            className="bg-transparent text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none w-40"
           />
           {(searchQuery || kindFilter !== 'all') && (
-            <button onClick={clearSearch} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+            <button onClick={clearSearch} className="text-muted-foreground hover:text-foreground">
               <X className="w-3.5 h-3.5" />
             </button>
           )}
           <div className="w-px h-4 bg-slate-200 dark:bg-slate-600 mx-0.5" />
-          <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <select
             value={kindFilter}
             onChange={(e) => setKindFilter(e.target.value)}
@@ -345,7 +345,7 @@ export function GraphPage() {
           </select>
           {matchingNodeIds !== null && (
             <>
-              <span className="text-xs text-slate-400 dark:text-slate-500 ml-1 whitespace-nowrap">
+              <span className="text-xs text-muted-foreground ml-1 whitespace-nowrap">
                 {matchingNodeIds.size} of {nodes.length}
               </span>
               {matchingNodeIds.size > 0 && (
@@ -361,7 +361,7 @@ export function GraphPage() {
         </div>
       </div>
       <div className="absolute top-3 left-3 z-10">
-        <div className="flex items-center gap-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm px-2.5 py-1.5 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg border border-border shadow-sm px-2.5 py-1.5 text-xs text-muted-foreground">
           <span>{data.nodes.length} nodes</span>
           <span className="text-slate-300 dark:text-slate-600">|</span>
           <span>{data.edges.length} edges</span>

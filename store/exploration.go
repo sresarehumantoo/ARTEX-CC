@@ -531,19 +531,3 @@ func nullID(id int64) any {
 	}
 	return id
 }
-
-func (s *Store) scanStrings(out *[]string, q string, args ...any) error {
-	rows, err := s.Query(q, args...)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var v string
-		if err := rows.Scan(&v); err != nil {
-			return err
-		}
-		*out = append(*out, v)
-	}
-	return rows.Err()
-}

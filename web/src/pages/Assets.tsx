@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Download, GitBranch, List, Search, ShieldAlert, X, ChevronLeft, ChevronRight, Server } from 'lucide-react'
 import { AssetGraph } from '../components/AssetGraph'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '../components/ui/sheet'
 
 import { TableSkeleton } from '../components/skeletons/TableSkeleton'
 import { exportAssetCSV } from '../lib/export'
 import { useSearchParams } from 'react-router-dom'
-import { useToast } from '../hooks/useToast'
+import { toast } from 'sonner'
 import { cn } from '../lib/utils'
 import { fetchAssets, getAssetFindings, type Asset } from '../lib/api'
 
@@ -29,7 +30,7 @@ const TYPE_COLORS: Record<string, string> = {
   service: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
   endpoint: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
   app: 'bg-rose-500/15 text-rose-400 border-rose-500/25',
-  company: 'bg-slate-500/15 text-slate-400 border-slate-500/25',
+  company: 'bg-slate-500/15 text-muted-foreground border-slate-500/25',
 }
 
 const TYPE_BAR_COLORS: Record<string, string> = {
@@ -64,8 +65,8 @@ function AssetTypeBar({ assets }: { assets: Asset[] }) {
     }))
 
   return (
-    <div className="border-b border-slate-200 dark:border-slate-800 px-3 md:px-4 py-2">
-      <div className="flex h-2 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 mb-2">
+    <div className="border-b border-border px-3 md:px-4 py-2">
+      <div className="flex h-2 rounded-full overflow-hidden bg-muted mb-2">
         {segments.map(s => (
           <div
             key={s.type}
@@ -76,12 +77,12 @@ function AssetTypeBar({ assets }: { assets: Asset[] }) {
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-        <span className="text-slate-500 font-medium">{total} total</span>
+        <span className="text-muted-foreground font-medium">{total} total</span>
         <span className="text-slate-300 dark:text-slate-700">|</span>
         {segments.map(s => (
           <span key={s.type} className="flex items-center gap-1.5">
             <span className={cn('h-2 w-2 rounded-full', s.color)} />
-            <span className="text-slate-600 dark:text-slate-400">{s.count} {s.type}</span>
+            <span className="text-muted-foreground">{s.count} {s.type}</span>
           </span>
         ))}
       </div>
@@ -94,7 +95,7 @@ const SEVERITY_COLORS: Record<string, string> = {
   high: 'bg-orange-500/15 text-orange-400 border-orange-500/25',
   medium: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
   low: 'bg-sky-500/15 text-sky-400 border-sky-500/25',
-  info: 'bg-slate-500/15 text-slate-400 border-slate-500/25',
+  info: 'bg-slate-500/15 text-muted-foreground border-slate-500/25',
 }
 
 const PAGE_SIZE = 50
@@ -128,8 +129,8 @@ function MethodBadge({ method }: { method: string }) {
     PUT: 'bg-amber-500/15 text-amber-400',
     DELETE: 'bg-rose-500/15 text-rose-400',
     PATCH: 'bg-violet-500/15 text-violet-400',
-    OPTIONS: 'bg-slate-500/15 text-slate-400',
-    HEAD: 'bg-slate-500/15 text-slate-400',
+    OPTIONS: 'bg-slate-500/15 text-muted-foreground',
+    HEAD: 'bg-slate-500/15 text-muted-foreground',
   }
   return (
     <span
@@ -154,9 +155,9 @@ function dataStr(val: unknown): string {
 function AllColumns({ asset }: { asset: Asset }) {
   return (
     <>
-      <td className="px-3 py-2"><TypeBadge type={asset.type} /></td>
-      <td className="px-3 py-2 text-slate-800 dark:text-slate-200 truncate max-w-sm">{asset.label}</td>
-      <td className="px-3 py-2 text-slate-500 font-mono text-xs">{asset.id}</td>
+      <td className="px-3 py-2 text-xs"><TypeBadge type={asset.type} /></td>
+      <td className="px-3 py-2 text-xs text-foreground truncate max-w-sm">{asset.label}</td>
+      <td className="px-3 py-2 text-muted-foreground font-mono text-xs tabular-nums">{asset.id}</td>
     </>
   )
 }
@@ -164,9 +165,9 @@ function AllColumns({ asset }: { asset: Asset }) {
 function DomainColumns({ asset }: { asset: Asset }) {
   return (
     <>
-      <td className="px-3 py-2 text-slate-800 dark:text-slate-200">{asset.label}</td>
-      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{dataStr(asset.data.record_type)}</td>
-      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.record_value)}</td>
+      <td className="px-3 py-2 text-xs text-foreground">{asset.label}</td>
+      <td className="px-3 py-2 text-muted-foreground text-xs">{dataStr(asset.data.record_type)}</td>
+      <td className="px-3 py-2 text-muted-foreground text-xs truncate max-w-xs">{dataStr(asset.data.record_value)}</td>
     </>
   )
 }
@@ -174,9 +175,9 @@ function DomainColumns({ asset }: { asset: Asset }) {
 function IPColumns({ asset }: { asset: Asset }) {
   return (
     <>
-      <td className="px-3 py-2 text-slate-800 dark:text-slate-200 font-mono text-sm">{asset.label}</td>
-      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.domains)}</td>
-      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{dataStr(asset.data.open_ports)}</td>
+      <td className="px-3 py-2 text-foreground font-mono text-xs">{asset.label}</td>
+      <td className="px-3 py-2 text-muted-foreground text-xs truncate max-w-xs">{dataStr(asset.data.domains)}</td>
+      <td className="px-3 py-2 text-muted-foreground text-xs tabular-nums">{dataStr(asset.data.open_ports)}</td>
     </>
   )
 }
@@ -184,10 +185,10 @@ function IPColumns({ asset }: { asset: Asset }) {
 function SubdomainColumns({ asset }: { asset: Asset }) {
   return (
     <>
-      <td className="px-3 py-2 text-slate-800 dark:text-slate-200">{asset.label}</td>
-      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{dataStr(asset.data.root_domain)}</td>
-      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{dataStr(asset.data.record_type)}</td>
-      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.record_value)}</td>
+      <td className="px-3 py-2 text-xs text-foreground">{asset.label}</td>
+      <td className="px-3 py-2 text-muted-foreground text-xs">{dataStr(asset.data.root_domain)}</td>
+      <td className="px-3 py-2 text-muted-foreground text-xs">{dataStr(asset.data.record_type)}</td>
+      <td className="px-3 py-2 text-muted-foreground text-xs truncate max-w-xs">{dataStr(asset.data.record_value)}</td>
     </>
   )
 }
@@ -195,10 +196,10 @@ function SubdomainColumns({ asset }: { asset: Asset }) {
 function ServiceColumns({ asset }: { asset: Asset }) {
   return (
     <>
-      <td className="px-3 py-2 text-slate-800 dark:text-slate-200 text-sm truncate max-w-xs">{asset.label}</td>
-      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{dataStr(asset.data.status_code)}</td>
-      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm truncate max-w-[200px]">{dataStr(asset.data.technologies)}</td>
-      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm truncate max-w-xs">{dataStr(asset.data.title)}</td>
+      <td className="px-3 py-2 text-foreground text-xs truncate max-w-xs">{asset.label}</td>
+      <td className="px-3 py-2 text-muted-foreground text-xs tabular-nums">{dataStr(asset.data.status_code)}</td>
+      <td className="px-3 py-2 text-muted-foreground text-xs truncate max-w-[200px]">{dataStr(asset.data.technologies)}</td>
+      <td className="px-3 py-2 text-muted-foreground text-xs truncate max-w-xs">{dataStr(asset.data.title)}</td>
     </>
   )
 }
@@ -208,9 +209,9 @@ function EndpointColumns({ asset }: { asset: Asset }) {
   const params = Array.isArray(asset.data.params) ? asset.data.params.length : 0
   return (
     <>
-      <td className="px-3 py-2"><MethodBadge method={method} /></td>
-      <td className="px-3 py-2 text-slate-800 dark:text-slate-200 text-sm truncate max-w-md font-mono">{asset.label}</td>
-      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{params}</td>
+      <td className="px-3 py-2 text-xs"><MethodBadge method={method} /></td>
+      <td className="px-3 py-2 text-foreground text-xs truncate max-w-md font-mono">{asset.label}</td>
+      <td className="px-3 py-2 text-muted-foreground text-xs">{params}</td>
     </>
   )
 }
@@ -218,9 +219,9 @@ function EndpointColumns({ asset }: { asset: Asset }) {
 function AppColumns({ asset }: { asset: Asset }) {
   return (
     <>
-      <td className="px-3 py-2 text-slate-800 dark:text-slate-200">{asset.label}</td>
-      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm font-mono">{dataStr(asset.data.bundle_id)}</td>
-      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 text-sm">{dataStr(asset.data.category)}</td>
+      <td className="px-3 py-2 text-xs text-foreground">{asset.label}</td>
+      <td className="px-3 py-2 text-muted-foreground text-xs font-mono">{dataStr(asset.data.bundle_id)}</td>
+      <td className="px-3 py-2 text-muted-foreground text-xs">{dataStr(asset.data.category)}</td>
     </>
   )
 }
@@ -240,7 +241,7 @@ function AssetRow({ asset, typeFilter, onClick }: { asset: Asset; typeFilter: st
   return (
     <tr
       onClick={onClick}
-      className="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+      className="border-b border-border hover:bg-accent cursor-pointer transition-colors"
     >
       {key === '' && <AllColumns asset={asset} />}
       {key === 'root_domain' && <DomainColumns asset={asset} />}
@@ -268,49 +269,30 @@ function SeverityBadge({ severity }: { severity: string }) {
 }
 
 function DetailPanel({ asset, onClose }: { asset: Asset; onClose: () => void }) {
-  const panelRef = useRef<HTMLDivElement>(null)
-
   const { data: findings, isLoading: findingsLoading } = useQuery({
     queryKey: ['asset-findings', asset.id],
     queryFn: () => getAssetFindings(asset.id),
   })
 
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
-  }, [onClose])
-
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div
-        ref={panelRef}
-        className="relative w-full max-w-md bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 shadow-xl overflow-y-auto animate-slide-in"
-      >
-        <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+    <Sheet open onOpenChange={(open) => { if (!open) onClose() }}>
+      <SheetContent className="w-full max-w-md overflow-y-auto sm:max-w-md">
+        <SheetHeader className="border-b border-border">
+          <SheetTitle className="flex items-center gap-2">
             <TypeBadge type={asset.type} />
-            <span className="text-sm text-slate-500 font-mono">#{asset.id}</span>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+            <span className="text-sm text-muted-foreground font-mono">#{asset.id}</span>
+          </SheetTitle>
+          <SheetDescription className="sr-only">Asset details</SheetDescription>
+        </SheetHeader>
         <div className="p-4">
-          <h2 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-4 break-all">{asset.label}</h2>
+          <h2 className="text-lg font-medium text-foreground mb-4 break-all">{asset.label}</h2>
           <div className="space-y-2">
             {Object.entries(asset.data).map(([key, val]) => (
               <div key={key} className="flex flex-col gap-0.5">
-                <span className="text-xs text-slate-500 uppercase tracking-wider">{key.replace(/_/g, ' ')}</span>
-                <span className="text-sm text-slate-700 dark:text-slate-300 break-all">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">{key.replace(/_/g, ' ')}</span>
+                <span className="text-sm text-foreground break-all">
                   {typeof val === 'object' && val !== null ? (
-                    <pre className="text-xs bg-slate-100 dark:bg-slate-800 rounded p-2 overflow-x-auto whitespace-pre-wrap">
+                    <pre className="text-xs bg-muted rounded p-2 overflow-x-auto whitespace-pre-wrap">
                       {JSON.stringify(val, null, 2)}
                     </pre>
                   ) : (
@@ -320,48 +302,47 @@ function DetailPanel({ asset, onClose }: { asset: Asset; onClose: () => void }) 
               </div>
             ))}
             {Object.keys(asset.data).length === 0 && (
-              <p className="text-sm text-slate-500 italic">No additional data</p>
+              <p className="text-sm text-muted-foreground italic">No additional data</p>
             )}
           </div>
 
-          <div className="mt-6 border-t border-slate-200 dark:border-slate-800 pt-4">
-            <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5 mb-3">
-              <ShieldAlert className="w-4 h-4 text-slate-500" />
+          <div className="mt-6 border-t border-border pt-4">
+            <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5 mb-3">
+              <ShieldAlert className="w-4 h-4 text-muted-foreground" />
               Linked Findings
             </h3>
             {findingsLoading ? (
               <div className="flex items-center gap-2 py-3">
                 <div className="h-4 w-4 rounded-full bg-slate-300 dark:bg-slate-600 animate-pulse" />
-                <span className="text-sm text-slate-500">Loading findings...</span>
+                <span className="text-sm text-muted-foreground">Loading findings...</span>
               </div>
             ) : !findings || findings.length === 0 ? (
-              <p className="text-sm text-slate-500 italic">No linked findings</p>
+              <p className="text-sm text-muted-foreground italic">No linked findings</p>
             ) : (
               <div className="space-y-2">
                 {findings.map((f) => (
                   <a
                     key={f.id}
                     href={`/findings?id=${f.id}`}
-                    className="block rounded-md border border-slate-200 dark:border-slate-800 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                    className="block rounded-md border border-border p-3 hover:bg-accent transition-colors"
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <SeverityBadge severity={f.severity} />
-                      <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{f.vulnclass}</span>
+                      <span className="text-sm font-medium text-foreground truncate">{f.vulnclass}</span>
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{f.summary}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{f.summary}</p>
                   </a>
                 ))}
               </div>
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   )
 }
 
 export default function Assets() {
-  const { toast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
   const [typeFilter, setTypeFilter] = useState(searchParams.get('type') ?? '')
   const [dslInput, setDslInput] = useState('')
@@ -436,7 +417,7 @@ export default function Assets() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 md:px-4 py-2 md:py-3">
+      <div className="border-b border-border bg-muted px-3 md:px-4 py-2 md:py-3">
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
           {ASSET_TYPES.map((t) => (
             <button
@@ -445,8 +426,8 @@ export default function Assets() {
               className={cn(
                 'px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors',
                 typeFilter === t.key
-                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800',
+                  ? 'bg-muted text-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent',
               )}
             >
               {t.label}
@@ -454,24 +435,24 @@ export default function Assets() {
           ))}
 
           <div className="ml-auto flex items-center gap-2">
-            <div className="flex rounded-md border border-slate-200 dark:border-slate-700">
+            <div className="flex rounded-md border border-border">
               <button
                 onClick={() => setViewMode('table')}
-                className={cn('p-1.5 rounded-l-md', viewMode === 'table' ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300')}
+                className={cn('p-1.5 rounded-l-md', viewMode === 'table' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}
               >
                 <List className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('graph')}
-                className={cn('p-1.5 rounded-r-md', viewMode === 'graph' ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300')}
+                className={cn('p-1.5 rounded-r-md', viewMode === 'graph' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}
               >
                 <GitBranch className="h-4 w-4" />
               </button>
             </div>
             <button
-              onClick={() => { exportAssetCSV(assets, 'assets.csv'); toast('Assets exported as CSV', { variant: 'success' }) }}
+              onClick={() => { exportAssetCSV(assets, 'assets.csv'); toast.success('Assets exported as CSV') }}
               disabled={assets.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors border border-border text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <Download className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Export</span>
@@ -480,20 +461,20 @@ export default function Assets() {
         </div>
       </div>
 
-      <div className="border-b border-slate-200 dark:border-slate-800 px-3 md:px-4 py-2">
+      <div className="border-b border-border px-3 md:px-4 py-2">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             value={dslInput}
             onChange={(e) => setDslInput(e.target.value)}
             placeholder='Search assets (e.g., domain=example.com AND type=service)'
-            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md py-2 pl-9 pr-9 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 font-mono focus:outline-none focus:ring-1 focus:ring-slate-500 focus:border-slate-500"
+            className="w-full bg-background border border-border rounded-md py-2 pl-9 pr-9 text-sm text-foreground placeholder:text-slate-400 dark:placeholder:text-slate-600 font-mono focus:outline-none focus:ring-1 focus:ring-slate-500 focus:border-slate-500"
           />
           {dslInput && (
             <button
               onClick={() => setDslInput('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X className="w-4 h-4" />
             </button>
@@ -526,11 +507,11 @@ export default function Assets() {
             <AssetGraph assets={graphData?.assets ?? []} onSelectAsset={setSelectedAsset} />
           )
         ) : assets.length === 0 ? (
-          <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-500">
+          <div className="flex h-64 flex-col items-center justify-center gap-3 text-muted-foreground">
             <Server className="h-12 w-12 text-slate-300 dark:text-slate-700" />
             <div className="text-center">
-              <p className="text-lg font-medium text-slate-600 dark:text-slate-400">No assets discovered</p>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-500">
+              <p className="text-lg font-medium text-muted-foreground">No assets discovered</p>
+              <p className="mt-1 text-sm text-muted-foreground">
                 {(dslInput || typeFilter)
                   ? 'Try adjusting your filters'
                   : 'Assets will appear as the engagement discovers hosts, services, and endpoints'}
@@ -541,11 +522,11 @@ export default function Assets() {
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[600px]">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                <tr className="border-b border-border bg-muted">
                   {headers.map((h) => (
                     <th
                       key={h}
-                      className="px-3 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider"
+                      className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider"
                     >
                       {h}
                     </th>
@@ -568,7 +549,7 @@ export default function Assets() {
       </div>
 
       {total > 0 && (
-        <div className="border-t border-slate-200 dark:border-slate-800 px-3 md:px-4 py-2 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950">
+        <div className="border-t border-border px-3 md:px-4 py-2 flex items-center justify-between text-sm text-muted-foreground bg-muted">
           <span>
             Showing {start}-{end} of {total}
           </span>
@@ -576,14 +557,14 @@ export default function Assets() {
             <button
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="p-1 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={end >= total}
-              className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="p-1 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

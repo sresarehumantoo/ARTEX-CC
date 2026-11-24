@@ -32,7 +32,7 @@ const KIND_COLORS: Record<string, { border: string; bg: string; text: string; he
   app: { border: 'border-l-rose-500', bg: 'bg-rose-500/10', text: 'text-rose-400', hex: '#f43f5e' },
 }
 
-const DEFAULT_COLOR = { border: 'border-l-slate-500', bg: 'bg-slate-500/10', text: 'text-slate-400', hex: '#64748b' }
+const DEFAULT_COLOR = { border: 'border-l-slate-500', bg: 'bg-slate-500/10', text: 'text-muted-foreground', hex: '#64748b' }
 
 function inferEdges(assets: Asset[]): Array<{ from: number; to: number }> {
   const edges: Array<{ from: number; to: number }> = []
@@ -103,10 +103,10 @@ function AssetNode({ data }: NodeProps & { data: { asset: Asset } }) {
   const colors = KIND_COLORS[asset.type] ?? DEFAULT_COLOR
   return (
     <div
-      className={`w-[180px] rounded-lg border border-l-[3px] px-3 py-2 text-xs shadow-sm bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 ${colors.border}`}
+      className={`w-[180px] rounded-lg border border-l-[3px] px-3 py-2 text-xs shadow-sm bg-card text-card-foreground border-border ${colors.border}`}
     >
       <Handle type="target" position={Position.Left} className="!bg-slate-400 !w-1.5 !h-1.5" />
-      <div className="font-mono truncate max-w-[160px] text-slate-800 dark:text-slate-200">
+      <div className="font-mono truncate max-w-[160px] text-foreground">
         {asset.label}
       </div>
       <div className={`text-[10px] mt-0.5 ${colors.text}`}>{asset.type}</div>
@@ -202,19 +202,19 @@ export function AssetGraph({
           variant={BackgroundVariant.Dots}
           gap={16}
           size={1}
-          className="!bg-slate-50 dark:!bg-slate-900"
+          className="!bg-muted dark:!bg-slate-900"
         />
-        <Controls className="!bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700 [&>button]:!bg-white dark:[&>button]:!bg-slate-800 [&>button]:!border-slate-200 dark:[&>button]:!border-slate-700 [&>button]:!text-slate-600 dark:[&>button]:!text-slate-300" />
+        <Controls className="!bg-white dark:!bg-slate-800 !border-border dark:!border-slate-700 [&>button]:!bg-white dark:[&>button]:!bg-slate-800 [&>button]:!border-border dark:[&>button]:!border-slate-700 [&>button]:!text-slate-600 dark:[&>button]:!text-slate-300" />
       </ReactFlow>
       {legend.length > 0 && (
-        <div className="absolute bottom-3 left-3 flex gap-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg px-3 py-2 border border-slate-200 dark:border-slate-700 text-xs">
+        <div className="absolute bottom-3 left-3 flex gap-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg px-3 py-2 border border-border text-xs">
           {legend.map((l) => (
             <div key={l.type} className="flex items-center gap-1.5">
               <span
                 className="w-2.5 h-2.5 rounded-sm"
                 style={{ backgroundColor: l.hex }}
               />
-              <span className="text-slate-500 dark:text-slate-400">{l.type}</span>
+              <span className="text-muted-foreground">{l.type}</span>
             </div>
           ))}
         </div>

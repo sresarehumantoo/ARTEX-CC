@@ -73,7 +73,7 @@ Cline is a VS Code extension. Open the MCP Servers panel, choose Configure MCP S
 Notes:
 
 - Cline picks up changes when the file is saved; no restart is needed.
-- Cline can use local models through Ollama or LM Studio, but cc-artex's multi-step workflow needs a capable model. See [MULTI_CLIENT_RESEARCH.md](MULTI_CLIENT_RESEARCH.md).
+- Cline can use local models through Ollama or LM Studio, but cc-artex's multi-step workflow needs a capable model. See [MULTI_CLIENT_RESEARCH.md](internal/MULTI_CLIENT_RESEARCH.md).
 
 ## Windsurf
 
