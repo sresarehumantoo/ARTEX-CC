@@ -188,14 +188,14 @@ Or use stdio transport through Docker:
         "compose", "exec", "-T", "artex",
         "/app/artex-cc", "serve", "--stdio",
         "--pg", "postgres://ccartex:ccartex@postgres:5432/ccartex?sslmode=disable",
-        "--data", "/app/data", "--proxy", ":8788"
+        "--data", "/app/data", "--proxy", "127.0.0.1:0"
       ]
     }
   }
 }
 ```
 
-Point your testing tools at `http://localhost:8788` to capture traffic through the recording proxy.
+The container's main process already runs the recording proxy on `:8788`, so this second process takes a throwaway port (`127.0.0.1:0`) only to enable the traffic tools. They read the same captured traffic. Point your testing tools at `http://localhost:8788` to capture traffic through the recording proxy.
 
 ## Tool catalog
 
