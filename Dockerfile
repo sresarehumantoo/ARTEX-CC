@@ -28,12 +28,15 @@ RUN CGO_ENABLED=0 GOOS="${TARGETOS:-linux}" GOARCH="${TARGETARCH:-amd64}" \
 
 # --------------------------------------------------------------- runtime ---
 FROM alpine:3.21
+LABEL org.opencontainers.image.licenses="AGPL-3.0-only" \
+      org.opencontainers.image.source="https://github.com/SREsAreHumanToo/ARTEX-CC"
 RUN apk add --no-cache ca-certificates nodejs npm \
     && npm install -g @anthropic-ai/claude-code@latest \
     && npm cache clean --force
 WORKDIR /app
 COPY --from=build /out/artex-cc /app/artex-cc
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY LICENSE NOTICE /app/
 RUN chmod +x /app/artex-cc /app/docker-entrypoint.sh
 VOLUME ["/app/data"]
 EXPOSE 9400 8788
