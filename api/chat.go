@@ -32,20 +32,22 @@ func writeChatError(w http.ResponseWriter, err error) {
 	writeError(w, http.StatusInternalServerError, err.Error())
 }
 
-func (a *API) handleClaudeStatus(w http.ResponseWriter, r *http.Request) {
+func (a *API) claudeStatus(ctx context.Context) map[string]any {
 	path, err := exec.LookPath(a.claudeBin)
 	if err != nil {
-		writeJSON(w, http.StatusOK, map[string]any{"available": false})
-		return
+		return map[string]any{"available": false}
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, path, "--version").Output()
 	if err != nil {
-		writeJSON(w, http.StatusOK, map[string]any{"available": false, "path": path, "error": err.Error()})
-		return
+		return map[string]any{"available": false, "path": path, "error": err.Error()}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"available": true, "path": path, "version": strings.TrimSpace(string(out))})
+	return map[string]any{"available": true, "path": path, "version": strings.TrimSpace(string(out))}
+}
+
+func (a *API) handleClaudeStatus(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, a.claudeStatus(r.Context()))
 }
 
 func (a *API) handleListConversations(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +64,9 @@ func (a *API) handleCreateConversation(w http.ResponseWriter, r *http.Request) {
 	if err := decodeBody(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
+	}
+	if req.Model == "" {
+		req.Model = a.llmSettings().DefaultModel
 	}
 	c, err := a.chat.Create(req)
 	if err != nil {

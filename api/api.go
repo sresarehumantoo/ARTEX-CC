@@ -57,6 +57,9 @@ func New(store tools.Store, t *traffic.Traffic, taskID, explorationID int64, opt
 		a.chat = NewChatStore(a.files)
 		if a.runner != nil {
 			a.runner.Bind(a.chat, a.hub)
+			if r, ok := a.runner.(*Runner); ok {
+				r.SetSettings(a.llmSettings)
+			}
 		}
 	}
 	return a
@@ -83,6 +86,7 @@ func (a *API) Handler() http.Handler {
 	}
 	if a.files != nil {
 		a.registerAgentsRoutes(mux)
+		a.registerLLMSettingsRoutes(mux)
 		a.registerInterceptRoutes(mux)
 		a.registerMCPConfigRoutes(mux)
 		a.registerSkillsRoutes(mux)

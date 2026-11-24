@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Settings as SettingsIcon, ShieldCheck, Lock, Info, Download } from 'lucide-react'
 import { getEngagement, getConstraints } from '../lib/api'
-import { getClaudeStatus } from '../lib/api/chat'
 import type { Constraint, EngagementData } from '../lib/types'
 import { usePreferences } from '../stores/preferences'
 import type { ThemeMode, ContentLayout } from '../stores/preferences'
@@ -12,12 +11,13 @@ import { SettingsSkeleton } from '../components/skeletons/SettingsSkeleton'
 import { Button } from '../components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card'
-import { Select } from '../components/ui/select'
+import { SelectRoot, SelectTrigger, SelectContent, SelectItem, SelectValue } from '../components/ui/select'
 import { Switch } from '../components/ui/switch'
 import { Label } from '../components/ui/label'
 import { downloadFile } from '../lib/export'
 import { toast } from 'sonner'
 import { cn } from '../lib/utils'
+import LlmTab from './LlmTab'
 
 interface SystemInfo {
   version: string
@@ -128,15 +128,6 @@ function InfoRow({ label, value }: { label: string; value?: React.ReactNode }) {
   )
 }
 
-function StatusDot({ ok }: { ok: boolean }) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span className={cn('h-2 w-2 rounded-full', ok ? 'bg-[oklch(0.7_0.17_155)]' : 'bg-[oklch(0.63_0.22_25)]')} />
-      {ok ? 'Available' : 'Unavailable'}
-    </span>
-  )
-}
-
 function AppearanceTab() {
   const prefs = usePreferences()
   return (
@@ -147,51 +138,31 @@ function AppearanceTab() {
       </CardHeader>
       <CardContent className="space-y-5">
         <SettingRow label="Theme" hint="System follows your OS preference.">
-          <Select value={prefs.theme_mode} onChange={e => prefs.setThemeMode(e.target.value as ThemeMode)} aria-label="Theme">
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </Select>
+          <SelectRoot value={prefs.theme_mode} onValueChange={v => prefs.setThemeMode(v as ThemeMode)}>
+            <SelectTrigger aria-label="Theme">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="system">System</SelectItem>
+              <SelectItem value="light">Light</SelectItem>
+              <SelectItem value="dark">Dark</SelectItem>
+            </SelectContent>
+          </SelectRoot>
         </SettingRow>
         <SettingRow label="Sidebar collapsed by default">
           <Switch checked={prefs.sidebar_collapsed} onCheckedChange={prefs.setSidebarCollapsed} aria-label="Sidebar collapsed by default" />
         </SettingRow>
         <SettingRow label="Content layout">
-          <Select value={prefs.content_layout} onChange={e => prefs.setContentLayout(e.target.value as ContentLayout)} aria-label="Content layout">
-            <option value="full-width">Full width</option>
-            <option value="centered">Centered</option>
-          </Select>
+          <SelectRoot value={prefs.content_layout} onValueChange={v => prefs.setContentLayout(v as ContentLayout)}>
+            <SelectTrigger aria-label="Content layout">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="full-width">Full width</SelectItem>
+              <SelectItem value="centered">Centered</SelectItem>
+            </SelectContent>
+          </SelectRoot>
         </SettingRow>
-      </CardContent>
-    </Card>
-  )
-}
-
-function ClaudeTab() {
-  const { data, isLoading, error } = useQuery({ queryKey: ['claude-status'], queryFn: getClaudeStatus })
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Claude</CardTitle>
-        <CardDescription>Configured with CLI flags such as --claude-bin. Read-only here.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {isLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-5" />
-            <Skeleton className="h-5" />
-          </div>
-        ) : error ? (
-          <p className="text-sm text-[oklch(0.63_0.22_25)]">Failed to load status: {(error as Error).message}</p>
-        ) : (
-          <>
-            <InfoRow label="Status" value={<StatusDot ok={!!data?.available} />} />
-            <InfoRow label="Binary path" value={data?.path} />
-            <InfoRow label="Version" value={data?.version} />
-            {data?.error && <InfoRow label="Error" value={data.error} />}
-          </>
-        )}
-        <InfoRow label="Default model" value="Set per conversation, otherwise the claude CLI default" />
       </CardContent>
     </Card>
   )
@@ -388,12 +359,12 @@ export default function Settings() {
         <Tabs defaultValue="appearance" className="mx-auto max-w-3xl">
           <TabsList className="max-w-full overflow-x-auto">
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
-            <TabsTrigger value="claude">Claude</TabsTrigger>
+            <TabsTrigger value="llm">LLM</TabsTrigger>
             <TabsTrigger value="engagement">Engagement</TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
           </TabsList>
           <TabsContent value="appearance"><AppearanceTab /></TabsContent>
-          <TabsContent value="claude"><ClaudeTab /></TabsContent>
+          <TabsContent value="llm"><LlmTab /></TabsContent>
           <TabsContent value="engagement"><EngagementTab /></TabsContent>
           <TabsContent value="about"><AboutTab /></TabsContent>
         </Tabs>
