@@ -1,0 +1,28 @@
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gosec
+  disable-all: true
+
+linters-settings:
+  gosec:
+    excludes:
+      - G204  # exec.Command args are user-controlled by design (pentest orchestrator)
+      - G402  # InsecureSkipVerify implements --insecure for HTB targets
+  errcheck:
+    exclude-functions:
+      - encoding/binary.Write
+
+issues:
+  exclude-dirs:
+    - web
+    - dist
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
