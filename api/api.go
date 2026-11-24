@@ -79,12 +79,14 @@ func (a *API) Handler() http.Handler {
 	if a.chat != nil {
 		a.registerChatRoutes(mux)
 		a.registerCommandsRoutes(mux)
+		a.registerUsageRoutes(mux)
 	}
 	if a.files != nil {
 		a.registerAgentsRoutes(mux)
 		a.registerInterceptRoutes(mux)
 		a.registerMCPConfigRoutes(mux)
 		a.registerSkillsRoutes(mux)
+		a.registerWorkspaceRoutes(mux)
 	}
 	a.registerToolsRoutes(mux)
 	a.registerAuthRoutes(mux)
@@ -94,7 +96,7 @@ func (a *API) Handler() http.Handler {
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)

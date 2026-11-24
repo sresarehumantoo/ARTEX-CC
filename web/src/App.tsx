@@ -17,6 +17,8 @@ import { Dashboard } from './pages/Dashboard'
 
 const Tasks = lazy(() => import('./pages/Tasks'))
 const Commands = lazy(() => import('./pages/Commands'))
+const Usage = lazy(() => import('./pages/Usage'))
+const Workspace = lazy(() => import('./pages/Workspace'))
 const Graph = lazy(() => import('./pages/Graph'))
 const Findings = lazy(() => import('./pages/Findings'))
 const Traffic = lazy(() => import('./pages/Traffic'))
@@ -115,6 +117,8 @@ function MainLayout() {
                 <Route path="/tools" element={<Tools />} />
                 <Route path="/intercept" element={<Intercept />} />
                 <Route path="/commands" element={<Commands />} />
+                <Route path="/usage" element={<Usage />} />
+                <Route path="/workspace" element={<Workspace />} />
                 <Route path="/logs" element={<Logs />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/settings" element={<Settings />} />
