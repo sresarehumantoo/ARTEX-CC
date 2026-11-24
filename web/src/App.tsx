@@ -113,7 +113,7 @@ function MainLayout() {
                 <Route path="/tasks" element={<Tasks />} />
                 <Route path="/chat" element={<Chat />} />
                 <Route path="/agents" element={<Agents />} />
-                <Route path="/mcp" element={<Mcp />} />
+                <Route path="/mcp-servers" element={<Mcp />} />
                 <Route path="/tools" element={<Tools />} />
                 <Route path="/intercept" element={<Intercept />} />
                 <Route path="/commands" element={<Commands />} />

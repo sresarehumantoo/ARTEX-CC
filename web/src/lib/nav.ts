@@ -63,7 +63,7 @@ export const navGroups: NavGroup[] = [
     label: 'System',
     items: [
       { to: '/agents', icon: Bot, label: 'Agents' },
-      { to: '/mcp', icon: Plug, label: 'MCP' },
+      { to: '/mcp-servers', icon: Plug, label: 'MCP' },
       { to: '/tools', icon: Wrench, label: 'Tools' },
       { to: '/intercept', icon: Radio, label: 'Intercept' },
       { to: '/logs', icon: ScrollText, label: 'Logs' },
