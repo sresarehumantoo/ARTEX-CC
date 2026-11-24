@@ -23,6 +23,7 @@ import (
 	"github.com/SREsAreHumanToo/cc-artex/config"
 	"github.com/SREsAreHumanToo/cc-artex/evidence"
 	"github.com/SREsAreHumanToo/cc-artex/mcpserver"
+	"github.com/SREsAreHumanToo/cc-artex/plugin"
 	"github.com/SREsAreHumanToo/cc-artex/store"
 	"github.com/SREsAreHumanToo/cc-artex/tools"
 	"github.com/SREsAreHumanToo/cc-artex/traffic"
@@ -132,6 +133,8 @@ func cmdServe(args []string) {
 	dataDir := fs.String("data", ".", "data directory for traffic, evidence, etc.")
 	claudeBin := fs.String("claude-bin", "", "path to the claude CLI binary (or CC_ARTEX_CLAUDE_BIN env, default claude)")
 	proxyAddr := fs.String("proxy", "", "start the recording proxy on ADDR (e.g., :8788)")
+	pluginDir := fs.String("plugin-dir", "", "plugin directory (or CC_ARTEX_PLUGIN_DIR env, default ~/.cc-artex/plugins)")
+	noPlugins := fs.Bool("no-plugins", false, "disable plugin loading")
 	shutdownSecs := fs.Int("timeout", 30, "graceful shutdown timeout in seconds")
 	fs.Parse(args)
 
@@ -197,6 +200,23 @@ func cmdServe(args []string) {
 
 	evStore := evidence.NewStore(*dataDir)
 	tools.RegisterEvidenceTools(reg, evStore, s, engCfg.TaskID)
+
+	if !*noPlugins {
+		pdir := *pluginDir
+		if pdir == "" {
+			pdir = os.Getenv("CC_ARTEX_PLUGIN_DIR")
+		}
+		if pdir == "" {
+			if home, err := os.UserHomeDir(); err == nil {
+				pdir = filepath.Join(home, ".cc-artex", "plugins")
+			}
+		}
+		if pdir != "" {
+			if err := plugin.DiscoverAndRegister(reg, pdir, plugin.DefaultTimeout); err != nil {
+				slog.Warn("plugin loading failed", "dir", pdir, "err", err)
+			}
+		}
+	}
 
 	var t *traffic.Traffic
 	if *proxyAddr != "" {

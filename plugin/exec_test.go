@@ -1,0 +1,136 @@
+package plugin
+
+import (
+	"context"
+	"encoding/json"
+	"testing"
+	"time"
+)
+
+func TestExec_Success(t *testing.T) {
+	dir := t.TempDir()
+	bin := writePlugin(t, dir, "echo-plugin", `#!/bin/sh
+# read stdin, extract the "name" field, greet
+INPUT=$(cat)
+NAME=$(echo "$INPUT" | grep -o '"name":"[^"]*"' | head -1 | cut -d'"' -f4)
+if [ -z "$NAME" ]; then
+  NAME="world"
+fi
+cat <<EOF
+{"content":[{"type":"text","text":"hello $NAME"}]}
+EOF
+`)
+
+	inv := Invocation{
+		Tool:  "greet",
+		Input: json.RawMessage(`{"name":"alice"}`),
+	}
+	result, err := Exec(context.Background(), bin, inv, 10*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.IsError {
+		t.Error("expected IsError=false")
+	}
+	if len(result.Content) != 1 {
+		t.Fatalf("expected 1 content item, got %d", len(result.Content))
+	}
+	if result.Content[0].Text != "hello alice" {
+		t.Errorf("text = %q, want %q", result.Content[0].Text, "hello alice")
+	}
+}
+
+func TestExec_ErrorResult(t *testing.T) {
+	dir := t.TempDir()
+	bin := writePlugin(t, dir, "err-plugin", `#!/bin/sh
+cat <<'EOF'
+{"content":[{"type":"text","text":"something went wrong"}],"isError":true}
+EOF
+`)
+
+	inv := Invocation{Tool: "fail", Input: json.RawMessage(`{}`)}
+	result, err := Exec(context.Background(), bin, inv, 10*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.IsError {
+		t.Error("expected IsError=true")
+	}
+}
+
+func TestExec_NonZeroExit(t *testing.T) {
+	dir := t.TempDir()
+	bin := writePlugin(t, dir, "crasher", `#!/bin/sh
+echo "oh no" >&2
+exit 1
+`)
+
+	inv := Invocation{Tool: "boom", Input: json.RawMessage(`{}`)}
+	_, err := Exec(context.Background(), bin, inv, 10*time.Second)
+	if err == nil {
+		t.Fatal("expected error from non-zero exit")
+	}
+}
+
+func TestExec_BadJSON(t *testing.T) {
+	dir := t.TempDir()
+	bin := writePlugin(t, dir, "badjson", `#!/bin/sh
+echo "not json at all"
+`)
+
+	inv := Invocation{Tool: "x", Input: json.RawMessage(`{}`)}
+	_, err := Exec(context.Background(), bin, inv, 10*time.Second)
+	if err == nil {
+		t.Fatal("expected error for bad JSON output")
+	}
+}
+
+func TestExec_Timeout(t *testing.T) {
+	dir := t.TempDir()
+	bin := writePlugin(t, dir, "slow", `#!/bin/sh
+trap 'exit 1' TERM
+while true; do sleep 0.1; done
+`)
+
+	inv := Invocation{Tool: "x", Input: json.RawMessage(`{}`)}
+	_, err := Exec(context.Background(), bin, inv, 500*time.Millisecond)
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+}
+
+func TestExec_PassesInvocationJSON(t *testing.T) {
+	dir := t.TempDir()
+	bin := writePlugin(t, dir, "mirror", `#!/bin/sh
+INPUT=$(cat)
+TOOL=$(echo "$INPUT" | grep -o '"tool":"[^"]*"' | head -1 | cut -d'"' -f4)
+printf '{"content":[{"type":"text","text":"tool=%s"}]}' "$TOOL"
+`)
+
+	inv := Invocation{Tool: "mytool", Input: json.RawMessage(`{}`)}
+	result, err := Exec(context.Background(), bin, inv, 10*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Content[0].Text != "tool=mytool" {
+		t.Errorf("got %q, want %q", result.Content[0].Text, "tool=mytool")
+	}
+}
+
+func TestExec_MultiContent(t *testing.T) {
+	dir := t.TempDir()
+	bin := writePlugin(t, dir, "multi", `#!/bin/sh
+cat <<'EOF'
+{"content":[{"type":"text","text":"line 1"},{"type":"text","text":"line 2"}]}
+EOF
+`)
+
+	inv := Invocation{Tool: "x", Input: json.RawMessage(`{}`)}
+	result, err := Exec(context.Background(), bin, inv, 10*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Content) != 2 {
+		t.Fatalf("expected 2 content items, got %d", len(result.Content))
+	}
+}
