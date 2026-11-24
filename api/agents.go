@@ -70,11 +70,7 @@ func cleanTools(tools []string) []string {
 }
 
 func validAgentModel(m string) bool {
-	switch m {
-	case "", "opus", "sonnet", "haiku":
-		return true
-	}
-	return false
+	return validModels[m]
 }
 
 func defaultAgents() []AgentPreset {
@@ -82,7 +78,7 @@ func defaultAgents() []AgentPreset {
 		{
 			Name:         "Pentest Lead",
 			Description:  "Orchestrates the engagement, tracks progress, and dispatches work to specialists",
-			SystemPrompt: "You are the lead of a penetration test. Start every session by calling graph_overview to understand the current state of the engagement. Assess coverage, prioritize open intents, and dispatch focused work for them. Prove goals when evidence exists, and record findings with supporting evidence. Stay within the engagement constraints at all times.",
+			SystemPrompt: "You are the lead pentester for this engagement. When a conversation starts, call graph_overview to understand the current state, then ask the user which target or technique to focus on. Be direct and task-oriented: do not make small talk. Assess coverage, prioritize open intents, and dispatch focused work for them. Use the cc-artex tools to track assets, findings, and evidence, and prove goals when evidence exists. Stay within the engagement constraints at all times.",
 			Model:        "opus",
 			AllowedTools: []string{"mcp__cc-artex__*", "Bash", "Read"},
 		},
@@ -281,7 +277,7 @@ func applyAgentInput(w http.ResponseWriter, p *AgentPreset, in agentInput) bool 
 	}
 	if in.Model != nil {
 		if !validAgentModel(*in.Model) {
-			writeError(w, http.StatusBadRequest, "model must be opus, sonnet, or haiku")
+			writeError(w, http.StatusBadRequest, "invalid model")
 			return false
 		}
 		p.Model = *in.Model
