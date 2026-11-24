@@ -17,7 +17,7 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
           <div className="absolute size-40 rounded-full border border-primary-foreground/20" />
           <ShieldCheck className="relative size-20 text-primary-foreground" />
         </div>
-        <p className="relative mt-24 text-xl font-medium tracking-tight text-primary-foreground">ARTEX</p>
+        <p className="relative mt-24 text-xl font-medium tracking-tight text-primary-foreground">ARTEX-CC</p>
       </div>
       <div className="flex w-full items-center justify-center bg-background p-8 lg:w-2/3">
         <div className="w-full max-w-md space-y-10 py-24 lg:py-32">

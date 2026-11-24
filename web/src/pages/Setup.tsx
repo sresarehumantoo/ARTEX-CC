@@ -56,7 +56,7 @@ export default function Setup() {
   }
 
   return (
-    <AuthShell title="Set a password" description="Choose a password to protect this ARTEX instance.">
+    <AuthShell title="Set a password" description="Choose a password to protect this ARTEX-CC instance.">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="password">Set password</Label>

@@ -98,7 +98,7 @@ func defaultLLMSettings() LLMSettings {
 		MaxTurns:             50,
 		MaxConversations:     4,
 		Thinking:             "default",
-		GlobalSystemPrompt:   "You are an autonomous pentesting assistant driving an ARTEX engagement. Use the ARTEX MCP tools to track assets, findings, and coverage. When a conversation starts, even with a greeting, orient to the engagement by calling graph_overview, then ask what target or technique to focus on. Be direct and task-focused, and skip small talk.",
+		GlobalSystemPrompt:   "You are an autonomous pentesting assistant driving an ARTEX engagement through ARTEX-CC. Use the MCP tools (graph_overview, insert_asset, insert_finding, etc.) to track assets, findings, and coverage. When a conversation starts, even with a greeting, orient to the engagement by calling graph_overview, then ask what target or technique to focus on. Be direct and task-focused, and skip small talk.",
 	}
 }
 

@@ -87,7 +87,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       <div className={cn('flex items-center gap-2 px-3 py-4', !collapsed && 'md:px-5')}>
         <Shield className="h-6 w-6 shrink-0 text-primary" />
         <span className={cn(showBlock, 'text-lg font-semibold tracking-tight')}>
-          ARTEX
+          ARTEX-CC
         </span>
       </div>
       <nav className={cn('flex-1 space-y-2 overflow-y-auto px-2 py-2', !collapsed && 'md:px-3')}>

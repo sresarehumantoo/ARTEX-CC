@@ -48,7 +48,7 @@ export default function Login() {
   }
 
   return (
-    <AuthShell title="Sign in" description="Enter your password to continue to ARTEX.">
+    <AuthShell title="Sign in" description="Enter your password to continue to ARTEX-CC.">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="password">Password</Label>

@@ -44,7 +44,7 @@ export function Header({ onToggleSidebar, onOpenPalette }: HeaderProps) {
         >
           <ThemeIcon className="size-4" />
         </Button>
-        <span className="text-xs text-muted-foreground">ARTEX</span>
+        <span className="text-xs text-muted-foreground">ARTEX-CC</span>
       </div>
     </header>
   )

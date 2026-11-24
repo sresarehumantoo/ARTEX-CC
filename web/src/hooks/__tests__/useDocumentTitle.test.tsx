@@ -36,39 +36,39 @@ describe('useDocumentTitle', () => {
     vi.restoreAllMocks()
   })
 
-  it('sets title to "Dashboard . ARTEX" for root path', () => {
+  it('sets title to "Dashboard . ARTEX-CC" for root path', () => {
     renderHook(() => useDocumentTitle())
-    expect(document.title).toBe('Dashboard · ARTEX')
+    expect(document.title).toBe('Dashboard · ARTEX-CC')
   })
 
   it('sets title based on pathname', () => {
     mockPathname = '/findings'
     renderHook(() => useDocumentTitle())
-    expect(document.title).toBe('Findings · ARTEX')
+    expect(document.title).toBe('Findings · ARTEX-CC')
   })
 
-  it('falls back to "ARTEX" for unknown paths', () => {
+  it('falls back to "ARTEX-CC" for unknown paths', () => {
     mockPathname = '/unknown'
     renderHook(() => useDocumentTitle())
-    expect(document.title).toBe('ARTEX · ARTEX')
+    expect(document.title).toBe('ARTEX-CC · ARTEX-CC')
   })
 
   it('includes findings count when > 0', () => {
     mockQueryData = { engagement: { findings_total: 5 } }
     renderHook(() => useDocumentTitle())
-    expect(document.title).toBe('(5) Dashboard · ARTEX')
+    expect(document.title).toBe('(5) Dashboard · ARTEX-CC')
   })
 
   it('updates title when engagement data changes via cache subscription', () => {
     mockQueryData = { engagement: { findings_total: 0 } }
     renderHook(() => useDocumentTitle())
-    expect(document.title).toBe('Dashboard · ARTEX')
+    expect(document.title).toBe('Dashboard · ARTEX-CC')
 
     mockQueryData = { engagement: { findings_total: 3 } }
     for (const cb of cacheSubscribers) {
       cb({ query: { queryKey: ['engagement'] }, type: 'updated' })
     }
-    expect(document.title).toBe('(3) Dashboard · ARTEX')
+    expect(document.title).toBe('(3) Dashboard · ARTEX-CC')
   })
 
   it('ignores non-engagement cache updates', () => {
@@ -78,13 +78,13 @@ describe('useDocumentTitle', () => {
     for (const cb of cacheSubscribers) {
       cb({ query: { queryKey: ['findings'] }, type: 'updated' })
     }
-    expect(document.title).toBe('Dashboard · ARTEX')
+    expect(document.title).toBe('Dashboard · ARTEX-CC')
   })
 
   it('handles null engagement data', () => {
     mockQueryData = {}
     renderHook(() => useDocumentTitle())
-    expect(document.title).toBe('Dashboard · ARTEX')
+    expect(document.title).toBe('Dashboard · ARTEX-CC')
   })
 
   it('sets correct titles for all known pages', () => {
@@ -104,7 +104,7 @@ describe('useDocumentTitle', () => {
     for (const [path, title] of Object.entries(pages)) {
       mockPathname = path
       renderHook(() => useDocumentTitle())
-      expect(document.title).toBe(`${title} · ARTEX`)
+      expect(document.title).toBe(`${title} · ARTEX-CC`)
     }
   })
 })

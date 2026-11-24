@@ -1,7 +1,7 @@
 {"type":"system","subtype":"hook_started","hook_id":"h1","session_id":"sess-123"}
 {"type":"system","subtype":"init","session_id":"sess-123","model":"claude-sonnet-4-5","tools":["Bash"]}
 {"type":"rate_limit_event","rate_limit_info":{"status":"allowed"},"session_id":"sess-123"}
-{"type":"assistant","message":{"role":"assistant","content":[{"type":"thinking","thinking":"Need to look at the graph"},{"type":"text","text":"Checking the overview."},{"type":"tool_use","id":"toolu_1","name":"mcp__cc-artex__graph_overview","input":{"depth":2}}]},"session_id":"sess-123"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"thinking","thinking":"Need to look at the graph"},{"type":"text","text":"Checking the overview."},{"type":"tool_use","id":"toolu_1","name":"mcp__artex__graph_overview","input":{"depth":2}}]},"session_id":"sess-123"}
 {"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":[{"type":"text","text":"3 nodes"}],"is_error":false}]},"session_id":"sess-123"}
 {"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Done."}]},"session_id":"sess-123"}
 {"type":"result","subtype":"success","is_error":false,"duration_ms":4200,"num_turns":2,"result":"Done.","session_id":"sess-123","total_cost_usd":0.0123,"usage":{"input_tokens":100,"output_tokens":50,"cache_read_input_tokens":10,"cache_creation_input_tokens":5}}
