@@ -23,9 +23,10 @@ linters-settings:
   errcheck:
     exclude-functions:
       - encoding/binary.Write
-      - encoding/json.Encoder.Encode
+      - (*encoding/json.Encoder).Encode
       - encoding/json.Unmarshal
-      - flag.FlagSet.Parse
+      - (*flag.FlagSet).Parse
+      - (*database/sql.Tx).Rollback
       - fmt.Fprintf
       - fmt.Sscanf
       - (net/http.ResponseWriter).Write
