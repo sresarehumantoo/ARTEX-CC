@@ -1,10 +1,11 @@
-<div align="center">
-  <img src="docs/logo.svg" alt="artex" width="200">
-</div>
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/logo-dark.svg">
+    <img src="docs/brand/logo-light.svg" alt="ARTEX-CC" width="420">
+  </picture>
+</h1>
 
 <div align="center">
-
-# ARTEX
 
 **Use your Claude subscription to run pentests. No API key needed.**
 
@@ -19,12 +20,12 @@
 
 </div>
 
-ARTEX is an autonomous penetration testing platform that exposes [upstream ARTEX](https://github.com/Autumn-27/artex)'s pentest model as MCP tools Claude Code calls through your existing Claude subscription. Asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 59 MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
+ARTEX is an autonomous penetration testing platform that exposes [upstream ARTEX](https://github.com/BaaRai/ARTEX)'s pentest model as MCP tools Claude Code calls through your existing Claude subscription. Asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 59 MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
 
 You bring the brain. ARTEX brings the hands.
 
 <p align="center">
-  <img src="docs/demo.gif" alt="ARTEX demo" width="720">
+  <img src="docs/web-demo.gif" alt="ARTEX-CC web UI walkthrough: dashboard, exploration graph, findings, traffic, coverage, report" width="860">
 </p>
 
 > **Authorized use only.** This is an offensive security tool, for penetration
@@ -58,6 +59,30 @@ Claude calls: graph_overview → set_goals → insert_assets (domain: example.co
 ```
 
 Each tool call updates the exploration graph. Claude sees where it has been, what it found, and what it planned next. If you stop and resume hours later, `graph_overview` brings it back up to speed.
+
+## Web UI
+
+`artex-cc serve --web` adds a dashboard on the same port as the MCP endpoint. Everything Claude records through the tools shows up here live: the exploration graph, findings with their bound traffic, coverage, credentials, and a printable report.
+
+| Exploration graph | Findings |
+| :---: | :---: |
+| ![Exploration graph](docs/screenshots/graph.png) | ![Findings with traffic evidence](docs/screenshots/finding-detail.png) |
+
+| Traffic (recording proxy) | Coverage matrix |
+| :---: | :---: |
+| ![Traffic](docs/screenshots/traffic.png) | ![Coverage](docs/screenshots/coverage.png) |
+
+| Assets | Engagement report |
+| :---: | :---: |
+| ![Assets](docs/screenshots/assets.png) | ![Report](docs/screenshots/report.png) |
+
+<sub>Screenshots use a seeded demo engagement against reserved `*.example` names and documentation IP ranges.</sub>
+
+### From the terminal
+
+<p align="center">
+  <img src="docs/demo.gif" alt="ARTEX-CC MCP tool calls in a terminal" width="720">
+</p>
 
 ## Why this exists
 
