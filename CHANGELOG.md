@@ -5,9 +5,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Changed
+## [0.4.0] - 2026-11-24
+
+### Breaking
+- Project renamed from cc-artex to ARTEX-CC. The binary is now `artex-cc` (was `cc-artex`) and the Go module is `github.com/SREsAreHumanToo/ARTEX-CC`. MCP tool names (`mcp__artex__*`) and `ARTEX_*` environment variables are unchanged.
 - Relicensed from MIT to AGPL-3.0-only. Parts of ARTEX-CC are derived from AGPL-3.0 [ARTEX](https://github.com/BaaRai/ARTEX); see NOTICE. Releases v0.1.0 through v0.3.0 carried an MIT license file in error and are AGPL-3.0 as well.
-- Web UI links to its source code (AGPL section 13).
+
+### Added
+- Web UI (`serve --web`, enabled in the Docker image): chat with a Claude subprocess runner, agents and presets, engagement tasks, live logs, commands log, intercept approvals, MCP server config, tool catalog, skills, token usage, workspace browser, LLM settings, and password auth.
+- Exec-based plugin system for registering external tools.
+- Multi-client MCP session tracking and the `list_sessions` tool.
+- `traffic_patterns` tool for temporal traffic analysis and `traffic_clear` to delete captured traffic by host.
+- Request size statistics in `traffic_stats`.
+- `list_activity` `--since` filter and CSV export.
+- `artex-cc init --dry-run` and `--format json`.
+- `ARTEX_LISTEN` environment variable for the listen address.
+- SQLite traffic DB health check.
+- Docker image builds the web frontend and installs the Claude CLI.
+- ARTEX-CC logo, favicon and brand mark; web UI links to its source code (AGPL section 13).
+
+### Fixed
+- `report_finding` and scanner ingest now create a graph node for each finding, so findings show up in `graph_overview`, the dashboard and the graph, and can be passed to `prove_goal`. `report_finding` returns the `node_id` to use.
+- Dismissed findings and merged duplicates no longer count in the graph overview.
+- `traffic_search` and `traffic_har_export` only ever returned empty-body responses.
+- `traffic_stats` failed whenever average sizes were not whole numbers.
+- `bind_finding_traffic` accepted snapshot ids that were never captured; it now validates them and is registered only with `--proxy`.
+- Docker docs: HTTP MCP endpoint is `/mcp` with a bearer token (not `/sse`), the binary path is `/app/artex-cc`, and the stdio example no longer collides with the main proxy port.
+- SSE connections flush on connect so the web UI's `EventSource.onopen` fires.
+- Goreleaser v2 deprecation warnings.
+- Windows builds failed because the web chat runner used Unix-only process-group calls.
 
 ## [0.3.0] - 2026-11-22
 
@@ -99,7 +125,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dockerfile for container deployments
 - GitHub Actions CI with PostgreSQL service container
 
-[Unreleased]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.1.0...v0.1.1
