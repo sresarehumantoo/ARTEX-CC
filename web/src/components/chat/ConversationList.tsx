@@ -202,7 +202,6 @@ export function ConversationList({
                     <Badge className="max-w-24 truncate px-1.5 py-0 text-[10px]">{modelLabel(c.model ?? '')}</Badge>
                     {c.status === 'error' && <Badge variant="critical" className="px-1.5 py-0 text-[10px]">error</Badge>}
                     <span>{timeAgo(c.updated_at)}</span>
-                    <span className="ml-auto truncate font-mono">{c.id}</span>
                   </div>
                 </div>
                 {!selectMode && (

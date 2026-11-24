@@ -3,6 +3,7 @@ import { useCallback } from 'react'
 import { useSSE, type SSEEvent } from './useSSE'
 import { toast } from 'sonner'
 import { incrementUnread } from './useUnreadFindings'
+import { conversationsKey } from './useConversations'
 
 function eventLabel(data: unknown): string | undefined {
   if (data && typeof data === 'object') {
@@ -63,6 +64,12 @@ export function useSSERefresh() {
           queryClient.invalidateQueries({ queryKey: ['coverage'] })
           queryClient.invalidateQueries({ queryKey: ['coverage-gaps'] })
           queryClient.invalidateQueries({ queryKey: ['credentials'] })
+          break
+        case 'conversation_created':
+        case 'conversation_updated':
+        case 'conversation_deleted':
+        case 'conversation_status':
+          queryClient.invalidateQueries({ queryKey: conversationsKey })
           break
       }
     },

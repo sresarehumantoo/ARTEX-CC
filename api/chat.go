@@ -169,6 +169,15 @@ func (a *API) handleSendMessage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if conv.Title == "New conversation" {
+		title := strings.TrimSpace(req.Message)
+		if len(title) > 60 {
+			title = title[:57] + "..."
+		}
+		if updated, err := a.chat.Update(id, func(c *Conversation) { c.Title = title }); err == nil {
+			a.Broadcast("conversation_updated", updated)
+		}
+	}
 	ev, err := a.chat.AppendEvent(id, ChatEvent{Kind: ChatKindUser, Text: req.Message})
 	if err != nil {
 		writeChatError(w, err)
