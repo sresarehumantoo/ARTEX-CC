@@ -423,6 +423,28 @@ artex init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.example.
 
 When `--proxy` is set, ARTEX starts a recording MITM proxy on the given address. Configure your HTTP client or browser to use it, and the proxy captures every request and response for analysis through the traffic tools. The `init` command generates a CA certificate (at `traffic/_ca/mitmproxy-ca-cert.pem`) and prints OS-specific trust instructions so the proxy can intercept HTTPS.
 
+### Environment variables
+
+Each variable is a fallback for the matching flag; a flag on the command line wins.
+
+| Variable | Flag | Purpose | Default |
+|----------|------|---------|---------|
+| `ARTEX_PG` | `--pg` | PostgreSQL connection string | _(none, required)_ |
+| `ARTEX_LISTEN` | `--listen` | HTTP listen address for `serve` | `localhost:9400` |
+| `ARTEX_AUTH` | `--auth` | Require password login for the web UI on a loopback listener (`1`/`true`). Non-loopback listeners always require it. | off |
+| `ARTEX_CREDENTIAL_KEY` | | Hex-encoded 32-byte AES-256-GCM key for encrypting stored credentials (`openssl rand -hex 32`) | _(none; credentials stored in plaintext)_ |
+| `ARTEX_CLAUDE_BIN` | `--claude-bin` | Path to the `claude` CLI used by the web UI chat | `claude` |
+| `ARTEX_PLUGIN_DIR` | `--plugin-dir` | Plugin directory | `~/.artex/plugins` |
+| `ARTEX_NOISE_PROFILE` | | Egress pacing profile: `off`, `quiet`, `balanced` or `aggressive` | `off` |
+| `ARTEX_TARGET_USER_AGENT` | | User-Agent for outbound requests when the noise profile is not `off` | _(original header kept)_ |
+
+The Docker image also reads these on startup:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `ARTEX_GOAL` | Goal for the engagement created on first run | `Pentest engagement` |
+| `ARTEX_PROXY` | Recording proxy listen address | `:8788` |
+
 ## Examples
 
 See [docs/EXAMPLE_WALKTHROUGH.md](docs/EXAMPLE_WALKTHROUGH.md) for a complete
