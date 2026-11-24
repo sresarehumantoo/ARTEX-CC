@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"testing"
-	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 )
@@ -407,47 +406,3 @@ func TestAddTaskScopeCompanyNotFound(t *testing.T) {
 	}
 }
 
-func TestListTaskScopeInternalDB(t *testing.T) {
-	t.Parallel()
-	s, mock := newRegexpMockStore(t)
-
-	now := time.Now()
-	rows := sqlmock.NewRows([]string{"id", "task_id", "kind", "company_id", "company_name", "domain", "net", "value", "source", "reason", "created_at"}).
-		AddRow(int64(1), int64(10), "root_domain", sql.NullInt64{Valid: false}, "", sql.NullString{String: "example.com", Valid: true}, sql.NullString{Valid: false}, sql.NullString{Valid: false}, "agent", sql.NullString{Valid: false}, now)
-
-	mock.ExpectQuery("SELECT .+ FROM task_scope").
-		WithArgs(int64(10)).
-		WillReturnRows(rows)
-
-	scopes, err := s.listTaskScopeInternal(10)
-	if err != nil {
-		t.Fatalf("listTaskScopeInternal: %v", err)
-	}
-	if len(scopes) != 1 {
-		t.Fatalf("got %d, want 1", len(scopes))
-	}
-	if scopes[0].Domain != "example.com" {
-		t.Errorf("Domain = %q", scopes[0].Domain)
-	}
-}
-
-func TestFindExistingScopeDB(t *testing.T) {
-	t.Parallel()
-	s, mock := newRegexpMockStore(t)
-
-	now := time.Now()
-	rows := sqlmock.NewRows([]string{"id", "task_id", "kind", "company_id", "company_name", "domain", "net", "value", "source", "reason", "created_at"}).
-		AddRow(int64(1), int64(10), "root_domain", sql.NullInt64{Valid: false}, "", sql.NullString{String: "example.com", Valid: true}, sql.NullString{Valid: false}, sql.NullString{Valid: false}, "agent", sql.NullString{String: "recon", Valid: true}, now)
-
-	mock.ExpectQuery("SELECT .+ FROM task_scope").
-		WillReturnRows(rows)
-
-	ts := TaskScope{Kind: "root_domain", Domain: "example.com"}
-	result, err := s.findExistingScope(10, ts)
-	if err != nil {
-		t.Fatalf("findExistingScope: %v", err)
-	}
-	if result.ID != 1 {
-		t.Errorf("ID = %d, want 1", result.ID)
-	}
-}

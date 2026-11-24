@@ -68,22 +68,6 @@ func TestHookErrorTableNilReceiver(t *testing.T) {
 	}
 }
 
-func TestTamperHooksEnabledFromEnv(t *testing.T) {
-	for _, tc := range []struct {
-		value string
-		want  bool
-	}{
-		{"1", true}, {"true", true}, {"yes", true}, {"on", true},
-		{"0", false}, {"false", false}, {"", false}, {"whatever", false},
-	} {
-		t.Run(tc.value, func(t *testing.T) {
-			t.Setenv(TamperHooksEnabledEnv, tc.value)
-			if got := tamperHooksEnabledFromEnv(); got != tc.want {
-				t.Fatalf("tamperHooksEnabledFromEnv() = %v for %q, want %v", got, tc.value, tc.want)
-			}
-		})
-	}
-}
 
 func TestHookTraceSkip(t *testing.T) {
 	t.Parallel()
@@ -322,7 +306,9 @@ func TestSnapTableConvertLocked(t *testing.T) {
 	if !ok {
 		t.Fatal("convertLocked should succeed")
 	}
-	entries, tombs := st.counts()
+	st.mu.Lock()
+	entries, tombs := st.entries, st.tombs
+	st.mu.Unlock()
 	if entries != 1 || tombs != 1 {
 		t.Fatalf("entries=%d tombs=%d", entries, tombs)
 	}
@@ -342,7 +328,9 @@ func TestSnapTableEvictFinishedTombs(t *testing.T) {
 	st.evictFinishedTombsLocked()
 	st.mu.Unlock()
 
-	_, tombs := st.counts()
+	st.mu.Lock()
+	tombs := st.tombs
+	st.mu.Unlock()
 	if tombs != 0 {
 		t.Fatalf("tombs=%d after eviction", tombs)
 	}

@@ -7,42 +7,6 @@ import (
 	"time"
 )
 
-func TestTransparentTCPConfigFromEnv(t *testing.T) {
-	cases := []struct {
-		name     string
-		enabled  string
-		addr     string
-		wantOK   bool
-		wantAddr string
-	}{
-		{"empty_all", "", "", false, ""},
-		{"disabled_false", "false", "", false, ""},
-		{"disabled_0", "0", "", false, ""},
-		{"disabled_no", "no", "", false, ""},
-		{"disabled_off", "off", "", false, ""},
-		{"enabled_true", "true", "", true, DefaultTransparentTCPAddr},
-		{"enabled_1", "1", "", true, DefaultTransparentTCPAddr},
-		{"enabled_yes", "yes", "", true, DefaultTransparentTCPAddr},
-		{"enabled_on", "on", "", true, DefaultTransparentTCPAddr},
-		{"addr_only", "", "10.0.0.1:2222", true, "10.0.0.1:2222"},
-		{"enabled_with_addr", "1", "10.0.0.1:2222", true, "10.0.0.1:2222"},
-		{"bad_value", "maybe", "", false, ""},
-		{"disabled_trumps_addr", "false", "10.0.0.1:2222", false, ""},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv(TransparentTCPEnabledEnv, tc.enabled)
-			t.Setenv(TransparentTCPAddrEnv, tc.addr)
-			cfg, ok := transparentTCPConfigFromEnv()
-			if ok != tc.wantOK {
-				t.Fatalf("ok = %v, want %v", ok, tc.wantOK)
-			}
-			if ok && cfg.Addr != tc.wantAddr {
-				t.Fatalf("addr = %q, want %q", cfg.Addr, tc.wantAddr)
-			}
-		})
-	}
-}
 
 func TestTransparentTCPConfigWithDefaults(t *testing.T) {
 	t.Parallel()

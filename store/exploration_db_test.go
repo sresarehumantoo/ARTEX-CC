@@ -603,28 +603,3 @@ func TestMockListConstraints(t *testing.T) {
 	}
 }
 
-func TestScanStrings(t *testing.T) {
-	t.Parallel()
-	s, mock := newRegexpMockStore(t)
-
-	mock.ExpectQuery(`SELECT name FROM things`).
-		WillReturnRows(sqlmock.NewRows([]string{"name"}).
-			AddRow("alpha").
-			AddRow("beta").
-			AddRow("gamma"))
-
-	var out []string
-	err := s.scanStrings(&out, "SELECT name FROM things")
-	if err != nil {
-		t.Fatalf("scanStrings: %v", err)
-	}
-	if len(out) != 3 {
-		t.Fatalf("got %d strings, want 3", len(out))
-	}
-	if out[0] != "alpha" || out[1] != "beta" || out[2] != "gamma" {
-		t.Errorf("out = %v", out)
-	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Error(err)
-	}
-}

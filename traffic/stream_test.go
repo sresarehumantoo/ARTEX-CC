@@ -1,11 +1,9 @@
 package traffic
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/url"
-	"strings"
 	"testing"
 )
 
@@ -87,46 +85,6 @@ func TestStreamDirectionFilter(t *testing.T) {
 	}
 }
 
-func TestStreamToolPreview(t *testing.T) {
-	t.Parallel()
-
-	t.Run("text", func(t *testing.T) {
-		m := StreamMessage{Payload: "hello world", Encoding: ""}
-		got := streamToolPreview(m)
-		if got != "hello world" {
-			t.Fatalf("got %q", got)
-		}
-	})
-
-	t.Run("binary_base64", func(t *testing.T) {
-		raw := []byte{0xFF, 0x00, 0xAB}
-		m := StreamMessage{
-			Payload:  base64.StdEncoding.EncodeToString(raw),
-			Encoding: "base64",
-		}
-		got := streamToolPreview(m)
-		if !strings.HasPrefix(got, "hex:") {
-			t.Fatalf("expected hex prefix, got %q", got)
-		}
-	})
-
-	t.Run("long_text_truncated", func(t *testing.T) {
-		long := strings.Repeat("x", toolStreamPreview+100)
-		m := StreamMessage{Payload: long}
-		got := streamToolPreview(m)
-		if len(got) > toolStreamPreview+10 {
-			t.Fatalf("got len %d, expected truncation around %d", len(got), toolStreamPreview)
-		}
-	})
-
-	t.Run("empty", func(t *testing.T) {
-		m := StreamMessage{Payload: ""}
-		got := streamToolPreview(m)
-		if got != "" {
-			t.Fatalf("got %q, want empty", got)
-		}
-	})
-}
 
 func TestStreamStoredCost(t *testing.T) {
 	t.Parallel()

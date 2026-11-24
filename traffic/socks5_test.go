@@ -8,53 +8,6 @@ import (
 	"time"
 )
 
-func TestSocks5ConfigFromEnv(t *testing.T) {
-	cases := []struct {
-		name     string
-		enabled  string
-		addr     string
-		udp      string
-		wantOK   bool
-		wantAddr string
-		wantUDP  bool
-	}{
-		{"empty_all", "", "", "", false, "", false},
-		{"explicitly_disabled", "false", "", "", false, "", false},
-		{"explicitly_disabled_0", "0", "", "", false, "", false},
-		{"explicitly_disabled_off", "off", "", "", false, "", false},
-		{"explicitly_disabled_no", "no", "", "", false, "", false},
-		{"enabled_true", "true", "", "", true, DefaultSOCKS5Addr, false},
-		{"enabled_1", "1", "", "", true, DefaultSOCKS5Addr, false},
-		{"enabled_on", "on", "", "", true, DefaultSOCKS5Addr, false},
-		{"enabled_yes", "yes", "", "", true, DefaultSOCKS5Addr, false},
-		{"addr_only", "", "10.0.0.1:9999", "", true, "10.0.0.1:9999", false},
-		{"addr_with_enabled", "1", "10.0.0.1:9999", "", true, "10.0.0.1:9999", false},
-		{"udp_enabled", "1", "", "1", true, DefaultSOCKS5Addr, true},
-		{"udp_enables_listener", "", "", "true", true, DefaultSOCKS5Addr, true},
-		{"udp_bad_value", "1", "", "maybe", true, DefaultSOCKS5Addr, false},
-		{"bad_enabled_value", "maybe", "", "", false, "", false},
-		{"disabled_trumps_addr", "false", "10.0.0.1:9999", "", false, "", false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv(SOCKS5EnabledEnv, tc.enabled)
-			t.Setenv(SOCKS5AddrEnv, tc.addr)
-			t.Setenv(SOCKS5UDPEnabledEnv, tc.udp)
-			cfg, ok := socks5ConfigFromEnv()
-			if ok != tc.wantOK {
-				t.Fatalf("ok = %v, want %v", ok, tc.wantOK)
-			}
-			if ok {
-				if cfg.Addr != tc.wantAddr {
-					t.Fatalf("addr = %q, want %q", cfg.Addr, tc.wantAddr)
-				}
-				if cfg.EnableUDP != tc.wantUDP {
-					t.Fatalf("udp = %v, want %v", cfg.EnableUDP, tc.wantUDP)
-				}
-			}
-		})
-	}
-}
 
 func TestSOCKS5ConfigWithDefaults(t *testing.T) {
 	t.Parallel()

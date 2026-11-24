@@ -47,7 +47,9 @@ func TestSnapTableReserveAndTake(t *testing.T) {
 		t.Fatal("reserve should succeed")
 	}
 
-	entries, tombs := st.counts()
+	st.mu.Lock()
+	entries, tombs := st.entries, st.tombs
+	st.mu.Unlock()
 	if entries != 1 || tombs != 0 {
 		t.Fatalf("entries=%d tombs=%d", entries, tombs)
 	}
@@ -60,7 +62,9 @@ func TestSnapTableReserveAndTake(t *testing.T) {
 		t.Fatalf("method = %q", snap.method)
 	}
 
-	entries, tombs = st.counts()
+	st.mu.Lock()
+	entries, tombs = st.entries, st.tombs
+	st.mu.Unlock()
 	if entries != 0 || tombs != 0 {
 		t.Fatalf("after take: entries=%d tombs=%d", entries, tombs)
 	}
@@ -108,7 +112,9 @@ func TestSnapTableReserveFull(t *testing.T) {
 		t.Fatal("reserve should fail when full and no finished flows to sweep")
 	}
 
-	_, tombs := st.counts()
+	st.mu.Lock()
+	tombs := st.tombs
+	st.mu.Unlock()
 	if tombs < 1 {
 		t.Fatalf("expected at least 1 tombstone, got %d", tombs)
 	}
@@ -122,16 +128,17 @@ func TestSnapTableSweepFinished(t *testing.T) {
 	close(done)
 	st.reserve(flowKey{1}, &reqSnap{done: done, cost: 10, method: "GET", url: &url.URL{}, header: http.Header{}})
 
-	entries, _ := st.counts()
+	st.mu.Lock()
+	entries := st.entries
+	st.mu.Unlock()
 	if entries != 1 {
 		t.Fatalf("entries = %d before sweep", entries)
 	}
 
 	st.mu.Lock()
 	st.sweepLocked(time.Now())
+	entries = st.entries
 	st.mu.Unlock()
-
-	entries, _ = st.counts()
 	if entries != 0 {
 		t.Fatalf("entries = %d after sweep, want 0", entries)
 	}
@@ -149,7 +156,9 @@ func TestSnapTableTick(t *testing.T) {
 	st.now = func() time.Time { return time.Now().Add(2 * sweepDebounce) }
 	st.tick()
 
-	entries, _ := st.counts()
+	st.mu.Lock()
+	entries := st.entries
+	st.mu.Unlock()
 	if entries != 0 {
 		t.Fatalf("entries = %d after tick, want 0", entries)
 	}

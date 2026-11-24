@@ -93,71 +93,7 @@ func TestListFindingsMock(t *testing.T) {
 	}
 }
 
-func TestListFindingsInternalMock(t *testing.T) {
-	t.Parallel()
-	s, mock := newRegexpMockStore(t)
 
-	now := time.Now()
-	taskID := int64(5)
-	nodeID := int64(10)
-
-	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM findings WHERE task_id`).
-		WithArgs(taskID).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-
-	mock.ExpectQuery(`SELECT .+ FROM findings WHERE task_id.+ORDER BY created_at DESC LIMIT`).
-		WithArgs(taskID, 50, 0).
-		WillReturnRows(sqlmock.NewRows([]string{
-			"id", "task_id", "node_id", "vulnclass", "name", "severity",
-			"summary", "evidence", "worker", "asset_ids", "status", "report",
-			"merged_into", "dismissed", "dismiss_reason", "created_at",
-		}).AddRow(
-			int64(1), &taskID, &nodeID, "xss", "XSS", "high",
-			"summary", "evidence", "worker", json.RawMessage("[]"), "pending", "",
-			nil, false, "", now,
-		))
-
-	findings, total, err := s.listFindingsInternal(FindingFilter{TaskID: taskID})
-	if err != nil {
-		t.Fatalf("listFindingsInternal: %v", err)
-	}
-	if total != 1 {
-		t.Errorf("total = %d, want 1", total)
-	}
-	if len(findings) != 1 {
-		t.Fatalf("got %d findings, want 1", len(findings))
-	}
-	if findings[0].VulnClass != "xss" {
-		t.Errorf("VulnClass = %q, want xss", findings[0].VulnClass)
-	}
-}
-
-func TestListFindingsInternalNoFilterMock(t *testing.T) {
-	t.Parallel()
-	s, mock := newRegexpMockStore(t)
-
-	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM findings$`).
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
-
-	mock.ExpectQuery(`SELECT .+ FROM findings ORDER BY created_at DESC LIMIT`).
-		WithArgs(50, 0).
-		WillReturnRows(sqlmock.NewRows([]string{
-			"id", "task_id", "node_id", "vulnclass", "name", "severity",
-			"summary", "evidence", "worker", "asset_ids", "status", "report",
-			"merged_into", "dismissed", "dismiss_reason", "created_at",
-		}))
-
-	findings, total, err := s.listFindingsInternal(FindingFilter{})
-	if err != nil {
-		t.Fatalf("listFindingsInternal: %v", err)
-	}
-	if total != 0 {
-		t.Errorf("total = %d, want 0", total)
-	}
-	if len(findings) != 0 {
-		t.Errorf("got %d findings, want 0", len(findings))
-	}
-}
 
 func TestFindingExistsMock(t *testing.T) {
 	t.Parallel()

@@ -17,7 +17,10 @@ func TestReplayNonceLifecycle(t *testing.T) {
 	if nonce == "" {
 		t.Fatal("nonce should not be empty")
 	}
-	if replayNonceCount() < 1 {
+	replayNonces.mu.Lock()
+	count := len(replayNonces.live)
+	replayNonces.mu.Unlock()
+	if count < 1 {
 		t.Fatal("count should be >= 1 after register")
 	}
 
@@ -42,9 +45,13 @@ func TestDeleteReplayNonce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := replayNonceCount()
+	replayNonces.mu.Lock()
+	before := len(replayNonces.live)
+	replayNonces.mu.Unlock()
 	deleteReplayNonce(nonce)
-	after := replayNonceCount()
+	replayNonces.mu.Lock()
+	after := len(replayNonces.live)
+	replayNonces.mu.Unlock()
 	if after >= before {
 		t.Fatalf("count should decrease: before=%d after=%d", before, after)
 	}
