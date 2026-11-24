@@ -1,4 +1,4 @@
-module github.com/SREsAreHumanToo/cc-artex/eval/vulnapp
+module github.com/SREsAreHumanToo/ARTEX-CC/eval/vulnapp
 
 go 1.26.11
 

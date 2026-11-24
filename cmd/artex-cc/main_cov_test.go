@@ -13,15 +13,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/store"
+	"github.com/SREsAreHumanToo/ARTEX-CC/store"
 	_ "modernc.org/sqlite"
 )
 
 func testPGDSN(t *testing.T) string {
 	t.Helper()
-	dsn := os.Getenv("CC_ARTEX_TEST_PG")
+	dsn := os.Getenv("ARTEX_TEST_PG")
 	if dsn == "" {
-		dsn = "dbname=cc_artex_covtest sslmode=disable"
+		dsn = "dbname=artex_covtest sslmode=disable"
 		db, err := sql.Open("pgx", dsn)
 		if err != nil {
 			t.Skip("no test PG available")
@@ -154,8 +154,8 @@ func TestCmdServe_VersionFlag(t *testing.T) {
 	out := captureStdout(t, func() {
 		cmdServe([]string{"--version"})
 	})
-	if !strings.Contains(out, "cc-artex") {
-		t.Errorf("expected 'cc-artex' in output: %q", out)
+	if !strings.Contains(out, "artex") {
+		t.Errorf("expected 'artex' in output: %q", out)
 	}
 	if !strings.Contains(out, version) {
 		t.Errorf("expected version %q in output: %q", version, out)
@@ -168,8 +168,8 @@ func TestCmdInit_VersionFlag(t *testing.T) {
 	out := captureStdout(t, func() {
 		cmdInit([]string{"--version"})
 	})
-	if !strings.Contains(out, "cc-artex") {
-		t.Errorf("expected 'cc-artex' in output: %q", out)
+	if !strings.Contains(out, "artex") {
+		t.Errorf("expected 'artex' in output: %q", out)
 	}
 	if !strings.Contains(out, version) {
 		t.Errorf("expected version %q in output: %q", version, out)
@@ -180,7 +180,7 @@ func TestCmdInit_VersionFlag(t *testing.T) {
 
 func TestCmdInit_DryRun_Text(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("CC_ARTEX_PG", "")
+	t.Setenv("ARTEX_PG", "")
 	out := captureStdout(t, func() {
 		cmdInit([]string{
 			"--dry-run",
@@ -203,7 +203,7 @@ func TestCmdInit_DryRun_Text(t *testing.T) {
 
 func TestCmdInit_DryRun_JSON(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("CC_ARTEX_PG", "")
+	t.Setenv("ARTEX_PG", "")
 	out := captureStdout(t, func() {
 		cmdInit([]string{
 			"--dry-run",
@@ -242,7 +242,7 @@ func TestCmdInitDryRun_Text(t *testing.T) {
 	if !strings.Contains(out, "web app") {
 		t.Error("expected description in output")
 	}
-	if !strings.Contains(out, ".cc-artex.json") {
+	if !strings.Contains(out, ".artex.json") {
 		t.Error("expected config path in output")
 	}
 	if !strings.Contains(out, "[create]") {
@@ -277,7 +277,7 @@ func TestCmdInitDryRun_JSON(t *testing.T) {
 
 func TestCmdInitDryRun_ExistingConfig(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ".cc-artex.json"), []byte("{}"), 0o644)
+	os.WriteFile(filepath.Join(dir, ".artex.json"), []byte("{}"), 0o644)
 
 	out := captureStdout(t, func() {
 		cmdInitDryRun(dir, "postgres://test", "goal", "desc", "json")
@@ -533,7 +533,7 @@ func TestRunHealthChecks_WithTrafficDir(t *testing.T) {
 func TestCmdInit_FullFlow_JSON(t *testing.T) {
 	dsn := testPGDSN(t)
 	dir := t.TempDir()
-	t.Setenv("CC_ARTEX_PG", "")
+	t.Setenv("ARTEX_PG", "")
 
 	out := captureStdout(t, func() {
 		cmdInit([]string{
@@ -559,7 +559,7 @@ func TestCmdInit_FullFlow_JSON(t *testing.T) {
 	if _, ok := result["exploration_id"]; !ok {
 		t.Fatal("expected exploration_id in output")
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".cc-artex.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, ".artex.json")); err != nil {
 		t.Errorf("config file not created: %v", err)
 	}
 }
@@ -567,7 +567,7 @@ func TestCmdInit_FullFlow_JSON(t *testing.T) {
 func TestCmdInit_FullFlow_Text(t *testing.T) {
 	dsn := testPGDSN(t)
 	dir := t.TempDir()
-	t.Setenv("CC_ARTEX_PG", "")
+	t.Setenv("ARTEX_PG", "")
 
 	out := captureStdout(t, func() {
 		cmdInit([]string{

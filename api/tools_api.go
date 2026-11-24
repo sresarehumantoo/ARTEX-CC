@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 type ToolInfo struct {

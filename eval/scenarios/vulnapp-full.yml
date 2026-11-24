@@ -1,6 +1,6 @@
 name: "VulnApp Full"
 description: >
-  Run cc-artex against the custom vulnerable application. All five
+  Run ARTEX against the custom vulnerable application. All five
   vulnerability classes should be discoverable within the timeout.
 target: "http://localhost:8083"
 goal: "Find and report all vulnerabilities in the target web application"

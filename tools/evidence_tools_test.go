@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SREsAreHumanToo/cc-artex/evidence"
+	"github.com/SREsAreHumanToo/ARTEX-CC/evidence"
 )
 
 type evidenceMockStore struct {

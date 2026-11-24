@@ -18,8 +18,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/SREsAreHumanToo/cc-artex/store"
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/store"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 type Scenario struct {
@@ -81,8 +81,8 @@ type ScorecardDetail struct {
 }
 
 func main() {
-	pgDSN := flag.String("pg", "", "PostgreSQL connection string (or CC_ARTEX_PG env)")
-	artexBin := flag.String("artex", "cc-artex", "path to cc-artex binary")
+	pgDSN := flag.String("pg", "", "PostgreSQL connection string (or ARTEX_PG env)")
+	artexBin := flag.String("artex", "artex", "path to artex binary")
 	claudeBin := flag.String("claude", "claude", "path to claude CLI binary")
 	outputDir := flag.String("output", ".", "directory for scorecard output")
 	skipClaude := flag.Bool("dry-run", false, "set up engagement but skip the Claude run (useful for testing the harness)")
@@ -95,7 +95,7 @@ func main() {
 
 	dsn := *pgDSN
 	if dsn == "" {
-		dsn = os.Getenv("CC_ARTEX_PG")
+		dsn = os.Getenv("ARTEX_PG")
 	}
 	if dsn == "" {
 		dsn = "postgres://ccartex_eval:ccartex_eval@localhost:5432/ccartex_eval?sslmode=disable"
@@ -226,7 +226,7 @@ func writeEngagementConfig(dir string, taskID, explorationID int64, sc Scenario)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, ".cc-artex.json"), data, 0644)
+	return os.WriteFile(filepath.Join(dir, ".artex.json"), data, 0644)
 }
 
 func runClaude(ctx context.Context, claudeBin, artexBin, dsn, dataDir string, sc Scenario, timeout time.Duration) error {
@@ -235,7 +235,7 @@ func runClaude(ctx context.Context, claudeBin, artexBin, dsn, dataDir string, sc
 
 	prompt := fmt.Sprintf(
 		"You are a penetration tester. Your target is %s. Your goal: %s. "+
-			"Use the cc-artex MCP tools to track your work. "+
+			"Use the ARTEX MCP tools to track your work. "+
 			"Start by calling graph_overview to orient, then set goals, insert assets, and begin testing. "+
 			"Record every finding with report_finding. Record coverage for every surface you test. "+
 			"When done, call generate_report.",
@@ -245,7 +245,7 @@ func runClaude(ctx context.Context, claudeBin, artexBin, dsn, dataDir string, sc
 		prompt += fmt.Sprintf(" Known credentials: %s / %s.", sc.Credentials.Username, sc.Credentials.Password)
 	}
 
-	mcpConfig := fmt.Sprintf(`{"mcpServers":{"cc-artex":{"command":"%s","args":["serve","--stdio","--pg","%s","--data","%s"]}}}`,
+	mcpConfig := fmt.Sprintf(`{"mcpServers":{"artex":{"command":"%s","args":["serve","--stdio","--pg","%s","--data","%s"]}}}`,
 		artexBin, dsn, dataDir)
 
 	mcpConfigPath := filepath.Join(dataDir, "mcp.json")

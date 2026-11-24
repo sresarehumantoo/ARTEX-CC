@@ -7,9 +7,9 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/SREsAreHumanToo/cc-artex/evidence"
-	"github.com/SREsAreHumanToo/cc-artex/tools"
-	"github.com/SREsAreHumanToo/cc-artex/traffic"
+	"github.com/SREsAreHumanToo/ARTEX-CC/evidence"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/traffic"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -80,7 +80,7 @@ func New(registry *tools.Registry, opts ...Option) *Server {
 	})
 
 	s.mcp = server.NewMCPServer(
-		"cc-artex",
+		"artex",
 		"0.1.0",
 		server.WithToolCapabilities(false),
 		server.WithHooks(hooks),
@@ -183,7 +183,7 @@ func (s *Server) handleReadEngagement(ctx context.Context, _ mcp.ReadResourceReq
 
 const orchestrationGuide = `# ARTEX Penetration Test Orchestration
 
-You are running an authorized penetration test through cc-artex. The exploration
+You are running an authorized penetration test through ARTEX. The exploration
 graph is your task board. Every piece of state lives there, not in your context.
 
 ## Workflow

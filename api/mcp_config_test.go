@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 func TestMCPServersAddHTTP(t *testing.T) {
@@ -127,7 +127,7 @@ func TestMCPServersLifecycle(t *testing.T) {
 	if rec := do("POST", "/api/mcp/servers", `{"name":"x","type":"stdio"}`); rec.Code != http.StatusBadRequest {
 		t.Fatalf("missing command: got %d", rec.Code)
 	}
-	if rec := do("POST", "/api/mcp/servers", `{"name":"cc-artex","type":"http","url":"http://a"}`); rec.Code != http.StatusConflict {
+	if rec := do("POST", "/api/mcp/servers", `{"name":"artex","type":"http","url":"http://a"}`); rec.Code != http.StatusConflict {
 		t.Fatalf("reserved name: got %d", rec.Code)
 	}
 	if rec := do("POST", "/api/mcp/servers", `{"name":"fs","type":"stdio","command":"npx","env":{"K":"v"}}`); rec.Code != http.StatusCreated {
@@ -142,7 +142,7 @@ func TestMCPServersLifecycle(t *testing.T) {
 		t.Fatalf("unexpected list: %+v", list)
 	}
 
-	if rec := do("DELETE", "/api/mcp/servers/cc-artex", ""); rec.Code != http.StatusBadRequest {
+	if rec := do("DELETE", "/api/mcp/servers/artex", ""); rec.Code != http.StatusBadRequest {
 		t.Fatalf("delete built-in: got %d", rec.Code)
 	}
 	if rec := do("DELETE", "/api/mcp/servers/fs", ""); rec.Code != http.StatusNoContent {

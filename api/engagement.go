@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 func (a *API) registerEngagementRoutes(mux *http.ServeMux) {

@@ -146,7 +146,7 @@ export default function AgentDetail({ open, agent, onOpenChange }: AgentDetailPr
                 value={tools}
                 onChange={e => setTools(e.target.value)}
                 className="font-mono"
-                placeholder="Bash, Read, mcp__cc-artex__graph_overview"
+                placeholder="Bash, Read, mcp__artex__graph_overview"
               />
               <p className="text-xs text-muted-foreground">Comma-separated tool names.</p>
             </div>

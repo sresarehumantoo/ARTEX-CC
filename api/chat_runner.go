@@ -103,7 +103,7 @@ func WriteMCPConfig(dataDir, listenAddr, token string) (string, error) {
 	}
 	cfg := map[string]any{
 		"mcpServers": map[string]any{
-			"cc-artex": map[string]any{
+			"artex": map[string]any{
 				"type":    "http",
 				"url":     "http://127.0.0.1:" + port + "/mcp",
 				"headers": map[string]string{"Authorization": "Bearer " + token},
@@ -189,7 +189,7 @@ func (r *Runner) Start(ctx context.Context, id, model, agent, systemPrompt strin
 		"--max-turns", strconv.Itoa(maxTurns),
 		"--mcp-config", r.mcpConfig,
 		"--strict-mcp-config",
-		"--allowedTools", "mcp__cc-artex__*",
+		"--allowedTools", "mcp__artex__*",
 	}
 	if model != "" {
 		args = append(args, "--model", model)

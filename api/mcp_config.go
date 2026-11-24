@@ -12,7 +12,7 @@ import (
 
 const (
 	mcpServersFile = "mcp_servers.json"
-	builtinMCPName = "cc-artex"
+	builtinMCPName = "artex"
 )
 
 var (

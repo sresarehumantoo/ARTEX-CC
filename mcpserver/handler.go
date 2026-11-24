@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )

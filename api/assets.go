@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 func (a *API) registerAssetsRoutes(mux *http.ServeMux) {

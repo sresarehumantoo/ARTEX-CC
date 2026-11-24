@@ -1,4 +1,4 @@
-cc-artex is an MCP tool server for autonomous pentesting with Claude Code. 59 tools, PostgreSQL backend, recording proxy, evidence capture. You bring the brain, cc-artex brings the hands.
+ARTEX is an MCP tool server for autonomous pentesting with Claude Code. 59 tools, PostgreSQL backend, recording proxy, evidence capture. You bring the brain, ARTEX brings the hands.
 
 ## Quick setup
 
@@ -8,7 +8,7 @@ docker compose up -d postgres          # Docker
 createdb ccartex                       # or use an existing PostgreSQL
 
 # 2. Initialize an engagement
-cc-artex init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
+artex init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
 
 # 3. Add MCP config (the init command prints this too)
 ```
@@ -18,8 +18,8 @@ Add to `~/.claude.json` (or project `.mcp.json`):
 ```json
 {
   "mcpServers": {
-    "cc-artex": {
-      "command": "cc-artex",
+    "artex": {
+      "command": "artex",
       "args": [
         "serve", "--stdio",
         "--pg", "postgres://localhost/ccartex",
@@ -32,7 +32,7 @@ Add to `~/.claude.json` (or project `.mcp.json`):
 
 Without `--proxy`, traffic capture tools are not registered.
 
-**Docker (all-in-one):** `docker compose up` starts PostgreSQL and cc-artex together. Use `http://localhost:9400/sse` as the MCP endpoint or the Docker stdio config from README.md.
+**Docker (all-in-one):** `docker compose up` starts PostgreSQL and ARTEX together. Use `http://localhost:9400/sse` as the MCP endpoint or the Docker stdio config from README.md.
 
 ## Start a pentest
 
@@ -57,12 +57,12 @@ Claude runs autonomously on a 5-minute loop. You can steer it with `add_hint` or
 | `--proxy :8788` | Start the recording MITM proxy for traffic capture |
 | `--data ./pentest` | Set the directory for traffic, evidence, and config |
 | `--debug` | Enable debug-level logging (verbose) |
-| `--pg DSN` | PostgreSQL connection string (or set `CC_ARTEX_PG` env var) |
+| `--pg DSN` | PostgreSQL connection string (or set `ARTEX_PG` env var) |
 | `--listen :9400` | Serve over HTTP instead of stdio |
 
 ## Credential encryption
 
-Set `CC_ARTEX_CREDENTIAL_KEY` (hex-encoded 32-byte AES-256-GCM key) to encrypt stored credentials. Without it, credentials are stored in plaintext and the server logs a warning.
+Set `ARTEX_CREDENTIAL_KEY` (hex-encoded 32-byte AES-256-GCM key) to encrypt stored credentials. Without it, credentials are stored in plaintext and the server logs a warning.
 
 ## Proxy CA trust
 
@@ -70,18 +70,18 @@ The `init` command generates a CA certificate at `traffic/_ca/mitmproxy-ca-cert.
 
 ## Common issues
 
-**PostgreSQL not running:** `cc-artex serve` exits with "failed to open store". Start PostgreSQL or run `docker compose up -d postgres`.
+**PostgreSQL not running:** `artex serve` exits with "failed to open store". Start PostgreSQL or run `docker compose up -d postgres`.
 
-**No engagement config:** "failed to load engagement config" means `.cc-artex.json` is missing from the data directory. Run `cc-artex init` first, or point `--data` at the directory where you ran init.
+**No engagement config:** "failed to load engagement config" means `.artex.json` is missing from the data directory. Run `artex init` first, or point `--data` at the directory where you ran init.
 
-**Credential key invalid:** "invalid credential key" means `CC_ARTEX_CREDENTIAL_KEY` is set but not valid hex or not 32 bytes. Unset it to skip encryption, or generate a valid key: `openssl rand -hex 32`.
+**Credential key invalid:** "invalid credential key" means `ARTEX_CREDENTIAL_KEY` is set but not valid hex or not 32 bytes. Unset it to skip encryption, or generate a valid key: `openssl rand -hex 32`.
 
-**Proxy CA not trusted:** HTTPS traffic through the proxy fails with certificate errors. Trust the CA cert (see `cc-artex init` output for the command).
+**Proxy CA not trusted:** HTTPS traffic through the proxy fails with certificate errors. Trust the CA cert (see `artex init` output for the command).
 
 **Traffic tools missing:** The nine `traffic_*` tools only appear when `--proxy` is set on `serve`.
 
 ## Shell completion
 
 ```sh
-eval "$(cc-artex completion zsh)"    # or bash/fish
+eval "$(artex completion zsh)"    # or bash/fish
 ```

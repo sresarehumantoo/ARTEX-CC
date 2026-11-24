@@ -1,4 +1,4 @@
-# HTB test plan for cc-artex
+# HTB test plan for ARTEX
 
 Validation plan using five Hack The Box machines, ordered to build coverage
 incrementally. Each box targets a different slice of the tool surface; together
@@ -10,7 +10,7 @@ they exercise every tool at least once.
 
 ```
 createdb ccartex_htb
-cc-artex init \
+artex init \
   --pg "postgres://localhost/ccartex_htb" \
   --data ~/htb/management \
   --goal "HTB validation: Management (Easy, Linux)"
@@ -29,8 +29,8 @@ Add to `.mcp.json` in the working directory (or `~/.claude.json` globally):
 ```json
 {
   "mcpServers": {
-    "cc-artex": {
-      "command": "cc-artex",
+    "artex": {
+      "command": "artex",
       "args": [
         "serve", "--stdio",
         "--pg", "postgres://localhost/ccartex_htb",
@@ -42,7 +42,7 @@ Add to `.mcp.json` in the working directory (or `~/.claude.json` globally):
 }
 ```
 
-Trust the CA cert (printed by `cc-artex init`) so the recording proxy can
+Trust the CA cert (printed by `artex init`) so the recording proxy can
 intercept HTTPS, then start Claude Code.
 
 ### Hands-free mode
@@ -58,7 +58,7 @@ intercept HTTPS, then start Claude Code.
 **Difficulty:** Easy | **OS:** Linux | **Blood time:** 6 min
 
 **Why this box:** Baseline end-to-end lifecycle test. The short, structured path
-lets you verify every phase of a cc-artex engagement without debugging complex
+lets you verify every phase of a ARTEX engagement without debugging complex
 attack chains. If the full init-to-report cycle works here, the plumbing is
 sound.
 
@@ -144,7 +144,7 @@ htb-hosts add <SPAWN_IP> layover.htb portal.international.htb
 Initialize with given credentials:
 
 ```
-cc-artex init \
+artex init \
   --pg "postgres://localhost/ccartex_htb" \
   --data ~/htb/layover \
   --goal "HTB validation: Layover (Medium, Linux) - multi-host lateral movement"
@@ -191,7 +191,7 @@ service and asset tracking, `import_engagement` for credential continuity.
 Import Layover engagement data for credential continuity:
 
 ```
-cc-artex init \
+artex init \
   --pg "postgres://localhost/ccartex_htb" \
   --data ~/htb/touch \
   --goal "HTB validation: Touch (Easy, Windows) - cross-engagement credential reuse"
@@ -333,7 +333,7 @@ add a multi-company box or synthetic test if needed).
 
 ## Notes
 
-- Each box gets its own `cc-artex init` and database (or at least a fresh
+- Each box gets its own `artex init` and database (or at least a fresh
   engagement in the same database). Layover and Touch share credential data
   via `export_engagement`/`import_engagement`.
 - Run boxes in order. Management validates the basics; later boxes assume those
@@ -341,5 +341,5 @@ add a multi-company box or synthetic test if needed).
 - The proxy (`--proxy :8788`) is required for boxes 2-5. Box 1 can run without
   it but should include it to verify proxy startup.
 - Blood times are from the HTB API and indicate relative complexity. A
-  6-minute blood on Management means a skilled human solves it fast; cc-artex
+  6-minute blood on Management means a skilled human solves it fast; ARTEX
   will be slower but should complete it in a single session.

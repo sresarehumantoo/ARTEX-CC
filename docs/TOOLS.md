@@ -1,6 +1,6 @@
 # Tool Reference
 
-Complete parameter documentation for cc-artex's 59 MCP tools, organized by category.
+Complete parameter documentation for ARTEX's 59 MCP tools, organized by category.
 
 ## Table of contents
 

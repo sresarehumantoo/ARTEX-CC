@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug in cc-artex
+about: Report a bug in ARTEX
 labels: bug
 ---
 
@@ -16,7 +16,7 @@ labels: bug
 <!-- What should have happened? -->
 
 ## Environment
-- cc-artex version:
+- artex version:
 - Go version:
 - OS:
 - MCP client (Claude Code, Cline, etc.):

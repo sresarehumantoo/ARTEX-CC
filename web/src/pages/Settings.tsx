@@ -315,14 +315,14 @@ function AboutTab() {
     <div className="space-y-4 md:space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>cc-artex</CardTitle>
-          <CardDescription>MCP tool server and web UI for autonomous pentesting with Claude Code.</CardDescription>
+          <CardTitle>ARTEX</CardTitle>
+          <CardDescription>Autonomous penetration testing platform powered by Claude Code.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <InfoRow label="Version" value={data?.version && data.version !== '(devel)' ? data.version : 'dev build'} />
           <div className="flex gap-4 pt-1">
-            <a className={linkClass} href="https://github.com/SREsAreHumanToo/cc-artex#readme" target="_blank" rel="noreferrer">Docs</a>
-            <a className={linkClass} href="https://github.com/SREsAreHumanToo/cc-artex" target="_blank" rel="noreferrer">GitHub</a>
+            <a className={linkClass} href="https://github.com/SREsAreHumanToo/ARTEX#readme" target="_blank" rel="noreferrer">Docs</a>
+            <a className={linkClass} href="https://github.com/SREsAreHumanToo/ARTEX" target="_blank" rel="noreferrer">GitHub</a>
           </div>
         </CardContent>
       </Card>

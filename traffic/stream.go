@@ -14,7 +14,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/SREsAreHumanToo/cc-artex/traffic/rewrite"
+	"github.com/SREsAreHumanToo/ARTEX-CC/traffic/rewrite"
 	mproxy "github.com/lqqyt2423/go-mitmproxy/proxy"
 )
 

@@ -1,30 +1,30 @@
 <div align="center">
-  <img src="docs/logo.svg" alt="cc-artex" width="200">
+  <img src="docs/logo.svg" alt="artex" width="200">
 </div>
 
 <div align="center">
 
-# cc-artex
+# ARTEX
 
 **Use your Claude subscription to run pentests. No API key needed.**
 
-[![CI](https://github.com/SREsAreHumanToo/cc-artex/actions/workflows/ci.yml/badge.svg)](https://github.com/SREsAreHumanToo/cc-artex/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/SREsAreHumanToo/cc-artex?logo=github)](https://github.com/SREsAreHumanToo/cc-artex/releases)
-[![codecov](https://codecov.io/gh/SREsAreHumanToo/cc-artex/graph/badge.svg)](https://codecov.io/gh/SREsAreHumanToo/cc-artex)
-[![Go Report Card](https://goreportcard.com/badge/github.com/SREsAreHumanToo/cc-artex)](https://goreportcard.com/report/github.com/SREsAreHumanToo/cc-artex)
-[![Go Reference](https://pkg.go.dev/badge/github.com/SREsAreHumanToo/cc-artex.svg)](https://pkg.go.dev/github.com/SREsAreHumanToo/cc-artex)
+[![CI](https://github.com/SREsAreHumanToo/ARTEX-CC/actions/workflows/ci.yml/badge.svg)](https://github.com/SREsAreHumanToo/ARTEX-CC/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/SREsAreHumanToo/ARTEX-CC?logo=github)](https://github.com/SREsAreHumanToo/ARTEX-CC/releases)
+[![codecov](https://codecov.io/gh/SREsAreHumanToo/ARTEX-CC/graph/badge.svg)](https://codecov.io/gh/SREsAreHumanToo/ARTEX-CC)
+[![Go Report Card](https://goreportcard.com/badge/github.com/SREsAreHumanToo/ARTEX-CC)](https://goreportcard.com/report/github.com/SREsAreHumanToo/ARTEX-CC)
+[![Go Reference](https://pkg.go.dev/badge/github.com/SREsAreHumanToo/ARTEX-CC.svg)](https://pkg.go.dev/github.com/SREsAreHumanToo/ARTEX-CC)
 [![Go 1.26+](https://img.shields.io/badge/go-1.26%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub stars](https://img.shields.io/github/stars/SREsAreHumanToo/cc-artex?style=flat&logo=github)](https://github.com/SREsAreHumanToo/cc-artex/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/SREsAreHumanToo/ARTEX-CC?style=flat&logo=github)](https://github.com/SREsAreHumanToo/ARTEX-CC/stargazers)
 
 </div>
 
-cc-artex is an MCP tool server that turns [ARTEX](https://github.com/Autumn-27/artex)'s autonomous pentest model into tools Claude Code calls through your existing Claude subscription. ARTEX's asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 59 MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
+ARTEX is an autonomous penetration testing platform that exposes [upstream ARTEX](https://github.com/Autumn-27/artex)'s pentest model as MCP tools Claude Code calls through your existing Claude subscription. Asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 59 MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
 
-You bring the brain. cc-artex brings the hands.
+You bring the brain. ARTEX brings the hands.
 
 <p align="center">
-  <img src="docs/demo.gif" alt="cc-artex demo" width="720">
+  <img src="docs/demo.gif" alt="ARTEX demo" width="720">
 </p>
 
 > **Authorized use only.** This is an offensive security tool, for penetration
@@ -34,10 +34,10 @@ You bring the brain. cc-artex brings the hands.
 ## How it works
 
 <div align="center">
-  <img src="docs/architecture.svg" alt="cc-artex architecture" width="800">
+  <img src="docs/architecture.svg" alt="ARTEX architecture" width="800">
 </div>
 
-Claude Code decides what to test, what tools to call, and in what order. cc-artex executes the calls: inserting assets, tracking the exploration graph, recording findings and credentials, logging coverage, and capturing HTTP traffic through its built-in recording proxy. The exploration graph keeps Claude oriented across long engagements so it doesn't repeat work or lose context.
+Claude Code decides what to test, what tools to call, and in what order. ARTEX executes the calls: inserting assets, tracking the exploration graph, recording findings and credentials, logging coverage, and capturing HTTP traffic through its built-in recording proxy. The exploration graph keeps Claude oriented across long engagements so it doesn't repeat work or lose context.
 
 ### What a session looks like
 
@@ -61,9 +61,9 @@ Each tool call updates the exploration graph. Claude sees where it has been, wha
 
 ## Why this exists
 
-ARTEX is a capable pentest framework with its own LLM agent loop. That agent loop needs an API key, a token budget, and careful management. If you already pay for Claude, that is a second brain doing the same job.
+The upstream ARTEX framework includes its own LLM agent loop. That agent loop needs an API key, a token budget, and careful management. If you already pay for Claude, that is a second brain doing the same job.
 
-cc-artex removes the agent loop entirely and exposes the data layer as MCP tools. Claude Code becomes the agent. You get:
+ARTEX removes the agent loop entirely and exposes the data layer as MCP tools. Claude Code becomes the agent. You get:
 
 - **No API cost.** Your Claude subscription covers it. No token counting, no surprise bills.
 - **Claude's full reasoning.** Not a constrained agent loop, but Claude's complete context window and tool-use capability driving the engagement.
@@ -74,15 +74,15 @@ cc-artex removes the agent loop entirely and exposes the data layer as MCP tools
 **Homebrew** (macOS and Linux):
 
 ```sh
-brew install SREsAreHumanToo/tap/cc-artex
+brew install SREsAreHumanToo/tap/artex
 ```
 
-**Pre-built binaries:** download from the [Releases](https://github.com/SREsAreHumanToo/cc-artex/releases) page. Each release includes checksums.
+**Pre-built binaries:** download from the [Releases](https://github.com/SREsAreHumanToo/ARTEX-CC/releases) page. Each release includes checksums.
 
 **From source:**
 
 ```sh
-go install github.com/SREsAreHumanToo/cc-artex/cmd/cc-artex@latest
+go install github.com/SREsAreHumanToo/ARTEX-CC/cmd/artex-cc@latest
 ```
 
 **Docker:**
@@ -98,7 +98,7 @@ docker compose up
 ```sh
 # Create the database and initialize an engagement
 createdb ccartex
-cc-artex init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
+artex init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
 ```
 
 The init command creates the schema, sets up the engagement, generates a CA certificate for HTTPS interception, and prints trust instructions for your OS. Add the printed MCP config to your Claude Code config (`~/.claude.json` or project `.mcp.json`):
@@ -106,15 +106,15 @@ The init command creates the schema, sets up the engagement, generates a CA cert
 ```json
 {
   "mcpServers": {
-    "cc-artex": {
-      "command": "cc-artex",
+    "artex": {
+      "command": "artex",
       "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
     }
   }
 }
 ```
 
-The `--proxy` flag starts a recording MITM proxy alongside the MCP server. Point your tools at the proxy address (e.g., `http://localhost:8788`) to capture and analyze traffic. Without `--proxy`, the traffic tools are not registered and cc-artex runs as a pure data server.
+The `--proxy` flag starts a recording MITM proxy alongside the MCP server. Point your tools at the proxy address (e.g., `http://localhost:8788`) to capture and analyze traffic. Without `--proxy`, the traffic tools are not registered and ARTEX runs as a pure data server.
 
 Then start Claude Code. The tools appear automatically. Ask Claude to "pentest example.com" and watch it work.
 
@@ -128,12 +128,12 @@ For Cursor, Cline, Windsurf, Zed, and other MCP clients, see [MCP Client Configu
 docker compose up
 ```
 
-This starts PostgreSQL and cc-artex together. On first run it automatically creates the database schema and a default engagement. The MCP server listens on `localhost:9400` and the recording proxy on `localhost:8788`.
+This starts PostgreSQL and ARTEX together. On first run it automatically creates the database schema and a default engagement. The MCP server listens on `localhost:9400` and the recording proxy on `localhost:8788`.
 
 To set a specific engagement goal:
 
 ```sh
-CC_ARTEX_GOAL="Pentest example.com" docker compose up
+ARTEX_GOAL="Pentest example.com" docker compose up
 ```
 
 Add this to your Claude Code MCP config (`~/.claude.json` or project `.mcp.json`) to connect over HTTP:
@@ -141,7 +141,7 @@ Add this to your Claude Code MCP config (`~/.claude.json` or project `.mcp.json`
 ```json
 {
   "mcpServers": {
-    "cc-artex": {
+    "artex": {
       "type": "sse",
       "url": "http://localhost:9400/sse"
     }
@@ -154,11 +154,11 @@ Or use stdio transport through Docker:
 ```json
 {
   "mcpServers": {
-    "cc-artex": {
+    "artex": {
       "command": "docker",
       "args": [
-        "compose", "exec", "-T", "cc-artex",
-        "/app/cc-artex", "serve", "--stdio",
+        "compose", "exec", "-T", "artex",
+        "/app/artex", "serve", "--stdio",
         "--pg", "postgres://ccartex:ccartex@postgres:5432/ccartex?sslmode=disable",
         "--data", "/app/data", "--proxy", ":8788"
       ]
@@ -318,12 +318,12 @@ Point your testing tools at the proxy to capture requests.
 ## Architecture
 
 ```
-cc-artex/
-├── cmd/cc-artex/      CLI entrypoint: serve, init, version
+ARTEX/
+├── cmd/artex-cc/      CLI entrypoint: serve, init, version
 ├── store/             PostgreSQL data layer (assets, graph, findings, credentials, coverage)
 ├── mcpserver/         MCP protocol server (stdio and HTTP transports)
 ├── tools/             Tool implementations registered with the MCP server
-├── config/            Configuration loading and engagement state (.cc-artex.json)
+├── config/            Configuration loading and engagement state (.artex.json)
 ├── traffic/           Recording MITM proxy, SOCKS5, replay, HAR export, rewrite engine
 │   ├── rewrite/       Rule-based request/response rewriting
 │   └── hookvm/        Sandboxed expression evaluator for rewrite hooks
@@ -332,19 +332,19 @@ cc-artex/
 └── egress/            Rate-limiting governor for outbound requests
 ```
 
-The server speaks [MCP](https://modelcontextprotocol.io/) over stdio (for Claude Code) or HTTP (for other clients). All state lives in PostgreSQL. The engagement config (`.cc-artex.json`) tracks the current task and exploration IDs so the server knows which engagement to serve.
+The server speaks [MCP](https://modelcontextprotocol.io/) over stdio (for Claude Code) or HTTP (for other clients). All state lives in PostgreSQL. The engagement config (`.artex.json`) tracks the current task and exploration IDs so the server knows which engagement to serve.
 
-## Why cc-artex?
+## Why ARTEX?
 
 - **Your Claude subscription IS the AI engine.** No API key management, no token budgets, no surprise bills. If you have Claude, you have everything you need.
 - **The exploration graph means Claude never loses context.** Every recon result, every tested endpoint, every credential, every planned next step is tracked in a persistent graph. Resume hours later and `graph_overview` brings Claude back up to speed.
 - **59 tools covering the full pentest lifecycle.** Asset discovery, scope management, exploration planning, traffic capture, evidence capture, credential storage, finding management, coverage tracking, and report generation.
 - **Works with any MCP client.** Claude Code, Cline, Cursor, or anything else that speaks the [Model Context Protocol](https://modelcontextprotocol.io/).
-- **One command to get started.** `docker compose up` or install the binary and run `cc-artex init`.
+- **One command to get started.** `docker compose up` or install the binary and run `artex init`.
 
-## cc-artex vs alternatives
+## ARTEX vs alternatives
 
-| | cc-artex | PentestGPT | HexStrike AI | Pentest-AI |
+| | ARTEX | PentestGPT | HexStrike AI | Pentest-AI |
 |---|----------|-----------|-------------|-----------|
 | **State management** | Exploration graph (persistent, resumable) | Stateless / limited context | None | None |
 | **MCP native** | Yes (59 tools) | No (agent framework) | Yes (150+ tools) | Yes (205 tools) |
@@ -353,11 +353,11 @@ The server speaks [MCP](https://modelcontextprotocol.io/) over stdio (for Claude
 | **Multi-client support** | Any MCP client (Claude Code, Cline, Cursor) | Own interface | Claude Code | Claude Code |
 | **License** | MIT | Research | Unknown | Unknown |
 
-cc-artex's differentiator is not tool count. It is the exploration graph and evidence chain model: every finding traces back to the asset, the coverage record, and the captured traffic that produced it.
+ARTEX's differentiator is not tool count. It is the exploration graph and evidence chain model: every finding traces back to the asset, the coverage record, and the captured traffic that produced it.
 
-## cc-artex vs ARTEX
+## ARTEX vs upstream ARTEX
 
-| | ARTEX | cc-artex |
+| | Upstream ARTEX | This project |
 |---|-------|----------|
 | LLM | Built-in agent loop (needs API key) | None. Claude Code is the LLM. |
 | Interface | Autonomous agent | MCP tool server |
@@ -367,29 +367,29 @@ cc-artex's differentiator is not tool count. It is the exploration graph and evi
 | Findings | Yes | Same model |
 | Human oversight | Watch the agent run | You steer Claude directly |
 
-## cc-artex vs manual pentesting
+## ARTEX vs manual pentesting
 
-A pentest has a lot of bookkeeping: what you have tested, what you found, what is left, which credentials go where. That bookkeeping is what cc-artex handles. Claude does the reasoning and tool selection; you do the judgment calls; cc-artex keeps the graph, the findings, and the coverage ledger so nothing falls through the cracks.
+A pentest has a lot of bookkeeping: what you have tested, what you found, what is left, which credentials go where. That bookkeeping is what ARTEX handles. Claude does the reasoning and tool selection; you do the judgment calls; ARTEX keeps the graph, the findings, and the coverage ledger so nothing falls through the cracks.
 
 ## Configuration
 
-cc-artex reads its PostgreSQL connection string from `--pg` or the `CC_ARTEX_PG` environment variable. The engagement state lives in `.cc-artex.json` in the data directory (`--data`, defaults to `.`). Config files can be JSON or TOML (the file extension determines the parser).
+ARTEX reads its PostgreSQL connection string from `--pg` or the `ARTEX_PG` environment variable. The engagement state lives in `.artex.json` in the data directory (`--data`, defaults to `.`). Config files can be JSON or TOML (the file extension determines the parser).
 
 ```sh
 # Serve over stdio (Claude Code)
-cc-artex serve --stdio --pg "postgres://localhost/ccartex"
+artex serve --stdio --pg "postgres://localhost/ccartex"
 
 # Serve with the recording proxy
-cc-artex serve --stdio --pg "postgres://localhost/ccartex" --proxy :8788
+artex serve --stdio --pg "postgres://localhost/ccartex" --proxy :8788
 
 # Serve over HTTP (other clients)
-cc-artex serve --listen localhost:9400 --pg "postgres://localhost/ccartex"
+artex serve --listen localhost:9400 --pg "postgres://localhost/ccartex"
 
 # Start a new engagement
-cc-artex init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.example.com"
+artex init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.example.com"
 ```
 
-When `--proxy` is set, cc-artex starts a recording MITM proxy on the given address. Configure your HTTP client or browser to use it, and the proxy captures every request and response for analysis through the traffic tools. The `init` command generates a CA certificate (at `traffic/_ca/mitmproxy-ca-cert.pem`) and prints OS-specific trust instructions so the proxy can intercept HTTPS.
+When `--proxy` is set, ARTEX starts a recording MITM proxy on the given address. Configure your HTTP client or browser to use it, and the proxy captures every request and response for analysis through the traffic tools. The `init` command generates a CA certificate (at `traffic/_ca/mitmproxy-ca-cert.pem`) and prints OS-specific trust instructions so the proxy can intercept HTTPS.
 
 ## Examples
 
@@ -399,8 +399,8 @@ service enumeration, vulnerability testing, and report generation.
 
 ## Get help
 
-- [GitHub Issues](https://github.com/SREsAreHumanToo/cc-artex/issues) for bugs and feature requests
-- [GitHub Discussions](https://github.com/SREsAreHumanToo/cc-artex/discussions) for questions and ideas
+- [GitHub Issues](https://github.com/SREsAreHumanToo/ARTEX-CC/issues) for bugs and feature requests
+- [GitHub Discussions](https://github.com/SREsAreHumanToo/ARTEX-CC/discussions) for questions and ideas
 - [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions and how to add a tool
 
 ## License

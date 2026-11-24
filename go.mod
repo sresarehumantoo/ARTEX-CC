@@ -1,4 +1,4 @@
-module github.com/SREsAreHumanToo/cc-artex
+module github.com/SREsAreHumanToo/ARTEX-CC
 
 go 1.26.11
 

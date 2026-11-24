@@ -1,8 +1,8 @@
-# cc-artex Roadmap
+# ARTEX Roadmap
 
 ## 1. Current state summary
 
-cc-artex is a working MCP tool server for penetration testing. It exposes ARTEX's
+ARTEX is a working MCP tool server for penetration testing. It exposes ARTEX's
 data model as tools Claude Code calls directly, with no separate LLM API key.
 
 **Lines of code:** ~31,000 Go.
@@ -13,7 +13,7 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 
 **What works today:**
 
-- **CLI:** `serve` (stdio and HTTP transports), `init` (creates engagement, schema, CA cert), `version` (with `--json`), `health` (PostgreSQL connectivity check, `--format json`, `--timeout`), `completion` (bash/zsh/fish). `--version` flag on all subcommands. `--timeout` for graceful shutdown. `CC_ARTEX_PG` env var override.
+- **CLI:** `serve` (stdio and HTTP transports), `init` (creates engagement, schema, CA cert), `version` (with `--json`), `health` (PostgreSQL connectivity check, `--format json`, `--timeout`), `completion` (bash/zsh/fish). `--version` flag on all subcommands. `--timeout` for graceful shutdown. `ARTEX_PG` env var override.
 - **Store (PostgreSQL):** Full schema with auto-migration. Assets (6 types), companies, company scope, task scope, exploration graph (nodes, edges, anchors, constraints), findings, credentials, coverage ledger with history, intercept rules, activity log. Engagement export/import to portable JSON archives.
 - **Exploration graph:** Goals, intents, facts, findings, hints, constraints. Edges connect them (derived_from, yields, spawns, proves). Frontier query. Graph overview for situational awareness. Prove-goal workflow with confidence gating. Intent lifecycle (start, complete, cancel).
 - **Asset management:** Bulk insert with upsert, DSL-based queries (fuzzy, exact, exclusion, numeric comparisons, boolean combinators, parentheses), untested-asset queries, company scope attribution.
@@ -144,7 +144,7 @@ Done. Multi-stage Dockerfile for container deployments.
 
 ### ✅ 5.3 Homebrew formula
 
-Done. goreleaser auto-generates the formula to `SREsAreHumanToo/homebrew-tap`. Install with `brew install SREsAreHumanToo/tap/cc-artex`.
+Done. goreleaser auto-generates the formula to `SREsAreHumanToo/homebrew-tap`. Install with `brew install SREsAreHumanToo/tap/artex`.
 
 ### ✅ 5.4 Example engagement walkthrough
 
@@ -174,7 +174,7 @@ Done. First tagged release with cross-platform binaries via goreleaser and GitHu
 **What:** A plugin interface that lets users register custom MCP tools (e.g., nuclei scanner, sqlmap, ffuf) that write results directly into the asset graph and exploration state.
 **Effort:** L
 **Dependencies:** None directly, but benefits from stable tool/store interfaces.
-**Rationale:** cc-artex's value is the data model and orchestration, not any one scanner. A plugin system lets the community contribute tool integrations without modifying core.
+**Rationale:** ARTEX's value is the data model and orchestration, not any one scanner. A plugin system lets the community contribute tool integrations without modifying core.
 
 ### 6.2 Web dashboard
 
@@ -207,7 +207,7 @@ Done. `merge_findings`, `dismiss_finding`, and `bind_finding_traffic` tools in `
 
 ### 6.7 Demo GIF / screencast
 
-**What:** An animated demo (GIF or asciinema recording) showing cc-artex in action: initializing an engagement, running reconnaissance, discovering a finding, and generating a report. Embed in the README.
+**What:** An animated demo (GIF or asciinema recording) showing ARTEX in action: initializing an engagement, running reconnaissance, discovering a finding, and generating a report. Embed in the README.
 **Effort:** S
 **Dependencies:** None.
 **Status:** Script exists but recording not yet done.

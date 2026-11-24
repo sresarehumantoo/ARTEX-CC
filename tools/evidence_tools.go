@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/evidence"
+	"github.com/SREsAreHumanToo/ARTEX-CC/evidence"
 )
 
 // RegisterEvidenceTools registers evidence management tools.

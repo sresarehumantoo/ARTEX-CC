@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/SREsAreHumanToo/cc-artex/ingest"
+	"github.com/SREsAreHumanToo/ARTEX-CC/ingest"
 )
 
 func RegisterIngestTools(reg *Registry, store Store, taskID, explorationID int64) {

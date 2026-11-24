@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 func TestSaveCredentialValidation(t *testing.T) {

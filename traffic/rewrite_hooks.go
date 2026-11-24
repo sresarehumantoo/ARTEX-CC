@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/traffic/hookvm"
-	"github.com/SREsAreHumanToo/cc-artex/traffic/rewrite"
+	"github.com/SREsAreHumanToo/ARTEX-CC/traffic/hookvm"
+	"github.com/SREsAreHumanToo/ARTEX-CC/traffic/rewrite"
 )
 
 // Opt-in kill switch for constrained Go tampering hooks (P4.2).

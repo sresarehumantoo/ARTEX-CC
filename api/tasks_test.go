@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/store"
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/store"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 var errTestTask = errors.New("test error")

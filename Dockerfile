@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# Multi-stage build for cc-artex. Frontend is built in a Node stage, then
+# Multi-stage build for ARTEX. Frontend is built in a Node stage, then
 # embedded into the Go binary via go:embed.
 
 # -------------------------------------------------------------- frontend ---
@@ -20,11 +20,11 @@ COPY . .
 COPY --from=frontend /src/web/dist /src/web/dist
 ARG TARGETOS
 ARG TARGETARCH
-ARG CC_ARTEX_VERSION=dev
+ARG ARTEX_VERSION=dev
 RUN CGO_ENABLED=0 GOOS="${TARGETOS:-linux}" GOARCH="${TARGETARCH:-amd64}" \
     go build -trimpath \
-      -ldflags="-s -w -X main.version=${CC_ARTEX_VERSION}" \
-      -o /out/cc-artex ./cmd/cc-artex
+      -ldflags="-s -w -X main.version=${ARTEX_VERSION}" \
+      -o /out/artex-cc ./cmd/artex-cc
 
 # --------------------------------------------------------------- runtime ---
 FROM alpine:3.21
@@ -32,9 +32,9 @@ RUN apk add --no-cache ca-certificates nodejs npm \
     && npm install -g @anthropic-ai/claude-code@latest \
     && npm cache clean --force
 WORKDIR /app
-COPY --from=build /out/cc-artex /app/cc-artex
+COPY --from=build /out/artex-cc /app/artex-cc
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/cc-artex /app/docker-entrypoint.sh
+RUN chmod +x /app/artex-cc /app/docker-entrypoint.sh
 VOLUME ["/app/data"]
 EXPOSE 9400 8788
 ENTRYPOINT ["/app/docker-entrypoint.sh"]

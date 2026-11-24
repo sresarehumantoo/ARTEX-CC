@@ -30,7 +30,7 @@ function buildEvents(scenario: 'idle' | 'running' | 'error'): ChatEvent[] {
   push({ kind: 'tool_result', tool_id: 'tu1', text: '93.184.216.34\n' })
   push({ kind: 'tool_use', tool_name: 'Bash', tool_id: 'tu2', input: { command: 'nmap -sT -p 80,443,8080 93.184.216.34' } })
   push({ kind: 'tool_result', tool_id: 'tu2', text: 'PORT     STATE  SERVICE\n80/tcp   open   http\n443/tcp  open   https\n8080/tcp closed http-proxy\n' })
-  push({ kind: 'tool_use', tool_name: 'mcp__cc-artex__insert_asset', tool_id: 'tu3', input: { type: 'host', value: '93.184.216.34', label: 'example.com' } })
+  push({ kind: 'tool_use', tool_name: 'mcp__artex__insert_asset', tool_id: 'tu3', input: { type: 'host', value: '93.184.216.34', label: 'example.com' } })
   push({ kind: 'tool_result', tool_id: 'tu3', text: '{"id": 41, "created": true}' })
   push({ kind: 'tool_use', tool_name: 'Read', tool_id: 'tu4', input: { file_path: '/home/owen/pentest/notes/scope.md' } })
   push({ kind: 'tool_result', tool_id: 'tu4', text: '# Scope\n\n- example.com\n- *.example.com\n\nOut of scope: payments.example.com' })

@@ -7,7 +7,7 @@ import (
 
 func cmdCompletion(args []string) {
 	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "usage: cc-artex completion <bash|zsh|fish>")
+		fmt.Fprintln(os.Stderr, "usage: artex completion <bash|zsh|fish>")
 		os.Exit(1)
 	}
 	switch args[0] {
@@ -23,7 +23,7 @@ func cmdCompletion(args []string) {
 	}
 }
 
-const bashCompletion = `_cc_artex() {
+const bashCompletion = `_artex() {
     local cur prev commands
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
@@ -51,12 +51,12 @@ const bashCompletion = `_cc_artex() {
     esac
     return 0
 }
-complete -F _cc_artex cc-artex
+complete -F _artex artex
 `
 
-const zshCompletion = `#compdef cc-artex
+const zshCompletion = `#compdef artex
 
-_cc_artex() {
+_artex() {
     local -a commands
     commands=(
         'serve:Start the MCP tool server'
@@ -73,7 +73,7 @@ _cc_artex() {
 
     case $state in
         command)
-            _describe -t commands 'cc-artex command' commands
+            _describe -t commands 'artex command' commands
             ;;
         args)
             case $words[1] in
@@ -110,35 +110,35 @@ _cc_artex() {
     esac
 }
 
-_cc_artex "$@"
+_artex "$@"
 `
 
-const fishCompletion = `complete -c cc-artex -e
-complete -c cc-artex -n '__fish_use_subcommand' -a serve -d 'Start the MCP tool server'
-complete -c cc-artex -n '__fish_use_subcommand' -a init -d 'Initialize a new engagement'
-complete -c cc-artex -n '__fish_use_subcommand' -a health -d 'Check PostgreSQL connectivity'
-complete -c cc-artex -n '__fish_use_subcommand' -a version -d 'Print version'
-complete -c cc-artex -n '__fish_use_subcommand' -a completion -d 'Generate shell completion script'
-complete -c cc-artex -n '__fish_use_subcommand' -a help -d 'Show usage information'
+const fishCompletion = `complete -c artex -e
+complete -c artex -n '__fish_use_subcommand' -a serve -d 'Start the MCP tool server'
+complete -c artex -n '__fish_use_subcommand' -a init -d 'Initialize a new engagement'
+complete -c artex -n '__fish_use_subcommand' -a health -d 'Check PostgreSQL connectivity'
+complete -c artex -n '__fish_use_subcommand' -a version -d 'Print version'
+complete -c artex -n '__fish_use_subcommand' -a completion -d 'Generate shell completion script'
+complete -c artex -n '__fish_use_subcommand' -a help -d 'Show usage information'
 
-complete -c cc-artex -n '__fish_seen_subcommand_from serve' -l stdio -d 'Use stdio transport instead of HTTP'
-complete -c cc-artex -n '__fish_seen_subcommand_from serve' -l pg -d 'PostgreSQL connection string' -r
-complete -c cc-artex -n '__fish_seen_subcommand_from serve' -l proxy -d 'Start recording proxy on ADDR' -r
-complete -c cc-artex -n '__fish_seen_subcommand_from serve' -l data -d 'Data directory' -r -F
-complete -c cc-artex -n '__fish_seen_subcommand_from serve' -l listen -d 'HTTP listen address' -r
-complete -c cc-artex -n '__fish_seen_subcommand_from serve' -l web -d 'Enable web UI and REST API'
-complete -c cc-artex -n '__fish_seen_subcommand_from serve' -l debug -d 'Enable debug-level logging'
-complete -c cc-artex -n '__fish_seen_subcommand_from serve' -l version -d 'Print version and exit'
+complete -c artex -n '__fish_seen_subcommand_from serve' -l stdio -d 'Use stdio transport instead of HTTP'
+complete -c artex -n '__fish_seen_subcommand_from serve' -l pg -d 'PostgreSQL connection string' -r
+complete -c artex -n '__fish_seen_subcommand_from serve' -l proxy -d 'Start recording proxy on ADDR' -r
+complete -c artex -n '__fish_seen_subcommand_from serve' -l data -d 'Data directory' -r -F
+complete -c artex -n '__fish_seen_subcommand_from serve' -l listen -d 'HTTP listen address' -r
+complete -c artex -n '__fish_seen_subcommand_from serve' -l web -d 'Enable web UI and REST API'
+complete -c artex -n '__fish_seen_subcommand_from serve' -l debug -d 'Enable debug-level logging'
+complete -c artex -n '__fish_seen_subcommand_from serve' -l version -d 'Print version and exit'
 
-complete -c cc-artex -n '__fish_seen_subcommand_from init' -l goal -d 'Engagement goal' -r
-complete -c cc-artex -n '__fish_seen_subcommand_from init' -l description -d 'Target description' -r
-complete -c cc-artex -n '__fish_seen_subcommand_from init' -l pg -d 'PostgreSQL connection string' -r
-complete -c cc-artex -n '__fish_seen_subcommand_from init' -l data -d 'Data directory' -r -F
-complete -c cc-artex -n '__fish_seen_subcommand_from init' -l version -d 'Print version and exit'
+complete -c artex -n '__fish_seen_subcommand_from init' -l goal -d 'Engagement goal' -r
+complete -c artex -n '__fish_seen_subcommand_from init' -l description -d 'Target description' -r
+complete -c artex -n '__fish_seen_subcommand_from init' -l pg -d 'PostgreSQL connection string' -r
+complete -c artex -n '__fish_seen_subcommand_from init' -l data -d 'Data directory' -r -F
+complete -c artex -n '__fish_seen_subcommand_from init' -l version -d 'Print version and exit'
 
-complete -c cc-artex -n '__fish_seen_subcommand_from health' -l pg -d 'PostgreSQL connection string' -r
-complete -c cc-artex -n '__fish_seen_subcommand_from health' -l format -d 'Output format (text or json)' -r -a 'text json'
-complete -c cc-artex -n '__fish_seen_subcommand_from health' -l timeout -d 'Health check timeout' -r
+complete -c artex -n '__fish_seen_subcommand_from health' -l pg -d 'PostgreSQL connection string' -r
+complete -c artex -n '__fish_seen_subcommand_from health' -l format -d 'Output format (text or json)' -r -a 'text json'
+complete -c artex -n '__fish_seen_subcommand_from health' -l timeout -d 'Health check timeout' -r
 
-complete -c cc-artex -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
+complete -c artex -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
 `

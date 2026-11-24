@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 test.describe('smoke tests', () => {
   test('dashboard loads', async ({ page }) => {
     await page.goto('/')
-    await expect(page).toHaveTitle(/cc-artex/)
+    await expect(page).toHaveTitle(/ARTEX/)
     await expect(page.locator('h1')).toContainText('Dashboard')
   })
 

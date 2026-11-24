@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to cc-artex are documented in this file.
+All notable changes to ARTEX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
@@ -8,8 +8,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.0] - 2026-11-22
 
 ### Added
-- `cc-artex health --format json` for structured health check output (#105)
-- `cc-artex health --timeout` for configurable health check timeout (#108)
+- `artex health --format json` for structured health check output (#105)
+- `artex health --timeout` for configurable health check timeout (#108)
 - Shell completions for `--format` and `--timeout` health flags in bash/zsh/fish (#106)
 - Web UI: search page, coverage filter, traffic explorer with URL params
 - Web UI: finding detail, asset chart, interactive legend, activity indicator
@@ -39,10 +39,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.2.0] - 2026-11-21
 
 ### Added
-- `cc-artex health` subcommand for PostgreSQL connectivity checks
-- `cc-artex completion bash/zsh/fish` for shell completions
-- `cc-artex version --json` for structured version output
-- `cc-artex serve --timeout` for configurable graceful shutdown deadline
+- `artex health` subcommand for PostgreSQL connectivity checks
+- `artex completion bash/zsh/fish` for shell completions
+- `artex version --json` for structured version output
+- `artex serve --timeout` for configurable graceful shutdown deadline
 - Codecov coverage reporting in CI
 - `gofmt -s` check in CI pipeline
 - Tool reference documentation (docs/TOOLS.md)
@@ -52,7 +52,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - CODE_OF_CONDUCT.md
 
 ### Improved
-- Error message when CC_ARTEX_PG is not set now shows both options with examples
+- Error message when ARTEX_PG is not set now shows both options with examples
 - CONTRIBUTING.md with dev setup, testing, code style sections
 - Roadmap refreshed with current stats
 - Test coverage: report 96.1%, egress 98.9%
@@ -95,8 +95,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dockerfile for container deployments
 - GitHub Actions CI with PostgreSQL service container
 
-[Unreleased]: https://github.com/SREsAreHumanToo/cc-artex/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/SREsAreHumanToo/cc-artex/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/SREsAreHumanToo/cc-artex/compare/v0.1.1...v0.2.0
-[0.1.1]: https://github.com/SREsAreHumanToo/cc-artex/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/SREsAreHumanToo/cc-artex/releases/tag/v0.1.0
+[Unreleased]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/releases/tag/v0.1.0

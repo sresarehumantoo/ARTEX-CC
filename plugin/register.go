@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 // DiscoverAndRegister scans dir for plugins and registers their tools into

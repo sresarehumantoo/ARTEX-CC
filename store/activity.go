@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 func (s *Store) LogActivity(ctx context.Context, explorationID int64, entry tools.ActivityEntry) (int64, error) {

@@ -86,14 +86,14 @@ func TestWriteHealthText_NotConfigured(t *testing.T) {
 	r := healthResult{
 		Status: "fail",
 		Checks: map[string]hcEntry{
-			"pg": {Status: "fail", Error: "not configured (set --pg or CC_ARTEX_PG)"},
+			"pg": {Status: "fail", Error: "not configured (set --pg or ARTEX_PG)"},
 		},
 	}
 	var buf bytes.Buffer
 	writeHealthText(&buf, r)
 	out := buf.String()
 
-	want := "PostgreSQL: NOT CONFIGURED\n  Set --pg or CC_ARTEX_PG\n"
+	want := "PostgreSQL: NOT CONFIGURED\n  Set --pg or ARTEX_PG\n"
 	if out != want {
 		t.Errorf("text output:\ngot:  %q\nwant: %q", out, want)
 	}
@@ -117,7 +117,7 @@ func TestWriteHealthText_PGFailed(t *testing.T) {
 }
 
 func TestRunHealthChecks_NoDSN(t *testing.T) {
-	os.Unsetenv("CC_ARTEX_PG")
+	os.Unsetenv("ARTEX_PG")
 	r := runHealthChecks("", t.TempDir(), 5*time.Second)
 	if r.Status != "fail" {
 		t.Errorf("status = %q, want fail", r.Status)

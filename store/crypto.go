@@ -55,10 +55,10 @@ func aesGCMDecrypt(key []byte, cipherHex string) (string, error) {
 func ParseCredentialKey(hexKey string) ([]byte, error) {
 	key, err := hex.DecodeString(hexKey)
 	if err != nil {
-		return nil, fmt.Errorf("CC_ARTEX_CREDENTIAL_KEY: invalid hex: %w", err)
+		return nil, fmt.Errorf("ARTEX_CREDENTIAL_KEY: invalid hex: %w", err)
 	}
 	if len(key) != 32 {
-		return nil, fmt.Errorf("CC_ARTEX_CREDENTIAL_KEY: expected 32 bytes (64 hex chars), got %d bytes", len(key))
+		return nil, fmt.Errorf("ARTEX_CREDENTIAL_KEY: expected 32 bytes (64 hex chars), got %d bytes", len(key))
 	}
 	return key, nil
 }

@@ -15,7 +15,7 @@ import (
 
 const (
 	authFile       = "auth.json"
-	sessionCookie  = "cc-artex-session"
+	sessionCookie  = "artex-session"
 	sessionTTL     = 7 * 24 * time.Hour
 	minPasswordLen = 8
 )

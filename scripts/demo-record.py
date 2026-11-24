@@ -5,10 +5,10 @@
     agg --cols 100 --rows 28 --font-size 16 --theme dracula demo.cast docs/demo.gif
 
 The demo is scripted rather than hand-recorded so it can be re-shot verbatim
-when behavior changes. Since cc-artex is an MCP tool server driven by Claude
+when behavior changes. Since artex is an MCP tool server driven by Claude
 Code, we cannot run a real Claude Code session in a recording. Instead we
 simulate the tool-call cycle: a small helper prints JSON in the shape
-cc-artex actually returns, run against canned responses so the demo needs
+artex actually returns, run against canned responses so the demo needs
 no database or live target.
 
 **Why tmux and not a bare pty.** Same reason as wsmancer's demo-record.py:
@@ -19,18 +19,18 @@ time costs nothing.
 
 Conventions:
   * No real credentials or target IPs appear on camera. The target domain
-    and IP come from env vars ($CC_ARTEX_TARGET, $CC_ARTEX_DOMAIN) so the
+    and IP come from env vars ($ARTEX_TARGET, $ARTEX_DOMAIN) so the
     GIF shows generic commands.
-  * The PostgreSQL DSN is referenced as $CC_ARTEX_PG, never expanded.
+  * The PostgreSQL DSN is referenced as $ARTEX_PG, never expanded.
 """
 import json, os, shutil, stat, subprocess, sys, tempfile, textwrap, time
 
-SESSION = os.environ.get("CC_ARTEX_TMUX_SESSION", "cc-artex-demo")
-CAST = os.environ.get("CC_ARTEX_CAST", "demo.cast")
+SESSION = os.environ.get("ARTEX_TMUX_SESSION", "artex-demo")
+CAST = os.environ.get("ARTEX_CAST", "demo.cast")
 COLS, ROWS = 100, 28
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TARGET = os.environ.get("CC_ARTEX_TARGET", "10.129.x.x")
-DOMAIN = os.environ.get("CC_ARTEX_DOMAIN", "mgmt.htb")
+TARGET = os.environ.get("ARTEX_TARGET", "10.129.x.x")
+DOMAIN = os.environ.get("ARTEX_DOMAIN", "mgmt.htb")
 
 
 # ---------------------------------------------------------------------------
@@ -50,9 +50,9 @@ class Recorder:
                        capture_output=True)
         env = {
             "TERM": "xterm-256color",
-            "CC_ARTEX_TARGET": TARGET,
-            "CC_ARTEX_DOMAIN": DOMAIN,
-            "CC_ARTEX_PG": "postgres://localhost/ccartex",
+            "ARTEX_TARGET": TARGET,
+            "ARTEX_DOMAIN": DOMAIN,
+            "ARTEX_PG": "postgres://localhost/ccartex",
         }
         args = ["new-session", "-d", "-s", SESSION,
                 "-x", str(COLS), "-y", str(ROWS)]
@@ -150,7 +150,7 @@ RESPONSES = {
         Engagement created:
           Task ID:        1
           Exploration ID: 1
-          Config written: ./.cc-artex.json
+          Config written: ./.artex.json
 
         Add to your Claude Code MCP config (~/.claude.json or project .mcp.json):
 
@@ -158,9 +158,9 @@ RESPONSES = {
 
           {
             "mcpServers": {
-              "cc-artex": {
-                "command": "cc-artex",
-                "args": ["serve", "--stdio", "--pg", "$CC_ARTEX_PG"]
+              "artex": {
+                "command": "artex",
+                "args": ["serve", "--stdio", "--pg", "$ARTEX_PG"]
               }
             }
           }"""),
@@ -253,7 +253,7 @@ RESPONSES = {
 def write_mock_helper(tmpdir):
     """Write a Python mock helper and a JSON data file into tmpdir.
 
-    The helper handles both ``cc-artex init`` (via alias) and
+    The helper handles both ``artex init`` (via alias) and
     ``artex-call <tool>`` for simulated MCP tool invocations.
     """
     data_path = os.path.join(tmpdir, "responses.json")
@@ -286,12 +286,12 @@ def write_mock_helper(tmpdir):
 # Record
 # ---------------------------------------------------------------------------
 
-tmpdir = tempfile.mkdtemp(prefix="cc-artex-demo-")
+tmpdir = tempfile.mkdtemp(prefix="artex-demo-")
 helper = write_mock_helper(tmpdir)
 
 r = Recorder()
 
-aliases = (f"alias cc-artex='{helper} --init #'; "
+aliases = (f"alias artex='{helper} --init #'; "
            f"alias artex-call='{helper}'")
 r.setup(extra_cmds=aliases)
 r.beat(0.6)
@@ -300,8 +300,8 @@ r.beat(0.6)
 r.type("# create a new pentest engagement")
 r.key("Enter", 0.3)
 r.type(
-    'cc-artex init --goal "Pentest $CC_ARTEX_DOMAIN ($CC_ARTEX_TARGET)" '
-    '--description "External pentest" --pg "$CC_ARTEX_PG"'
+    'artex init --goal "Pentest $ARTEX_DOMAIN ($ARTEX_TARGET)" '
+    '--description "External pentest" --pg "$ARTEX_PG"'
 )
 r.key("Enter", 0.2)
 r.pump(4.0)

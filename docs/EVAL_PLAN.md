@@ -1,13 +1,13 @@
-# cc-artex Evaluation Plan
+# ARTEX Evaluation Plan
 
 ## 1. Overview
 
-cc-artex is an MCP tool server that turns Claude Code into a pentest agent. It
+ARTEX is an MCP tool server that turns Claude Code into a pentest agent. It
 exposes 27 tools across six domains (assets, exploration graph, findings,
 credentials, coverage, traffic) plus an `artex://engagement` resource that
 teaches Claude the orchestration workflow.
 
-Evaluating cc-artex means evaluating two things at once:
+Evaluating ARTEX means evaluating two things at once:
 
 1. **The tools themselves.** Do they accept valid input, reject invalid input,
    persist state correctly, and return JSON that an LLM can parse and act on?
@@ -55,7 +55,7 @@ store.
 
 **Existing test infrastructure:** `tools/tools_test.go` has a `mockStore` that
 implements the `Store` interface with no-op returns. `store/store_test.go` runs
-integration tests against a real Postgres instance (`CC_ARTEX_TEST_PG`). Both
+integration tests against a real Postgres instance (`ARTEX_TEST_PG`). Both
 patterns are reusable.
 
 ### 2.2 Tool-Level (Integration)
@@ -116,7 +116,7 @@ the session, inspect the exploration graph to score behavior.
 
 ### 2.4 End-to-End Evals
 
-Claude Code + cc-artex runs a pentest against a controlled vulnerable target.
+Claude Code + ARTEX runs a pentest against a controlled vulnerable target.
 We measure what it finds, what it misses, and how efficiently it works.
 
 **Targets (in order of complexity):**
@@ -153,7 +153,7 @@ Once end-to-end evals are stable, run the same targets with:
 
 | Configuration | What it measures |
 |---------------|-----------------|
-| cc-artex + Claude Code | The system under test |
+| ARTEX + Claude Code | The system under test |
 | ARTEX's built-in agent loop | Baseline: same data model, different brain |
 | Manual pentester (time-boxed) | Human baseline for the same target+time |
 
@@ -171,7 +171,7 @@ orchestration evals are green.
 
 ### 2.6 Safety Evals
 
-These verify that cc-artex and Claude Code respect engagement boundaries.
+These verify that ARTEX and Claude Code respect engagement boundaries.
 
 **Test cases:**
 
@@ -228,7 +228,7 @@ Deliverable: `eval/vuln-app/` with Dockerfile and ground-truth manifest.
 
 A script that:
 
-1. Starts cc-artex against a test database.
+1. Starts ARTEX against a test database.
 2. Seeds the database with a scenario.
 3. Runs Claude Code with a fixed prompt against the MCP server.
 4. Waits for completion (timeout or all goals proved).
@@ -245,7 +245,7 @@ Same as orchestration harness, but also starts the vulnerable target and
 configures the proxy. After Claude finishes, the scorer compares reported
 findings against the ground-truth manifest.
 
-Deliverable: `eval/e2e/` with docker-compose for target + cc-artex, the eval
+Deliverable: `eval/e2e/` with docker-compose for target + ARTEX, the eval
 runner, and the scorer.
 
 ### 3.6 Transcript Logger

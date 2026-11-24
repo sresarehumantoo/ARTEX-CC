@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/SREsAreHumanToo/cc-artex/traffic"
+	"github.com/SREsAreHumanToo/ARTEX-CC/traffic"
 )
 
 func RegisterTrafficTools(reg *Registry, t *traffic.Traffic, store Store, taskID int64) {

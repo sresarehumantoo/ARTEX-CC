@@ -1,6 +1,6 @@
 # Multi-Client Compatibility Research
 
-Evaluating whether cc-artex can support MCP clients beyond Claude Code,
+Evaluating whether ARTEX can support MCP clients beyond Claude Code,
 including open-source alternatives with local/self-hosted LLM backends.
 
 Research date: 2026-11-21.
@@ -19,7 +19,7 @@ any OpenAI-compatible endpoint via `LOCAL_ENDPOINT`).
 
 MCP servers are configured in `opencode.jsonc` under a `mcpServers` key, with
 `stdio` or `sse` transport types. This is the same pattern Claude Code uses,
-so cc-artex's existing stdio and HTTP transports would work without changes.
+so ARTEX's existing stdio and HTTP transports would work without changes.
 
 ### Current status: archived, succeeded by Crush
 
@@ -32,11 +32,11 @@ Crush's license is FSL-1.1-MIT (source-available; restricts competing
 commercial use until each release converts to MIT after two years). This is
 _not_ OSI-approved open source, which matters for some users.
 
-### Could a user run cc-artex with OpenCode/Crush?
+### Could a user run ARTEX with OpenCode/Crush?
 
 Yes. Both support MCP stdio and SSE/HTTP transports. A user would add
-cc-artex's command to their config file and the tools would appear. No changes
-to cc-artex required for basic tool calling.
+ARTEX's command to their config file and the tools would appear. No changes
+to ARTEX required for basic tool calling.
 
 The `artex://engagement` resource is the open question: OpenCode's docs don't
 confirm whether it reads MCP resources or only calls tools. If a client ignores
@@ -68,13 +68,13 @@ on small local models.
 
 ### Key findings
 
-1. **Tools are universal.** Every MCP client listed supports tool calling. cc-artex's 30+ tools will appear in any of them.
+1. **Tools are universal.** Every MCP client listed supports tool calling. ARTEX's 30+ tools will appear in any of them.
 
 2. **Resources are inconsistent.** Claude Code reads resources automatically. Zed explicitly does not support resources. Others are unclear. This means the `artex://engagement` orchestration guide (the orient/plan/execute/loop instructions) cannot be reliably delivered through MCP resources alone.
 
 3. **Cline is the strongest open-source option** for local model + MCP tool use. It's Apache-2.0, runs in VS Code or standalone, supports Ollama natively, and has MCP tool support. If we target one alternative client first, Cline is it.
 
-4. **MCP went stateless in July 2026.** Protocol revision 2026-07-28 removed session tracking at the protocol layer. cc-artex already manages sessions internally (task_id/exploration_id), so this shouldn't matter.
+4. **MCP went stateless in July 2026.** Protocol revision 2026-07-28 removed session tracking at the protocol layer. ARTEX already manages sessions internally (task_id/exploration_id), so this shouldn't matter.
 
 
 ## 3. Local model assessment
@@ -129,11 +129,11 @@ Academic research corroborates this:
 **A 70B local model cannot match Claude's tool-use capability for pentesting
 today.** The gap is real and not just about raw intelligence:
 
-1. **Multi-step planning.** cc-artex's workflow (orient/plan/execute/loop with
+1. **Multi-step planning.** ARTEX's workflow (orient/plan/execute/loop with
    subagent dispatch) requires sustained coherent reasoning across dozens of
    tool calls. Local models degrade noticeably after 5-10 steps.
 
-2. **Tool description comprehension.** cc-artex has 30+ tools with detailed
+2. **Tool description comprehension.** ARTEX has 30+ tools with detailed
    schemas. Smaller models struggle with the working memory needed to select
    the right tool with the right parameters when the catalog is this large.
 
@@ -142,24 +142,24 @@ today.** The gap is real and not just about raw intelligence:
    model's effective context fills fast.
 
 4. **Structured output reliability.** Tool calling requires well-formed JSON
-   arguments. At 27-32B, this works ~90% of the time. At the cc-artex scale
+   arguments. At 27-32B, this works ~90% of the time. At the ARTEX scale
    (complex nested schemas like `insert_assets`), the error rate would be
    higher.
 
-**However:** a local model could plausibly handle a subset of cc-artex's
+**However:** a local model could plausibly handle a subset of ARTEX's
 workflow: single-intent execution (run one tool, record one fact), read-only
 queries (graph_overview, list_assets, list_findings), and report generation.
 The coordinator/planner role is the part that needs frontier-class reasoning.
 
 
-## 4. cc-artex changes needed
+## 4. ARTEX changes needed
 
 ### What is client-specific today
 
 After reading the codebase (`mcpserver/server.go`, `mcpserver/handler.go`,
 `tools/exploration_tools.go`, and all tool registration files):
 
-1. **The MCP protocol layer is already generic.** cc-artex uses `mcp-go`
+1. **The MCP protocol layer is already generic.** ARTEX uses `mcp-go`
    (`github.com/mark3labs/mcp-go`), the standard Go MCP library. Tools are
    registered via `mcp.NewToolWithRawSchema()` with standard JSON Schema.
    The handler converts to/from `mcp.CallToolRequest`/`mcp.CallToolResult`.
@@ -194,7 +194,7 @@ After reading the codebase (`mcpserver/server.go`, `mcpserver/handler.go`,
   condensed version of the workflow in `graph_overview`'s description. This is
   the tool users call first anyway. The description already says "Call this
   FIRST at the start of every planning cycle"; extend it with the
-  orient/plan/execute/loop pattern. This one change makes cc-artex work with
+  orient/plan/execute/loop pattern. This one change makes ARTEX work with
   any MCP client, resource support or not.
 
 - **Add a `--guide` flag or `get_guide` tool.** For clients that support
@@ -236,7 +236,7 @@ After reading the codebase (`mcpserver/server.go`, `mcpserver/handler.go`,
 
 | Tool | Approach | Backend | MCP | Open source | Maturity |
 |---|---|---|---|---|---|
-| **cc-artex** | MCP tool server; external LLM drives | Any MCP client | Yes (is a server) | Yes | Active, 30+ tools |
+| **ARTEX** | MCP tool server; external LLM drives | Any MCP client | Yes (is a server) | Yes | Active, 30+ tools |
 | **HexStrike AI** | MCP tool server; external LLM drives | Any MCP client | Yes (is a server) | Yes (Apache-2.0) | Active, 127-150 tools |
 | **PentestGPT** | Copilot; advises, human executes | GPT-4 (original) | No | Yes | Pioneer (~12.5K stars), slowing |
 | **AutoPentest** (JuliusHenke) | Autonomous agent | GPT-4o via LangChain | No | Yes | Research prototype |
@@ -247,13 +247,13 @@ After reading the codebase (`mcpserver/server.go`, `mcpserver/handler.go`,
 | **PentestMCP** | MCP server library | Tested with o3, Gemini | Yes | Yes | Wraps nmap/nuclei/metasploit |
 | **Raptor** | Claude Code native | Claude | No | Unclear | AFL + CodeQL integration |
 
-### cc-artex's positioning
+### ARTEX's positioning
 
-**cc-artex's unique advantage is the exploration graph.** Most competitors are
+**ARTEX's unique advantage is the exploration graph.** Most competitors are
 either tool collections (HexStrike, PentestMCP) or autonomous agents with
 their own LLM loop (PentAGI, Strix, CAI).
 
-cc-artex is neither. It is a **stateful task-tracking layer** that any LLM can
+ARTEX is neither. It is a **stateful task-tracking layer** that any LLM can
 drive. The exploration graph (intents, facts, findings, goals, coverage)
 solves the core problem of autonomous pentesting: maintaining coherent state
 across long engagements where context windows fill up. No other MCP-based
@@ -262,7 +262,7 @@ pentest tool has this.
 Specific advantages:
 - **State persistence.** The graph survives context exhaustion, session
   restarts, and model swaps. HexStrike has no equivalent.
-- **Coverage tracking.** cc-artex knows what has been tested and what hasn't.
+- **Coverage tracking.** ARTEX knows what has been tested and what hasn't.
   Pure tool servers don't track this.
 - **Multi-agent coordination.** The intent system supports parallel subagent
   dispatch with results flowing back through the graph. This is designed into
@@ -270,7 +270,7 @@ Specific advantages:
 - **Evidence chain.** Findings link to traffic snapshots, facts link to
   intents, goals link to evidence. This produces auditable results.
 
-If cc-artex supports multiple clients, its positioning becomes: "the pentest
+If ARTEX supports multiple clients, its positioning becomes: "the pentest
 task-tracking layer for any AI agent", which is a broader market than "Claude
 Code pentest tools."
 
@@ -281,7 +281,7 @@ wraps offensive tools. But it's a **tool collection**, not a task manager. It
 has ~150 tools (nmap, burp, metasploit wrappers) but no exploration graph, no
 intent tracking, no coverage ledger, no finding-to-traffic evidence binding.
 
-A combined deployment (HexStrike for raw tool execution, cc-artex for
+A combined deployment (HexStrike for raw tool execution, ARTEX for
 orchestration and state) would actually make sense.
 
 
@@ -293,7 +293,7 @@ orchestration and state) would actually make sense.
 
 The case for multi-client support:
 
-1. **Low technical cost.** cc-artex's MCP implementation is already
+1. **Low technical cost.** ARTEX's MCP implementation is already
    model-agnostic. The orchestration guide delivery is the only real gap,
    and it's a small fix (move guide text into tool descriptions or add a
    `get_guide` tool).
@@ -305,9 +305,9 @@ The case for multi-client support:
 3. **Resilience.** Single-vendor lock-in is a risk. If Anthropic changes
    pricing, rate limits, or the Claude Code model, users have no fallback.
 
-4. **HexStrike is already there.** It supports any MCP client. If cc-artex
+4. **HexStrike is already there.** It supports any MCP client. If ARTEX
    doesn't, users who want multi-client support will use HexStrike instead,
-   even though cc-artex's exploration graph is a better foundation.
+   even though ARTEX's exploration graph is a better foundation.
 
 The case against local models as a priority:
 
@@ -345,7 +345,7 @@ The case against local models as a priority:
 
 ### Bottom line
 
-cc-artex is 95% client-agnostic already. The 5% gap is the orchestration guide
+ARTEX is 95% client-agnostic already. The 5% gap is the orchestration guide
 delivery mechanism. Fix that, update the README, and the tool works with any
 MCP client today. Local model support is a "nice to have" that isn't worth
 significant investment until 70B+ models can reliably chain 10+ tool calls

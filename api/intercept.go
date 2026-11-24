@@ -69,8 +69,8 @@ func seedRules() []InterceptRule {
 	now := time.Now().UTC()
 	seeds := []InterceptRule{
 		{Pattern: "Bash", Scope: "tool_name", Action: "ask", Description: "Require approval for shell commands"},
-		{Pattern: "mcp__cc-artex__dismiss_finding", Scope: "tool_name", Action: "deny", Description: "Block auto-dismissing findings"},
-		{Pattern: "mcp__cc-artex__*", Scope: "tool_name", Action: "allow", Description: "Allow all cc-artex tools by default"},
+		{Pattern: "mcp__artex__dismiss_finding", Scope: "tool_name", Action: "deny", Description: "Block auto-dismissing findings"},
+		{Pattern: "mcp__artex__*", Scope: "tool_name", Action: "allow", Description: "Allow all ARTEX tools by default"},
 	}
 	for i := range seeds {
 		seeds[i].ID = newInterceptID("r")

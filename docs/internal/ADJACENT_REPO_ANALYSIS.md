@@ -1,7 +1,7 @@
 # Adjacent Repo Analysis
 
 Cross-repo survey looking for patterns, techniques, and ideas worth bringing
-into cc-artex. Examined November 2026.
+into ARTEX. Examined November 2026.
 
 ## 1. wsmancer (`~/projects/wsmancer`)
 
@@ -25,7 +25,7 @@ packet fields.
 mode runs multiple commands over a single authenticated connection, with the
 runspace persisting. Session-level events (shell recovered, state lost) are
 emitted in-band as typed objects so an automation consumer knows when to
-re-establish state. cc-artex's traffic replay and multi-step exploration chains
+re-establish state. ARTEX's traffic replay and multi-step exploration chains
 face the same problem: a long-running operation whose intermediate state can
 break.
 
@@ -33,26 +33,26 @@ break.
 connection-loss classifier distinguishes transport errors from command errors
 using real observed error strings, not invented patterns. Tests assert both
 true positives (verbatim strings from live sessions) and false negatives. This
-is worth adopting anywhere cc-artex classifies errors to decide retry vs. fail,
+is worth adopting anywhere ARTEX classifies errors to decide retry vs. fail,
 especially in proxy and enrichment probes where network errors and application
 errors need different handling.
 
 **Safe file-path handling in transfers (`internal/transfer/`).** Remote
 filenames are attacker-controlled. `safeLocalPath` strips directory components,
 rejects traversal, and belt-and-braces confirms the joined path is inside the
-destination. cc-artex ingests target-supplied filenames (HAR imports, file
+destination. ARTEX ingests target-supplied filenames (HAR imports, file
 downloads during exploration) and should apply the same discipline.
 
 **Session Renew pattern (`internal/session/session.go`).** The Session.Renew
 method swaps in a freshly built client under a lock while keeping the old one
 alive until the swap succeeds, so a failure leaves the caller no worse off.
-cc-artex's proxy sessions and enrichment clients could use the same atomic
+ARTEX's proxy sessions and enrichment clients could use the same atomic
 swap-on-reconnect.
 
 **SOCKS5 dialer as a first-class option (`internal/proxydial/`).** The proxy
 dialer is passed into every auth provider as a constructor argument; a nil
 dialer dials directly. This is cleaner than environment-variable proxying and
-already the pattern cc-artex uses for its own SOCKS5 proxy, but the nil-is-valid
+already the pattern ARTEX uses for its own SOCKS5 proxy, but the nil-is-valid
 design (every call site holds one unconditionally) is worth adopting more
 broadly.
 
@@ -60,18 +60,18 @@ broadly.
 
 1. **Correlation IDs in batch tool calls.** wsmancer's batch protocol lets a
    caller send `{"id": ..., "command": "..."}` and get the id echoed on the
-   response. cc-artex tools that run multi-step operations (exploration chains,
+   response. ARTEX tools that run multi-step operations (exploration chains,
    enrichment pipelines) could benefit from request/response correlation so the
    agent can match results to the step that produced them.
 
 2. **State-loss signaling.** When wsmancer's shell is recovered after a target
    restart, it emits `state_lost: true` so the consumer knows to reload scripts
-   and re-apply patches. For cc-artex, any long-lived stateful operation (a
+   and re-apply patches. For ARTEX, any long-lived stateful operation (a
    proxy session, an active SOCKS tunnel, a recording session) should signal
    state loss to the agent rather than silently reconnecting with a clean slate.
 
 3. **SHA-256 transfer verification.** Every file transfer is verified with a
-   hash comparison. cc-artex's HAR export, report generation, and any
+   hash comparison. ARTEX's HAR export, report generation, and any
    file-producing tool should do the same, especially since the data may cross
    a proxy.
 
@@ -80,7 +80,7 @@ broadly.
 The Windows-specific details (WinRM sealing, PSRP protocol, NTLM/Kerberos
 crypto, AppLocker paths, AMSI bypass) are deep protocol work specific to Windows
 remote management. The line editor (reeflective/readline integration, ghost-text
-autosuggestions) is a TUI concern cc-artex doesn't have.
+autosuggestions) is a TUI concern ARTEX doesn't have.
 
 
 ## 2. bypass-clm (`~/projects/bypass-clm`)
@@ -101,9 +101,9 @@ system (`build.sh`, Docker, multi-variant modes) is clean but not novel.
 **Build-variant matrix for target-environment constraints.** bypass-clm builds
 four variants (standard, slim, lite, dll) from the same source via preprocessor
 directives, trading size against capability for different target constraints.
-cc-artex's tooling doesn't produce deployable payloads, but the concept of
+ARTEX's tooling doesn't produce deployable payloads, but the concept of
 variant generation based on target constraints (what's available, what's
-restricted) has a loose analogy to cc-artex's enrichment probes. When probing a
+restricted) has a loose analogy to ARTEX's enrichment probes. When probing a
 target, the enrichment pipeline could select probe strategies based on what the
 target exposes, similar to how bypass-clm selects a variant based on what the
 target has installed. This is a stretch, though: the enrichment pipeline already
@@ -112,7 +112,7 @@ selects probes dynamically, and the analogy is thin.
 ### Not applicable
 
 The core technique (memory patching of CLM/AMSI/ETW via VirtualProtect and
-Marshal.Copy) is Windows internals work that has no bearing on cc-artex. The
+Marshal.Copy) is Windows internals work that has no bearing on ARTEX. The
 XOR-encoded string obfuscation pattern is specific to AV evasion. The on-target
 compilation workflow (csc.exe, no SDK) is irrelevant to a server-side tool.
 
@@ -129,7 +129,7 @@ tool, not a pile of shell scripts.
 **Module system with single source of truth (`core/module.go`, `core/link.go`).**
 Every module exposes a `Links()` method that is the single source of truth for
 Install, Uninstall, Status, and diff. This eliminated a class of bugs where
-the four methods independently spelled out paths and drifted. cc-artex's MCP
+the four methods independently spelled out paths and drifted. ARTEX's MCP
 tools have a similar structure: each tool has a schema, a handler, and
 validation logic that could drift. A single-source-of-truth pattern for tool
 definitions (schema, handler, and test expectations all derived from one
@@ -138,35 +138,35 @@ declaration) would prevent the same kind of inconsistency.
 **Install session with process lock and failure tracking
 (`core/install_session.go`).** The install session takes a process-wide lock,
 tracks whether the operation failed (to avoid persisting bad state), and refuses
-to mutate anything under dry-run. cc-artex doesn't have dry-run, but the
+to mutate anything under dry-run. ARTEX doesn't have dry-run, but the
 session-lock and failure-tracking patterns are relevant to any operation that
 mutates the database (inserting findings, updating coverage, recording traffic).
 
 **Idempotent operations with change tracking (`core/output.go`).** The output
 system distinguishes `Changed` (something the install did to the machine) from
 `Ok` (found it already right). The install report then shows only what actually
-changed. cc-artex's exploration tools could benefit from this: when re-running
+changed. ARTEX's exploration tools could benefit from this: when re-running
 enrichment or re-scanning an asset, distinguishing "new finding" from
 "confirmed existing" is useful signal for the agent.
 
 **Drift detection (`core/drift.go`, `core/canonical.go`).** dfinstall detects
 when managed symlinks point at different clones, or when managed files have been
 edited outside the tool. This is a form of configuration drift detection.
-cc-artex's coverage ledger tracks what has been tested, but it doesn't track
+ARTEX's coverage ledger tracks what has been tested, but it doesn't track
 whether the target's state has changed since the last test. Drift detection for
 the exploration graph (has the target changed since we last probed it?) would
 help the agent decide whether to re-probe.
 
 **Subprocess execution with tiered deadlines (`core/exec.go`).** Three wrappers
 (`runProbe`, `runNetProbe`, `runCmd`) apply different timeouts for different
-classes of work (quick queries, network reads, long installs). cc-artex's
+classes of work (quick queries, network reads, long installs). ARTEX's
 enrichment probes (DNS, HTTP, TLS, tech fingerprint) would benefit from the same
 tiered-deadline approach: a DNS lookup should time out much faster than a full
 HTTP probe.
 
 ### Ideas worth considering
 
-1. **Tiered probe timeouts.** cc-artex enrichment probes currently share timeout
+1. **Tiered probe timeouts.** ARTEX enrichment probes currently share timeout
    configuration. Adopting dfinstall's tiered model (fast probes like DNS get
    short timeouts, slow probes like full HTTP crawls get longer ones) would make
    enrichment more responsive and prevent a hung probe from blocking the pipeline.
@@ -183,10 +183,10 @@ package-manager abstraction, and cross-platform concerns are all infrastructure
 management patterns that don't apply to a pentest tool. The toolkit registry
 (external JSON catalog of installable tools) is interesting engineering but
 solves a different problem. The UI patterns (spinner, colored output, interactive
-menus) are CLI concerns cc-artex doesn't have as an MCP server.
+menus) are CLI concerns ARTEX doesn't have as an MCP server.
 
 
-## Summary: top ideas ranked by value to cc-artex
+## Summary: top ideas ranked by value to ARTEX
 
 ### 1. State-loss signaling for long-lived operations
 **What:** When a stateful session (proxy, SOCKS tunnel, recording) reconnects

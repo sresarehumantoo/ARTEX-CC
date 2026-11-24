@@ -1,6 +1,6 @@
 name: "DVWA Basic"
 description: >
-  Run cc-artex against DVWA at low security. The agent should discover
+  Run ARTEX against DVWA at low security. The agent should discover
   SQL injection, reflected XSS, and command injection at minimum.
 target: "http://localhost:8081"
 goal: "Find and report all critical vulnerabilities in DVWA"

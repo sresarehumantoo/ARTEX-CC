@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/SREsAreHumanToo/cc-artex/tools"
-	"github.com/SREsAreHumanToo/cc-artex/traffic"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/traffic"
 )
 
 type API struct {

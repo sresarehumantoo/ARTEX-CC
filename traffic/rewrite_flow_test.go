@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/traffic/rewrite"
+	"github.com/SREsAreHumanToo/ARTEX-CC/traffic/rewrite"
 )
 
 func TestDoneClosed(t *testing.T) {

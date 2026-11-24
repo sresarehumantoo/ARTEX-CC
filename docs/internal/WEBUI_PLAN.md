@@ -1,4 +1,4 @@
-# cc-artex Web UI Plan
+# ARTEX Web UI Plan
 
 ## 1. ARTEX UI survey
 
@@ -92,8 +92,8 @@ MCP (MCP server configs), Skill (skill packs), Tools (tool registry), Notificati
 
 ## 2. Compliance analysis
 
-cc-artex's compliance model: Claude Code is Anthropic's official client making inference
-calls against the user's subscription. cc-artex is a tool server. The web UI is a data
+ARTEX's compliance model: Claude Code is Anthropic's official client making inference
+calls against the user's subscription. ARTEX is a tool server. The web UI is a data
 viewer/editor for the same PostgreSQL and SQLite stores that the MCP tools read and
 write. It never touches Claude's inference.
 
@@ -119,24 +119,24 @@ write. It never touches Claude's inference.
 
 | ARTEX screen | What changes |
 |---|---|
-| **Sessions/Broadcast** | ARTEX shows live agent sessions (planner, workers) with token counts and conversation transcripts. cc-artex has no agent loop; Claude Code IS the agent. The activity log and graph updates serve as the equivalent "live feed." Replace with an Activity Feed that shows tool calls, findings, graph mutations as they happen. |
-| **Asset coverage graph** | ARTEX uses `@antv/g6` for the bubble chart. cc-artex can replicate this from the same underlying data (assets + coverage ledger), but the data is simpler (single-task, no multi-task overlay). |
-| **Approval Records** | ARTEX's intercept review has an "ask the operator" flow with pending/allowed/denied. cc-artex has `intercept_pending` in the schema. The web UI could show pending intercepts and allow approve/deny, but the MCP protocol doesn't have a notification channel back to Claude Code, so the tool call just times out or uses the timeout_action. Still useful as audit trail and for pre-approving via rule changes. |
+| **Sessions/Broadcast** | ARTEX shows live agent sessions (planner, workers) with token counts and conversation transcripts. ARTEX has no agent loop; Claude Code IS the agent. The activity log and graph updates serve as the equivalent "live feed." Replace with an Activity Feed that shows tool calls, findings, graph mutations as they happen. |
+| **Asset coverage graph** | ARTEX uses `@antv/g6` for the bubble chart. ARTEX can replicate this from the same underlying data (assets + coverage ledger), but the data is simpler (single-task, no multi-task overlay). |
+| **Approval Records** | ARTEX's intercept review has an "ask the operator" flow with pending/allowed/denied. ARTEX has `intercept_pending` in the schema. The web UI could show pending intercepts and allow approve/deny, but the MCP protocol doesn't have a notification channel back to Claude Code, so the tool call just times out or uses the timeout_action. Still useful as audit trail and for pre-approving via rule changes. |
 
 ### Cannot port (requires LLM API access)
 
 | ARTEX screen | Why |
 |---|---|
-| **Chat** | The chat interface sends messages to the LLM via the agent loop. cc-artex cannot relay inference. Claude Code's terminal IS the chat. |
-| **LLM configuration** | Model profiles, provider pool, retry/backoff. Claude Code manages its own model; cc-artex has no LLM pool. |
+| **Chat** | The chat interface sends messages to the LLM via the agent loop. ARTEX cannot relay inference. Claude Code's terminal IS the chat. |
+| **LLM configuration** | Model profiles, provider pool, retry/backoff. Claude Code manages its own model; ARTEX has no LLM pool. |
 | **Agent configuration** | Planner/worker agent definitions with prompt editing. Claude Code is the agent; there are no configurable agent roles. |
 | **Side questions** | One-shot LLM Q&A. Would require an API call. |
-| **MCP server config** | ARTEX configures outbound MCP connections. cc-artex IS an MCP server; it doesn't consume others. |
+| **MCP server config** | ARTEX configures outbound MCP connections. ARTEX IS an MCP server; it doesn't consume others. |
 | **Skill management** | ARTEX's skill packs are agent-side features. Claude Code has its own skill system. |
-| **Tool registry editor** | ARTEX lets you enable/disable tools for agents. cc-artex's tools are fixed at compile time. |
+| **Tool registry editor** | ARTEX lets you enable/disable tools for agents. ARTEX's tools are fixed at compile time. |
 | **Notifications** | ARTEX pushes to Telegram/email/webhook. Could theoretically be ported (it's not LLM-dependent) but is low value for a single-user CLI tool. |
-| **LLM Recording** | Records and replays LLM inference calls for debugging. cc-artex doesn't see inference. |
-| **Sessions** (live conversation view) | Shows token-level agent conversations. cc-artex doesn't see Claude Code's conversation. |
+| **LLM Recording** | Records and replays LLM inference calls for debugging. ARTEX doesn't see inference. |
+| **Sessions** (live conversation view) | Shows token-level agent conversations. ARTEX doesn't see Claude Code's conversation. |
 
 ### Not applicable
 
@@ -147,7 +147,7 @@ write. It never touches Claude's inference.
 | **Tool Execution** (command viewer) | Shows bash command history from the agent. Claude Code's command execution is its own concern. Could show the activity log entries for tool calls instead. |
 
 
-## 3. cc-artex web UI design
+## 3. ARTEX web UI design
 
 ### 3.1 Dashboard
 
@@ -212,14 +212,14 @@ task, timestamp. Sortable by severity, time. Filterable by severity buttons
 finding's node.
 
 **Export**: CSV export. Markdown report generation (the report tool already exists in
-cc-artex).
+ARTEX).
 
 ### 3.4 Assets
 
 **Type tabs**: Companies, Root domains, IP, Subdomains, Apps, Services, Endpoints, each
 with count badge. Same as ARTEX.
 
-**DSL search**: The asset DSL search engine already exists in cc-artex
+**DSL search**: The asset DSL search engine already exists in ARTEX
 (`store/asset_dsl.go`). Wire it to a search bar.
 
 **Table**: Type-specific columns (matching ARTEX). Company attribution column. Task
@@ -243,7 +243,7 @@ headers, body viewer with auto-detection (JSON pretty-print, HTML, raw). Copy bu
 count.
 
 **HAR export**: Button to export current filter results as HAR 1.2 (the HAR export
-already exists in cc-artex's traffic package).
+already exists in ARTEX's traffic package).
 
 **Link to finding**: Select flows, link them to a finding via `finding_traffic_bindings`.
 
@@ -265,7 +265,7 @@ outcome. Hover for details. Empty cells = not yet tested (the gaps).
 **Add credential**: Manual entry form.
 
 **Security**: Passwords decrypted server-side, transmitted over localhost only. The UI
-should show a warning if `CC_ARTEX_CREDENTIAL_KEY` is not set.
+should show a warning if `ARTEX_CREDENTIAL_KEY` is not set.
 
 ### 3.8 Scope and constraints
 
@@ -308,7 +308,7 @@ server-side renderer).
 ### 3.12 Settings
 
 **Engagement info**: Task ID, exploration ID, goal, description (read-only display of
-`.cc-artex.json`).
+`.artex.json`).
 
 **Proxy config**: Current proxy address, CA cert path (informational).
 
@@ -328,11 +328,11 @@ server-side renderer).
 - Biome for linting
 - Separate Node.js dev server, proxied to Go backend
 
-### 4.2 Recommendation for cc-artex
+### 4.2 Recommendation for ARTEX
 
 **Embed the web UI in the Go binary using `embed.FS`.** Reasons:
 
-1. cc-artex is distributed as a single binary. Users run `cc-artex serve` and everything
+1. ARTEX is distributed as a single binary. Users run `artex serve` and everything
    works. Adding a separate `npm install && npm run dev` step would be hostile to the
    target audience (pentesters who want to `go install` and go).
 
@@ -343,7 +343,7 @@ server-side renderer).
    the `--listen` address). Adding a file server handler for the embedded SPA is trivial.
 
 4. ARTEX's Next.js stack is excellent for ARTEX (which is a full-time web application
-   with auth, i18n, theme presets, etc.), but overkill for cc-artex's read-mostly
+   with auth, i18n, theme presets, etc.), but overkill for ARTEX's read-mostly
    dashboard.
 
 **Frontend framework**: React with Vite (not Next.js).
@@ -415,7 +415,7 @@ web/
   vite.config.ts
   tsconfig.json
 
-cmd/cc-artex/
+cmd/artex-cc/
   webui.go                   (embed.FS + http.FileServer)
 ```
 
@@ -474,7 +474,7 @@ credential management.
 ### How it works together
 
 Claude Code runs in your terminal. You type `claude` and start a conversation. Claude
-calls cc-artex's MCP tools to drive the pentest: inserting assets, adding intents,
+calls ARTEX's MCP tools to drive the pentest: inserting assets, adding intents,
 recording facts, reporting findings, analyzing traffic.
 
 Meanwhile, you have `http://localhost:9400` open in your browser. The web UI shows:
@@ -503,7 +503,7 @@ Claude in the terminal: "Focus on API authentication next."
 
 ### The value proposition
 
-For the user, cc-artex's web UI provides what no other AI-powered pentest tool offers:
+For the user, ARTEX's web UI provides what no other AI-powered pentest tool offers:
 
 1. **Transparency.** You see exactly what the AI is doing, in real-time, with full
    detail. The exploration graph is not a black box; it's a live visualization of the
@@ -521,12 +521,12 @@ For the user, cc-artex's web UI provides what no other AI-powered pentest tool o
    UI is just a window into the data. No separate billing, no token counting, no API key
    management.
 
-5. **Single binary.** `go install`, `cc-artex init`, `cc-artex serve`. Open the browser.
+5. **Single binary.** `go install`, `artex init`, `artex serve`. Open the browser.
    The web UI is embedded in the binary. Zero frontend deployment.
 
 ### The marketing angle
 
-> cc-artex gives Claude Code an exploration graph, a traffic proxy, and a web dashboard.
+> ARTEX gives Claude Code an exploration graph, a traffic proxy, and a web dashboard.
 > Think of it as Burp Suite's data layer, operated by an AI agent, visible in your
 > browser. Your Claude subscription is the only key you need.
 
@@ -634,7 +634,7 @@ engagements. Archive completed engagements.
 their activity streams interleaved, coordination status.
 
 **Dark mode**: Both light and dark themes, respecting system preference. ARTEX supports
-this via next-themes; cc-artex can use Tailwind's dark mode with a simple toggle.
+this via next-themes; ARTEX can use Tailwind's dark mode with a simple toggle.
 
 **Mobile-responsive**: The dashboard and findings pages should be usable on a phone or
 tablet for quick status checks during an engagement.
@@ -643,9 +643,9 @@ tablet for quick status checks during an engagement.
 
 A penetration tester opens three things:
 
-1. A terminal running Claude Code with cc-artex connected.
-2. A browser tab at `localhost:9400` showing the cc-artex dashboard.
-3. Their browser configured to use the cc-artex proxy at `:8788`.
+1. A terminal running Claude Code with ARTEX connected.
+2. A browser tab at `localhost:9400` showing the ARTEX dashboard.
+3. Their browser configured to use the ARTEX proxy at `:8788`.
 
 They type: "Start a penetration test against acme.com. The goal is to gain admin access
 and demonstrate that user data can be exfiltrated."

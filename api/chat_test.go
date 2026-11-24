@@ -118,7 +118,7 @@ func TestParseClaudeFixture(t *testing.T) {
 	if got := strings.Join(kinds, ","); got != want {
 		t.Fatalf("kinds = %s, want %s", got, want)
 	}
-	if events[2].ToolName != "mcp__cc-artex__graph_overview" || string(events[2].Input) != `{"depth":2}` {
+	if events[2].ToolName != "mcp__artex__graph_overview" || string(events[2].Input) != `{"depth":2}` {
 		t.Fatalf("tool_use = %+v", events[2])
 	}
 	if events[3].ToolID != "toolu_1" || events[3].Text != "3 nodes" {
@@ -152,7 +152,7 @@ func TestWriteMCPConfig(t *testing.T) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		t.Fatal(err)
 	}
-	srv := cfg.MCPServers["cc-artex"]
+	srv := cfg.MCPServers["artex"]
 	if srv.URL != "http://127.0.0.1:9400/mcp" || srv.Headers["Authorization"] != "Bearer tok" {
 		t.Fatalf("config = %+v", srv)
 	}

@@ -60,7 +60,7 @@ func runHealthChecks(pgFlag, dataDir string, timeout time.Duration) healthResult
 	dsn := resolvePG(pgFlag)
 	if dsn == "" {
 		result.Status = "fail"
-		result.Checks["pg"] = hcEntry{Status: "fail", Error: "not configured (set --pg or CC_ARTEX_PG)"}
+		result.Checks["pg"] = hcEntry{Status: "fail", Error: "not configured (set --pg or ARTEX_PG)"}
 		return result
 	}
 
@@ -94,7 +94,7 @@ func runHealthChecks(pgFlag, dataDir string, timeout time.Duration) healthResult
 	}
 	if !hasSchema {
 		result.Status = "fail"
-		result.Checks["schema"] = hcEntry{Status: "fail", Detail: "not initialized (run cc-artex init)"}
+		result.Checks["schema"] = hcEntry{Status: "fail", Detail: "not initialized (run artex init)"}
 		return result
 	}
 
@@ -166,9 +166,9 @@ func writeHealthJSON(w io.Writer, r healthResult) {
 func writeHealthText(w io.Writer, r healthResult) {
 	if e, ok := r.Checks["pg"]; ok {
 		if e.Status == "fail" {
-			if e.Error == "not configured (set --pg or CC_ARTEX_PG)" {
+			if e.Error == "not configured (set --pg or ARTEX_PG)" {
 				fmt.Fprintln(w, "PostgreSQL: NOT CONFIGURED")
-				fmt.Fprintln(w, "  Set --pg or CC_ARTEX_PG")
+				fmt.Fprintln(w, "  Set --pg or ARTEX_PG")
 			} else {
 				fmt.Fprintf(w, "PostgreSQL: FAILED (%s)\n", e.Error)
 			}

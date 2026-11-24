@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/traffic/hookvm"
-	"github.com/SREsAreHumanToo/cc-artex/traffic/rewrite"
+	"github.com/SREsAreHumanToo/ARTEX-CC/traffic/hookvm"
+	"github.com/SREsAreHumanToo/ARTEX-CC/traffic/rewrite"
 )
 
 func TestClassifyHookErr(t *testing.T) {

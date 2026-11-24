@@ -1,6 +1,6 @@
 # Agents
 
-Instructions for AI agents contributing to the cc-artex codebase.
+Instructions for AI agents contributing to the ARTEX codebase.
 
 ## Build and test
 
@@ -13,7 +13,7 @@ go vet ./...
 Store tests need PostgreSQL and are skipped without the env var:
 
 ```sh
-CC_ARTEX_TEST_PG="postgres://localhost/ccartex_test" go test ./store/...
+ARTEX_TEST_PG="postgres://localhost/ccartex_test" go test ./store/...
 ```
 
 `go test ./...` is always safe to run without a database.
@@ -21,12 +21,12 @@ CC_ARTEX_TEST_PG="postgres://localhost/ccartex_test" go test ./store/...
 ## Project structure
 
 ```
-cmd/cc-artex/      CLI entrypoint: serve, init, version
+cmd/artex-cc/      CLI entrypoint: serve, init, version
 store/             PostgreSQL data layer (assets, graph, findings, credentials, coverage)
 store/migrations/  Numbered SQL migrations, embedded at build time
 mcpserver/         MCP protocol server (stdio and HTTP transports)
 tools/             Tool implementations registered with the MCP server
-config/            Configuration loading and engagement state (.cc-artex.json)
+config/            Configuration loading and engagement state (.artex.json)
 traffic/           Recording MITM proxy, SOCKS5, replay, HAR export, rewrite engine
 traffic/rewrite/   Rule-based request/response rewriting
 traffic/hookvm/    Sandboxed expression evaluator for rewrite hooks
@@ -41,12 +41,12 @@ eval/              Evaluation harness
 ## Module
 
 ```
-github.com/SREsAreHumanToo/cc-artex
+github.com/SREsAreHumanToo/ARTEX-CC
 ```
 
 ## Database
 
-PostgreSQL is the only backend. Connection string comes from `--pg` or `CC_ARTEX_PG`. The schema (`store/schema.sql`) is applied on first connect. Migrations in `store/migrations/` are embedded via `//go:embed`, checksummed, and applied in order. Add new migrations as `store/migrations/NNNN_slug.sql` with the next sequence number.
+PostgreSQL is the only backend. Connection string comes from `--pg` or `ARTEX_PG`. The schema (`store/schema.sql`) is applied on first connect. Migrations in `store/migrations/` are embedded via `//go:embed`, checksummed, and applied in order. Add new migrations as `store/migrations/NNNN_slug.sql` with the next sequence number.
 
 ## Key interfaces
 
@@ -56,7 +56,7 @@ PostgreSQL is the only backend. Connection string comes from `--pg` or `CC_ARTEX
 
 Tools are defined in `tools/` grouped by category: `asset_tools.go`, `exploration_tools.go`, `finding_tools.go`, `credential_tools.go`, `scope_tools.go`, `engagement_tools.go`, `report_tools.go`, `traffic_tools.go`, `evidence_tools.go`, `enrich_tools.go`, `ingest_tools.go`, `activity_tools.go`, `intent_tools.go`, `export_tools.go`.
 
-Each category has a `Register*Tools` function called from `tools/register.go` (`RegisterAll`). Traffic tools are the exception: they depend on `*traffic.Traffic` and are registered separately in `cmd/cc-artex/main.go` when `--proxy` is set. Evidence tools also register separately (they need the evidence store).
+Each category has a `Register*Tools` function called from `tools/register.go` (`RegisterAll`). Traffic tools are the exception: they depend on `*traffic.Traffic` and are registered separately in `cmd/artex-cc/main.go` when `--proxy` is set. Evidence tools also register separately (they need the evidence store).
 
 A `Tool` has `Name`, `Description`, `Schema`, and `Run`. Schemas use the helpers in `tools/helpers.go` (`obj`, `str`, `enm`, etc.). Set `ReadOnly: true` on tools that don't modify state.
 

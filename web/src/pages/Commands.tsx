@@ -16,7 +16,7 @@ import { cn } from '../lib/utils'
 const PAGE_SIZE = 200
 
 function shortTool(name: string) {
-  return name.replace(/^mcp__cc-artex__/, '')
+  return name.replace(/^mcp__artex__/, '')
 }
 
 function formatTime(iso: string) {

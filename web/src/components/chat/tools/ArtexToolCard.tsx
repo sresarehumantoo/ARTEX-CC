@@ -3,7 +3,7 @@ import { Crosshair } from 'lucide-react'
 import type { ChatEvent } from '../../../lib/chat-types'
 import { Expandable, ResultFor, StatusIcon, keyArg } from './GenericCard'
 
-const PREFIX = 'mcp__cc-artex__'
+const PREFIX = 'mcp__artex__'
 
 export function prettifyToolName(name: string): string {
   return name

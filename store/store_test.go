@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 var (
@@ -18,9 +18,9 @@ var (
 
 func testDB(t *testing.T) *Store {
 	t.Helper()
-	dsn := os.Getenv("CC_ARTEX_TEST_PG")
+	dsn := os.Getenv("ARTEX_TEST_PG")
 	if dsn == "" {
-		t.Skip("CC_ARTEX_TEST_PG not set")
+		t.Skip("ARTEX_TEST_PG not set")
 	}
 	sharedStoreOnce.Do(func() {
 		sharedStore, sharedStoreErr = Open(context.Background(), dsn)

@@ -1,7 +1,7 @@
 # HTB harness evaluation
 
-Should cc-artex include a test harness that automates spawning HTB boxes, running
-cc-artex against them, and validating results? This document evaluates compliance,
+Should ARTEX include a test harness that automates spawning HTB boxes, running
+ARTEX against them, and validating results? This document evaluates compliance,
 architecture, and practical risk.
 
 ## 1. Compliance summary
@@ -50,7 +50,7 @@ compile, or otherwise exploit any Hack The Box content to train, evaluate,
 fine-tune, test, benchmark, or develop AI or machine learning systems."
 
 **Verdict:** This is the critical blocker. Using HTB boxes to "evaluate" or
-"benchmark" cc-artex (an AI-assisted pentest system) is squarely within the
+"benchmark" ARTEX (an AI-assisted pentest system) is squarely within the
 prohibition. The rule bans using HTB content to "evaluate" or "test" any AI system,
 "regardless of the means of acquisition, format, or whether the use is commercial
 or non-commercial." Even internal-only, never-published eval runs appear to
@@ -76,7 +76,7 @@ community knowledge-sharing, education, and discussion."
 - Flags, root proofs, and specific exploit chains for ANY box: never commit.
 - Box names and IDs (Management, Cohort, etc.) in a test plan: acceptable (this
   is metadata, not a solution).
-- Generic tool sequences and pass criteria: acceptable (describes what cc-artex
+- Generic tool sequences and pass criteria: acceptable (describes what ARTEX
   should do, not how to solve the box).
 - Specific attack paths ("SSRF on port X leads to ...") with enough detail to
   reproduce the solve: not acceptable for active boxes, acceptable for retired
@@ -93,7 +93,7 @@ purpose-built to automate the completion of Hack The Box assessments."
 
 **Verdict:** A published, automated HTB-solving harness could be classified as a
 tool "purpose-built to automate the completion of Hack The Box assessments."
-cc-artex itself is a general-purpose pentest tool, not an HTB-specific cheating
+ARTEX itself is a general-purpose pentest tool, not an HTB-specific cheating
 tool, but an HTB-specific eval harness with box-specific scoring strays closer to
 that line.
 
@@ -131,7 +131,7 @@ Publish only what does not depend on HTB content:
 1. **Generic orchestration eval harness** (already planned in `EVAL_PLAN.md`): The
    custom vulnerable app, DVWA, and Juice Shop targets are self-hosted, have no
    ToS restrictions, and can be automated freely. Invest here.
-2. **MCP protocol conformance tests**: Test that cc-artex's tools accept valid
+2. **MCP protocol conformance tests**: Test that ARTEX's tools accept valid
    input, reject invalid input, and return well-formed output. These are pure unit
    and integration tests with no external dependency.
 3. **Orchestration pattern tests**: Transcript-based evals (Section 2.3 of
@@ -149,22 +149,22 @@ evaluate AI tools, revisit this decision. Watch for:
 - An HTB developer or partner program for tool authors.
 - Explicit guidance on the MCP feature's scope (CTF-only vs. general labs).
 
-## 3. What belongs in the cc-artex repo
+## 3. What belongs in the ARTEX repo
 
 ### Safe to include
 
 - `docs/HTB_TEST_PLAN.md` (already merged): Box names, IDs, difficulty, tool
   sequences, and pass criteria. This is a test plan, not a solution. It describes
-  what cc-artex should do, not how to solve the box.
+  what ARTEX should do, not how to solve the box.
 - Generic eval infrastructure (`eval/` directory): Docker-based vulnerable apps,
   the eval runner, the scorer, ground-truth manifests for self-hosted targets.
-- MCP config examples showing how to point cc-artex at any target.
+- MCP config examples showing how to point ARTEX at any target.
 - Tool sequence diagrams and expected call patterns (generic, not box-specific).
 
 ### Borderline (keep but monitor)
 
 - Box-specific tool sequences in `HTB_TEST_PLAN.md`: Currently safe because they
-  describe cc-artex's behavior, not the box's vulnerabilities. If the boxes retire
+  describe ARTEX's behavior, not the box's vulnerabilities. If the boxes retire
   and the plan starts including specific exploit details, that is still fine under
   Section 8.3. While boxes are active, keep descriptions at the "what tools to
   exercise" level, not the "here is the attack chain" level.
@@ -188,17 +188,17 @@ evaluate AI tools, revisit this decision. Watch for:
 
 ### Private local workflow (never committed)
 
-- The actual eval runs: spawn box, start cc-artex, let Claude work, review
+- The actual eval runs: spawn box, start ARTEX, let Claude work, review
   results.
 - Box-specific scoring notes: "Management should find at least 1 SQLi" with
   expected flag hashes or proof strings.
 - Performance data: tool call counts, timing, token usage per run.
-- Comparison data: cc-artex vs. manual pentester findings on the same box.
+- Comparison data: ARTEX vs. manual pentester findings on the same box.
 
 ### Potential future separate repo (if terms change)
 
 If HTB publishes a developer/partner program that allows AI tool evaluation:
-- `cc-artex-eval` repo with HTB-specific harness code.
+- `artex-eval` repo with HTB-specific harness code.
 - Box-specific scenarios with ground-truth manifests (retired boxes only).
 - Automated spawn, run, score, teardown cycle.
 - Scoring logic that checks findings against expected vulnerability classes (not
@@ -209,7 +209,7 @@ picture changes.
 
 ## 5. Minimum viable approach (what to build now)
 
-### In the cc-artex repo
+### In the ARTEX repo
 
 **Phase 1 (immediate, already in EVAL_PLAN.md):**
 - Tool-level unit tests with mockStore (extend existing `tools/tools_test.go`).
@@ -219,7 +219,7 @@ picture changes.
 **Phase 2 (next):**
 - Custom vulnerable Docker app with 3-5 planted vulns and a ground-truth
   manifest.
-- End-to-end eval harness: `docker compose up`, seed database, run cc-artex, run
+- End-to-end eval harness: `docker compose up`, seed database, run ARTEX, run
   Claude Code, score results against ground truth.
 - This is the HTB-equivalent workflow but against a target we control, with no
   ToS constraints and full reproducibility.
@@ -234,7 +234,7 @@ Follow `docs/HTB_TEST_PLAN.md` as written. The plan is already well-structured f
 manual execution:
 1. Spawn the box (`htb spawn`).
 2. Add hosts (`htb-hosts add`).
-3. Init the engagement (`cc-artex init`).
+3. Init the engagement (`artex init`).
 4. Start Claude Code with the MCP config.
 5. Use `/loop` for semi-autonomous execution.
 6. Review results manually.
@@ -255,7 +255,7 @@ automate HTB assessments (Section 11.4).
 
 ### Ethical risk: LOW
 
-cc-artex is a legitimate pentest tool. Using HTB to validate it is conceptually no
+ARTEX is a legitimate pentest tool. Using HTB to validate it is conceptually no
 different from a pentester practicing on HTB. The ethical concern is about
 automation and scale, not intent. Running 5 boxes manually is ethically
 unproblematic. Automating the same workflow at scale (or enabling others to) is

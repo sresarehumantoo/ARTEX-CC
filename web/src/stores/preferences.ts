@@ -10,9 +10,9 @@ interface Preferences {
 }
 
 const KEYS = {
-  theme_mode: 'cc-artex-theme',
+  theme_mode: 'artex-theme',
   sidebar_collapsed: 'sidebar-collapsed',
-  content_layout: 'cc-artex-content-layout',
+  content_layout: 'artex-content-layout',
 } as const
 
 function read(): Preferences {

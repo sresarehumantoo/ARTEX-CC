@@ -34,8 +34,8 @@ func generateCA(dataDir string) (certPath string, err error) {
 	template := &x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().UnixNano() / 100000),
 		Subject: pkix.Name{
-			CommonName:   "cc-artex CA",
-			Organization: []string{"cc-artex"},
+			CommonName:   "artex CA",
+			Organization: []string{"artex"},
 		},
 		NotBefore:             time.Now().Add(-48 * time.Hour),
 		NotAfter:              time.Now().Add(10 * 365 * 24 * time.Hour),

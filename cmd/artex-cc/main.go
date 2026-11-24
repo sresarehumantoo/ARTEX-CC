@@ -19,15 +19,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/api"
-	"github.com/SREsAreHumanToo/cc-artex/config"
-	"github.com/SREsAreHumanToo/cc-artex/evidence"
-	"github.com/SREsAreHumanToo/cc-artex/mcpserver"
-	"github.com/SREsAreHumanToo/cc-artex/plugin"
-	"github.com/SREsAreHumanToo/cc-artex/store"
-	"github.com/SREsAreHumanToo/cc-artex/tools"
-	"github.com/SREsAreHumanToo/cc-artex/traffic"
-	"github.com/SREsAreHumanToo/cc-artex/web"
+	"github.com/SREsAreHumanToo/ARTEX-CC/api"
+	"github.com/SREsAreHumanToo/ARTEX-CC/config"
+	"github.com/SREsAreHumanToo/ARTEX-CC/evidence"
+	"github.com/SREsAreHumanToo/ARTEX-CC/mcpserver"
+	"github.com/SREsAreHumanToo/ARTEX-CC/plugin"
+	"github.com/SREsAreHumanToo/ARTEX-CC/store"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/traffic"
+	"github.com/SREsAreHumanToo/ARTEX-CC/web"
 	"github.com/mark3labs/mcp-go/server"
 )
 
@@ -61,7 +61,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: cc-artex <command>")
+	fmt.Fprintln(os.Stderr, "usage: artex <command>")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "  serve       Start the MCP tool server")
 	fmt.Fprintln(os.Stderr, "  init        Initialize a new engagement")
@@ -72,14 +72,14 @@ func usage() {
 }
 
 func pgDSN(fs *flag.FlagSet) *string {
-	return fs.String("pg", "", "PostgreSQL connection string (or CC_ARTEX_PG env)")
+	return fs.String("pg", "", "PostgreSQL connection string (or ARTEX_PG env)")
 }
 
 func resolvePG(val string) string {
 	if val != "" {
 		return val
 	}
-	if v := os.Getenv("CC_ARTEX_PG"); v != "" {
+	if v := os.Getenv("ARTEX_PG"); v != "" {
 		return v
 	}
 	return ""
@@ -123,32 +123,32 @@ func bearerAuth(token string, next http.Handler) http.Handler {
 
 func cmdServe(args []string) {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
-	listen := fs.String("listen", "", "HTTP listen address (or CC_ARTEX_LISTEN env, default localhost:9400)")
+	listen := fs.String("listen", "", "HTTP listen address (or ARTEX_LISTEN env, default localhost:9400)")
 	stdio := fs.Bool("stdio", false, "use stdio transport instead of HTTP")
 	webUI := fs.Bool("web", false, "enable web UI and REST API")
-	authFlag := fs.Bool("auth", false, "require password login for the web UI (or CC_ARTEX_AUTH env; always on for non-loopback listeners)")
+	authFlag := fs.Bool("auth", false, "require password login for the web UI (or ARTEX_AUTH env; always on for non-loopback listeners)")
 	debug := fs.Bool("debug", false, "enable debug-level logging")
 	showVersion := fs.Bool("version", false, "print version and exit")
 	pg := pgDSN(fs)
 	dataDir := fs.String("data", ".", "data directory for traffic, evidence, etc.")
-	claudeBin := fs.String("claude-bin", "", "path to the claude CLI binary (or CC_ARTEX_CLAUDE_BIN env, default claude)")
+	claudeBin := fs.String("claude-bin", "", "path to the claude CLI binary (or ARTEX_CLAUDE_BIN env, default claude)")
 	proxyAddr := fs.String("proxy", "", "start the recording proxy on ADDR (e.g., :8788)")
-	pluginDir := fs.String("plugin-dir", "", "plugin directory (or CC_ARTEX_PLUGIN_DIR env, default ~/.cc-artex/plugins)")
+	pluginDir := fs.String("plugin-dir", "", "plugin directory (or ARTEX_PLUGIN_DIR env, default ~/.artex/plugins)")
 	noPlugins := fs.Bool("no-plugins", false, "disable plugin loading")
 	shutdownSecs := fs.Int("timeout", 30, "graceful shutdown timeout in seconds")
 	fs.Parse(args)
 
 	if *showVersion {
-		fmt.Println("cc-artex " + version)
+		fmt.Println("artex " + version)
 		return
 	}
 
 	if *claudeBin == "" {
-		*claudeBin = os.Getenv("CC_ARTEX_CLAUDE_BIN")
+		*claudeBin = os.Getenv("ARTEX_CLAUDE_BIN")
 	}
 
 	if *listen == "" {
-		if v := os.Getenv("CC_ARTEX_LISTEN"); v != "" {
+		if v := os.Getenv("ARTEX_LISTEN"); v != "" {
 			*listen = v
 		} else {
 			*listen = "localhost:9400"
@@ -162,10 +162,10 @@ func cmdServe(args []string) {
 		fmt.Fprintln(os.Stderr, "error: PostgreSQL connection string is required")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "  Option 1: pass --pg flag")
-		fmt.Fprintln(os.Stderr, "    cc-artex serve --pg 'postgres://user:pass@localhost/ccartex'")
+		fmt.Fprintln(os.Stderr, "    artex serve --pg 'postgres://user:pass@localhost/ccartex'")
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "  Option 2: set CC_ARTEX_PG environment variable")
-		fmt.Fprintln(os.Stderr, "    export CC_ARTEX_PG='postgres://user:pass@localhost/ccartex'")
+		fmt.Fprintln(os.Stderr, "  Option 2: set ARTEX_PG environment variable")
+		fmt.Fprintln(os.Stderr, "    export ARTEX_PG='postgres://user:pass@localhost/ccartex'")
 		os.Exit(1)
 	}
 
@@ -184,7 +184,7 @@ func cmdServe(args []string) {
 		os.Exit(1)
 	}
 
-	if keyHex := os.Getenv("CC_ARTEX_CREDENTIAL_KEY"); keyHex != "" {
+	if keyHex := os.Getenv("ARTEX_CREDENTIAL_KEY"); keyHex != "" {
 		key, err := store.ParseCredentialKey(keyHex)
 		if err != nil {
 			slog.Error("invalid credential key", "err", err)
@@ -192,7 +192,7 @@ func cmdServe(args []string) {
 		}
 		s.SetCredentialKey(key)
 	} else {
-		slog.Warn("CC_ARTEX_CREDENTIAL_KEY is not set; credentials will be stored in plaintext")
+		slog.Warn("ARTEX_CREDENTIAL_KEY is not set; credentials will be stored in plaintext")
 	}
 
 	reg := tools.NewRegistry()
@@ -204,11 +204,11 @@ func cmdServe(args []string) {
 	if !*noPlugins {
 		pdir := *pluginDir
 		if pdir == "" {
-			pdir = os.Getenv("CC_ARTEX_PLUGIN_DIR")
+			pdir = os.Getenv("ARTEX_PLUGIN_DIR")
 		}
 		if pdir == "" {
 			if home, err := os.UserHomeDir(); err == nil {
-				pdir = filepath.Join(home, ".cc-artex", "plugins")
+				pdir = filepath.Join(home, ".artex", "plugins")
 			}
 		}
 		if pdir != "" {
@@ -245,7 +245,7 @@ func cmdServe(args []string) {
 	var runner *api.Runner
 	var mcpToken string
 	if *webUI {
-		authRequired := *authFlag || envEnabled("CC_ARTEX_AUTH") || !isLoopbackAddr(*listen)
+		authRequired := *authFlag || envEnabled("ARTEX_AUTH") || !isLoopbackAddr(*listen)
 		apiOpts := []api.Option{api.WithDataDir(*dataDir), api.WithAuthRequired(authRequired), api.WithToolList(reg.Tools())}
 		if *claudeBin != "" {
 			apiOpts = append(apiOpts, api.WithClaudeBin(*claudeBin))
@@ -340,7 +340,7 @@ func cmdInit(args []string) {
 	fs.Parse(args)
 
 	if *showVersion {
-		fmt.Println("cc-artex " + version)
+		fmt.Println("artex " + version)
 		return
 	}
 
@@ -353,7 +353,7 @@ func cmdInit(args []string) {
 
 	dsn := resolvePG(*pg)
 	if dsn == "" {
-		slog.Error("--pg or CC_ARTEX_PG is required")
+		slog.Error("--pg or ARTEX_PG is required")
 		os.Exit(1)
 	}
 
@@ -397,7 +397,7 @@ func cmdInit(args []string) {
 		info := map[string]any{
 			"task_id":        taskID,
 			"exploration_id": explorationID,
-			"config_path":    filepath.Join(*dataDir, ".cc-artex.json"),
+			"config_path":    filepath.Join(*dataDir, ".artex.json"),
 			"goal":           *goal,
 			"description":    *desc,
 		}
@@ -413,14 +413,14 @@ func cmdInit(args []string) {
 	fmt.Printf("Engagement created:\n")
 	fmt.Printf("  Task ID:        %d\n", taskID)
 	fmt.Printf("  Exploration ID: %d\n", explorationID)
-	fmt.Printf("  Config written: %s/.cc-artex.json\n", *dataDir)
+	fmt.Printf("  Config written: %s/.artex.json\n", *dataDir)
 	fmt.Println()
 	if certPath != "" {
 		fmt.Printf("  CA certificate: %s\n", certPath)
 		fmt.Println()
 		fmt.Println("Trust the CA certificate so the recording proxy can intercept HTTPS:")
 		fmt.Println()
-		fmt.Println("  Linux:   sudo cp " + certPath + " /usr/local/share/ca-certificates/cc-artex.crt && sudo update-ca-certificates")
+		fmt.Println("  Linux:   sudo cp " + certPath + " /usr/local/share/ca-certificates/artex.crt && sudo update-ca-certificates")
 		fmt.Println("  macOS:   sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain " + certPath)
 		fmt.Println("  Windows: certutil -addstore Root " + certPath)
 		fmt.Println()
@@ -431,8 +431,8 @@ func cmdInit(args []string) {
 	fmt.Println()
 	fmt.Printf(`  {
     "mcpServers": {
-      "cc-artex": {
-        "command": "cc-artex",
+      "artex": {
+        "command": "artex",
         "args": ["serve", "--stdio", "--pg", %q]
       }
     }
@@ -443,8 +443,8 @@ func cmdInit(args []string) {
 	fmt.Println()
 	fmt.Printf(`  {
     "mcpServers": {
-      "cc-artex": {
-        "command": "cc-artex",
+      "artex": {
+        "command": "artex",
         "args": [
           "serve", "--stdio",
           "--pg", %q,
@@ -457,14 +457,14 @@ func cmdInit(args []string) {
 	fmt.Println()
 	fmt.Println()
 	fmt.Println("Flags:")
-	fmt.Println("  --pg        PostgreSQL connection string (or set CC_ARTEX_PG)")
+	fmt.Println("  --pg        PostgreSQL connection string (or set ARTEX_PG)")
 	fmt.Println("  --data      directory for traffic captures, evidence, and config")
 	fmt.Println("  --proxy     start the MITM recording proxy on ADDR (e.g. :8788)")
 	fmt.Println("  --debug     enable debug-level logging")
 }
 
 func cmdInitDryRun(dataDir, dsn, goal, desc, format string) {
-	configPath := filepath.Join(dataDir, ".cc-artex.json")
+	configPath := filepath.Join(dataDir, ".artex.json")
 	caDir := filepath.Join(dataDir, "traffic", "_ca")
 	caCertPath := filepath.Join(caDir, "mitmproxy-ca-cert.pem")
 	caKeyPath := filepath.Join(caDir, "mitmproxy-ca.pem")
@@ -531,6 +531,6 @@ func cmdVersion(args []string) {
 		enc.SetIndent("", "  ")
 		enc.Encode(info)
 	} else {
-		fmt.Println("cc-artex " + version)
+		fmt.Println("artex " + version)
 	}
 }

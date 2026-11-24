@@ -28,7 +28,7 @@ func TestCommandsEndpoints(t *testing.T) {
 	events := []ChatEvent{
 		{Kind: ChatKindToolUse, ToolName: "Bash", ToolID: "a", Input: json.RawMessage(`{"command":"nmap"}`), Time: "2024-01-01T00:00:01Z"},
 		{Kind: ChatKindToolResult, ToolID: "a", Text: "open"},
-		{Kind: ChatKindToolUse, ToolName: "mcp__cc-artex__insert_asset", ToolID: "b", Time: "2024-01-01T00:00:02Z"},
+		{Kind: ChatKindToolUse, ToolName: "mcp__artex__insert_asset", ToolID: "b", Time: "2024-01-01T00:00:02Z"},
 		{Kind: ChatKindToolResult, ToolID: "b", Text: "boom", IsError: true},
 		{Kind: ChatKindText, Text: "ignored"},
 	}
@@ -55,7 +55,7 @@ func TestCommandsEndpoints(t *testing.T) {
 
 	var all []CommandEntry
 	get("/api/commands", &all)
-	if len(all) != 2 || all[0].ToolName != "mcp__cc-artex__insert_asset" || !all[0].IsError || all[0].OutputPreview != "boom" {
+	if len(all) != 2 || all[0].ToolName != "mcp__artex__insert_asset" || !all[0].IsError || all[0].OutputPreview != "boom" {
 		t.Fatalf("unexpected entries: %+v", all)
 	}
 	if all[1].ConversationTitle != "Recon" || all[1].OutputPreview != "open" {

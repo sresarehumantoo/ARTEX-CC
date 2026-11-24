@@ -13,6 +13,6 @@ export function ToolRenderer({ event, result }: { event: ChatEvent; result?: Cha
   const name = event.tool_name ?? ''
   if (name === 'Bash' || name === 'BashOutput') return <BashCard event={event} result={result} />
   if (FILE_TOOLS.has(name)) return <FileCard event={event} result={result} />
-  if (name.startsWith('mcp__cc-artex__')) return <ArtexToolCard event={event} result={result} />
+  if (name.startsWith('mcp__artex__')) return <ArtexToolCard event={event} result={result} />
   return <GenericCard event={event} result={result} />
 }

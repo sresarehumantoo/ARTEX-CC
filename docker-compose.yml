@@ -14,15 +14,15 @@ services:
       retries: 10
     restart: unless-stopped
 
-  cc-artex:
+  artex:
     build: .
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      # Set CC_ARTEX_PG on the host to point at an external database
-      CC_ARTEX_PG: ${CC_ARTEX_PG:-postgres://ccartex:ccartex@postgres:5432/ccartex?sslmode=disable}
-      CC_ARTEX_GOAL: ${CC_ARTEX_GOAL:-Pentest engagement}
+      # Set ARTEX_PG on the host to point at an external database
+      ARTEX_PG: ${ARTEX_PG:-postgres://ccartex:ccartex@postgres:5432/ccartex?sslmode=disable}
+      ARTEX_GOAL: ${ARTEX_GOAL:-Pentest engagement}
     ports:
       - "127.0.0.1:9400:9400"
       - "127.0.0.1:8788:8788"

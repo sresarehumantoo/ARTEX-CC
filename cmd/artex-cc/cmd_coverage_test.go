@@ -16,28 +16,28 @@ import (
 )
 
 func TestResolvePG_FlagOnly(t *testing.T) {
-	t.Setenv("CC_ARTEX_PG", "")
+	t.Setenv("ARTEX_PG", "")
 	if got := resolvePG("postgres://flag"); got != "postgres://flag" {
 		t.Fatalf("got %q", got)
 	}
 }
 
 func TestResolvePG_EnvFallback(t *testing.T) {
-	t.Setenv("CC_ARTEX_PG", "postgres://env")
+	t.Setenv("ARTEX_PG", "postgres://env")
 	if got := resolvePG(""); got != "postgres://env" {
 		t.Fatalf("got %q", got)
 	}
 }
 
 func TestResolvePG_FlagOverridesEnv(t *testing.T) {
-	t.Setenv("CC_ARTEX_PG", "postgres://env")
+	t.Setenv("ARTEX_PG", "postgres://env")
 	if got := resolvePG("postgres://flag"); got != "postgres://flag" {
 		t.Fatalf("got %q", got)
 	}
 }
 
 func TestResolvePG_Empty(t *testing.T) {
-	t.Setenv("CC_ARTEX_PG", "")
+	t.Setenv("ARTEX_PG", "")
 	if got := resolvePG(""); got != "" {
 		t.Fatalf("got %q", got)
 	}
@@ -75,7 +75,7 @@ func TestCmdVersionPlain(t *testing.T) {
 	buf.ReadFrom(r)
 	out := buf.String()
 
-	if !strings.HasPrefix(out, "cc-artex ") {
+	if !strings.HasPrefix(out, "artex ") {
 		t.Fatalf("unexpected output: %q", out)
 	}
 	if !strings.Contains(out, version) {
@@ -137,8 +137,8 @@ func TestCmdCompletionBash(t *testing.T) {
 	if !strings.Contains(out, "complete -F") {
 		t.Fatal("bash completion missing complete -F")
 	}
-	if !strings.Contains(out, "cc-artex") {
-		t.Fatal("bash completion missing cc-artex")
+	if !strings.Contains(out, "artex") {
+		t.Fatal("bash completion missing artex")
 	}
 }
 
@@ -332,7 +332,7 @@ func TestWriteHealthText_SchemaFail(t *testing.T) {
 		Status: "fail",
 		Checks: map[string]hcEntry{
 			"pg":     {Status: "ok", LatencyMS: 5},
-			"schema": {Status: "fail", Detail: "not initialized (run cc-artex init)"},
+			"schema": {Status: "fail", Detail: "not initialized (run artex init)"},
 		},
 	}
 	var buf bytes.Buffer
@@ -344,7 +344,7 @@ func TestWriteHealthText_SchemaFail(t *testing.T) {
 }
 
 func TestRunHealthChecks_InvalidDSN(t *testing.T) {
-	t.Setenv("CC_ARTEX_PG", "")
+	t.Setenv("ARTEX_PG", "")
 	r := runHealthChecks("postgres://invalid:99/db", t.TempDir(), 100*1e6)
 	if r.Status != "fail" {
 		t.Fatalf("status = %q, want fail", r.Status)
@@ -389,7 +389,7 @@ func TestGenerateCA(t *testing.T) {
 	if !cert.IsCA {
 		t.Fatal("not a CA certificate")
 	}
-	if cert.Subject.CommonName != "cc-artex CA" {
+	if cert.Subject.CommonName != "artex CA" {
 		t.Fatalf("CN = %q", cert.Subject.CommonName)
 	}
 }

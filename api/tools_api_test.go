@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 func TestToolCategory(t *testing.T) {
@@ -15,10 +15,10 @@ func TestToolCategory(t *testing.T) {
 		"Read":                            "system",
 		"add_finding":                     "findings",
 		"insert_asset":                    "assets",
-		"mcp__cc-artex__add_finding":      "findings",
-		"mcp__cc-artex__insert_asset":     "assets",
-		"mcp__cc-artex__traffic_snapshot": "traffic",
-		"mcp__cc-artex__evidence_capture": "evidence",
+		"mcp__artex__add_finding":      "findings",
+		"mcp__artex__insert_asset":     "assets",
+		"mcp__artex__traffic_snapshot": "traffic",
+		"mcp__artex__evidence_capture": "evidence",
 		"record_coverage":                 "coverage",
 		"save_credential":                 "credentials",
 		"graph_overview":                  "graph",

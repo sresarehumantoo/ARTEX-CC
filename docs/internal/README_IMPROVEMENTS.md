@@ -4,13 +4,13 @@
 
 | Dimension | Score | Notes |
 |-----------|-------|-------|
-| First impression / hook | 4/5 | Strong tagline and value prop. "Use your Claude subscription to run pentests. No API key needed." grabs attention fast. "You bring the brain. cc-artex brings the hands." is memorable. Missing a demo GIF or terminal screenshot at the top to make it visual. |
+| First impression / hook | 4/5 | Strong tagline and value prop. "Use your Claude subscription to run pentests. No API key needed." grabs attention fast. "You bring the brain. ARTEX brings the hands." is memorable. Missing a demo GIF or terminal screenshot at the top to make it visual. |
 | Visual appeal | 3/5 | Has logo SVG (dark-mode aware), architecture SVG, three badges. No demo GIF, no terminal screenshot, fewer badges than comparable projects. Page is predominantly text below the hero. |
 | Quick start clarity | 3/5 | Two separate quick-start sections (native and Docker) with three different MCP config examples. Newcomer must choose a path with no guidance on which is recommended. Docker path is the lowest-friction but comes second. PostgreSQL prerequisite adds friction for the native path. |
 | Feature showcase | 3/5 | 40+ tools listed in detailed tables, well-categorized but overwhelming. No "highlight reel" of key capabilities. The session transcript example is effective but buried after install. |
 | Architecture understanding | 4/5 | Clean SVG diagram, good directory tree. The "How it works" prose explains the flow well. Missing data-flow detail for a pentest session. |
 | Install options | 4/5 | Covers Homebrew, binaries, go install, Docker Compose. All common paths present. Binary section could use OS/arch guidance. |
-| Comparison/positioning | 4/5 | "cc-artex vs ARTEX" table is excellent. "vs manual pentesting" paragraph is solid. No comparison with other AI security tools. |
+| Comparison/positioning | 4/5 | "ARTEX vs ARTEX" table is excellent. "vs manual pentesting" paragraph is solid. No comparison with other AI security tools. |
 | Community/contribution | 2/5 | Just a link to CONTRIBUTING.md. No Discord/Slack, no "get help" section, no contributor acknowledgments. Weakest area compared to every project surveyed. |
 | SEO/discoverability | 4/5 | GitHub topics already applied and well-chosen. Repo description is concise. "Suggested GitHub topics" section in the README is redundant. |
 
@@ -83,9 +83,9 @@ License) is a solid start, but comparable projects include: GitHub stars, latest
 release, Docker pulls, and community links.
 
 **Add:**
-- `![GitHub stars](https://img.shields.io/github/stars/SREsAreHumanToo/cc-artex?style=flat&logo=github)`
-- `![Release](https://img.shields.io/github/v/release/SREsAreHumanToo/cc-artex?logo=github)`
-- `![Docker Pulls](https://img.shields.io/docker/pulls/SREsAreHumanToo/cc-artex?logo=docker)` (if published)
+- `![GitHub stars](https://img.shields.io/github/stars/SREsAreHumanToo/ARTEX-CC?style=flat&logo=github)`
+- `![Release](https://img.shields.io/github/v/release/SREsAreHumanToo/ARTEX-CC?logo=github)`
+- `![Docker Pulls](https://img.shields.io/docker/pulls/SREsAreHumanToo/ARTEX-CC?logo=docker)` (if published)
 
 ### P6. Add a community / get help section
 
@@ -123,7 +123,7 @@ needed. Consider adding width="200" to the README img tag (already present).
 
 ### Architecture diagram
 The current SVG is good. One improvement: add a "Target" box on the right side of
-the Recording Proxy, with an arrow, so the data flow is complete: Claude -> cc-artex
+the Recording Proxy, with an arrow, so the data flow is complete: Claude -> ARTEX
 -> PostgreSQL/Proxy -> Target.
 
 ### Badge additions
@@ -138,7 +138,7 @@ See P5 above. Keep them on a single centered line.
 - **Acknowledgments** (ARTEX upstream credit is mentioned in context but not formally)
 
 ### Unclear explanations
-- The relationship between `.cc-artex.json`, the data directory, and the engagement
+- The relationship between `.artex.json`, the data directory, and the engagement
   is spread across multiple sections. A "How state is managed" paragraph would help.
 - The CA certificate trust step in Quick start says "prints trust instructions for
   your OS" but doesn't show what those look like. A sample output or a note about
@@ -162,7 +162,7 @@ See P5 above. Keep them on a single centered line.
 5.  How it works (2-3 sentences + architecture SVG)
 6.  What a session looks like (the transcript example, MOVED UP)
 7.  Demo GIF (when available)
-8.  Why cc-artex (the three bullet points, tightened)
+8.  Why ARTEX (the three bullet points, tightened)
 9.  Install (single section: Docker / Homebrew / Binary / Source)
 10. Quick start
     - Docker path (recommended, 3 steps)

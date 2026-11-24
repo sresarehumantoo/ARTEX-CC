@@ -1,6 +1,6 @@
 version: 2
 
-project_name: cc-artex
+project_name: artex-cc
 
 before:
   hooks:
@@ -8,8 +8,8 @@ before:
     - bash -c 'cd web && npm ci && npm run build'
 
 builds:
-  - main: ./cmd/cc-artex
-    binary: cc-artex
+  - main: ./cmd/artex-cc
+    binary: artex-cc
     env:
       - CGO_ENABLED=0
     goos:
@@ -43,18 +43,18 @@ changelog:
 release:
   github:
     owner: SREsAreHumanToo
-    name: cc-artex
+    name: ARTEX-CC
   draft: false
   prerelease: auto
 
 nfpms:
-  - package_name: cc-artex
+  - package_name: artex-cc
     file_name_template: "{{ .PackageName }}_{{ .Version }}_{{ .Arch }}"
     formats: [deb]
     vendor: SREsAreHumanToo
     maintainer: SREsAreHumanToo <88474954+sresarehumantoo@users.noreply.github.com>
-    homepage: https://github.com/SREsAreHumanToo/cc-artex
-    description: MCP tool server for autonomous pentesting with Claude Code
+    homepage: https://github.com/SREsAreHumanToo/ARTEX-CC
+    description: Autonomous penetration testing platform powered by Claude Code
     license: MIT
     section: utils
     bindir: /usr/bin
@@ -64,7 +64,7 @@ homebrew_casks:
       owner: SREsAreHumanToo
       name: homebrew-tap
     skip_upload: true
-    homepage: https://github.com/SREsAreHumanToo/cc-artex
-    description: MCP tool server that turns ARTEX into tools Claude Code calls through your existing Claude subscription.
+    homepage: https://github.com/SREsAreHumanToo/ARTEX-CC
+    description: Autonomous penetration testing platform powered by Claude Code.
     binaries:
-      - cc-artex
+      - artex-cc

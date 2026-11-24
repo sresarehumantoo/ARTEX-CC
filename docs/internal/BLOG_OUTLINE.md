@@ -8,14 +8,14 @@
 1. "Autonomous Pentesting with Claude Code: How an Exploration Graph Keeps the AI on Track"
 2. "47 MCP Tools for Pentesting: Turning Claude Code into a Red Team Partner"
 3. "I Replaced My Pentest Agent Loop with Claude Code and 47 MCP Tools"
-4. "cc-artex: State-Aware Pentesting Through Claude Code's MCP Tools"
+4. "ARTEX: State-Aware Pentesting Through Claude Code's MCP Tools"
 
 ## Section outline
 
 ### Hook (150 words)
 The problem: LLM-driven pentesting tools lose state. They forget what they scanned, repeat work, and have no concept of "where was I?" Open with a concrete example of this failure mode: an AI agent re-running Nmap on the same target because it lost its scan results.
 
-### What cc-artex is (200 words)
+### What ARTEX is (200 words)
 An MCP server that gives Claude Code 47 pentest tools backed by a PostgreSQL exploration graph. No separate API key, no token budget. Your Claude subscription is the entire AI engine.
 
 Include the architecture diagram (docs/architecture.svg) showing the data flow.
@@ -43,7 +43,7 @@ Walk through a session against an HTB box. Show the tool calls in sequence:
 Include 2-3 terminal screenshots showing key moments. Reference the demo GIF.
 
 ### Why not just use PentestGPT / HexStrike? (200 words)
-Brief, factual comparison. Lead with what cc-artex does differently (state management, evidence chains), not what competitors lack. Include the comparison table from the README.
+Brief, factual comparison. Lead with what ARTEX does differently (state management, evidence chains), not what competitors lack. Include the comparison table from the README.
 
 ### Getting started (150 words)
 Three install paths: Homebrew, Docker Compose, from source. Show the minimal `docker compose up` path. Link to the README for full instructions.

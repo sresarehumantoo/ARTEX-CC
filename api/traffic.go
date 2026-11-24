@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SREsAreHumanToo/cc-artex/traffic"
+	"github.com/SREsAreHumanToo/ARTEX-CC/traffic"
 )
 
 func (a *API) registerTrafficRoutes(mux *http.ServeMux) {

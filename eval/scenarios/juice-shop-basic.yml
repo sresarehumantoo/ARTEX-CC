@@ -1,6 +1,6 @@
 name: "Juice Shop Basic"
 description: >
-  Run cc-artex against OWASP Juice Shop. The agent should find at least
+  Run ARTEX against OWASP Juice Shop. The agent should find at least
   the most prominent vulnerabilities in the OWASP Top 10 categories.
 target: "http://localhost:8082"
 goal: "Discover and report OWASP Top 10 vulnerabilities in Juice Shop"

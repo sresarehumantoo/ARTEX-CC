@@ -127,7 +127,7 @@ function RuleDialog({
               value={pattern}
               onChange={e => setPattern(e.target.value)}
               className="font-mono"
-              placeholder="Bash or mcp__cc-artex__*"
+              placeholder="Bash or mcp__artex__*"
               required
             />
             <p className="text-xs text-muted-foreground">Exact name or glob.</p>

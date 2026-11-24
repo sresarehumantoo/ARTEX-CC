@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/SREsAreHumanToo/cc-artex/store"
+	"github.com/SREsAreHumanToo/ARTEX-CC/store"
 )
 
 func (a *API) registerCoverageRoutes(mux *http.ServeMux) {

@@ -2,7 +2,7 @@
 
 ## Target demo
 
-A real cc-artex session against an HTB Easy box (Management), showing the full tool lifecycle from initialization through report generation. The goal is a concise terminal recording that demonstrates cc-artex's exploration graph keeping Claude oriented across the engagement.
+A real ARTEX session against an HTB Easy box (Management), showing the full tool lifecycle from initialization through report generation. The goal is a concise terminal recording that demonstrates ARTEX's exploration graph keeping Claude oriented across the engagement.
 
 ## Recording tool
 
@@ -12,9 +12,9 @@ Fallback: asciinema + agg for a lightweight cast-to-GIF pipeline if VHS font ren
 
 ## Script: command sequence
 
-The recording walks through the core cc-artex workflow. Each step shows a tool call and its output.
+The recording walks through the core ARTEX workflow. Each step shows a tool call and its output.
 
-1. **`cc-artex init`** with `--goal "Pentest Management (10.129.x.x)"`. Shows the engagement being created and the MCP config printed.
+1. **`artex init`** with `--goal "Pentest Management (10.129.x.x)"`. Shows the engagement being created and the MCP config printed.
 2. **`htb-hosts add`** for the target IP, demonstrating the host setup step.
 3. **Claude Code starting**, reading the engagement resource. Claude sees the goal and the empty graph.
 4. **`graph_overview`** showing the goal, zero assets, zero findings, the blank slate.
@@ -51,12 +51,12 @@ The recording walks through the core cc-artex workflow. Each step shows a tool c
 
 ```
 # Re-record: vhs docs/demo.tape
-# Requires: vhs, cc-artex binary, running PostgreSQL, htb-hosts
+# Requires: vhs, ARTEX binary, running PostgreSQL, htb-hosts
 ```
 
 ## Production steps
 
-1. Set up a clean cc-artex instance against a local PostgreSQL.
+1. Set up a clean ARTEX instance against a local PostgreSQL.
 2. Write the .tape file with the scripted commands.
 3. Test-render at 2x speed to check timing.
 4. Final render at target speed, review for readability.

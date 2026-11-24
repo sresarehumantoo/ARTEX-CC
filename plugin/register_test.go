@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 func TestDiscoverAndRegister(t *testing.T) {

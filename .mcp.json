@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "cc-artex": {
+    "artex": {
       "command": "go",
-      "args": ["run", "./cmd/cc-artex", "serve", "--stdio", "--pg", "${CC_ARTEX_PG}"],
+      "args": ["run", "./cmd/artex-cc", "serve", "--stdio", "--pg", "${ARTEX_PG}"],
       "env": {}
     }
   }

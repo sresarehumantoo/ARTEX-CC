@@ -10,7 +10,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-const engagementFile = ".cc-artex.json"
+const engagementFile = ".artex.json"
 
 type Config struct {
 	Listen    string `json:"listen" toml:"listen"`

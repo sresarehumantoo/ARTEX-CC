@@ -17,11 +17,11 @@ const PAGE_TITLES: Record<string, string> = {
 }
 
 function setTitle(pathname: string, findingsCount: number) {
-  const pageTitle = PAGE_TITLES[pathname] ?? 'cc-artex'
+  const pageTitle = PAGE_TITLES[pathname] ?? 'ARTEX'
   document.title =
     findingsCount > 0
-      ? `(${findingsCount}) ${pageTitle} · cc-artex`
-      : `${pageTitle} · cc-artex`
+      ? `(${findingsCount}) ${pageTitle} · ARTEX`
+      : `${pageTitle} · ARTEX`
 }
 
 export function useDocumentTitle() {

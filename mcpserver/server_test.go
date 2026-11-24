@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/mcpserver"
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/mcpserver"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 func echoTool() tools.Tool {

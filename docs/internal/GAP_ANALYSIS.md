@@ -1,4 +1,4 @@
-# Gap Analysis: orig-artex / ARTEX / cc-artex
+# Gap Analysis: orig-artex / ARTEX / ARTEX
 
 ## 1. orig-artex overview
 
@@ -135,9 +135,9 @@ The current ARTEX schema (1615 lines vs orig-artex's 1386) adds:
 
 ---
 
-## 3. cc-artex overview
+## 3. ARTEX overview
 
-cc-artex (`/home/owen/projects/cc-artex/`) strips the LLM agent loop and web
+ARTEX (`/home/owen/projects/ARTEX/`) strips the LLM agent loop and web
 UI, exposing the data layer as MCP tools for Claude Code to drive directly.
 
 ### Packages
@@ -151,7 +151,7 @@ UI, exposing the data layer as MCP tools for Claude Code to drive directly.
 | `traffic/` | Full traffic stack ported from ARTEX: MITM proxy, SOCKS5, raw TCP/UDP, replay, HAR, rewrite engine, hookvm, transparent proxy, pacing, evidence. |
 | `report/` | Enhanced report generator with quality analysis, coverage gaps, finding export (Markdown, CSV, per-finding reports). |
 | `egress/` | Rate-limiting governor (ported from ARTEX). |
-| `cmd/cc-artex/` | CLI entrypoint. |
+| `cmd/artex-cc/` | CLI entrypoint. |
 
 ### MCP tools exposed
 
@@ -178,7 +178,7 @@ UI, exposing the data layer as MCP tools for Claude Code to drive directly.
 
 ---
 
-## 4. Missing from cc-artex (prioritized)
+## 4. Missing from ARTEX (prioritized)
 
 ### Priority 1: High value, moderate effort
 
@@ -194,13 +194,13 @@ the background after `insert_assets`, making the asset graph self-completing.
 
 **Effort**: Medium. Requires porting `enrich/enrich.go` (293 lines) and wiring
 it into the store's asset insertion path. Needs `dnsx` dependency. The
-recording-proxy routing is already available in cc-artex's traffic package.
+recording-proxy routing is already available in ARTEX's traffic package.
 
 **Blocked by**: Nothing. The store and traffic packages already provide the
 necessary interfaces.
 
 #### 4.2 `goal_met` tool
-**What**: Explicit "task complete" signal. Currently cc-artex has `prove_goal`
+**What**: Explicit "task complete" signal. Currently ARTEX has `prove_goal`
 (mark individual goals met) but not `goal_met` (declare the entire engagement
 finished).
 
@@ -215,10 +215,10 @@ status.
 what workers did. In ARTEX these are used by the planner to review worker
 execution.
 
-**Why it matters**: In cc-artex, Claude Code is both planner and worker, so the
+**Why it matters**: In ARTEX, Claude Code is both planner and worker, so the
 trace tools are less critical. However, `get_worker_output` would let Claude Code
 review past intent execution results when resuming a session. The activity table
-exists in cc-artex's schema but the tools to query it are missing.
+exists in ARTEX's schema but the tools to query it are missing.
 
 **Effort**: Low-medium. The `activity` table exists. Need to implement query
 functions in the store and register the tools.
@@ -227,11 +227,11 @@ functions in the store and register the tools.
 **What**: Linking traffic exchanges to findings as evidence (`traffic_refs` in
 `report_finding`, `bind_finding_traffic` tool). ARTEX's `report_finding` accepts
 `traffic_refs` with roles (baseline/proof/verification/supporting) and validates
-them. cc-artex's `report_finding` has no traffic binding.
+them. ARTEX's `report_finding` has no traffic binding.
 
 **Why it matters**: Traffic evidence is the proof-of-exploit. Without binding,
 findings have text evidence only. The `finding_traffic_bindings` table exists
-in cc-artex's schema but is unused by the tool layer.
+in ARTEX's schema but is unused by the tool layer.
 
 **Effort**: Medium. The schema table exists. Need to add traffic ref validation
 and binding logic to `report_finding`, plus a standalone `bind_finding_traffic`
@@ -255,8 +255,8 @@ subsystem.
 #### 4.6 `kill_work` / `steer_work` tools
 **What**: Planner tools to terminate or redirect a running worker.
 
-**Why it matters**: Less relevant for cc-artex since Claude Code is the
-single-threaded executor. If cc-artex ever supports concurrent intent execution,
+**Why it matters**: Less relevant for ARTEX since Claude Code is the
+single-threaded executor. If ARTEX ever supports concurrent intent execution,
 these become important. Currently not needed.
 
 **Effort**: Low, but architecturally irrelevant until concurrent execution is
@@ -270,7 +270,7 @@ ones.
 
 **Why it matters**: Safety net. Prevents the agent from accidentally testing
 assets outside the engagement scope. The `intercept_rules` table exists in
-cc-artex's schema but the enforcement logic is not wired.
+ARTEX's schema but the enforcement logic is not wired.
 
 **Effort**: Medium. Need to port the matching logic and wire it into
 `insert_assets` and `add_intent`.
@@ -287,7 +287,7 @@ Prevents prompt injection via target-controlled data in scanner output.
 **Effort**: Medium-high. The parsers (`bbot_ingest.go` at ~300 lines,
 `scan_ingest.go` at ~500 lines) are substantial. The tool wrappers
 (`bbot_ingest_tool.go`, `scan_ingest_tool.go`) add ~200 lines each. The parsers
-depend on `db.AssetStore` types which would need adaptation for cc-artex's
+depend on `db.AssetStore` types which would need adaptation for ARTEX's
 `tools.Store` interface.
 
 ### Priority 3: Lower priority or not applicable
@@ -296,7 +296,7 @@ depend on `db.AssetStore` types which would need adaptation for cc-artex's
 **What**: Push notifications via email, Telegram, DingTalk, Feishu, WeCom,
 generic webhook. 26 Go files.
 
-**Why it matters**: Useful for team alerting on findings, but cc-artex targets a
+**Why it matters**: Useful for team alerting on findings, but ARTEX targets a
 single operator (Claude Code) who already sees findings in-context. Low priority.
 
 **Effort**: High. Large, standalone package with many channel adapters.
@@ -304,7 +304,7 @@ single operator (Claude Code) who already sees findings in-context. Low priority
 #### 4.10 Web UI + REST API (`server/`, `web/`)
 **What**: Full web frontend and HTTP API server (60+ Go files in server/).
 
-**Why it matters**: Not applicable. cc-artex is designed to be driven by Claude
+**Why it matters**: Not applicable. ARTEX is designed to be driven by Claude
 Code, not a web browser. The MCP server replaces the REST API.
 
 **Effort**: N/A.
@@ -313,7 +313,7 @@ Code, not a web browser. The MCP server replaces the REST API.
 **What**: Multi-provider LLM pool with health tracking, call recording/replay,
 one-shot Q&A service.
 
-**Why it matters**: Not applicable. cc-artex makes zero LLM calls; Claude Code
+**Why it matters**: Not applicable. ARTEX makes zero LLM calls; Claude Code
 is the LLM.
 
 **Effort**: N/A.
@@ -330,12 +330,12 @@ is the LLM.
 
 **Why it matters**: Low priority. Task archival is a team/enterprise feature.
 
-**Effort**: Medium (AWS SDK dependency already not in cc-artex).
+**Effort**: Medium (AWS SDK dependency already not in ARTEX).
 
 #### 4.14 Tool RAG
 **What**: Lexical projection of the tool catalog based on task context.
 
-**Why it matters**: Low priority. cc-artex exposes ~30 tools, well within
+**Why it matters**: Low priority. ARTEX exposes ~30 tools, well within
 Claude Code's context window. ARTEX needs it because its combined planner +
 worker + custom tool catalog can exceed 50 tools.
 
@@ -368,34 +368,34 @@ be adapted but the ARTEX skill format is not directly usable.
 
 ---
 
-## 5. cc-artex advantages (what we have that they don't)
+## 5. ARTEX advantages (what we have that they don't)
 
 ### 5.1 MCP protocol server
-cc-artex exposes tools via the MCP protocol (stdio + HTTP transports), making it
+ARTEX exposes tools via the MCP protocol (stdio + HTTP transports), making it
 usable by any MCP-compatible client. ARTEX has only an HTTP REST API + its own
 agent loop.
 
 ### 5.2 Engagement lifecycle tools
-`create_engagement`, `list_engagements`, `engagement_status`: cc-artex has
+`create_engagement`, `list_engagements`, `engagement_status`: ARTEX has
 first-class engagement management tools. ARTEX manages tasks via the web UI API
 (creating tasks is a server endpoint, not an agent tool).
 
 ### 5.3 English-language tool descriptions
-cc-artex's tool descriptions are in English, matching Claude Code's language.
+ARTEX's tool descriptions are in English, matching Claude Code's language.
 ARTEX's tool descriptions are in Chinese, optimized for its own bilingual agent.
 
 ### 5.4 `generate_report` tool
-cc-artex has an MCP tool that generates a Markdown report on demand. ARTEX's
+ARTEX has an MCP tool that generates a Markdown report on demand. ARTEX's
 report generation is a server-side API endpoint, not an agent tool.
 
 ### 5.5 Enhanced report package
-cc-artex's `report/` package includes quality analysis (PoE level, verification
+ARTEX's `report/` package includes quality analysis (PoE level, verification
 status, confidence rationale, counterevidence), coverage gap reporting, finding
 export (Markdown summary, per-finding Markdown, CSV), and stale-report
 detection. ARTEX's report is a simple Markdown renderer.
 
 ### 5.6 `record_coverage` tool
-cc-artex has an explicit coverage recording tool (surface/risk_area/outcome
+ARTEX has an explicit coverage recording tool (surface/risk_area/outcome
 ledger). ARTEX has the coverage ledger in its DB but the recording is wired
 through the agent's internal fact-writing path, not as a standalone tool.
 
@@ -406,17 +406,17 @@ first-class MCP tools. In ARTEX, traffic search/get are server API endpoints and
 the agent accesses them through the platform tool system.
 
 ### 5.8 Full traffic stack from day one
-cc-artex ships the complete modern traffic stack (SOCKS5, raw TCP/UDP,
+ARTEX ships the complete modern traffic stack (SOCKS5, raw TCP/UDP,
 transparent proxy, rewrite engine, hookvm) that ARTEX only gained after the
 orig-artex pin.
 
 ### 5.9 Simpler deployment
-cc-artex is a single binary + PostgreSQL. ARTEX requires PostgreSQL + the Go
+ARTEX is a single binary + PostgreSQL. ARTEX requires PostgreSQL + the Go
 server + optionally the Node.js web frontend.
 
 ### 5.10 Credential tools ported and working
-cc-artex has `save_task_credential` and `list_task_credentials` as MCP tools.
-These were added to ARTEX after orig-artex and cc-artex independently ported
+ARTEX has `save_task_credential` and `list_task_credentials` as MCP tools.
+These were added to ARTEX after orig-artex and ARTEX independently ported
 them.
 
 ---
@@ -456,7 +456,7 @@ them.
 
 - Web UI, REST API server, LLM provider pool, LLM recording, side-question
   service, self-update, Chrome extension, session spill, budget management,
-  tool RAG. These are either not applicable to the cc-artex architecture or
+  tool RAG. These are either not applicable to the ARTEX architecture or
   are handled by Claude Code itself.
 
 ### Consider later

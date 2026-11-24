@@ -1,8 +1,8 @@
 # MCP Client Configuration
 
-cc-artex is a standard MCP server, so any MCP client can use it. Every client below launches the same command; only the config file location and wrapper keys differ.
+ARTEX is a standard MCP server, so any MCP client can use it. Every client below launches the same command; only the config file location and wrapper keys differ.
 
-Run `cc-artex init --pg "<dsn>" --goal "<goal>"` once first (see the [README](../README.md#quick-start)). Replace `postgres://localhost/ccartex` with your DSN in each example. Drop `"--proxy", ":8788"` if you do not need traffic capture; without it the traffic tools are not registered.
+Run `artex init --pg "<dsn>" --goal "<goal>"` once first (see the [README](../README.md#quick-start)). Replace `postgres://localhost/ccartex` with your DSN in each example. Drop `"--proxy", ":8788"` if you do not need traffic capture; without it the traffic tools are not registered.
 
 Client config formats change between releases. If a path or key below does not match your version, check the client's MCP documentation; the command and args stay the same.
 
@@ -10,12 +10,12 @@ Client config formats change between releases. If a path or key below does not m
 
 For any MCP client that can launch a stdio server:
 
-- Command: `cc-artex`
+- Command: `artex`
 - Args: `["serve", "--stdio", "--pg", "<dsn>"]`
 
-`cc-artex` must be on the `PATH` of the client process. Editors launched from a desktop menu often do not inherit your shell `PATH`; use an absolute path for `command` if the server fails to start.
+`artex` must be on the `PATH` of the client process. Editors launched from a desktop menu often do not inherit your shell `PATH`; use an absolute path for `command` if the server fails to start.
 
-For clients that support HTTP/SSE, run `cc-artex serve --listen localhost:9400 --pg "<dsn>"` (or `docker compose up`) and point the client at `http://localhost:9400/sse`.
+For clients that support HTTP/SSE, run `artex serve --listen localhost:9400 --pg "<dsn>"` (or `docker compose up`) and point the client at `http://localhost:9400/sse`.
 
 ## Claude Code
 
@@ -24,8 +24,8 @@ File: `~/.claude.json` (user-wide) or `.mcp.json` in the project root.
 ```json
 {
   "mcpServers": {
-    "cc-artex": {
-      "command": "cc-artex",
+    "artex": {
+      "command": "artex",
       "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
     }
   }
@@ -41,8 +41,8 @@ File: `.cursor/mcp.json` in the project root, or `~/.cursor/mcp.json` for all pr
 ```json
 {
   "mcpServers": {
-    "cc-artex": {
-      "command": "cc-artex",
+    "artex": {
+      "command": "artex",
       "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
     }
   }
@@ -61,8 +61,8 @@ Cline is a VS Code extension. Open the MCP Servers panel, choose Configure MCP S
 ```json
 {
   "mcpServers": {
-    "cc-artex": {
-      "command": "cc-artex",
+    "artex": {
+      "command": "artex",
       "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"],
       "disabled": false
     }
@@ -73,7 +73,7 @@ Cline is a VS Code extension. Open the MCP Servers panel, choose Configure MCP S
 Notes:
 
 - Cline picks up changes when the file is saved; no restart is needed.
-- Cline can use local models through Ollama or LM Studio, but cc-artex's multi-step workflow needs a capable model. See [MULTI_CLIENT_RESEARCH.md](internal/MULTI_CLIENT_RESEARCH.md).
+- Cline can use local models through Ollama or LM Studio, but ARTEX's multi-step workflow needs a capable model. See [MULTI_CLIENT_RESEARCH.md](internal/MULTI_CLIENT_RESEARCH.md).
 
 ## Windsurf
 
@@ -82,8 +82,8 @@ File: `~/.codeium/windsurf/mcp_config.json`. You can also open it from the Casca
 ```json
 {
   "mcpServers": {
-    "cc-artex": {
-      "command": "cc-artex",
+    "artex": {
+      "command": "artex",
       "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
     }
   }
@@ -93,7 +93,7 @@ File: `~/.codeium/windsurf/mcp_config.json`. You can also open it from the Casca
 Notes:
 
 - Press Refresh in the Cascade MCP panel, or restart Windsurf, after editing.
-- Windsurf caps the total number of enabled tools across all MCP servers. If cc-artex's tools are cut off, disable tools from other servers.
+- Windsurf caps the total number of enabled tools across all MCP servers. If ARTEX's tools are cut off, disable tools from other servers.
 
 ## Zed
 
@@ -102,9 +102,9 @@ Zed calls MCP servers "context servers" and configures them in `settings.json` (
 ```json
 {
   "context_servers": {
-    "cc-artex": {
+    "artex": {
       "source": "custom",
-      "command": "cc-artex",
+      "command": "artex",
       "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"],
       "env": {}
     }
@@ -121,5 +121,5 @@ Notes:
 ## Troubleshooting
 
 - `failed to open store`: PostgreSQL is not reachable with the DSN you gave. Start it or run `docker compose up -d postgres`.
-- Server never appears: run the exact command and args from a terminal to see the error, and confirm `cc-artex` is on the client's `PATH`.
-- Use `CC_ARTEX_PG` in the client's `env` block instead of `--pg` if you prefer to keep the DSN out of the args.
+- Server never appears: run the exact command and args from a terminal to see the error, and confirm `artex` is on the client's `PATH`.
+- Use `ARTEX_PG` in the client's `env` block instead of `--pg` if you prefer to keep the DSN out of the args.

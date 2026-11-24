@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/evidence"
-	"github.com/SREsAreHumanToo/cc-artex/mcpserver"
-	"github.com/SREsAreHumanToo/cc-artex/tools"
-	"github.com/SREsAreHumanToo/cc-artex/traffic"
+	"github.com/SREsAreHumanToo/ARTEX-CC/evidence"
+	"github.com/SREsAreHumanToo/ARTEX-CC/mcpserver"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/traffic"
 )
 
 type mockStore struct {

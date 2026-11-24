@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/enrich"
+	"github.com/SREsAreHumanToo/ARTEX-CC/enrich"
 )
 
 const defaultEnrichTimeout = 30

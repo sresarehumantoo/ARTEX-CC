@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/report"
+	"github.com/SREsAreHumanToo/ARTEX-CC/report"
 )
 
 func RegisterReportTools(reg *Registry, store Store, taskID, explorationID int64) {

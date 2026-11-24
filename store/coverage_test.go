@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 func TestValidCoverageOutcome(t *testing.T) {

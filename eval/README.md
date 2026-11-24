@@ -1,6 +1,6 @@
-# cc-artex Evaluation Harness
+# ARTEX Evaluation Harness
 
-Self-hosted evaluation harness for testing cc-artex against controlled vulnerable
+Self-hosted evaluation harness for testing ARTEX against controlled vulnerable
 targets. No HTB dependency; all targets run locally in Docker.
 
 ## Targets
@@ -24,7 +24,7 @@ VulnApp vulnerabilities:
 ```
 cd eval
 
-# Start targets (Postgres for cc-artex state is included)
+# Start targets (Postgres for ARTEX state is included)
 docker compose up -d
 
 # Wait for health checks, then run a scenario
@@ -40,7 +40,7 @@ docker compose down -v
 ```
 
 The runner calls `claude` (Claude Code CLI) in `--print --dangerously-skip-permissions`
-mode with an auto-generated MCP config pointing cc-artex at the eval Postgres.
+mode with an auto-generated MCP config pointing ARTEX at the eval Postgres.
 
 ## What it measures
 
@@ -88,8 +88,8 @@ containing "sqli", "sql injection", etc.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--pg` | `CC_ARTEX_PG` or localhost eval DB | PostgreSQL connection string |
-| `--artex` | `cc-artex` | Path to cc-artex binary |
+| `--pg` | `ARTEX_PG` or localhost eval DB | PostgreSQL connection string |
+| `--artex` | `artex` | Path to artex binary |
 | `--claude` | `claude` | Path to Claude Code CLI binary |
 | `--output` | `.` | Directory for scorecard JSON files |
 | `--dry-run` | false | Set up engagement but skip Claude execution |

@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/store"
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/store"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 func (a *API) registerTasksRoutes(mux *http.ServeMux) {

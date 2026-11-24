@@ -6,7 +6,7 @@ help:
 	@echo "Targets:"
 	@echo "  all         Build frontend then Go binary (default)"
 	@echo "  build       Build frontend then Go binary"
-	@echo "  install     Install cc-artex to GOPATH/bin"
+	@echo "  install     Install artex-cc to GOPATH/bin"
 	@echo "  web         Build frontend to web/dist/"
 	@echo "  dev         Print instructions for local development"
 	@echo "  test        Run Go tests"
@@ -29,13 +29,13 @@ web/node_modules: web/package.json web/package-lock.json
 	@touch $@
 
 build: web
-	go build -o cc-artex ./cmd/cc-artex
+	go build -o artex-cc ./cmd/artex-cc
 
 install:
-	go install ./cmd/cc-artex
+	go install ./cmd/artex-cc
 
 dev:
-	@echo "Start the Go server:  go run ./cmd/cc-artex serve --web --pg \$$CC_ARTEX_PG --listen :9400"
+	@echo "Start the Go server:  go run ./cmd/artex-cc serve --web --pg \$$ARTEX_PG --listen :9400"
 	@echo "Start Vite dev:       cd web && npm run dev"
 
 test:
@@ -72,4 +72,4 @@ coverage:
 	@echo "Coverage report written to coverage.html"
 
 clean:
-	rm -rf web/dist cc-artex
+	rm -rf web/dist artex-cc

@@ -73,7 +73,7 @@ jobs:
       - name: Test store with coverage
         run: go test -coverprofile=coverage-store.out -covermode=atomic ./store/...
         env:
-          CC_ARTEX_TEST_PG: "postgres://artex:artex@localhost:5432/artex_test?sslmode=disable"
+          ARTEX_TEST_PG: "postgres://artex:artex@localhost:5432/artex_test?sslmode=disable"
       - name: Upload store coverage
         uses: codecov/codecov-action@v5
         with:

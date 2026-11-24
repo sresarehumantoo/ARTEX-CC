@@ -9,15 +9,15 @@ Prerequisites:
 - Node.js and npm, for the web UI
 
 ```sh
-git clone https://github.com/sresarehumantoo/cc-artex.git
-cd cc-artex
-make build   # builds the web UI, then ./cc-artex
+git clone https://github.com/SREsAreHumanToo/ARTEX-CC.git
+cd ARTEX-CC
+make build   # builds the web UI, then ./artex-cc
 make ci      # fmt-check + vet + test, same as CI
 ```
 
-To build only the Go binary (skips the web UI): `go build ./cmd/cc-artex`.
+To build only the Go binary (skips the web UI): `go build ./cmd/artex-cc`.
 
-To run the server against a local database, point `CC_ARTEX_PG` (or `--pg`) at it. `make dev` prints the commands for the Go server and the Vite dev server.
+To run the server against a local database, point `ARTEX_PG` (or `--pg`) at it. `make dev` prints the commands for the Go server and the Vite dev server.
 
 ## Testing
 
@@ -29,10 +29,10 @@ go test ./...
 go test ./tools/...
 
 # Store tests (requires a PostgreSQL instance)
-CC_ARTEX_TEST_PG="postgres://localhost/ccartex_test" go test ./store/...
+ARTEX_TEST_PG="postgres://localhost/ccartex_test" go test ./store/...
 ```
 
-Store tests are skipped when `CC_ARTEX_TEST_PG` is not set, so `go test ./...` is safe to run without a database.
+Store tests are skipped when `ARTEX_TEST_PG` is not set, so `go test ./...` is safe to run without a database.
 
 ## Code style
 
@@ -55,7 +55,7 @@ Tools live in `tools/` and are grouped by category: `asset_tools.go`,
 
 Most tool groups are registered in `RegisterAll` via their `Register*Tools`
 function. Traffic tools are the exception: they depend on a `*traffic.Traffic`
-instance instead of `Store` and are registered separately in `cmd/cc-artex/`
+instance instead of `Store` and are registered separately in `cmd/artex-cc/`
 when the `--proxy` flag is set.
 
 The `Tool` struct has `Name`, `Description`, `Schema`, and `Run`. The schema

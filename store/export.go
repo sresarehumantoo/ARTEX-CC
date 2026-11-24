@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SREsAreHumanToo/cc-artex/tools"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 func (s *Store) ExportEngagementData(ctx context.Context, taskID int64) (*tools.EngagementExport, error) {

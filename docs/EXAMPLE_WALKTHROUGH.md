@@ -1,7 +1,7 @@
 # Example engagement walkthrough
 
 This document walks through a complete bug bounty engagement against a
-hypothetical target, `app.example.com`, using cc-artex and Claude Code. It
+hypothetical target, `app.example.com`, using ARTEX and Claude Code. It
 shows the tool calls Claude makes, what comes back, and how the exploration
 graph steers the session from first contact to final report.
 
@@ -17,7 +17,7 @@ MCP server.
 
 ```
 createdb ccartex
-cc-artex init --pg "postgres://localhost/ccartex" --goal "Bug bounty: app.example.com"
+artex init --pg "postgres://localhost/ccartex" --goal "Bug bounty: app.example.com"
 ```
 
 The init command prints MCP config and CA trust instructions. Add the config to
@@ -26,8 +26,8 @@ The init command prints MCP config and CA trust instructions. Add the config to
 ```json
 {
   "mcpServers": {
-    "cc-artex": {
-      "command": "cc-artex",
+    "artex": {
+      "command": "artex",
       "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
     }
   }

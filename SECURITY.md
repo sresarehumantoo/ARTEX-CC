@@ -2,11 +2,11 @@
 
 ## Scope
 
-cc-artex is an offensive security tool. Its purpose is to assist with authorized
+ARTEX is an offensive security tool. Its purpose is to assist with authorized
 penetration testing, so "it can be used to test systems" is by design, not a
 vulnerability.
 
-A security issue in cc-artex is a flaw in the tool itself that could harm its
+A security issue in ARTEX is a flaw in the tool itself that could harm its
 users or the systems they run it on in unintended ways. Examples:
 
 - Credential leakage: stored credentials exposed to unauthorized parties, leaked
@@ -18,9 +18,9 @@ users or the systems they run it on in unintended ways. Examples:
 - Authentication or authorization bypass in the HTTP transport.
 - Denial of service against the operator's machine (resource exhaustion from
   crafted input).
-- Dependency vulnerabilities that are reachable through cc-artex's code paths.
+- Dependency vulnerabilities that are reachable through ARTEX's code paths.
 
-Not in scope: vulnerabilities in targets discovered using cc-artex, or the
+Not in scope: vulnerabilities in targets discovered using ARTEX, or the
 intended ability to intercept, record, and replay network traffic.
 
 ## Reporting a vulnerability
