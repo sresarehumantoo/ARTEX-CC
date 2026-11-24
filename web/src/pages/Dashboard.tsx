@@ -604,7 +604,10 @@ export function Dashboard() {
               e.findings_total
             }>
               <span>
-                {e.goals.length} goals, {e.open_intents.length + e.running_intents.length} active intents, {e.facts} facts, {e.findings_total} findings
+                <span className="whitespace-nowrap">{e.goals.length} goals,</span>{' '}
+                <span className="whitespace-nowrap">{e.open_intents.length + e.running_intents.length} active intents,</span>{' '}
+                <span className="whitespace-nowrap">{e.facts} facts,</span>{' '}
+                <span className="whitespace-nowrap">{e.findings_total} findings</span>
               </span>
             </StatCard>
 
