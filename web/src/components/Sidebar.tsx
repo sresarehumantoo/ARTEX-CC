@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, ChevronsLeft, ChevronsRight, Shield } from 'lucide-react'
+import { ChevronDown, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { BrandMark } from './BrandMark'
 import { cn } from '../lib/utils'
 import { navGroups } from '../lib/nav'
 import { getEngagement } from '../lib/api'
@@ -85,9 +86,9 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         : cn('h-full', collapsed ? 'w-14' : 'w-14 md:w-56'),
     )}>
       <div className={cn('flex items-center gap-2 px-3 py-4', !collapsed && 'md:px-5')}>
-        <Shield className="h-6 w-6 shrink-0 text-primary" />
-        <span className={cn(showBlock, 'text-lg font-semibold tracking-tight')}>
-          ARTEX-CC
+        <BrandMark className="size-7 shrink-0" />
+        <span className={cn(showBlock, 'text-lg font-bold tracking-tight')}>
+          ARTEX<span className="text-sky-600 dark:text-sky-400">-CC</span>
         </span>
       </div>
       <nav className={cn('flex-1 space-y-2 overflow-y-auto px-2 py-2', !collapsed && 'md:px-3')}>
