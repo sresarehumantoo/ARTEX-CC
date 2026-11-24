@@ -120,12 +120,12 @@
     <text x="440" y="202" text-anchor="middle" class="sans t2" font-size="10">stdio | HTTP</text>
   </g>
 
-  <!-- cc-artex box -->
+  <!-- ARTEX-CC box -->
   <g>
     <rect x="575" y="104" width="255" height="132" rx="14" class="box-artex shd" stroke-width="1.5"/>
-    <text x="702" y="140" text-anchor="middle" class="mono t1" font-size="18" font-weight="700">cc-artex</text>
+    <text x="702" y="140" text-anchor="middle" class="mono t1" font-size="18" font-weight="700">ARTEX-CC</text>
     <text x="702" y="165" text-anchor="middle" class="sans t2" font-size="13" font-style="italic">The Nervous System</text>
-    <text x="702" y="188" text-anchor="middle" class="sans t2" font-size="11">47 tools · 7 categories</text>
+    <text x="702" y="188" text-anchor="middle" class="sans t2" font-size="11">59 tools · 10 categories</text>
     <g transform="translate(682,214)" opacity="0.5">
       <line x1="0" y1="0" x2="15" y2="-10" stroke="#0ea5e9" stroke-width="1"/>
       <line x1="0" y1="0" x2="20" y2="6" stroke="#0ea5e9" stroke-width="1"/>
@@ -140,7 +140,7 @@
     </g>
   </g>
 
-  <!-- Branches from cc-artex to tool categories -->
+  <!-- Branches from ARTEX-CC to tool categories -->
   <g>
     <line x1="702" y1="236" x2="702" y2="258" class="branch" stroke-width="1.5"/>
     <line x1="128" y1="258" x2="832" y2="258" class="branch" stroke-width="1.5"/>
