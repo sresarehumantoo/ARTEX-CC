@@ -2,19 +2,20 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, Square } from 'lucide-react'
 import type { ConversationStatus } from '../../lib/chat-types'
 import { Button } from '../ui/button'
-import { Select } from '../ui/select'
+import { SelectRoot, SelectTrigger, SelectContent, SelectValue } from '../ui/select'
 import { Textarea } from '../ui/textarea'
+import type { ModelOption } from '../../lib/api/llm'
+import { ModelOptions } from './ModelOptions'
 import { MentionPopover, useMentionResults, type Mention } from './MentionPopover'
 
 const MENTION_RE = /(^|\s)@([\w.-]*)$/
-
-export const MODELS = ['opus', 'sonnet', 'haiku']
 
 interface ComposerProps {
   text: string
   onTextChange: (text: string) => void
   onSubmit: () => void
   onStop: () => void
+  models: ModelOption[]
   model: string
   onModelChange: (model: string) => void
   status: ConversationStatus | null
@@ -27,6 +28,7 @@ export function Composer({
   onTextChange,
   onSubmit,
   onStop,
+  models,
   model,
   onModelChange,
   status,
@@ -66,6 +68,7 @@ export function Composer({
     if (!el) return
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`
+    el.style.overflowY = el.scrollHeight > 200 ? 'auto' : 'hidden'
   }, [text])
 
   return (
@@ -119,13 +122,18 @@ export function Composer({
         )}
       </div>
       <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-        <Select size="sm" value={model} disabled={disabled} onChange={e => onModelChange(e.target.value)} aria-label="Model">
-          {MODELS.map(m => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </Select>
+        <SelectRoot value={model} onValueChange={onModelChange} disabled={disabled}>
+          <SelectTrigger
+            size="sm"
+            aria-label="Model"
+            className="h-6 gap-1 rounded-full border-transparent bg-transparent py-0 pr-1.5 pl-2.5 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground data-[size=sm]:h-6 data-[size=sm]:rounded-full dark:bg-transparent dark:hover:bg-muted/60 [&_svg:not([class*='size-'])]:size-3 [&_svg]:opacity-60"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <ModelOptions models={models} />
+          </SelectContent>
+        </SelectRoot>
         <span>{text.length > 0 ? `~${Math.ceil(text.length / 4)} tokens` : ''}</span>
       </div>
     </div>

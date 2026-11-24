@@ -22,7 +22,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { Select } from '../components/ui/select'
+import { SelectRoot, SelectTrigger, SelectContent, SelectItem, SelectValue } from '../components/ui/select'
 import { Switch } from '../components/ui/switch'
 import { Textarea } from '../components/ui/textarea'
 import { Skeleton } from '../components/ui/skeleton'
@@ -135,18 +135,28 @@ function RuleDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="rule-scope">Scope</Label>
-              <Select id="rule-scope" value={scope} onChange={e => setScope(e.target.value as RuleScope)}>
-                <option value="tool_name">tool_name</option>
-                <option value="input">input</option>
-              </Select>
+              <SelectRoot value={scope} onValueChange={v => setScope(v as RuleScope)}>
+                <SelectTrigger id="rule-scope">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tool_name">tool_name</SelectItem>
+                  <SelectItem value="input">input</SelectItem>
+                </SelectContent>
+              </SelectRoot>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="rule-action">Action</Label>
-              <Select id="rule-action" value={action} onChange={e => setAction(e.target.value as RuleAction)}>
-                <option value="allow">allow</option>
-                <option value="ask">ask</option>
-                <option value="deny">deny</option>
-              </Select>
+              <SelectRoot value={action} onValueChange={v => setAction(v as RuleAction)}>
+                <SelectTrigger id="rule-action">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="allow">allow</SelectItem>
+                  <SelectItem value="ask">ask</SelectItem>
+                  <SelectItem value="deny">deny</SelectItem>
+                </SelectContent>
+              </SelectRoot>
             </div>
           </div>
           <div className="space-y-1.5">
@@ -373,16 +383,16 @@ function ApprovalsTab() {
         <p className="text-sm text-muted-foreground">
           {pending.length} pending, {decided.length} decided.
         </p>
-        <Select
-          aria-label="Filter approvals"
-          value={filter}
-          onChange={e => setFilter(e.target.value as ApprovalFilter)}
-          className="w-32"
-        >
-          <option value="all">All</option>
-          <option value="pending">Pending</option>
-          <option value="decided">Decided</option>
-        </Select>
+        <SelectRoot value={filter} onValueChange={v => setFilter(v as ApprovalFilter)}>
+          <SelectTrigger aria-label="Filter approvals" className="w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="decided">Decided</SelectItem>
+          </SelectContent>
+        </SelectRoot>
       </div>
 
       {error && <p className="text-sm text-destructive">Failed to load approvals: {error.message}</p>}

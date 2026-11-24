@@ -5,7 +5,7 @@ import { createAgent, deleteAgent, updateAgent, type Agent } from '../lib/api/ag
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { Select } from '../components/ui/select'
+import { SelectRoot, SelectTrigger, SelectContent, SelectItem, SelectValue } from '../components/ui/select'
 import { Textarea } from '../components/ui/textarea'
 import {
   Dialog,
@@ -128,11 +128,16 @@ export default function AgentDetail({ open, agent, onOpenChange }: AgentDetailPr
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="agent-model">Model</Label>
-              <Select id="agent-model" value={model} onChange={e => setModel(e.target.value)}>
-                <option value="opus">opus</option>
-                <option value="sonnet">sonnet</option>
-                <option value="haiku">haiku</option>
-              </Select>
+              <SelectRoot value={model} onValueChange={setModel}>
+                <SelectTrigger id="agent-model">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="opus">opus</SelectItem>
+                  <SelectItem value="sonnet">sonnet</SelectItem>
+                  <SelectItem value="haiku">haiku</SelectItem>
+                </SelectContent>
+              </SelectRoot>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="agent-tools">Allowed tools</Label>

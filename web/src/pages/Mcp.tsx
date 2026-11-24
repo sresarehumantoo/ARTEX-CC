@@ -8,7 +8,7 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { Select } from '../components/ui/select'
+import { SelectRoot, SelectTrigger, SelectContent, SelectItem, SelectValue } from '../components/ui/select'
 import { Skeleton } from '../components/ui/skeleton'
 import { Textarea } from '../components/ui/textarea'
 import {
@@ -93,10 +93,15 @@ function AddServerDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="mcp-type">Type</Label>
-            <Select id="mcp-type" value={type} onChange={e => setType(e.target.value as 'stdio' | 'http')}>
-              <option value="stdio">stdio</option>
-              <option value="http">http</option>
-            </Select>
+            <SelectRoot value={type} onValueChange={v => setType(v as 'stdio' | 'http')}>
+              <SelectTrigger id="mcp-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="stdio">stdio</SelectItem>
+                <SelectItem value="http">http</SelectItem>
+              </SelectContent>
+            </SelectRoot>
           </div>
           {type === 'stdio' ? (
             <>

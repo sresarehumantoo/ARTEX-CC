@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown, Bot } from 'lucide-react'
-import type { ChatEvent } from '../../lib/chat-types'
+import type { ChatEvent, ConversationStatus } from '../../lib/chat-types'
 import { Button } from '../ui/button'
 import { ScrollArea } from '../ui/scroll-area'
 import { MarkdownBody } from './MarkdownBody'
@@ -18,6 +18,24 @@ function Thinking({ text }: { text: string }) {
     <Expandable header={<span className="italic text-muted-foreground">Thinking...</span>} className="bg-transparent ring-0">
       <p className="text-xs whitespace-pre-wrap italic text-muted-foreground">{text}</p>
     </Expandable>
+  )
+}
+
+function WorkingIndicator({ events }: { events: ChatEvent[] }) {
+  const last = events.findLast(e => e.kind !== 'result')
+  if (last?.kind === 'text' || last?.kind === 'error') return null
+  let label = 'Thinking...'
+  if (last?.kind === 'tool_use') label = `Running ${last.tool_name ?? 'tool'}...`
+  else if (last?.kind === 'tool_result') label = 'Analyzing...'
+  return (
+    <div className="flex items-center gap-2 px-1 py-1 text-sm text-muted-foreground" role="status">
+      <span className="flex items-center gap-1" aria-hidden>
+        {[0, 150, 300].map(d => (
+          <span key={d} className="size-1.5 animate-pulse rounded-full bg-current" style={{ animationDelay: `${d}ms` }} />
+        ))}
+      </span>
+      <span>{label}</span>
+    </div>
   )
 }
 
@@ -53,7 +71,7 @@ function EventRow({ event, results }: { event: ChatEvent; results: Map<string, C
   return null
 }
 
-export function Transcript({ events }: { events: ChatEvent[] }) {
+export function Transcript({ events, status }: { events: ChatEvent[]; status?: ConversationStatus | null }) {
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const stuckRef = useRef(true)
@@ -96,7 +114,7 @@ export function Transcript({ events }: { events: ChatEvent[] }) {
 
   useLayoutEffect(() => {
     if (stuckRef.current) scrollToBottom()
-  }, [rows, scrollToBottom])
+  }, [rows, status, scrollToBottom])
 
   return (
     <div ref={rootRef} className="relative min-h-0 flex-1">
@@ -107,6 +125,7 @@ export function Transcript({ events }: { events: ChatEvent[] }) {
               {e.kind === 'tool_result' ? <OrphanResult event={e} /> : <EventRow event={e} results={results} />}
             </div>
           ))}
+          {status === 'running' && <WorkingIndicator events={events} />}
         </div>
       </ScrollArea>
       {!stuck && (

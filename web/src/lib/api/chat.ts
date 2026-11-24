@@ -18,7 +18,12 @@ async function request<T>(path: string, init?: RequestInit, params?: Record<stri
     }
   }
   const res = await fetch(url.toString(), init)
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    const parsed = body ? (() => { try { return JSON.parse(body) } catch { return null } })() : null
+    const detail = parsed?.error || body || res.statusText
+    throw new Error(detail)
+  }
   if (res.status === 204) return undefined as T
   const text = await res.text()
   return (text ? JSON.parse(text) : undefined) as T

@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../ui/alert-dialog'
+import { modelLabel } from '../../lib/api/llm'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
@@ -198,7 +199,7 @@ export function ConversationList({
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Badge className="px-1.5 py-0 text-[10px]">{c.model}</Badge>
+                    <Badge className="max-w-24 truncate px-1.5 py-0 text-[10px]">{modelLabel(c.model ?? '')}</Badge>
                     {c.status === 'error' && <Badge variant="critical" className="px-1.5 py-0 text-[10px]">error</Badge>}
                     <span>{timeAgo(c.updated_at)}</span>
                     <span className="ml-auto truncate font-mono">{c.id}</span>

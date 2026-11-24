@@ -1,16 +1,19 @@
 import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { MessageSquare, Square } from 'lucide-react'
-import { Composer, MODELS } from '../components/chat/Composer'
+import { Composer } from '../components/chat/Composer'
+import { ModelOptions } from '../components/chat/ModelOptions'
 import { ConversationList, RunningDot } from '../components/chat/ConversationList'
 import { UsageBar } from '../components/chat/UsageBar'
 import { Transcript } from '../components/chat/Transcript'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
-import { Select } from '../components/ui/select'
+import { SelectRoot, SelectTrigger, SelectContent, SelectValue } from '../components/ui/select'
 import { useChatComposer } from '../hooks/useChatComposer'
 import { useConversations } from '../hooks/useConversations'
 import { useConversationStream } from '../hooks/useConversationStream'
+import { FALLBACK_MODELS, getLLMStatus, llmStatusKey } from '../lib/api/llm'
 import type { ChatEvent } from '../lib/chat-types'
 
 const PANE = 'rounded-xl bg-card ring-1 ring-foreground/10'
@@ -26,6 +29,8 @@ export default function Chat() {
   const [params, setParams] = useSearchParams()
   const activeId = params.get('c')
   const [newModel, setNewModel] = useState('sonnet')
+  const { data: llmStatus } = useQuery({ queryKey: llmStatusKey, queryFn: getLLMStatus })
+  const models = llmStatus?.models ?? FALLBACK_MODELS
   const { conversations, create, rename, remove } = useConversations()
   const conversation = conversations.find(c => c.id === activeId) ?? null
   const stream = useConversationStream(conversation?.id ?? null)
@@ -81,12 +86,13 @@ export default function Chat() {
             )}
           </div>
           {stream.error && <div className="px-3 py-1 text-xs text-muted-foreground">{stream.error}</div>}
-          <Transcript key={conversation.id} events={stream.events} />
+          <Transcript key={conversation.id} events={stream.events} status={status} />
           <Composer
             text={composer.text}
             onTextChange={composer.setText}
             onSubmit={composer.submit}
             onStop={() => composer.stop.mutate()}
+            models={models}
             model={conversation.model ?? 'sonnet'}
             onModelChange={m => composer.setModel.mutate(m)}
             status={status}
@@ -103,13 +109,18 @@ export default function Chat() {
             Pick a model and begin, or select an existing conversation from the list.
           </p>
           <div className="flex items-center gap-2">
-            <Select size="sm" value={newModel} onChange={e => setNewModel(e.target.value)} aria-label="Model">
-              {MODELS.map(m => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </Select>
+            <SelectRoot value={newModel} onValueChange={setNewModel}>
+              <SelectTrigger
+                size="sm"
+                aria-label="Model"
+                className="gap-1.5 rounded-full border-border/60 bg-muted/30 pr-2 pl-3 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground data-[size=sm]:h-8 data-[size=sm]:rounded-full dark:bg-muted/30 dark:hover:bg-muted/60 [&_svg:not([class*='size-'])]:size-3.5"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <ModelOptions models={models} />
+              </SelectContent>
+            </SelectRoot>
             <Button size="sm" onClick={() => createAndSelect(newModel)} disabled={create.isPending}>
               New conversation
             </Button>
