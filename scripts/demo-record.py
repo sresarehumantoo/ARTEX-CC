@@ -38,7 +38,9 @@ DOMAIN = os.environ.get("ARTEX_DOMAIN", "mgmt.htb")
 # ---------------------------------------------------------------------------
 
 def tmux(*args, capture=False):
-    cmd = ["tmux", *args]
+    # A private server with no config: joining the user's server lets their
+    # tmux.conf override -x/-y, and frames no longer match the cast size.
+    cmd = ["tmux", "-L", SESSION, "-f", "/dev/null", *args]
     if capture:
         return subprocess.run(cmd, capture_output=True, text=True).stdout
     subprocess.run(cmd, check=True, capture_output=True)
@@ -46,7 +48,7 @@ def tmux(*args, capture=False):
 
 class Recorder:
     def __init__(self):
-        subprocess.run(["tmux", "kill-session", "-t", SESSION],
+        subprocess.run(["tmux", "-L", SESSION, "kill-server"],
                        capture_output=True)
         env = {
             "TERM": "xterm-256color",
@@ -137,7 +139,7 @@ class Recorder:
             f.write(json.dumps(header) + "\n")
             for e in self.events:
                 f.write(json.dumps(e) + "\n")
-        subprocess.run(["tmux", "kill-session", "-t", SESSION],
+        subprocess.run(["tmux", "-L", SESSION, "kill-server"],
                        capture_output=True)
 
 
