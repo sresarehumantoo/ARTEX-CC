@@ -21,6 +21,8 @@ type API struct {
 	chat      *ChatStore
 	runner    ChatRunner
 
+	toolList []ToolInfo
+
 	authRequired bool
 	authMu       sync.Mutex
 }
@@ -76,10 +78,15 @@ func (a *API) Handler() http.Handler {
 	a.registerTasksRoutes(mux)
 	if a.chat != nil {
 		a.registerChatRoutes(mux)
+		a.registerCommandsRoutes(mux)
 	}
 	if a.files != nil {
 		a.registerAgentsRoutes(mux)
+		a.registerInterceptRoutes(mux)
+		a.registerMCPConfigRoutes(mux)
+		a.registerSkillsRoutes(mux)
 	}
+	a.registerToolsRoutes(mux)
 	a.registerAuthRoutes(mux)
 	return corsMiddleware(a.authMiddleware(mux))
 }

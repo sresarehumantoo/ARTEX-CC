@@ -16,6 +16,7 @@ import { AUTH_REQUIRED_EVENT, checkAuthStatus } from './lib/auth'
 import { Dashboard } from './pages/Dashboard'
 
 const Tasks = lazy(() => import('./pages/Tasks'))
+const Commands = lazy(() => import('./pages/Commands'))
 const Graph = lazy(() => import('./pages/Graph'))
 const Findings = lazy(() => import('./pages/Findings'))
 const Traffic = lazy(() => import('./pages/Traffic'))
@@ -113,6 +114,7 @@ function MainLayout() {
                 <Route path="/mcp" element={<Mcp />} />
                 <Route path="/tools" element={<Tools />} />
                 <Route path="/intercept" element={<Intercept />} />
+                <Route path="/commands" element={<Commands />} />
                 <Route path="/logs" element={<Logs />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/settings" element={<Settings />} />

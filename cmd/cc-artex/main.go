@@ -226,7 +226,7 @@ func cmdServe(args []string) {
 	var mcpToken string
 	if *webUI {
 		authRequired := *authFlag || envEnabled("CC_ARTEX_AUTH") || !isLoopbackAddr(*listen)
-		apiOpts := []api.Option{api.WithDataDir(*dataDir), api.WithAuthRequired(authRequired)}
+		apiOpts := []api.Option{api.WithDataDir(*dataDir), api.WithAuthRequired(authRequired), api.WithToolList(reg.Tools())}
 		if *claudeBin != "" {
 			apiOpts = append(apiOpts, api.WithClaudeBin(*claudeBin))
 		}
