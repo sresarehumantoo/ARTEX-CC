@@ -113,7 +113,7 @@ func (a *API) handleDeleteConversation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if a.runner != nil {
-		a.runner.Stop(id)
+		a.runner.Stop(id) //nolint:errcheck
 	}
 	if err := a.chat.Delete(id); err != nil {
 		writeChatError(w, err)

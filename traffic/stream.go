@@ -629,5 +629,3 @@ func (t *Traffic) StreamInfo(exchangeID string) (count int, kind string, err err
 	}
 	return count, kind, nil
 }
-
-

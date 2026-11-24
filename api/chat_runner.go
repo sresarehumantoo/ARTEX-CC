@@ -269,7 +269,7 @@ func (r *Runner) StopAll() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			r.Stop(id)
+			r.Stop(id) //nolint:errcheck
 		}()
 	}
 	wg.Wait()

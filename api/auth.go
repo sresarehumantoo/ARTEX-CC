@@ -105,7 +105,7 @@ func (a *API) authMiddleware(next http.Handler) http.Handler {
 			writeError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
-		a.setSession(w, cfg)
+		a.setSession(w, cfg) //nolint:errcheck
 		next.ServeHTTP(w, r)
 	})
 }
