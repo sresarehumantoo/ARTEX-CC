@@ -16,7 +16,7 @@ type Store interface {
 	AddCompanyScope(ctx context.Context, companyID int64, lines []string, reason string) (added, skipped, invalid int, errors []string, err error)
 
 	// Findings
-	AddFinding(ctx context.Context, f FindingInput) (int64, error)
+	AddFinding(ctx context.Context, f FindingInput) (findingID, nodeID int64, err error)
 	ListFindings(ctx context.Context, explorationID int64) ([]Finding, error)
 	FindingExists(ctx context.Context, findingID int64) (bool, error)
 	FindPotentialDuplicates(ctx context.Context, severity string, assetIDs []int64) ([]int64, error)

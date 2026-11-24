@@ -418,7 +418,7 @@ func TestFindingDismiss(t *testing.T) {
 	ctx := context.Background()
 	taskID, expID := testEngagement(t, s, "finding-dismiss")
 
-	findingID, err := s.AddFinding(ctx, tools.FindingInput{
+	findingID, _, err := s.AddFinding(ctx, tools.FindingInput{
 		TaskID:        taskID,
 		ExplorationID: expID,
 		VulnClass:     "info_leak",
@@ -465,7 +465,7 @@ func TestFindingExists(t *testing.T) {
 	ctx := context.Background()
 	taskID, expID := testEngagement(t, s, "finding-exists")
 
-	findingID, _ := s.AddFinding(ctx, tools.FindingInput{
+	findingID, _, _ := s.AddFinding(ctx, tools.FindingInput{
 		TaskID:        taskID,
 		ExplorationID: expID,
 		VulnClass:     "xss",
@@ -497,7 +497,7 @@ func TestSetFindingStatus(t *testing.T) {
 	ctx := context.Background()
 	taskID, expID := testEngagement(t, s, "set-finding-status")
 
-	findingID, _ := s.AddFinding(ctx, tools.FindingInput{
+	findingID, _, _ := s.AddFinding(ctx, tools.FindingInput{
 		TaskID:        taskID,
 		ExplorationID: expID,
 		VulnClass:     "sqli",
@@ -521,7 +521,7 @@ func TestListFindingsForReport(t *testing.T) {
 	ctx := context.Background()
 	taskID, expID := testEngagement(t, s, "findings-report")
 
-	_, _ = s.AddFinding(ctx, tools.FindingInput{
+	_, _, _ = s.AddFinding(ctx, tools.FindingInput{
 		TaskID:        taskID,
 		ExplorationID: expID,
 		VulnClass:     "xss",
@@ -901,7 +901,7 @@ func TestEngagementActivity(t *testing.T) {
 	ctx := context.Background()
 	taskID, expID := testEngagement(t, s, "engagement-activity")
 
-	_, _ = s.AddFinding(ctx, tools.FindingInput{
+	_, _, _ = s.AddFinding(ctx, tools.FindingInput{
 		TaskID: taskID, ExplorationID: expID,
 		VulnClass: "xss", Name: "xss1", Severity: SeverityHigh, Summary: "test xss",
 	})
@@ -922,7 +922,7 @@ func TestExportImportRoundtrip(t *testing.T) {
 	taskID, expID := testEngagement(t, s, "export-import")
 
 	_, _ = s.InsertAsset(ctx, taskID, tools.AssetInput{Type: "root_domain", Domain: fmt.Sprintf("export-test-%d.com", os.Getpid())})
-	_, _ = s.AddFinding(ctx, tools.FindingInput{
+	_, _, _ = s.AddFinding(ctx, tools.FindingInput{
 		TaskID: taskID, ExplorationID: expID,
 		VulnClass: "xss", Name: "Export XSS", Severity: SeverityHigh, Summary: "test",
 	})
@@ -984,12 +984,12 @@ func TestMergeFindings(t *testing.T) {
 	ctx := context.Background()
 	taskID, expID := testEngagement(t, s, "merge-findings")
 
-	id1, _ := s.AddFinding(ctx, tools.FindingInput{
+	id1, _, _ := s.AddFinding(ctx, tools.FindingInput{
 		TaskID: taskID, ExplorationID: expID,
 		VulnClass: "xss", Name: "XSS 1", Severity: SeverityHigh,
 		Summary: "first xss", Evidence: "evidence 1",
 	})
-	id2, _ := s.AddFinding(ctx, tools.FindingInput{
+	id2, _, _ := s.AddFinding(ctx, tools.FindingInput{
 		TaskID: taskID, ExplorationID: expID,
 		VulnClass: "xss", Name: "XSS 2", Severity: SeverityHigh,
 		Summary: "second xss", Evidence: "evidence 2",
@@ -1018,7 +1018,7 @@ func TestFindingTrafficBindings(t *testing.T) {
 	ctx := context.Background()
 	taskID, expID := testEngagement(t, s, "finding-traffic")
 
-	findingID, _ := s.AddFinding(ctx, tools.FindingInput{
+	findingID, _, _ := s.AddFinding(ctx, tools.FindingInput{
 		TaskID: taskID, ExplorationID: expID,
 		VulnClass: "xss", Name: "Traffic XSS", Severity: SeverityHigh, Summary: "test",
 	})

@@ -40,21 +40,66 @@ func scanFinding(row interface{ Scan(...any) error }) (Finding, error) {
 	return f, err
 }
 
-func (s *Store) AddFinding(ctx context.Context, f tools.FindingInput) (int64, error) {
+func (s *Store) AddFinding(ctx context.Context, f tools.FindingInput) (findingID, nodeID int64, err error) {
 	assetIDs := "[]"
 	if len(f.AssetIDs) > 0 {
 		raw, _ := json.Marshal(f.AssetIDs)
 		assetIDs = string(raw)
 	}
-	var id int64
-	err := s.QueryRowContext(ctx, `
-		INSERT INTO findings (task_id, node_id, vulnclass, name, severity, summary, evidence, worker, asset_ids, status, report)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, '')
+	tx, err := s.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	if err = tx.QueryRowContext(ctx, `
+		INSERT INTO findings (task_id, vulnclass, name, severity, summary, evidence, worker, asset_ids, status, report)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, '')
 		RETURNING id`,
-		nullID(f.TaskID), nullID(f.IntentID), f.VulnClass, f.Name, f.Severity, f.Summary,
+		nullID(f.TaskID), f.VulnClass, f.Name, f.Severity, f.Summary,
 		f.Evidence, f.Worker, assetIDs, FindingStatusPending,
-	).Scan(&id)
-	return id, err
+	).Scan(&findingID); err != nil {
+		return 0, 0, err
+	}
+
+	payload, _ := json.Marshal(map[string]any{
+		"finding_id": findingID,
+		"vulnclass":  f.VulnClass,
+		"name":       f.Name,
+		"severity":   f.Severity,
+		"summary":    f.Summary,
+	})
+	if err = tx.QueryRowContext(ctx, `
+		INSERT INTO exploration_nodes (exploration_id, kind, payload, priority, state, origin)
+		VALUES ($1, $2, $3, 5, 'confirmed', 'worker')
+		RETURNING id`,
+		f.ExplorationID, KindFinding, string(payload),
+	).Scan(&nodeID); err != nil {
+		return 0, 0, fmt.Errorf("add finding node: %w", err)
+	}
+	for _, a := range f.AssetIDs {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO exploration_anchors (node_id, asset_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+			nodeID, a); err != nil {
+			return 0, 0, fmt.Errorf("anchor finding node: %w", err)
+		}
+	}
+	if f.IntentID > 0 {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO exploration_edges (exploration_id, src_id, rel, dst_id)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT (exploration_id, src_id, rel, dst_id) DO NOTHING`,
+			f.ExplorationID, f.IntentID, RelYields, nodeID); err != nil {
+			return 0, 0, fmt.Errorf("link intent to finding: %w", err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE findings SET node_id = $1 WHERE id = $2`, nodeID, findingID); err != nil {
+		return 0, 0, err
+	}
+	if err = tx.Commit(); err != nil {
+		return 0, 0, err
+	}
+	return findingID, nodeID, nil
 }
 
 func (s *Store) ListFindings(ctx context.Context, explorationID int64) ([]tools.Finding, error) {
@@ -305,5 +350,8 @@ func (s *Store) DismissFinding(ctx context.Context, findingID int64, reason stri
 	if n == 0 {
 		return fmt.Errorf("finding %d not found", findingID)
 	}
-	return nil
+	_, err = s.ExecContext(ctx,
+		`UPDATE exploration_nodes SET state = 'dismissed'
+		 WHERE id = (SELECT node_id FROM findings WHERE id = $1) AND kind = 'finding'`, findingID)
+	return err
 }

@@ -15,7 +15,7 @@ For any MCP client that can launch a stdio server:
 
 `artex` must be on the `PATH` of the client process. Editors launched from a desktop menu often do not inherit your shell `PATH`; use an absolute path for `command` if the server fails to start.
 
-For clients that support HTTP/SSE, run `artex serve --listen localhost:9400 --pg "<dsn>"` (or `docker compose up`) and point the client at `http://localhost:9400/sse`.
+For clients that support streamable HTTP, run `artex serve --listen localhost:9400 --pg "<dsn>"` and point the client at `http://localhost:9400/mcp`. With `--web` (which `docker compose up` uses), `/mcp` also requires an `Authorization: Bearer <token>` header; the token is regenerated on every start and written to `mcp-config.json` in the data directory.
 
 ## Claude Code
 

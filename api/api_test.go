@@ -62,7 +62,9 @@ func (m *mockStore) GetOrCreateCompany(context.Context, string, string) (int64, 
 func (m *mockStore) AddCompanyScope(context.Context, int64, []string, string) (int, int, int, []string, error) {
 	return 0, 0, 0, nil, nil
 }
-func (m *mockStore) AddFinding(context.Context, tools.FindingInput) (int64, error) { return 0, nil }
+func (m *mockStore) AddFinding(context.Context, tools.FindingInput) (int64, int64, error) {
+	return 0, 0, nil
+}
 func (m *mockStore) ListFindings(_ context.Context, _ int64) ([]tools.Finding, error) {
 	return m.listFindings, m.listFindingsErr
 }

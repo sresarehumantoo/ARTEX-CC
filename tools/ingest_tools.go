@@ -82,7 +82,7 @@ func makeIngestScannerOutput(store Store, taskID, explorationID int64) Tool {
 					Evidence:      finding.Evidence,
 					Worker:        "scanner:" + scanner,
 				}
-				if _, err := store.AddFinding(ctx, input); err != nil {
+				if _, _, err := store.AddFinding(ctx, input); err != nil {
 					errors = append(errors, fmt.Sprintf("finding %s: %v", finding.Name, err))
 					continue
 				}

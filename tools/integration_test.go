@@ -112,14 +112,14 @@ func (m *statefulMock) UpdateNodeFields(_ context.Context, id int64, state strin
 	return nil
 }
 
-func (m *statefulMock) AddFinding(_ context.Context, f FindingInput) (int64, error) {
+func (m *statefulMock) AddFinding(_ context.Context, f FindingInput) (int64, int64, error) {
 	id := m.nextFindingID
 	m.nextFindingID++
 	m.findings = append(m.findings, Finding{
 		ID: id, VulnClass: f.VulnClass, Severity: f.Severity,
 		Summary: f.Summary, State: "confirmed", Status: "open",
 	})
-	return id, nil
+	return id, 0, nil
 }
 
 func (m *statefulMock) ListFindings(_ context.Context, _ int64) ([]Finding, error) {

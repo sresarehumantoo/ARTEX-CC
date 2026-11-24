@@ -1,6 +1,6 @@
 # Tool Reference
 
-Complete parameter documentation for ARTEX's 59 MCP tools, organized by category.
+Complete parameter documentation for ARTEX's 62 MCP tools, organized by category.
 
 ## Table of contents
 
@@ -309,7 +309,7 @@ Record a confirmed finding, with evidence providing verifiable proof such as com
 | asset_ids | array of integer | no | Affected asset IDs |
 | evidence | string | no | Evidence/PoC text |
 
-**Returns:** `{finding_id, possible_duplicates?}`.
+**Returns:** `{finding_id, node_id, possible_duplicates?}`. Pass `node_id` as `evidence_id` to `prove_goal`.
 
 ### `list_findings`
 
@@ -321,7 +321,7 @@ _No parameters._
 
 ### `bind_finding_traffic`
 
-Link a traffic exchange (snapshot) to a finding as evidence. Use traffic_search to find the snapshot_id first.
+Link a traffic exchange (snapshot) to a finding as evidence. Use traffic_search to find the snapshot_id first. Rejects snapshot ids that are not in captured traffic. Only registered when `--proxy` is set.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|

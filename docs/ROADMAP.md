@@ -7,7 +7,7 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 
 **Lines of code:** ~31,000 Go.
 
-**Tool count:** 59 registered tools (core + traffic + evidence + enrich + ingest + scope + intent + activity + triage + coverage).
+**Tool count:** 62 registered tools (core + traffic + evidence + enrich + ingest + scope + intent + activity + triage + coverage).
 
 **Test count:** 910+ test runs across all packages.
 

@@ -10,7 +10,6 @@ import (
 func RegisterFindingTools(reg *Registry, store Store, taskID, explorationID int64) {
 	reg.Register(makeReportFinding(store, taskID, explorationID))
 	reg.Register(makeListFindings(store, explorationID))
-	reg.Register(makeBindFindingTraffic(store))
 	reg.Register(makeMergeFindings(store))
 	reg.Register(makeDismissFinding(store))
 }
@@ -78,12 +77,12 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 
 			dupes, _ := store.FindPotentialDuplicates(ctx, input.Severity, input.AssetIDs)
 
-			findingID, err := store.AddFinding(ctx, input)
+			findingID, nodeID, err := store.AddFinding(ctx, input)
 			if err != nil {
 				return errResult(err.Error()), nil
 			}
 
-			resp := map[string]any{"finding_id": findingID}
+			resp := map[string]any{"finding_id": findingID, "node_id": nodeID}
 			if len(dupes) > 0 {
 				resp["possible_duplicates"] = dupes
 			}
@@ -138,7 +137,7 @@ func makeListFindings(store Store, explorationID int64) Tool {
 	}
 }
 
-func makeBindFindingTraffic(store Store) Tool {
+func makeBindFindingTraffic(store Store, snapshotExists func(id string) (bool, error)) Tool {
 	return Tool{
 		Name: "bind_finding_traffic",
 		Description: "Link a traffic exchange (snapshot) to a finding as evidence. " +
@@ -174,6 +173,13 @@ func makeBindFindingTraffic(store Store) Tool {
 			validRoles := map[string]bool{"baseline": true, "proof": true, "verification": true, "supporting": true}
 			if !validRoles[role] {
 				return errResult(fmt.Sprintf("role %q is not valid (use baseline/proof/verification/supporting)", a.Role)), nil
+			}
+			found, err := snapshotExists(snapshotID)
+			if err != nil {
+				return errResult(err.Error()), nil
+			}
+			if !found {
+				return errResult(fmt.Sprintf("snapshot %q not found in captured traffic; use traffic_search to find a valid id", snapshotID)), nil
 			}
 
 			existing, err := store.ListFindingTraffic(ctx, findingID)

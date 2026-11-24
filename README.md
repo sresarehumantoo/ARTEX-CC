@@ -20,7 +20,7 @@
 
 </div>
 
-ARTEX is an autonomous penetration testing platform that exposes [upstream ARTEX](https://github.com/BaaRai/ARTEX)'s pentest model as MCP tools Claude Code calls through your existing Claude subscription. Asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 59 MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
+ARTEX is an autonomous penetration testing platform that exposes [upstream ARTEX](https://github.com/BaaRai/ARTEX)'s pentest model as MCP tools Claude Code calls through your existing Claude subscription. Asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 62 MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
 
 You bring the brain. ARTEX brings the hands.
 
@@ -167,12 +167,15 @@ Add this to your Claude Code MCP config (`~/.claude.json` or project `.mcp.json`
 {
   "mcpServers": {
     "artex": {
-      "type": "sse",
-      "url": "http://localhost:9400/sse"
+      "type": "http",
+      "url": "http://localhost:9400/mcp",
+      "headers": { "Authorization": "Bearer <token>" }
     }
   }
 }
 ```
+
+The container generates a new bearer token every time it starts and writes a ready-made config containing it to `/app/data/mcp-config.json`. Read it with `docker compose exec artex cat /app/data/mcp-config.json` and update the header after each restart.
 
 Or use stdio transport through Docker:
 
@@ -183,7 +186,7 @@ Or use stdio transport through Docker:
       "command": "docker",
       "args": [
         "compose", "exec", "-T", "artex",
-        "/app/artex", "serve", "--stdio",
+        "/app/artex-cc", "serve", "--stdio",
         "--pg", "postgres://ccartex:ccartex@postgres:5432/ccartex?sslmode=disable",
         "--data", "/app/data", "--proxy", ":8788"
       ]
@@ -196,7 +199,7 @@ Point your testing tools at `http://localhost:8788` to capture traffic through t
 
 ## Tool catalog
 
-59 MCP tools across ten categories. Claude calls these automatically based on what the engagement needs.
+62 MCP tools across ten categories. Claude calls these automatically based on what the engagement needs.
 For detailed parameter documentation, see [Tool Reference](docs/TOOLS.md).
 
 <details open>
@@ -242,7 +245,7 @@ For detailed parameter documentation, see [Tool Reference](docs/TOOLS.md).
 |------|-------------|
 | `report_finding` | Report a vulnerability with severity, evidence, and affected assets |
 | `list_findings` | List findings for the current engagement |
-| `bind_finding_traffic` | Link a finding to captured traffic exchanges |
+| `bind_finding_traffic` | Link a finding to captured traffic exchanges (requires `--proxy`) |
 | `merge_findings` | Merge duplicate findings into one |
 | `dismiss_finding` | Mark a finding as dismissed (false positive) |
 
@@ -363,7 +366,7 @@ The server speaks [MCP](https://modelcontextprotocol.io/) over stdio (for Claude
 
 - **Your Claude subscription IS the AI engine.** No API key management, no token budgets, no surprise bills. If you have Claude, you have everything you need.
 - **The exploration graph means Claude never loses context.** Every recon result, every tested endpoint, every credential, every planned next step is tracked in a persistent graph. Resume hours later and `graph_overview` brings Claude back up to speed.
-- **59 tools covering the full pentest lifecycle.** Asset discovery, scope management, exploration planning, traffic capture, evidence capture, credential storage, finding management, coverage tracking, and report generation.
+- **62 tools covering the full pentest lifecycle.** Asset discovery, scope management, exploration planning, traffic capture, evidence capture, credential storage, finding management, coverage tracking, and report generation.
 - **Works with any MCP client.** Claude Code, Cline, Cursor, or anything else that speaks the [Model Context Protocol](https://modelcontextprotocol.io/).
 - **One command to get started.** `docker compose up` or install the binary and run `artex init`.
 
@@ -372,7 +375,7 @@ The server speaks [MCP](https://modelcontextprotocol.io/) over stdio (for Claude
 | | ARTEX | PentestGPT | HexStrike AI | Pentest-AI |
 |---|----------|-----------|-------------|-----------|
 | **State management** | Exploration graph (persistent, resumable) | Stateless / limited context | None | None |
-| **MCP native** | Yes (59 tools) | No (agent framework) | Yes (150+ tools) | Yes (205 tools) |
+| **MCP native** | Yes (62 tools) | No (agent framework) | Yes (150+ tools) | Yes (205 tools) |
 | **Evidence chains** | Yes (findings linked to assets, coverage, traffic) | No | No | No |
 | **Traffic capture** | Built-in recording proxy with replay | No | No | No |
 | **Multi-client support** | Any MCP client (Claude Code, Cline, Cursor) | Own interface | Claude Code | Claude Code |
