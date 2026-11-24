@@ -93,8 +93,6 @@ func TestListFindingsMock(t *testing.T) {
 	}
 }
 
-
-
 func TestFindingExistsMock(t *testing.T) {
 	t.Parallel()
 

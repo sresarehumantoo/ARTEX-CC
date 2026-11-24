@@ -259,12 +259,13 @@ func TestTakeReplayNonce(t *testing.T) {
 	})
 
 	t.Run("one_nonce", func(t *testing.T) {
-		h := http.Header{replayNonceHeader: {"abc123"}}
+		h := http.Header{}
+		h.Set(replayNonceHeader, "abc123")
 		nonce, present := takeReplayNonce(h)
 		if !present || nonce != "abc123" {
 			t.Fatalf("nonce=%q present=%v", nonce, present)
 		}
-		if _, ok := h[replayNonceHeader]; ok {
+		if h.Get(replayNonceHeader) != "" {
 			t.Fatal("header should be removed")
 		}
 	})

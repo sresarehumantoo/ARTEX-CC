@@ -85,7 +85,6 @@ func TestStreamDirectionFilter(t *testing.T) {
 	}
 }
 
-
 func TestStreamStoredCost(t *testing.T) {
 	t.Parallel()
 

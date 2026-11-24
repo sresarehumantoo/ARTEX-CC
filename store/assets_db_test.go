@@ -66,21 +66,6 @@ func assetSelectColumns() []string {
 	}
 }
 
-func addAssetRow(rows *sqlmock.Rows, id int64, assetType, domain string) *sqlmock.Rows {
-	now := time.Now()
-	return rows.AddRow(
-		id, assetType, nil, "{1}",
-		domain, domain, "", nil, nil,
-		"", "{}",
-		"", "{}",
-		"", "", "", "", "",
-		"", "", "",
-		"", nil, nil, "",
-		"{}", "", []byte("{}"),
-		now, now, now,
-	)
-}
-
 func TestListAssets_ByID(t *testing.T) {
 	t.Parallel()
 	s, mock := newRegexpMockStore(t)

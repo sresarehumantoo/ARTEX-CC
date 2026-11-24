@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-
 func TestSOCKS5ConfigWithDefaults(t *testing.T) {
 	t.Parallel()
 	t.Run("zero_config", func(t *testing.T) {

@@ -68,7 +68,6 @@ func TestHookErrorTableNilReceiver(t *testing.T) {
 	}
 }
 
-
 func TestHookTraceSkip(t *testing.T) {
 	t.Parallel()
 	h := &compiledHook{id: 42, version: 3, snapshot: `{"name":"test"}`, phase: rewrite.PhaseRequest}
@@ -110,7 +109,7 @@ func TestCloneHeaderMap(t *testing.T) {
 		t.Fatalf("X-Custom = %v", v)
 	}
 	cloned["Content-Type"][0] = "changed"
-	if orig["content-type"][0] == "changed" {
+	if orig["content-type"][0] == "changed" { //nolint:staticcheck // orig is built with a non-canonical key on purpose
 		t.Fatal("mutation leaked to original")
 	}
 }

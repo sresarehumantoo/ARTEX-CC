@@ -405,4 +405,3 @@ func TestAddTaskScopeCompanyNotFound(t *testing.T) {
 		t.Fatal("expected error for company not found")
 	}
 }
-
