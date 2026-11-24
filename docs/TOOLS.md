@@ -10,10 +10,10 @@ Complete parameter documentation for ARTEX's 62 MCP tools, organized by category
 4. [Credentials](#credentials) (2 tools)
 5. [Evidence](#evidence) (4 tools)
 6. [Enrichment and ingestion](#enrichment-and-ingestion) (5 tools)
-7. [Engagement management](#engagement-management) (9 tools)
+7. [Engagement management](#engagement-management) (10 tools)
 8. [Activity](#activity) (2 tools)
 9. [Reporting and export](#reporting-and-export) (3 tools)
-10. [Traffic](#traffic) (9 tools)
+10. [Traffic](#traffic) (11 tools)
 
 ---
 
@@ -584,6 +584,14 @@ _No parameters._
 
 **Returns:** JSON object with gap categories and their entries.
 
+### `list_sessions`
+
+List all active MCP client sessions connected to this server.
+
+_No parameters._
+
+**Returns:** `{count, sessions: [{id, created_at, last_active, context}, ...]}`.
+
 ---
 
 ## Activity
@@ -760,3 +768,23 @@ Show traffic activity over time for a host, bucketed by minute, hour (default), 
 | bucket | string | no | `minute`, `hour` (default), or `day` |
 
 **Returns:** `{host, buckets: [...]}`.
+
+### `traffic_patterns`
+
+Identify traffic patterns: most-requested paths (by URL template), hosts with the most HTTP errors (4xx/5xx with a status breakdown), and endpoints that appeared recently.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| host | string | no | Host substring filter (empty analyzes all traffic) |
+
+**Returns:** `{top_paths: [{path, count}], error_hosts: [{host, total, codes_4xx, codes_5xx, status_samples}], new_endpoints: [{host, path, first_ts, count}]}`.
+
+### `traffic_clear`
+
+Delete all captured traffic for hosts matching a substring. This cannot be undone.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| host | string | yes | Host substring to match for deletion |
+
+**Returns:** `{deleted, host}`.

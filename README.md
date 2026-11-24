@@ -300,6 +300,7 @@ For detailed parameter documentation, see [Tool Reference](docs/TOOLS.md).
 | `engagement_activity` | Recent activity timeline: findings, assets, graph nodes |
 | `goal_met` | Mark the entire engagement as complete |
 | `list_coverage_gaps` | Identify untested assets, unproven goals, and missing enrichment |
+| `list_sessions` | List the MCP client sessions connected to this server |
 
 </details>
 
@@ -340,6 +341,8 @@ Point your testing tools at the proxy to capture requests.
 | `traffic_har_export` | Export captured traffic as a HAR 1.2 JSON document |
 | `traffic_stats` | Aggregate statistics: hosts, status codes, methods, response sizes |
 | `traffic_timeline` | Traffic activity over time, bucketed by minute, hour, or day |
+| `traffic_patterns` | Most-requested paths, error-heavy hosts, and newly seen endpoints |
+| `traffic_clear` | Delete captured traffic for matching hosts |
 
 </details>
 
