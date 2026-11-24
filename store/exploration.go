@@ -287,7 +287,9 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 		case KindFact:
 			ov.RecentFacts = append(ov.RecentFacts, m)
 		case KindFinding:
-			ov.FindingList = append(ov.FindingList, m)
+			if n.State != "dismissed" {
+				ov.FindingList = append(ov.FindingList, m)
+			}
 		}
 	}
 
@@ -303,7 +305,7 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 
 	var findingsTotal int
 	if err := s.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM exploration_nodes WHERE exploration_id = $1 AND kind = 'finding'`,
+		`SELECT COUNT(*) FROM exploration_nodes WHERE exploration_id = $1 AND kind = 'finding' AND state != 'dismissed'`,
 		explorationID).Scan(&findingsTotal); err != nil {
 		return nil, err
 	}

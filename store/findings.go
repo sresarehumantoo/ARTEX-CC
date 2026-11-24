@@ -312,6 +312,12 @@ func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs
 		if err != nil {
 			return nil, fmt.Errorf("mark secondary %d: %w", secID, err)
 		}
+		_, err = tx.ExecContext(ctx,
+			`UPDATE exploration_nodes SET state = 'dismissed'
+			 WHERE id = (SELECT node_id FROM findings WHERE id = $1) AND kind = 'finding'`, secID)
+		if err != nil {
+			return nil, fmt.Errorf("dismiss secondary %d node: %w", secID, err)
+		}
 	}
 
 	mergedAssetJSON, _ := json.Marshal(primaryAssets)

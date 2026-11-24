@@ -447,6 +447,14 @@ func TestFindingDismiss(t *testing.T) {
 	if f.Status != FindingStatusFalsePositive {
 		t.Errorf("Status = %q, want %q", f.Status, FindingStatusFalsePositive)
 	}
+
+	ov, err := s.GraphOverview(ctx, expID)
+	if err != nil {
+		t.Fatalf("GraphOverview: %v", err)
+	}
+	if ov.FindingsTotal != 0 || len(ov.FindingList) != 0 {
+		t.Errorf("overview counts dismissed finding: total=%d list=%d", ov.FindingsTotal, len(ov.FindingList))
+	}
 }
 
 func TestFindingDismissNotFound(t *testing.T) {
@@ -1009,6 +1017,14 @@ func TestMergeFindings(t *testing.T) {
 	}
 	if secondary.Status != FindingStatusDuplicate {
 		t.Errorf("secondary Status = %q, want %q", secondary.Status, FindingStatusDuplicate)
+	}
+
+	ov, err := s.GraphOverview(ctx, expID)
+	if err != nil {
+		t.Fatalf("GraphOverview: %v", err)
+	}
+	if ov.FindingsTotal != 1 || len(ov.FindingList) != 1 {
+		t.Errorf("overview after merge: total=%d list=%d, want 1 and 1", ov.FindingsTotal, len(ov.FindingList))
 	}
 }
 

@@ -415,6 +415,9 @@ func TestMergeFindingsMock(t *testing.T) {
 	mock.ExpectExec(`UPDATE findings SET merged_into`).
 		WithArgs(int64(10), FindingStatusDuplicate, int64(20)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`UPDATE exploration_nodes SET state = 'dismissed'`).
+		WithArgs(int64(20)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	mock.ExpectExec(`UPDATE findings SET asset_ids`).
 		WithArgs("[1,2]", "primary evidence\n\n[merged from #20]\nsecondary evidence", int64(10)).
