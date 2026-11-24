@@ -25,7 +25,12 @@ builds:
       - -trimpath
 
 archives:
-  - format_overrides:
+  - files:
+      - LICENSE
+      - NOTICE
+      - README.md
+      - CHANGELOG.md
+    format_overrides:
       - goos: darwin
         formats:
           - zip
@@ -55,9 +60,14 @@ nfpms:
     maintainer: SREsAreHumanToo <88474954+sresarehumantoo@users.noreply.github.com>
     homepage: https://github.com/SREsAreHumanToo/ARTEX-CC
     description: Autonomous penetration testing platform powered by Claude Code
-    license: MIT
+    license: AGPL-3.0-only
     section: utils
     bindir: /usr/bin
+    contents:
+      - src: LICENSE
+        dst: /usr/share/doc/artex-cc/LICENSE
+      - src: NOTICE
+        dst: /usr/share/doc/artex-cc/NOTICE
 
 homebrew_casks:
   - repository:
