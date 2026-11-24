@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -42,6 +43,7 @@ type Runner struct {
 	mcpConfig string
 	dataDir   string
 	maxConvs  int
+	settings  func() LLMSettings
 	store     *ChatStore
 	hub       *Hub
 	mu        sync.Mutex
@@ -130,6 +132,10 @@ func (r *Runner) Bind(store *ChatStore, hub *Hub) {
 	r.hub = hub
 }
 
+func (r *Runner) SetSettings(fn func() LLMSettings) {
+	r.settings = fn
+}
+
 func (r *Runner) Available() bool {
 	_, err := exec.LookPath(r.claudeBin)
 	return err == nil
@@ -148,7 +154,15 @@ func (r *Runner) Start(ctx context.Context, id, model, agent, systemPrompt strin
 	if _, ok := r.processes[id]; ok {
 		return nil
 	}
-	if len(r.processes) >= r.maxConvs {
+	var settings LLMSettings
+	if r.settings != nil {
+		settings = r.settings()
+	}
+	maxConvs := r.maxConvs
+	if settings.MaxConversations > 0 {
+		maxConvs = settings.MaxConversations
+	}
+	if len(r.processes) >= maxConvs {
 		return ErrRunnerAtCapacity
 	}
 	conv, err := r.store.Get(id)
@@ -156,14 +170,26 @@ func (r *Runner) Start(ctx context.Context, id, model, agent, systemPrompt strin
 		return err
 	}
 
+	maxTurns := 50
+	if settings.MaxTurns > 0 {
+		maxTurns = settings.MaxTurns
+	}
+	if model == "" && agent == "" {
+		model = settings.MasterModel
+	}
+	if model == "" {
+		model = settings.DefaultModel
+	}
+
 	args := []string{
 		"-p",
 		"--output-format", "stream-json",
 		"--verbose",
 		"--input-format", "stream-json",
-		"--max-turns", "50",
+		"--max-turns", strconv.Itoa(maxTurns),
 		"--mcp-config", r.mcpConfig,
 		"--strict-mcp-config",
+		"--allowedTools", "mcp__cc-artex__*",
 	}
 	if model != "" {
 		args = append(args, "--model", model)
@@ -174,13 +200,42 @@ func (r *Runner) Start(ctx context.Context, id, model, agent, systemPrompt strin
 	if conv.SessionID != "" {
 		args = append(args, "--resume", conv.SessionID)
 	}
+	var env []string
+	if settings.SubagentModel != "" {
+		env = append(env, "CLAUDE_CODE_SUBAGENT_MODEL="+settings.SubagentModel)
+	}
+	switch settings.Thinking {
+	case "off":
+		env = append(env, "MAX_THINKING_TOKENS=0")
+	case "low", "medium", "high", "xhigh", "max":
+		args = append(args, "--effort", settings.Thinking)
+	}
+	if settings.GlobalSystemPrompt != "" {
+		args = append(args, "--system-prompt", settings.GlobalSystemPrompt)
+	}
+	var appendPrompts []string
 	if systemPrompt != "" {
-		args = append(args, "--append-system-prompt", systemPrompt)
+		appendPrompts = append(appendPrompts, systemPrompt)
+	}
+	switch settings.SubagentStrategy {
+	case "parallel":
+		appendPrompts = append(appendPrompts, "Dispatch independent subagent tasks in parallel when possible.")
+		if settings.MaxParallelSubagents > 0 {
+			appendPrompts = append(appendPrompts, fmt.Sprintf("Limit concurrent subagents to %d.", settings.MaxParallelSubagents))
+		}
+	case "sequential":
+		appendPrompts = append(appendPrompts, "Run subagent tasks sequentially, one at a time.")
+	case "per_agent":
+		appendPrompts = append(appendPrompts, "Use each agent preset's configured model for subagents.")
+	}
+	for _, p := range appendPrompts {
+		args = append(args, "--append-system-prompt", p)
 	}
 
 	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	cmd := exec.CommandContext(runCtx, r.claudeBin, args...)
 	cmd.Dir = r.dataDir
+	cmd.Env = append(os.Environ(), env...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 	cmd.WaitDelay = stopGracePeriod
