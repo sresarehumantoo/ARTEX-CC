@@ -221,9 +221,6 @@ const (
 	// minTrigram is the shortest term the trigram tokenizer can match; shorter
 	// queries fall back to metadata LIKE.
 	minTrigram = 3
-	// maxBlobRead caps one traffic_blob read so paging through a large body never
-	// floods the agent's context.
-	maxBlobRead = 8 * 1024
 	// autoVacuumIncremental is SQLite's numeric value for auto_vacuum=incremental.
 	autoVacuumIncremental = 2
 	// reclaimChunkPages bounds how much index space one locked step returns to the
@@ -1007,12 +1004,6 @@ func headerLines(h map[string][]string) string {
 		}
 	}
 	return b.String()
-}
-
-// requestHeaderLines is requestHeaderLinesOf for a flow's request.
-func requestHeaderLines(req *mproxy.Request) string {
-	v := flowRequestView(req)
-	return requestHeaderLinesOf(v.header, req.URL.Host, v.rawHost)
 }
 
 // requestHead is the head an exchange records for a request view: request

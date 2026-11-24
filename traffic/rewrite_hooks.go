@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"slices"
 	"sort"
 	"strconv"
@@ -28,16 +27,6 @@ const (
 	DefaultHookTimeout      = 25 * time.Millisecond
 	DefaultPhaseHookTimeout = 100 * time.Millisecond
 )
-
-// tamperHooksEnabledFromEnv reports whether ARTEX_TAMPER_HOOKS_ENABLED is truthy.
-func tamperHooksEnabledFromEnv() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv(TamperHooksEnabledEnv))) {
-	case "1", "true", "yes", "on":
-		return true
-	default:
-		return false
-	}
-}
 
 // HookDef is the input model compiled into a HookSet.
 type HookDef struct {

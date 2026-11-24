@@ -30,14 +30,6 @@ type Finding struct {
 	CreatedAt     time.Time       `json:"created_at"`
 }
 
-type FindingFilter struct {
-	TaskID   int64
-	Status   string
-	Severity string
-	Limit    int
-	Offset   int
-}
-
 const findingSelectCols = `id, task_id, node_id, vulnclass, name, severity, summary, evidence, worker, asset_ids, status, report, merged_into, dismissed, dismiss_reason, created_at`
 
 func scanFinding(row interface{ Scan(...any) error }) (Finding, error) {
@@ -46,18 +38,6 @@ func scanFinding(row interface{ Scan(...any) error }) (Finding, error) {
 		&f.Severity, &f.Summary, &f.Evidence, &f.Worker, &f.AssetIDs,
 		&f.Status, &f.Report, &f.MergedInto, &f.Dismissed, &f.DismissReason, &f.CreatedAt)
 	return f, err
-}
-
-func scanFindings(rows *sql.Rows) ([]Finding, error) {
-	var out []Finding
-	for rows.Next() {
-		f, err := scanFinding(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, f)
-	}
-	return out, rows.Err()
 }
 
 func (s *Store) AddFinding(ctx context.Context, f tools.FindingInput) (int64, error) {
@@ -106,62 +86,6 @@ func (s *Store) ListFindings(ctx context.Context, explorationID int64) ([]tools.
 		out = append(out, f)
 	}
 	return out, rows.Err()
-}
-
-func (s *Store) listFindingsInternal(filter FindingFilter) ([]Finding, int, error) {
-	var conditions []string
-	var args []any
-	idx := 1
-	addCond := func(clause string, val any) {
-		args = append(args, val)
-		conditions = append(conditions, fmt.Sprintf(clause, idx))
-		idx++
-	}
-
-	if filter.TaskID > 0 {
-		addCond("task_id = $%d", filter.TaskID)
-	}
-	if filter.Status != "" {
-		addCond("status = $%d", filter.Status)
-	}
-	if filter.Severity != "" {
-		addCond("severity = $%d", filter.Severity)
-	}
-
-	where := ""
-	if len(conditions) > 0 {
-		where = " WHERE " + strings.Join(conditions, " AND ")
-	}
-
-	var total int
-	if err := s.QueryRow("SELECT COUNT(*) FROM findings"+where, args...).Scan(&total); err != nil {
-		return nil, 0, err
-	}
-
-	limit := filter.Limit
-	if limit <= 0 {
-		limit = 50
-	}
-	offset := filter.Offset
-	if offset < 0 {
-		offset = 0
-	}
-
-	args = append(args, limit, offset)
-	q := fmt.Sprintf("SELECT %s FROM findings%s ORDER BY created_at DESC LIMIT $%d OFFSET $%d",
-		findingSelectCols, where, idx, idx+1)
-
-	rows, err := s.Query(q, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-
-	findings, err := scanFindings(rows)
-	if err != nil {
-		return nil, 0, err
-	}
-	return findings, total, nil
 }
 
 func (s *Store) FindingExists(ctx context.Context, findingID int64) (bool, error) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -352,11 +353,11 @@ func TestRunHealthChecks_InvalidDSN(t *testing.T) {
 
 func TestInitLogging(t *testing.T) {
 	initLogging(false)
-	if !slog.Default().Enabled(nil, slog.LevelInfo) {
+	if !slog.Default().Enabled(context.TODO(), slog.LevelInfo) {
 		t.Fatal("info should be enabled")
 	}
 	initLogging(true)
-	if !slog.Default().Enabled(nil, slog.LevelDebug) {
+	if !slog.Default().Enabled(context.TODO(), slog.LevelDebug) {
 		t.Fatal("debug should be enabled in debug mode")
 	}
 }

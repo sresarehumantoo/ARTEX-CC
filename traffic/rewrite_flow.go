@@ -314,12 +314,6 @@ func (t *snapTable) tick() {
 }
 
 // counts reports the entries and tombstones in the table.
-func (t *snapTable) counts() (entries, tombs int) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	return t.entries, t.tombs
-}
-
 // sweepSnapshots is the single sweeper goroutine, started by Open and stopped
 // by Close.
 func (t *Traffic) sweepSnapshots() {

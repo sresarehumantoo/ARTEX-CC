@@ -11,7 +11,6 @@ import { ActivitySkeleton } from '../components/skeletons/ActivitySkeleton'
 import { getActivity } from '../lib/api'
 import { downloadFile } from '../lib/export'
 import { toast } from 'sonner'
-import { cn } from '../lib/utils'
 import type { Activity as ActivityType } from '../lib/types'
 
 function exportActivityCSV(items: ActivityType[]) {

@@ -8,7 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"os"
+
 	"strconv"
 	"strings"
 	"sync"
@@ -137,47 +137,6 @@ type RawTCPCapture struct {
 	S2CData   []byte
 	Truncated bool
 	Paced     bool
-}
-
-// socks5ConfigFromEnv parses ARTEX_SOCKS5_ENABLED, ARTEX_SOCKS5_ADDR, and
-// ARTEX_SOCKS5_UDP_ENABLED. Returns (cfg, false) when disabled (the default).
-func socks5ConfigFromEnv() (SOCKS5Config, bool) {
-	rawEnabled := strings.ToLower(strings.TrimSpace(os.Getenv(SOCKS5EnabledEnv)))
-	rawAddr := strings.TrimSpace(os.Getenv(SOCKS5AddrEnv))
-	rawUDP := strings.ToLower(strings.TrimSpace(os.Getenv(SOCKS5UDPEnabledEnv)))
-
-	enableUDP := false
-	switch rawUDP {
-	case "", "0", "false", "off", "no":
-		enableUDP = false
-	case "1", "true", "on", "yes":
-		enableUDP = true
-	default:
-		slog.Warn("non-boolean SOCKS5 UDP env value, leaving disabled", "env", SOCKS5UDPEnabledEnv, "value", rawUDP)
-	}
-
-	switch rawEnabled {
-	case "0", "false", "off", "no":
-		return SOCKS5Config{}, false
-	case "1", "true", "on", "yes":
-		addr := rawAddr
-		if addr == "" {
-			addr = DefaultSOCKS5Addr
-		}
-		return SOCKS5Config{Addr: addr, EnableUDP: enableUDP}, true
-	case "":
-		if rawAddr == "" && !enableUDP {
-			return SOCKS5Config{}, false
-		}
-		addr := rawAddr
-		if addr == "" {
-			addr = DefaultSOCKS5Addr
-		}
-		return SOCKS5Config{Addr: addr, EnableUDP: enableUDP}, true
-	default:
-		slog.Warn("non-boolean SOCKS5 env value, leaving disabled", "env", SOCKS5EnabledEnv, "value", rawEnabled)
-		return SOCKS5Config{}, false
-	}
 }
 
 func (c SOCKS5Config) withDefaults() SOCKS5Config {

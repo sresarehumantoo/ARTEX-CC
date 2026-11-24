@@ -5,7 +5,7 @@ import { FileCard } from './FileCard'
 import { GenericCard } from './GenericCard'
 
 export { ArtexToolCard, BashCard, FileCard, GenericCard }
-export { Expandable, ResultBlock, RESULT_PREVIEW } from './GenericCard'
+export { Expandable, ResultBlock, RESULT_PREVIEW, keyArg } from './GenericCard'
 
 const FILE_TOOLS = new Set(['Read', 'Edit', 'MultiEdit', 'Write'])
 

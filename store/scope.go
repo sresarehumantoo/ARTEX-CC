@@ -116,25 +116,6 @@ func (s *Store) AddTaskScope(ctx context.Context, taskID int64, kind, value, rea
 	return err
 }
 
-func (s *Store) findExistingScope(taskID int64, ts TaskScope) (TaskScope, error) {
-	row := s.QueryRow(`
-		SELECT ts.id, ts.task_id, ts.kind, ts.company_id, COALESCE(c.name, ''),
-		       ts.domain, COALESCE(ts.net::text, ''), ts.value, ts.source,
-		       COALESCE(ts.reason, ''), ts.created_at
-		FROM task_scope ts
-		LEFT JOIN companies c ON c.id = ts.company_id
-		WHERE ts.task_id = $1
-		  AND ts.kind = $2
-		  AND COALESCE(ts.domain, '') = COALESCE($3, '')
-		  AND COALESCE(ts.net::text, '') = COALESCE($4, '')
-		  AND COALESCE(ts.company_id, 0) = COALESCE($5, 0)
-		  AND COALESCE(ts.value, '') = COALESCE($6, '')`,
-		taskID, ts.Kind, nilIfEmpty(ts.Domain), nilIfEmpty(ts.Net),
-		ts.CompanyID, nilIfEmpty(ts.Value),
-	)
-	return scanTaskScope(row)
-}
-
 func (s *Store) ListTaskScope(ctx context.Context, taskID int64) ([]int64, error) {
 	rows, err := s.QueryContext(ctx, `SELECT id FROM task_scope WHERE task_id = $1 ORDER BY id`, taskID)
 	if err != nil {
@@ -152,30 +133,6 @@ func (s *Store) ListTaskScope(ctx context.Context, taskID int64) ([]int64, error
 	return out, rows.Err()
 }
 
-func (s *Store) listTaskScopeInternal(taskID int64) ([]TaskScope, error) {
-	rows, err := s.Query(`
-		SELECT ts.id, ts.task_id, ts.kind, ts.company_id, COALESCE(c.name, ''),
-		       ts.domain, COALESCE(ts.net::text, ''), ts.value, ts.source,
-		       COALESCE(ts.reason, ''), ts.created_at
-		FROM task_scope ts
-		LEFT JOIN companies c ON c.id = ts.company_id
-		WHERE ts.task_id = $1
-		ORDER BY ts.id`, taskID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []TaskScope
-	for rows.Next() {
-		ts, err := scanTaskScope(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, ts)
-	}
-	return out, rows.Err()
-}
-
 func (s *Store) DeleteTaskScope(id, taskID int64) error {
 	res, err := s.Exec(`DELETE FROM task_scope WHERE id = $1 AND task_id = $2`, id, taskID)
 	if err != nil {
@@ -186,27 +143,6 @@ func (s *Store) DeleteTaskScope(id, taskID int64) error {
 		return fmt.Errorf("scope entry not found")
 	}
 	return nil
-}
-
-func scanTaskScope(row interface{ Scan(...any) error }) (TaskScope, error) {
-	var ts TaskScope
-	var companyID sql.NullInt64
-	var domain, netStr, value, reason sql.NullString
-	err := row.Scan(
-		&ts.ID, &ts.TaskID, &ts.Kind, &companyID, &ts.CompanyName,
-		&domain, &netStr, &value, &ts.Source, &reason, &ts.CreatedAt,
-	)
-	if err != nil {
-		return ts, err
-	}
-	if companyID.Valid {
-		ts.CompanyID = &companyID.Int64
-	}
-	ts.Domain = domain.String
-	ts.Net = netStr.String
-	ts.Value = value.String
-	ts.Reason = reason.String
-	return ts, nil
 }
 
 func stripHostPort(v string) string {

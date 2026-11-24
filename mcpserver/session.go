@@ -29,12 +29,6 @@ func newSession(id string) *Session {
 	}
 }
 
-func (s *Session) touch() {
-	s.mu.Lock()
-	s.lastActive = time.Now()
-	s.mu.Unlock()
-}
-
 // Get returns a value from the session's key-value context.
 func (s *Session) Get(key string) string {
 	s.mu.Lock()

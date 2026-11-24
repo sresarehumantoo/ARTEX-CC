@@ -20,6 +20,14 @@ const OUTCOME_ICONS: Record<string, typeof CheckCircle2> = {
   needs_follow_up: HelpCircle,
 }
 
+const OUTCOME_CONFIG: Record<string, { icon: typeof CheckCircle2; className: string; label: string }> = {
+  reported: { icon: AlertTriangle, className: 'text-yellow-600 dark:text-yellow-400', label: 'Reported' },
+  no_issue_found: { icon: CheckCircle2, className: 'text-green-600 dark:text-green-400', label: 'No Issue' },
+  ruled_out: { icon: XCircle, className: 'text-red-600 dark:text-red-400', label: 'Ruled Out' },
+  not_applicable: { icon: MinusCircle, className: 'text-slate-500', label: 'N/A' },
+  needs_follow_up: { icon: HelpCircle, className: 'text-blue-600 dark:text-blue-400', label: 'Follow Up' },
+}
+
 const GAP_KIND_LABELS: Record<string, string> = {
   needs_follow_up: 'Needs Follow-Up',
   unrecorded_risk_class: 'Unrecorded Risk Class',

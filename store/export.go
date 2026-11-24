@@ -479,7 +479,7 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 		if newNodeID == 0 {
 			continue
 		}
-		anchors, _ := n["anchors"]
+		anchors := n["anchors"]
 		if anchors == nil {
 			continue
 		}
