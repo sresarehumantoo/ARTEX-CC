@@ -1,4 +1,4 @@
-ARTEX is an MCP tool server for autonomous pentesting with Claude Code. 59 tools, PostgreSQL backend, recording proxy, evidence capture. You bring the brain, ARTEX brings the hands.
+ARTEX is an MCP tool server for autonomous pentesting with Claude Code. 62 tools, PostgreSQL backend, recording proxy, evidence capture. You bring the brain, ARTEX brings the hands.
 
 ## Quick setup
 
@@ -32,7 +32,7 @@ Add to `~/.claude.json` (or project `.mcp.json`):
 
 Without `--proxy`, traffic capture tools are not registered.
 
-**Docker (all-in-one):** `docker compose up` starts PostgreSQL and ARTEX together. Use `http://localhost:9400/sse` as the MCP endpoint or the Docker stdio config from README.md.
+**Docker (all-in-one):** `docker compose up` starts PostgreSQL and ARTEX together. Use `http://localhost:9400/mcp` (type `http`) as the MCP endpoint with the bearer token from `/app/data/mcp-config.json` in the container (regenerated on every start), or the Docker stdio config from README.md.
 
 ## Start a pentest
 
@@ -78,7 +78,7 @@ The `init` command generates a CA certificate at `traffic/_ca/mitmproxy-ca-cert.
 
 **Proxy CA not trusted:** HTTPS traffic through the proxy fails with certificate errors. Trust the CA cert (see `artex init` output for the command).
 
-**Traffic tools missing:** The nine `traffic_*` tools only appear when `--proxy` is set on `serve`.
+**Traffic tools missing:** The eleven `traffic_*` tools and `bind_finding_traffic` only appear when `--proxy` is set on `serve`.
 
 ## Shell completion
 
