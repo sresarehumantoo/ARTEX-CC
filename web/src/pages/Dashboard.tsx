@@ -600,10 +600,11 @@ export function Dashboard() {
               e.open_intents.length +
               e.running_intents.length +
               e.done_intents_total +
-              e.facts
+              e.facts +
+              e.findings_total
             }>
               <span>
-                {e.goals.length} goals, {e.open_intents.length + e.running_intents.length} active intents, {e.facts} facts
+                {e.goals.length} goals, {e.open_intents.length + e.running_intents.length} active intents, {e.facts} facts, {e.findings_total} findings
               </span>
             </StatCard>
 
