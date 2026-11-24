@@ -13,6 +13,8 @@ require (
 	modernc.org/sqlite v1.62.0
 )
 
+require github.com/DATA-DOG/go-sqlmock v1.5.2
+
 require (
 	github.com/andybalholm/brotli v1.2.1 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
