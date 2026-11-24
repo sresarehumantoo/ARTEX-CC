@@ -1,0 +1,23 @@
+name: artex-shots
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: {POSTGRES_USER: ccartex, POSTGRES_PASSWORD: ccartex, POSTGRES_DB: ccartex}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ccartex -d ccartex"]
+      interval: 3s
+      retries: 20
+  artex:
+    build: ../..
+    depends_on: {postgres: {condition: service_healthy}}
+    environment:
+      ARTEX_PG: postgres://ccartex:ccartex@postgres:5432/ccartex?sslmode=disable
+      ARTEX_GOAL: Obtain domain admin on the ACME Corp external perimeter
+    ports: ["127.0.0.1:19400:9400", "127.0.0.1:18788:8788"]
+  target:
+    image: python:3-alpine
+    command: ["python", "-u", "/app/target.py"]
+    volumes: ["./target.py:/app/target.py:ro"]
+    networks:
+      default:
+        aliases: [portal.acme.example, api.acme.example, vpn.acme.example]
