@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 )
 
@@ -236,8 +235,8 @@ func (r *Runner) Start(ctx context.Context, id, model, agent, systemPrompt strin
 	cmd := exec.CommandContext(runCtx, r.claudeBin, args...)
 	cmd.Dir = r.dataDir
 	cmd.Env = append(os.Environ(), env...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	setProcessGroup(cmd)
+	cmd.Cancel = func() error { return killProcessGroup(cmd) }
 	cmd.WaitDelay = stopGracePeriod
 	stderr := &limitedBuffer{}
 	cmd.Stderr = stderr
@@ -302,7 +301,7 @@ func (r *Runner) Stop(id string) error {
 		return nil
 	}
 	rc.stopping.Store(true)
-	_ = syscall.Kill(-rc.cmd.Process.Pid, syscall.SIGINT)
+	_ = interruptProcessGroup(rc.cmd)
 	select {
 	case <-rc.done:
 	case <-time.After(stopGracePeriod):
