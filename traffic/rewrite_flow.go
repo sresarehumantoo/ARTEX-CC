@@ -416,7 +416,7 @@ func engineRequest(r *mproxy.Request) rewrite.Request {
 	return rewrite.Request{Method: r.Method, URL: r.URL, Header: r.Header, Body: r.Body}
 }
 
-// takeReplayNonce removes every occurrence of X-ARTEX-Replay-Nonce from h
+// takeReplayNonce removes every occurrence of X-Artex-Replay-Nonce from h
 // unconditionally and returns its value only when exactly one header value was
 // present.
 func takeReplayNonce(h http.Header) (nonce string, present bool) {

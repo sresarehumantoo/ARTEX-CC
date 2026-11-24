@@ -97,7 +97,8 @@ func TestHookTraceError(t *testing.T) {
 
 func TestCloneHeaderMap(t *testing.T) {
 	t.Parallel()
-	orig := http.Header{"content-type": {"text/html"}, "X-Custom": {"a", "b"}}
+	rawKey := "content-type"
+	orig := http.Header{rawKey: {"text/html"}, "X-Custom": {"a", "b"}}
 	cloned := cloneHeaderMap(orig)
 	if len(cloned) != 2 {
 		t.Fatalf("got %d keys", len(cloned))
@@ -109,7 +110,7 @@ func TestCloneHeaderMap(t *testing.T) {
 		t.Fatalf("X-Custom = %v", v)
 	}
 	cloned["Content-Type"][0] = "changed"
-	if orig["content-type"][0] == "changed" { //nolint:staticcheck // orig is built with a non-canonical key on purpose
+	if orig[rawKey][0] == "changed" { //nolint:staticcheck // orig is built with a non-canonical key on purpose
 		t.Fatal("mutation leaked to original")
 	}
 }
