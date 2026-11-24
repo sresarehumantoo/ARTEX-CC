@@ -7,6 +7,18 @@ import (
 	"testing"
 )
 
+func TestTruncateRunes(t *testing.T) {
+	if got := truncateRunes("hello", 10); got != "hello" {
+		t.Fatalf("short: %q", got)
+	}
+	if got := truncateRunes("hello", 3); got != "hel" {
+		t.Fatalf("long: %q", got)
+	}
+	if got := truncateRunes("", 5); got != "" {
+		t.Fatalf("empty: %q", got)
+	}
+}
+
 func TestCommandsEndpoints(t *testing.T) {
 	s := newTestChatStore(t)
 	conv, err := s.Create(CreateConversationRequest{Title: "Recon"})
@@ -62,5 +74,23 @@ func TestCommandsEndpoints(t *testing.T) {
 	get("/api/commands/stats", &stats)
 	if stats.Total != 2 || stats.ErrorCount != 1 || stats.ByTool["Bash"] != 1 || stats.ByConversation[conv.ID] != 2 {
 		t.Fatalf("stats: %+v", stats)
+	}
+
+	var paged []CommandEntry
+	get("/api/commands?limit=1&offset=0", &paged)
+	if len(paged) != 1 {
+		t.Fatalf("paged limit=1: %d", len(paged))
+	}
+	get("/api/commands?limit=1&offset=1", &paged)
+	if len(paged) != 1 {
+		t.Fatalf("paged offset=1: %d", len(paged))
+	}
+	get("/api/commands?offset=100", &paged)
+	if len(paged) != 0 {
+		t.Fatalf("paged offset=100: %d", len(paged))
+	}
+	get("/api/commands?error=false", &paged)
+	if len(paged) != 1 || paged[0].IsError {
+		t.Fatalf("error=false filter: %+v", paged)
 	}
 }

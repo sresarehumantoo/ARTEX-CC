@@ -45,6 +45,89 @@ func TestInterceptRulesCRUD(t *testing.T) {
 	}
 }
 
+func TestInterceptCreateBadBody(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	if code, _ := agentsDo(t, srv, "POST", "/api/intercept/rules", "{invalid"); code != 400 {
+		t.Fatalf("bad body: code=%d", code)
+	}
+}
+
+func TestInterceptCreateMissingFields(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	if code, _ := agentsDo(t, srv, "POST", "/api/intercept/rules", `{}`); code != 400 {
+		t.Fatalf("empty: code=%d", code)
+	}
+}
+
+func TestInterceptCreateBadScope(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	if code, _ := agentsDo(t, srv, "POST", "/api/intercept/rules", `{"pattern":"x","action":"ask","scope":"bad"}`); code != 400 {
+		t.Fatalf("bad scope: code=%d", code)
+	}
+}
+
+func TestInterceptCreateEmptyPattern(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	if code, _ := agentsDo(t, srv, "POST", "/api/intercept/rules", `{"pattern":"  ","action":"ask"}`); code != 400 {
+		t.Fatalf("empty pattern: code=%d", code)
+	}
+}
+
+func TestInterceptUpdateBadBody(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	if code, _ := agentsDo(t, srv, "PATCH", "/api/intercept/rules/x", "{invalid"); code != 400 {
+		t.Fatalf("bad body: code=%d", code)
+	}
+}
+
+func TestInterceptUpdateNotFound(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	if code, _ := agentsDo(t, srv, "PATCH", "/api/intercept/rules/nonexistent", `{"enabled":false}`); code != 404 {
+		t.Fatalf("not found: code=%d", code)
+	}
+}
+
+func TestInterceptDecideBadBody(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	if code, _ := agentsDo(t, srv, "POST", "/api/approvals/x/decide", "{invalid"); code != 400 {
+		t.Fatalf("bad body: code=%d", code)
+	}
+}
+
+func TestApprovalsList(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	code, body := agentsDo(t, srv, "GET", "/api/approvals", "")
+	var list []Approval
+	json.Unmarshal(body, &list)
+	if code != 200 || len(list) != 0 {
+		t.Fatalf("empty list: code=%d len=%d", code, len(list))
+	}
+}
+
 func TestApprovalsDecide(t *testing.T) {
 	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
 	srv := httptest.NewServer(a.Handler())

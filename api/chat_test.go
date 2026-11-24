@@ -494,3 +494,267 @@ func TestRunnerEmitsErrorOnNonZeroExit(t *testing.T) {
 	})
 	waitFor(t, func() bool { return !r.Running(conv.ID) })
 }
+
+func TestRunnerSetSettings(t *testing.T) {
+	r := NewRunner("claude", "/tmp/mcp.json", t.TempDir(), 1)
+	called := false
+	r.SetSettings(func() LLMSettings {
+		called = true
+		return LLMSettings{MaxTurns: 99}
+	})
+	if r.settings == nil {
+		t.Fatal("settings not set")
+	}
+	s := r.settings()
+	if !called || s.MaxTurns != 99 {
+		t.Fatalf("settings callback: called=%v maxTurns=%d", called, s.MaxTurns)
+	}
+}
+
+func TestRunnerAvailable(t *testing.T) {
+	r := NewRunner("/nonexistent/binary/that/wont/exist", "/tmp/mcp.json", t.TempDir(), 1)
+	if r.Available() {
+		t.Fatal("expected unavailable for nonexistent binary")
+	}
+	r2 := NewRunner("go", "/tmp/mcp.json", t.TempDir(), 1)
+	if !r2.Available() {
+		t.Fatal("expected available for 'go' binary")
+	}
+}
+
+func TestRunnerStopAll(t *testing.T) {
+	bin := writeFakeClaude(t, "read line\nsleep 60\n")
+	s := newTestChatStore(t)
+	r := NewRunner(bin, "/tmp/mcp.json", t.TempDir(), 5)
+	r.Bind(s, NewHub())
+
+	ids := make([]string, 3)
+	for i := range ids {
+		conv, err := s.Create(CreateConversationRequest{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids[i] = conv.ID
+		if err := r.Start(context.Background(), conv.ID, "", "", ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, id := range ids {
+		if !r.Running(id) {
+			t.Fatalf("expected %s to be running", id)
+		}
+	}
+	r.StopAll()
+	for _, id := range ids {
+		if r.Running(id) {
+			t.Fatalf("expected %s to be stopped", id)
+		}
+	}
+}
+
+func TestClaudeStatusWithVersion(t *testing.T) {
+	bin := writeFakeClaude(t, `echo "Claude Code v1.2.3"`)
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()), WithClaudeBin(bin))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	_, body := doJSON(t, "GET", srv.URL+"/api/claude/status", nil)
+	var st map[string]any
+	json.Unmarshal(body, &st)
+	if st["available"] != true {
+		t.Fatalf("want available=true, got %s", body)
+	}
+	if v, _ := st["version"].(string); v != "Claude Code v1.2.3" {
+		t.Fatalf("version: %q", v)
+	}
+}
+
+func TestClaudeStatusVersionError(t *testing.T) {
+	bin := writeFakeClaude(t, "exit 1")
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()), WithClaudeBin(bin))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	_, body := doJSON(t, "GET", srv.URL+"/api/claude/status", nil)
+	var st map[string]any
+	json.Unmarshal(body, &st)
+	if st["available"] != false {
+		t.Fatalf("want available=false, got %s", body)
+	}
+	if _, ok := st["error"]; !ok {
+		t.Fatal("expected error field")
+	}
+}
+
+func TestChatListConversationsMultiple(t *testing.T) {
+	srv, _ := newChatTestServer(t, nil)
+	createConv(t, srv.URL)
+	createConv(t, srv.URL)
+	resp, body := doJSON(t, "GET", srv.URL+"/api/conversations", nil)
+	var list []Conversation
+	json.Unmarshal(body, &list)
+	if resp.StatusCode != 200 || len(list) != 2 {
+		t.Fatalf("list: %d len=%d", resp.StatusCode, len(list))
+	}
+}
+
+func TestChatCreateBadBody(t *testing.T) {
+	srv, _ := newChatTestServer(t, nil)
+	resp, _ := doJSON(t, "POST", srv.URL+"/api/conversations", nil)
+	req, _ := http.NewRequest("POST", srv.URL+"/api/conversations", strings.NewReader("{invalid"))
+	req.Header.Set("Content-Type", "application/json")
+	r, _ := http.DefaultClient.Do(req)
+	r.Body.Close()
+	if r.StatusCode != 400 {
+		t.Fatalf("bad body: %d", resp.StatusCode)
+	}
+}
+
+func TestChatUpdateBadID(t *testing.T) {
+	srv, _ := newChatTestServer(t, nil)
+	resp, _ := doJSON(t, "PATCH", srv.URL+"/api/conversations/not-a-uuid", map[string]string{"title": "x"})
+	if resp.StatusCode != 404 {
+		t.Fatalf("bad id update: %d", resp.StatusCode)
+	}
+}
+
+func TestChatUpdateBadBody(t *testing.T) {
+	srv, _ := newChatTestServer(t, nil)
+	c := createConv(t, srv.URL)
+	req, _ := http.NewRequest("PATCH", srv.URL+"/api/conversations/"+c.ID, strings.NewReader("{invalid"))
+	req.Header.Set("Content-Type", "application/json")
+	r, _ := http.DefaultClient.Do(req)
+	r.Body.Close()
+	if r.StatusCode != 400 {
+		t.Fatalf("bad body: %d", r.StatusCode)
+	}
+}
+
+func TestChatListMessagesBadID(t *testing.T) {
+	srv, _ := newChatTestServer(t, nil)
+	resp, _ := doJSON(t, "GET", srv.URL+"/api/conversations/not-a-uuid/messages", nil)
+	if resp.StatusCode != 404 {
+		t.Fatalf("bad id messages: %d", resp.StatusCode)
+	}
+}
+
+func TestChatStopBadID(t *testing.T) {
+	srv, _ := newChatTestServer(t, nil)
+	resp, _ := doJSON(t, "POST", srv.URL+"/api/conversations/not-a-uuid/stop", nil)
+	if resp.StatusCode != 404 {
+		t.Fatalf("bad id stop: %d", resp.StatusCode)
+	}
+}
+
+func TestChatDeleteBadID(t *testing.T) {
+	srv, _ := newChatTestServer(t, nil)
+	resp, _ := doJSON(t, "DELETE", srv.URL+"/api/conversations/not-a-uuid", nil)
+	if resp.StatusCode != 404 {
+		t.Fatalf("bad id delete: %d", resp.StatusCode)
+	}
+}
+
+func TestChatStreamBadID(t *testing.T) {
+	srv, _ := newChatTestServer(t, nil)
+	resp, _ := doJSON(t, "GET", srv.URL+"/api/conversations/not-a-uuid/stream", nil)
+	if resp.StatusCode != 404 {
+		t.Fatalf("bad id stream: %d", resp.StatusCode)
+	}
+}
+
+func TestChatSendBadID(t *testing.T) {
+	runner := newMockRunner(true)
+	srv, _ := newChatTestServer(t, runner)
+	resp, _ := doJSON(t, "POST", srv.URL+"/api/conversations/not-a-uuid/messages", SendMessageRequest{Message: "hi"})
+	if resp.StatusCode != 404 {
+		t.Fatalf("bad id send: %d", resp.StatusCode)
+	}
+}
+
+func TestChatStopNoRunner(t *testing.T) {
+	srv, _ := newChatTestServer(t, nil)
+	c := createConv(t, srv.URL)
+	resp, _ := doJSON(t, "POST", srv.URL+"/api/conversations/"+c.ID+"/stop", nil)
+	if resp.StatusCode != 204 {
+		t.Fatalf("stop no runner: %d", resp.StatusCode)
+	}
+}
+
+func TestFlattenContent_Array(t *testing.T) {
+	raw := json.RawMessage(`[{"text":"hello "},{"text":"world"}]`)
+	got := flattenContent(raw)
+	if got != "hello world" {
+		t.Fatalf("want 'hello world', got %q", got)
+	}
+}
+
+func TestChatUpdateModelAgent(t *testing.T) {
+	srv, _ := newChatTestServer(t, nil)
+	c := createConv(t, srv.URL)
+	model := "haiku"
+	agent := "pentest-lead"
+	resp, body := doJSON(t, "PATCH", srv.URL+"/api/conversations/"+c.ID, map[string]any{"model": model, "agent": agent})
+	if resp.StatusCode != 200 {
+		t.Fatalf("update: %d", resp.StatusCode)
+	}
+	var updated Conversation
+	json.Unmarshal(body, &updated)
+	if updated.Model != model || updated.Agent != agent {
+		t.Fatalf("update: model=%s agent=%s", updated.Model, updated.Agent)
+	}
+}
+
+func TestChatListMessagesAfter(t *testing.T) {
+	srv, _ := newChatTestServer(t, nil)
+	c := createConv(t, srv.URL)
+	resp, body := doJSON(t, "GET", srv.URL+"/api/conversations/"+c.ID+"/messages?after=0", nil)
+	if resp.StatusCode != 200 {
+		t.Fatalf("messages: %d", resp.StatusCode)
+	}
+	var events []ChatEvent
+	json.Unmarshal(body, &events)
+	if events == nil {
+		t.Fatal("expected non-nil events slice")
+	}
+}
+
+func TestChatDeleteWithRunner(t *testing.T) {
+	runner := newMockRunner(true)
+	srv, _ := newChatTestServer(t, runner)
+	c := createConv(t, srv.URL)
+	resp, _ := doJSON(t, "DELETE", srv.URL+"/api/conversations/"+c.ID, nil)
+	if resp.StatusCode != 204 {
+		t.Fatalf("delete: %d", resp.StatusCode)
+	}
+	resp, _ = doJSON(t, "GET", srv.URL+"/api/conversations/"+c.ID, nil)
+	if resp.StatusCode != 404 {
+		t.Fatalf("get deleted: %d", resp.StatusCode)
+	}
+}
+
+func TestChatSendEmptyMessage(t *testing.T) {
+	runner := newMockRunner(true)
+	srv, _ := newChatTestServer(t, runner)
+	c := createConv(t, srv.URL)
+	resp, _ := doJSON(t, "POST", srv.URL+"/api/conversations/"+c.ID+"/messages", SendMessageRequest{Message: "   "})
+	if resp.StatusCode != 400 {
+		t.Fatalf("empty message: %d", resp.StatusCode)
+	}
+}
+
+func TestChatSendNoRunner(t *testing.T) {
+	srv, _ := newChatTestServer(t, nil)
+	c := createConv(t, srv.URL)
+	resp, _ := doJSON(t, "POST", srv.URL+"/api/conversations/"+c.ID+"/messages", SendMessageRequest{Message: "hi"})
+	if resp.StatusCode != 503 {
+		t.Fatalf("no runner: %d", resp.StatusCode)
+	}
+}
+
+func TestFlattenContent_RawFallback(t *testing.T) {
+	raw := json.RawMessage(`12345`)
+	got := flattenContent(raw)
+	if got != "12345" {
+		t.Fatalf("want '12345', got %q", got)
+	}
+}

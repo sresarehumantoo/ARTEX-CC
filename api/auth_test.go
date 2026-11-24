@@ -81,3 +81,89 @@ func TestAuthNotRequiredPassesThrough(t *testing.T) {
 		t.Fatalf("status: %s", w.Body.String())
 	}
 }
+
+func TestAuthLogout(t *testing.T) {
+	a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()), WithAuthRequired(true))
+	h := a.Handler()
+
+	w := authDo(h, "POST", "/api/auth/init", `{"password":"correct horse"}`)
+	if w.Code != 200 {
+		t.Fatalf("init: %d", w.Code)
+	}
+	cookie := sessionFrom(t, w)
+
+	w = authDo(h, "POST", "/api/auth/logout", "", cookie)
+	if w.Code != 200 {
+		t.Fatalf("logout: %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), `"ok":true`) {
+		t.Fatalf("body: %s", w.Body.String())
+	}
+	var cleared *http.Cookie
+	for _, c := range w.Result().Cookies() {
+		if c.Name == sessionCookie {
+			cleared = c
+		}
+	}
+	if cleared == nil || cleared.MaxAge != -1 || cleared.Value != "" {
+		t.Fatalf("session cookie not cleared: %+v", cleared)
+	}
+}
+
+func TestAuthLogout_NoAuth(t *testing.T) {
+	a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()))
+	h := a.Handler()
+	w := authDo(h, "POST", "/api/auth/logout", "")
+	if w.Code != 200 {
+		t.Fatalf("logout without auth: %d", w.Code)
+	}
+}
+
+func TestAuthChangePassword_ShortNew(t *testing.T) {
+	a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()), WithAuthRequired(true))
+	h := a.Handler()
+	w := authDo(h, "POST", "/api/auth/init", `{"password":"correct horse"}`)
+	cookie := sessionFrom(t, w)
+	w = authDo(h, "POST", "/api/auth/change-password", `{"current_password":"correct horse","new_password":"short"}`, cookie)
+	if w.Code != 400 {
+		t.Fatalf("short new password: %d", w.Code)
+	}
+}
+
+func TestAuthChangePassword_BadBody(t *testing.T) {
+	a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()), WithAuthRequired(true))
+	h := a.Handler()
+	w := authDo(h, "POST", "/api/auth/init", `{"password":"correct horse"}`)
+	cookie := sessionFrom(t, w)
+	w = authDo(h, "POST", "/api/auth/change-password", "{invalid", cookie)
+	if w.Code != 400 {
+		t.Fatalf("bad body: %d", w.Code)
+	}
+}
+
+func TestAuthChangePassword_NotInitialized(t *testing.T) {
+	a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()))
+	h := a.Handler()
+	w := authDo(h, "POST", "/api/auth/change-password", `{"current_password":"x","new_password":"longpassword"}`)
+	if w.Code != 409 {
+		t.Fatalf("not initialized: %d", w.Code)
+	}
+}
+
+func TestAuthLogin_BadBody(t *testing.T) {
+	a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()))
+	h := a.Handler()
+	w := authDo(h, "POST", "/api/auth/login", "{invalid")
+	if w.Code != 400 {
+		t.Fatalf("bad body: %d", w.Code)
+	}
+}
+
+func TestAuthLogin_NotInitialized(t *testing.T) {
+	a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()))
+	h := a.Handler()
+	w := authDo(h, "POST", "/api/auth/login", `{"password":"anything"}`)
+	if w.Code != 409 {
+		t.Fatalf("not initialized: %d", w.Code)
+	}
+}

@@ -32,6 +32,113 @@ func agentsDo(t *testing.T, srv *httptest.Server, method, path, body string) (in
 	return res.StatusCode, []byte(buf.String())
 }
 
+func seedAgentsHelper(t *testing.T, srv *httptest.Server) {
+	t.Helper()
+	agentsDo(t, srv, "GET", "/api/agents", "")
+}
+
+func TestAgentsGetExisting(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	seedAgentsHelper(t, srv)
+	code, body := agentsDo(t, srv, "GET", "/api/agents/pentest-lead", "")
+	var p AgentPreset
+	if err := json.Unmarshal(body, &p); err != nil || code != 200 {
+		t.Fatalf("get: code=%d err=%v", code, err)
+	}
+	if p.Name != "Pentest Lead" || p.Model != "opus" {
+		t.Fatalf("agent = %+v", p)
+	}
+}
+
+func TestAgentsCreateBadBody(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	if code, _ := agentsDo(t, srv, "POST", "/api/agents", "{invalid"); code != 400 {
+		t.Fatalf("bad body: code=%d", code)
+	}
+}
+
+func TestAgentsCreateEmptyName(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	if code, _ := agentsDo(t, srv, "POST", "/api/agents", `{}`); code != 400 {
+		t.Fatalf("empty name: code=%d", code)
+	}
+	if code, _ := agentsDo(t, srv, "POST", "/api/agents", `{"name":"  "}`); code != 400 {
+		t.Fatalf("whitespace name: code=%d", code)
+	}
+}
+
+func TestAgentsCreateSymbolOnlyName(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	if code, _ := agentsDo(t, srv, "POST", "/api/agents", `{"name":"!!!"}`); code != 400 {
+		t.Fatalf("symbol name: code=%d", code)
+	}
+}
+
+func TestAgentsUpdateBadBody(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	seedAgentsHelper(t, srv)
+	if code, _ := agentsDo(t, srv, "PATCH", "/api/agents/pentest-lead", "{invalid"); code != 400 {
+		t.Fatalf("bad body: code=%d", code)
+	}
+}
+
+func TestAgentsUpdateEmptyName(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	seedAgentsHelper(t, srv)
+	if code, _ := agentsDo(t, srv, "PATCH", "/api/agents/pentest-lead", `{"name":"  "}`); code != 400 {
+		t.Fatalf("empty name: code=%d", code)
+	}
+}
+
+func TestAgentsUpdateBadModel(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	seedAgentsHelper(t, srv)
+	if code, _ := agentsDo(t, srv, "PATCH", "/api/agents/pentest-lead", `{"model":"gpt"}`); code != 400 {
+		t.Fatalf("bad model: code=%d", code)
+	}
+}
+
+func TestAgentsUpdateNotFound(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	if code, _ := agentsDo(t, srv, "PATCH", "/api/agents/nonexistent", `{"description":"x"}`); code != 404 {
+		t.Fatalf("not found: code=%d", code)
+	}
+}
+
+func TestAgentsDeleteNotFound(t *testing.T) {
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
+	srv := httptest.NewServer(a.Handler())
+	defer srv.Close()
+
+	if code, _ := agentsDo(t, srv, "DELETE", "/api/agents/nonexistent", ""); code != 404 {
+		t.Fatalf("not found: code=%d", code)
+	}
+}
+
 func TestAgentsCRUD(t *testing.T) {
 	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()))
 	srv := httptest.NewServer(a.Handler())
