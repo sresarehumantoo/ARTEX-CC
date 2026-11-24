@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { ChevronDown, ChevronsLeft, ChevronsRight, Code } from 'lucide-react'
 import { BrandMark } from './BrandMark'
 import { cn } from '../lib/utils'
 import { navGroups } from '../lib/nav'
 import { getEngagement } from '../lib/api'
+import { SOURCE_URL } from '../lib/source'
 import { useSSEStatus } from '../hooks/useSSEStatus'
 import { useUnreadFindings, clearUnread } from '../hooks/useUnreadFindings'
 import { usePreferences } from '../stores/preferences'
@@ -193,6 +194,16 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             </span>
           </div>
         )}
+        <a
+          href={SOURCE_URL}
+          target="_blank"
+          rel="noreferrer"
+          title="Source code (AGPL-3.0)"
+          className="flex items-center gap-3 rounded-md px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Code className="h-3.5 w-3.5 shrink-0" />
+          <span className={showLabels}>Source (AGPL-3.0)</span>
+        </a>
       </div>
       <div className={cn('px-2 py-3', !collapsed && 'md:px-3')}>
         <button

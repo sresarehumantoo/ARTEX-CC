@@ -18,6 +18,7 @@ import { downloadFile } from '../lib/export'
 import { toast } from 'sonner'
 import { cn } from '../lib/utils'
 import LlmTab from './LlmTab'
+import { SOURCE_URL, sourceUrlFor } from '../lib/source'
 
 interface SystemInfo {
   version: string
@@ -320,9 +321,10 @@ function AboutTab() {
         </CardHeader>
         <CardContent className="space-y-3">
           <InfoRow label="Version" value={data?.version && data.version !== '(devel)' ? data.version : 'dev build'} />
+          <InfoRow label="License" value="AGPL-3.0-only" />
           <div className="flex gap-4 pt-1">
-            <a className={linkClass} href="https://github.com/SREsAreHumanToo/cc-artex#readme" target="_blank" rel="noreferrer">Docs</a>
-            <a className={linkClass} href="https://github.com/SREsAreHumanToo/cc-artex" target="_blank" rel="noreferrer">GitHub</a>
+            <a className={linkClass} href={`${SOURCE_URL}#readme`} target="_blank" rel="noreferrer">Docs</a>
+            <a className={linkClass} href={sourceUrlFor(data?.version)} target="_blank" rel="noreferrer">Source code</a>
           </div>
         </CardContent>
       </Card>
