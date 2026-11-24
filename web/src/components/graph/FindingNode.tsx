@@ -15,7 +15,7 @@ const severityColors: Record<string, string> = {
 
 export const FindingNode = memo(function FindingNode({ data }: NodeProps & { data: GraphNode }) {
   const name = (data.payload.name ?? data.payload.title ?? 'Finding') as string
-  const summary = (data.payload.summary ?? data.payload.text ?? '') as string
+  const summary = (data.payload.label ?? data.payload.summary ?? data.payload.text ?? '') as string
   const severity = ((data.payload.severity ?? 'medium') as string).toLowerCase()
   const colorClass = severityColors[severity] ?? severityColors.medium
   return (

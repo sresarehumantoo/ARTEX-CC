@@ -10,6 +10,10 @@ const INITIAL_DELAY = 1000
 const MAX_DELAY = 30000
 
 export function useSSE(url: string, onEvent: (event: SSEEvent) => void) {
+  const onEventRef = useRef(onEvent)
+  onEventRef.current = onEvent
+
+  const esRef = useRef<EventSource | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const delayRef = useRef(INITIAL_DELAY)
 
@@ -18,9 +22,11 @@ export function useSSE(url: string, onEvent: (event: SSEEvent) => void) {
 
     function connect() {
       const es = new EventSource(url)
+      esRef.current = es
 
       es.onopen = () => {
         setConnected(true)
+        delayRef.current = INITIAL_DELAY
       }
 
       es.onmessage = (e) => {
@@ -28,7 +34,7 @@ export function useSSE(url: string, onEvent: (event: SSEEvent) => void) {
         delayRef.current = INITIAL_DELAY
         try {
           const data = JSON.parse(e.data) as SSEEvent
-          onEvent(data)
+          onEventRef.current(data)
         } catch {
           // skip malformed events
         }
@@ -44,17 +50,16 @@ export function useSSE(url: string, onEvent: (event: SSEEvent) => void) {
         }, delayRef.current)
         delayRef.current = Math.min(delayRef.current * 2, MAX_DELAY)
       }
-
-      return es
     }
 
-    const es = connect()
+    connect()
 
     return () => {
       disposed = true
       setConnected(false)
-      es.close()
+      esRef.current?.close()
+      esRef.current = null
       if (timeoutRef.current !== null) clearTimeout(timeoutRef.current)
     }
-  }, [url, onEvent])
+  }, [url])
 }

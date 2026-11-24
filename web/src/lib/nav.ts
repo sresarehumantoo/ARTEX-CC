@@ -1,7 +1,10 @@
 import {
+  BarChart3,
   Bot,
+  ClipboardList,
   Clock,
   FileText,
+  FolderOpen,
   GitBranch,
   Globe,
   KeyRound,
@@ -14,6 +17,7 @@ import {
   Settings as SettingsIcon,
   Shield,
   Target,
+  Terminal,
   Wrench,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -44,6 +48,15 @@ export const navGroups: NavGroup[] = [
       { to: '/coverage', icon: Target, label: 'Coverage' },
       { to: '/credentials', icon: KeyRound, label: 'Credentials' },
       { to: '/report', icon: FileText, label: 'Report' },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { to: '/tasks', icon: ClipboardList, label: 'Tasks' },
+      { to: '/commands', icon: Terminal, label: 'Commands' },
+      { to: '/usage', icon: BarChart3, label: 'Usage' },
+      { to: '/workspace', icon: FolderOpen, label: 'Workspace' },
     ],
   },
   {

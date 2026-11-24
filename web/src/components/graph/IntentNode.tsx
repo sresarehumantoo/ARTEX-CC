@@ -7,7 +7,7 @@ import { StatusBadge } from '../StatusBadge'
 import { NodeTooltip } from './NodeTooltip'
 
 export const IntentNode = memo(function IntentNode({ data }: NodeProps & { data: GraphNode }) {
-  const text = (data.payload.text ?? data.payload.summary ?? '') as string
+  const text = (data.payload.label ?? data.payload.text ?? data.payload.summary ?? '') as string
   const isRunning = data.state === 'running'
   return (
     <div className={`group relative w-[180px] bg-card text-card-foreground rounded-lg shadow-md border-l-[3px] border-blue-500 overflow-hidden ${isRunning ? 'node-running' : ''}`}>

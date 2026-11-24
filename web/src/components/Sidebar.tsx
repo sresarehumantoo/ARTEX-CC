@@ -67,9 +67,6 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         urgent: hasHighSeverity(engagement.finding_list),
       }
     }
-    if (engagement.facts > 0) {
-      badges.assets = { count: engagement.facts, urgent: false }
-    }
   }
 
   return (

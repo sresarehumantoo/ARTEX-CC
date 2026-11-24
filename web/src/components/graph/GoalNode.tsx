@@ -7,7 +7,7 @@ import { StatusBadge } from '../StatusBadge'
 import { NodeTooltip } from './NodeTooltip'
 
 export const GoalNode = memo(function GoalNode({ data }: NodeProps & { data: GraphNode }) {
-  const text = (data.payload.text ?? data.payload.summary ?? '') as string
+  const text = (data.payload.label ?? data.payload.text ?? data.payload.summary ?? '') as string
   return (
     <div className="group relative w-[180px] bg-card text-card-foreground rounded-lg shadow-md border-l-[3px] border-emerald-500 overflow-hidden">
       <NodeTooltip lines={[`Goal: ${truncate(text, 80)}`, `State: ${data.state}`]} />
