@@ -17,9 +17,25 @@ func convertTool(t tools.Tool) mcp.Tool {
 	return tool
 }
 
+// stdioSessionID stands in for mcp-go's constant "stdio" session ID so that
+// separate stdio server processes sharing one database hold distinct claims.
+var stdioSessionID = "stdio-" + randomID()[:8]
+
+func callerSessionID(ctx context.Context) string {
+	cs := server.ClientSessionFromContext(ctx)
+	if cs == nil {
+		return ""
+	}
+	if id := cs.SessionID(); id != "stdio" {
+		return id
+	}
+	return stdioSessionID
+}
+
 func makeHandlerWithNotifier(t tools.Tool, notifier ToolNotifier) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		slog.Info("tool called", "tool", t.Name)
+		ctx = tools.WithSessionID(ctx, callerSessionID(ctx))
 		raw, err := json.Marshal(req.GetRawArguments())
 		if err != nil {
 			return mcp.NewToolResultError("invalid arguments: " + err.Error()), nil

@@ -231,8 +231,10 @@ The exploration graph preserves ALL state. If you start a fresh session or
 your context fills up:
   1. Call graph_overview. It shows everything: goals, what has been tried,
      what is open, what was found.
-  2. Intents in "running" state with no recent progress may be stale from a
-     previous session. Create replacement intents or re-execute them.
+  2. start_intent claims an intent for your session for 30 minutes. Running
+     intents show claimed_by and claim_expires_at; leave those to their
+     owner. Once a claim expires the intent is listed as open again with
+     claim_expired, and any session may start it.
   3. Continue from where the graph says you left off.
 
 You never lose work. Facts, findings, and assets are persisted the moment they

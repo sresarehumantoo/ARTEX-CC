@@ -6,15 +6,36 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 type intentMockStore struct {
 	mockStore
-	nodes map[int64]*Node
+	nodes  map[int64]*Node
+	claims map[int64]IntentClaim
 }
 
 func newIntentMockStore() *intentMockStore {
-	return &intentMockStore{nodes: map[int64]*Node{}}
+	return &intentMockStore{nodes: map[int64]*Node{}, claims: map[int64]IntentClaim{}}
+}
+
+func (m *intentMockStore) ClaimIntent(_ context.Context, id int64, owner string, lease time.Duration) (*IntentClaim, error) {
+	n, ok := m.nodes[id]
+	if !ok {
+		return nil, fmt.Errorf("node %d not found", id)
+	}
+	if n.State != "open" && n.State != "running" {
+		return nil, fmt.Errorf("intent %d is %q, must be open to start", id, n.State)
+	}
+	prev, held := m.claims[id]
+	live := n.State == "running" && held && prev.ExpiresAt.After(time.Now())
+	if live && prev.Owner != owner {
+		return nil, &ClaimConflictError{NodeID: id, Owner: prev.Owner, ExpiresAt: prev.ExpiresAt}
+	}
+	n.State = "running"
+	c := IntentClaim{NodeID: id, Owner: owner, ExpiresAt: time.Now().Add(lease), Renewed: live}
+	m.claims[id] = c
+	return &c, nil
 }
 
 func (m *intentMockStore) NodeDetail(_ context.Context, id int64) (*Node, error) {
@@ -31,6 +52,7 @@ func (m *intentMockStore) UpdateNodeState(_ context.Context, id int64, state str
 		return fmt.Errorf("node %d not found", id)
 	}
 	n.State = state
+	delete(m.claims, id)
 	return nil
 }
 
@@ -40,7 +62,97 @@ func (m *intentMockStore) UpdateNodeFields(_ context.Context, id int64, state st
 		return fmt.Errorf("node %d not found", id)
 	}
 	n.State = state
+	delete(m.claims, id)
 	return nil
+}
+
+func TestStartIntentClaimConflictAndRenewal(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "open"}
+
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+	start, _ := reg.Lookup("start_intent")
+
+	ctxA := WithSessionID(context.Background(), "sess-a")
+	ctxB := WithSessionID(context.Background(), "sess-b")
+	in := json.RawMessage(`{"node_id": 10}`)
+
+	r, _ := start.Run(ctxA, in)
+	if r.IsError {
+		t.Fatalf("session A claim failed: %s", r.Content)
+	}
+	if !strings.Contains(r.Content, "claimed by session sess-a") {
+		t.Errorf("expected claim by sess-a, got: %s", r.Content)
+	}
+
+	r, _ = start.Run(ctxB, in)
+	if !r.IsError {
+		t.Fatal("expected session B to be refused")
+	}
+	if !strings.Contains(r.Content, "claimed by session sess-a until") {
+		t.Errorf("expected error naming holder and expiry, got: %s", r.Content)
+	}
+
+	r, _ = start.Run(ctxA, in)
+	if r.IsError {
+		t.Fatalf("session A renewal failed: %s", r.Content)
+	}
+	if !strings.Contains(r.Content, "renewed by session sess-a") {
+		t.Errorf("expected renewal, got: %s", r.Content)
+	}
+}
+
+func TestStartIntentExpiredClaimIsTakenOver(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "running"}
+	ms.claims[10] = IntentClaim{NodeID: 10, Owner: "sess-a", ExpiresAt: time.Now().Add(-time.Minute)}
+
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+	start, _ := reg.Lookup("start_intent")
+
+	r, _ := start.Run(WithSessionID(context.Background(), "sess-b"), json.RawMessage(`{"node_id": 10}`))
+	if r.IsError {
+		t.Fatalf("expected takeover of expired claim, got: %s", r.Content)
+	}
+	if ms.claims[10].Owner != "sess-b" {
+		t.Errorf("owner = %q, want sess-b", ms.claims[10].Owner)
+	}
+}
+
+func TestCompleteAndCancelReleaseClaim(t *testing.T) {
+	t.Parallel()
+	for _, tool := range []string{"complete_intent", "cancel_intent"} {
+		ms := newIntentMockStore()
+		ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "open"}
+		reg := NewRegistry()
+		RegisterIntentTools(reg, ms, 1)
+		start, _ := reg.Lookup("start_intent")
+		finish, _ := reg.Lookup(tool)
+
+		if r, _ := start.Run(context.Background(), json.RawMessage(`{"node_id": 10}`)); r.IsError {
+			t.Fatalf("start failed: %s", r.Content)
+		}
+		if r, _ := finish.Run(context.Background(), json.RawMessage(`{"node_id": 10}`)); r.IsError {
+			t.Fatalf("%s failed: %s", tool, r.Content)
+		}
+		if _, held := ms.claims[10]; held {
+			t.Errorf("%s left the claim in place", tool)
+		}
+	}
+}
+
+func TestSessionIDDefaultsToLocal(t *testing.T) {
+	t.Parallel()
+	if got := SessionID(context.Background()); got != LocalSessionID {
+		t.Errorf("SessionID = %q, want %q", got, LocalSessionID)
+	}
+	if got := SessionID(WithSessionID(context.Background(), "abc")); got != "abc" {
+		t.Errorf("SessionID = %q, want abc", got)
+	}
 }
 
 func TestStartIntentHappyPath(t *testing.T) {
@@ -269,6 +381,7 @@ func TestStartIntentAlreadyRunning(t *testing.T) {
 	t.Parallel()
 	ms := newIntentMockStore()
 	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "running"}
+	ms.claims[10] = IntentClaim{NodeID: 10, Owner: "other", ExpiresAt: time.Now().Add(time.Minute)}
 
 	reg := NewRegistry()
 	RegisterIntentTools(reg, ms, 1)
@@ -279,10 +392,10 @@ func TestStartIntentAlreadyRunning(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !r.IsError {
-		t.Fatal("expected error for starting an already-running intent")
+		t.Fatal("expected error for starting an intent claimed by another session")
 	}
-	if !strings.Contains(r.Content, "must be open") {
-		t.Errorf("expected 'must be open' in error, got: %s", r.Content)
+	if !strings.Contains(r.Content, "claimed by session other") {
+		t.Errorf("expected holder in error, got: %s", r.Content)
 	}
 }
 
