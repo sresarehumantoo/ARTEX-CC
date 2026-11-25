@@ -3,9 +3,39 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestExec_StdoutCapped(t *testing.T) {
+	dir := t.TempDir()
+	bin := writePlugin(t, dir, "chatty", fmt.Sprintf(`#!/bin/sh
+head -c %d /dev/zero
+`, MaxOutputBytes+1))
+
+	_, err := Exec(context.Background(), bin, Invocation{Tool: "x", Input: json.RawMessage(`{}`)}, 10*time.Second)
+	if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("more than %d bytes", MaxOutputBytes)) {
+		t.Fatalf("err = %v, want stdout cap error", err)
+	}
+}
+
+func TestExec_StdoutCapKillsEndlessWriter(t *testing.T) {
+	dir := t.TempDir()
+	bin := writePlugin(t, dir, "endless", `#!/bin/sh
+exec cat /dev/zero
+`)
+
+	start := time.Now()
+	_, err := Exec(context.Background(), bin, Invocation{Tool: "x", Input: json.RawMessage(`{}`)}, 30*time.Second)
+	if err == nil || !strings.Contains(err.Error(), "bytes to stdout") {
+		t.Fatalf("err = %v, want stdout cap error", err)
+	}
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Errorf("took %s; the plugin should be killed once the cap is hit", elapsed)
+	}
+}
 
 func TestExec_Success(t *testing.T) {
 	dir := t.TempDir()

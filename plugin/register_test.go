@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -297,5 +298,83 @@ func TestDiscoverAndRegister_ErrorResultNotPersisted(t *testing.T) {
 	}
 	if len(store.assets) != 0 {
 		t.Errorf("error result persisted %d assets", len(store.assets))
+	}
+}
+
+func TestDiscoverAndRegister_TooManyItemsRejected(t *testing.T) {
+	store := &graphStore{}
+	assets := make([]string, MaxResultItems+1)
+	for i := range assets {
+		assets[i] = fmt.Sprintf(`{"type":"subdomain","domain":"h%d.example.com"}`, i)
+	}
+	tool := registerWithStore(t, store, "flood", `{"content":[{"type":"text","text":"done"}],"assets":[`+strings.Join(assets, ",")+`]}`)
+
+	result, err := tool.Run(t.Context(), json.RawMessage(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := fmt.Sprintf("done\npersisted nothing: result has %d structured items, max %d", MaxResultItems+1, MaxResultItems)
+	if result.Content != want {
+		t.Errorf("content =\n%s\nwant\n%s", result.Content, want)
+	}
+	if len(store.assets) != 0 {
+		t.Errorf("persisted %d assets, want 0", len(store.assets))
+	}
+}
+
+func TestDiscoverAndRegister_ProblemLinesCapped(t *testing.T) {
+	store := &graphStore{}
+	facts := make([]string, MaxProblemLines+5)
+	for i := range facts {
+		facts[i] = `{"summary":""}`
+	}
+	tool := registerWithStore(t, store, "noisy", `{"content":[{"type":"text","text":"done"}],"facts":[`+strings.Join(facts, ",")+`]}`)
+
+	result, err := tool.Run(t.Context(), json.RawMessage(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(result.Content, "\n")
+	if len(lines) != MaxProblemLines+3 {
+		t.Fatalf("got %d lines, want %d:\n%s", len(lines), MaxProblemLines+3, result.Content)
+	}
+	if lines[1] != "inserted 0 assets, 0 facts, 0 findings" {
+		t.Errorf("summary = %q", lines[1])
+	}
+	if last := lines[len(lines)-1]; last != "... and 5 more problems" {
+		t.Errorf("last line = %q", last)
+	}
+}
+
+type cancelingStore struct {
+	graphStore
+	cancel context.CancelFunc
+}
+
+func (s *cancelingStore) InsertAsset(ctx context.Context, taskID int64, item tools.AssetInput) (int64, error) {
+	s.cancel()
+	return s.graphStore.InsertAsset(ctx, taskID, item)
+}
+
+func TestPersistResults_StopsWhenContextEnds(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	store := &cancelingStore{cancel: cancel}
+	reg := tools.NewRegistry()
+	tools.RegisterAll(reg, store, 1, 1)
+
+	summary := persistResults(ctx, reg, Result{
+		Assets: []json.RawMessage{
+			json.RawMessage(`{"type":"subdomain","domain":"a.example.com"}`),
+			json.RawMessage(`{"type":"subdomain","domain":"b.example.com"}`),
+		},
+		Facts: []json.RawMessage{json.RawMessage(`{"summary":"x"}`)},
+	})
+	want := "inserted 1 asset, 0 facts, 0 findings; stopped (context canceled) with 2 items not attempted"
+	if summary != want {
+		t.Errorf("summary =\n%s\nwant\n%s", summary, want)
+	}
+	if len(store.assets) != 1 {
+		t.Errorf("persisted %d assets, want 1", len(store.assets))
 	}
 }

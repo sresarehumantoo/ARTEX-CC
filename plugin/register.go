@@ -76,7 +76,9 @@ func makeHandler(registry *tools.Registry, binPath, toolName string, timeout tim
 			parts = append(parts, c.Text)
 		}
 		if !result.IsError {
-			if summary := persistResults(ctx, target, result); summary != "" {
+			pctx, cancel := context.WithTimeout(ctx, PersistTimeout)
+			defer cancel()
+			if summary := persistResults(pctx, target, result); summary != "" {
 				parts = append(parts, summary)
 			}
 		}
@@ -87,18 +89,35 @@ func makeHandler(registry *tools.Registry, binPath, toolName string, timeout tim
 	}
 }
 
+// Limits on what one plugin result may write to the graph. A result over
+// MaxResultItems is rejected whole rather than truncated, so the graph never
+// holds an arbitrary prefix of it.
+const (
+	MaxResultItems  = 500
+	PersistTimeout  = time.Minute
+	MaxProblemLines = 20
+)
+
 // persistResults writes a plugin's structured output through the same tools
 // the model would call, so scope checks and validation apply unchanged.
 // Items go one at a time so a bad item never blocks the rest.
 func persistResults(ctx context.Context, registry *tools.Registry, r Result) string {
-	if len(r.Assets)+len(r.Facts)+len(r.Findings) == 0 {
+	total := len(r.Assets) + len(r.Facts) + len(r.Findings)
+	if total == 0 {
 		return ""
 	}
+	if total > MaxResultItems {
+		return fmt.Sprintf("persisted nothing: result has %d structured items, max %d", total, MaxResultItems)
+	}
 
-	var assets, facts, findings, outOfScope int
+	var assets, facts, findings, outOfScope, attempted int
 	var notes []string
 
 	for i, a := range r.Assets {
+		if ctx.Err() != nil {
+			break
+		}
+		attempted++
 		res, err := runTool(ctx, registry, "insert_assets", map[string]any{"assets": []json.RawMessage{a}})
 		if err != nil {
 			notes = append(notes, fmt.Sprintf("failed asset %d: %v", i, err))
@@ -126,6 +145,10 @@ func persistResults(ctx context.Context, registry *tools.Registry, r Result) str
 	}
 
 	for i, f := range r.Facts {
+		if ctx.Err() != nil {
+			break
+		}
+		attempted++
 		res, err := runTool(ctx, registry, "record_fact", map[string]any{"facts": []json.RawMessage{f}})
 		switch {
 		case err != nil:
@@ -138,6 +161,10 @@ func persistResults(ctx context.Context, registry *tools.Registry, r Result) str
 	}
 
 	for i, f := range r.Findings {
+		if ctx.Err() != nil {
+			break
+		}
+		attempted++
 		res, err := runTool(ctx, registry, "report_finding", f)
 		switch {
 		case err != nil:
@@ -152,6 +179,12 @@ func persistResults(ctx context.Context, registry *tools.Registry, r Result) str
 	summary := fmt.Sprintf("inserted %s, %s, %s", plural(assets, "asset"), plural(facts, "fact"), plural(findings, "finding"))
 	if outOfScope > 0 {
 		summary += fmt.Sprintf("; skipped %d out of scope", outOfScope)
+	}
+	if attempted < total {
+		summary += fmt.Sprintf("; stopped (%v) with %d items not attempted", ctx.Err(), total-attempted)
+	}
+	if len(notes) > MaxProblemLines {
+		notes = append(notes[:MaxProblemLines], fmt.Sprintf("... and %d more problems", len(notes)-MaxProblemLines))
 	}
 	return strings.Join(append([]string{summary}, notes...), "\n")
 }
