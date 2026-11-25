@@ -40,5 +40,5 @@ export function changePassword(current: string, newPassword: string): Promise<vo
 
 export async function logout(): Promise<void> {
   await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined)
-  window.location.assign('/login')
+  window.location.assign(import.meta.env.BASE_URL + 'login')
 }

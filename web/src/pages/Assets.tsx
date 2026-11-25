@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 
 import { TableSkeleton } from '../components/skeletons/TableSkeleton'
 import { exportAssetCSV } from '../lib/export'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { cn } from '../lib/utils'
 import { fetchAssets, getAssetFindings, type Asset } from '../lib/api'
@@ -321,9 +321,9 @@ function DetailPanel({ asset, onClose }: { asset: Asset; onClose: () => void }) 
             ) : (
               <div className="space-y-2">
                 {findings.map((f) => (
-                  <a
+                  <Link
                     key={f.id}
-                    href={`/findings?id=${f.id}`}
+                    to={`/findings?id=${f.id}`}
                     className="block rounded-md border border-border p-3 hover:bg-accent transition-colors"
                   >
                     <div className="flex items-center gap-2 mb-1">
@@ -331,7 +331,7 @@ function DetailPanel({ asset, onClose }: { asset: Asset; onClose: () => void }) 
                       <span className="text-sm font-medium text-foreground truncate">{f.vulnclass}</span>
                     </div>
                     <p className="text-xs text-muted-foreground line-clamp-2">{f.summary}</p>
-                  </a>
+                  </Link>
                 ))}
               </div>
             )}
