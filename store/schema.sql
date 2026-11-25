@@ -316,7 +316,7 @@ CREATE TABLE IF NOT EXISTS task_credentials (
     domain     TEXT NOT NULL,
     username   TEXT NOT NULL,
     password   TEXT NOT NULL DEFAULT '',
-    source     TEXT NOT NULL DEFAULT 'user' CHECK (source IN ('user','agent')),
+    source     TEXT NOT NULL DEFAULT 'user' CHECK (source IN ('user','agent','asset_url')),
     note       TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

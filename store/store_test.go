@@ -622,3 +622,55 @@ func TestInsertAssetNormalizesURL(t *testing.T) {
 		t.Errorf("url = %v, want %q", got, want)
 	}
 }
+
+func TestInsertAssetRecordsURLCredential(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, _ := testEngagement(t, s, "url-credential")
+	host := fmt.Sprintf("creds-%d.example.com", taskID)
+
+	if _, err := s.SaveCredential(ctx, taskID, tools.CredentialInput{Domain: host, Username: "known", Password: "original", Source: "agent"}); err != nil {
+		t.Fatalf("SaveCredential: %v", err)
+	}
+	for _, in := range []tools.AssetInput{
+		{Type: "service", URL: "https://ad%40min:p%3Ass@" + strings.ToUpper(host) + "/"},
+		{Type: "service", URL: "https://known:changed@" + host + "/login"},
+		{Type: "endpoint", URL: "https://guest@" + host + "/api", Method: "GET"},
+		{Type: "service", URL: "https://ad%40min:other@" + host + "/again"},
+	} {
+		if _, err := s.InsertAsset(ctx, taskID, in); err != nil {
+			t.Fatalf("InsertAsset(%s): %v", in.URL, err)
+		}
+	}
+
+	creds, err := s.ListCredentials(ctx, taskID)
+	if err != nil {
+		t.Fatalf("ListCredentials: %v", err)
+	}
+	got := map[string]tools.Credential{}
+	for _, c := range creds {
+		if c.Domain != host {
+			t.Errorf("domain = %q, want %q", c.Domain, host)
+		}
+		got[c.Username] = c
+	}
+	want := map[string][2]string{
+		"known":  {"original", "agent"},
+		"ad@min": {"p:ss", "asset_url"},
+		"guest":  {"", "asset_url"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("credentials = %+v, want %d entries", creds, len(want))
+	}
+	for user, w := range want {
+		c, ok := got[user]
+		if !ok {
+			t.Errorf("missing credential for %q", user)
+			continue
+		}
+		if c.Password != w[0] || c.Source != w[1] {
+			t.Errorf("%s: password, source = %q, %q, want %q, %q", user, c.Password, c.Source, w[0], w[1])
+		}
+	}
+}

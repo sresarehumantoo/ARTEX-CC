@@ -280,6 +280,9 @@ func (s *Store) InsertAsset(ctx context.Context, taskID int64, item tools.AssetI
 	if err != nil {
 		return 0, fmt.Errorf("insert %s: %w", item.Type, err)
 	}
+	if err := s.saveAssetURLCredential(ctx, tx, taskID, internal.URL); err != nil {
+		return 0, fmt.Errorf("save url credential: %w", err)
+	}
 	return id, tx.Commit()
 }
 

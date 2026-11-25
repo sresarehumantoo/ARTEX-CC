@@ -2,8 +2,10 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -86,4 +88,47 @@ func (s *Store) ListCredentials(ctx context.Context, taskID int64) ([]tools.Cred
 		out = append(out, c)
 	}
 	return out, rows.Err()
+}
+
+// assetURLCredential extracts the userinfo of an asset URL, percent-decoded.
+// Only the authority is parsed, so a malformed path or query does not lose it.
+func assetURLCredential(raw string) (domain, username, password string, ok bool) {
+	raw = strings.TrimSpace(raw)
+	i := strings.Index(raw, "://")
+	if i < 0 {
+		return "", "", "", false
+	}
+	if j := strings.IndexAny(raw[i+3:], "/?#"); j >= 0 {
+		raw = raw[:i+3+j]
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.User == nil {
+		return "", "", "", false
+	}
+	domain = DomainKey(u.Hostname())
+	username = strings.TrimSpace(u.User.Username())
+	password, _ = u.User.Password()
+	return domain, username, password, domain != "" && username != ""
+}
+
+// saveAssetURLCredential records userinfo stripped from an asset URL. It never
+// replaces an existing credential for the same domain and username.
+func (s *Store) saveAssetURLCredential(ctx context.Context, tx *sql.Tx, taskID int64, rawURL string) error {
+	domain, username, password, ok := assetURLCredential(rawURL)
+	if !ok {
+		return nil
+	}
+	if s.credentialKey != nil && password != "" {
+		enc, err := aesGCMEncrypt(s.credentialKey, password)
+		if err != nil {
+			return fmt.Errorf("encrypt credential: %w", err)
+		}
+		password = "enc:" + enc
+	}
+	_, err := tx.ExecContext(ctx, `
+		INSERT INTO task_credentials (task_id, domain, username, password, source)
+		VALUES ($1, $2, $3, $4, 'asset_url')
+		ON CONFLICT (task_id, domain, username) DO NOTHING`,
+		taskID, domain, username, password)
+	return err
 }
