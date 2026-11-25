@@ -17,7 +17,7 @@ Each iteration starts from `graph_overview`, not from conversation memory. The e
 
 - **No repeated work.** Done intents and coverage records tell Claude what has already been tested.
 - **Context loss is harmless.** If the conversation is compacted or restarted, the next iteration rebuilds its picture from the graph.
-- **Stale work is visible.** `start_intent` claims an intent for 30 minutes. A claim that is not renewed lapses, and the intent shows up as open again for any session to pick up.
+- **Stale work is visible.** `start_intent` claims an intent for 30 minutes by default (`ARTEX_INTENT_LEASE` changes it). A claim that is not renewed lapses, and the intent shows up as open again for any session to pick up.
 
 ## Steering
 

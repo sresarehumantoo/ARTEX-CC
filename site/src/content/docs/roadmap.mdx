@@ -43,7 +43,7 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 - **Web UI:** `serve --web` serves a dashboard on the MCP port: exploration graph, findings with bound traffic, assets, coverage, credentials, traffic explorer, report, plus chat with a Claude subprocess runner, agents and presets, intercept approvals, and password auth.
 - **Multi-client MCP:** Per-client session state over the HTTP transport, with the `list_sessions` tool.
 - **Multi-agent coordination:** Renewable intent claims per session, cross-process change notifications, and `list_changes` for polling what other agents recorded.
-- **Plugins:** Exec-based plugin system. Executables in the plugin directory describe their tools with `--manifest` and are registered as MCP tools.
+- **Plugins:** Exec-based plugin system. Executables in the plugin directory describe their tools with `--manifest` and are registered as MCP tools. Results can include assets, facts and findings, which are written into the graph with scope enforcement.
 - **Traffic analysis:** `traffic_patterns` for temporal analysis, `traffic_stats` with request size statistics, `traffic_clear` to delete captured traffic by host.
 - **MCP resource:** `artex://engagement` resource serves the orchestration guide with live engagement context.
 - **Structured logging:** slog-based JSON logging across all packages.
