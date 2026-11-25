@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -409,6 +410,43 @@ func TestActiveEngagementFollowsSwitch(t *testing.T) {
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"switch_engagement","arguments":{"task_id":42}}}`))
 	if task, expl := srv.ActiveEngagement(); task != 42 || expl != 200 {
 		t.Fatalf("ActiveEngagement after switch = (%d, %d), want (42, 200)", task, expl)
+	}
+}
+
+func TestSwitchEngagementConcurrentReads(t *testing.T) {
+	t.Parallel()
+	store := &mockStore{
+		rootDesc: "d",
+		rootGoal: "g",
+		engagement: &tools.EngagementDetail{
+			EngagementSummary: tools.EngagementSummary{ID: 42, ExplorationID: 200},
+		},
+	}
+	srv := mcpserver.New(tools.NewRegistry(), mcpserver.WithEngagement(store, 1, 100))
+	ctx := context.Background()
+	switchMsg := json.RawMessage(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"switch_engagement","arguments":{"task_id":42}}}`)
+	readMsg := json.RawMessage(`{"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":"artex://engagement"}}`)
+
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Add(3)
+		go func() {
+			defer wg.Done()
+			srv.MCPServer().HandleMessage(ctx, switchMsg)
+		}()
+		go func() {
+			defer wg.Done()
+			srv.MCPServer().HandleMessage(ctx, readMsg)
+		}()
+		go func() {
+			defer wg.Done()
+			srv.ActiveEngagement()
+		}()
+	}
+	wg.Wait()
+
+	if task, expl := srv.ActiveEngagement(); task != 42 || expl != 200 {
+		t.Fatalf("ActiveEngagement = (%d, %d), want (42, 200)", task, expl)
 	}
 }
 
