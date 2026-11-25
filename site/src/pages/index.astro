@@ -3,6 +3,7 @@ import '../styles/landing.css';
 import { Image } from 'astro:assets';
 import { getEntry } from 'astro:content';
 import Command from '../components/Command.astro';
+import toolStats from '../data/tool-stats.json';
 import logo from '../../../docs/brand/logo-dark.svg';
 import architecture from '../../../docs/architecture.svg';
 import webDemoMp4 from '../../../docs/web-demo.mp4?url';
@@ -183,7 +184,7 @@ const install = [
           </h1>
           <p class="mt-6 max-w-2xl text-lg leading-relaxed text-neutral-400">
             ARTEX-CC gives Claude Code an asset graph, exploration tracking, findings, coverage, traffic capture and
-            reporting as 62 MCP tools. Claude decides what to test. ARTEX keeps the record of what was tested, what
+            reporting as {toolStats.tools} MCP tools. Claude decides what to test. ARTEX keeps the record of what was tested, what
             was found, and what is left.
           </p>
 
@@ -248,7 +249,7 @@ const install = [
           <div class="mt-10 rounded-xl border border-line bg-panel p-4 sm:p-8">
             <Image
               src={architecture}
-              alt="Claude Code, the brain, calls ARTEX-CC over MCP. ARTEX exposes 62 tools in 10 categories, stores state in PostgreSQL and captures traffic through its recording proxy."
+              alt={`Claude Code, the brain, calls ARTEX-CC over MCP. ARTEX exposes ${toolStats.tools} tools in ${toolStats.categories} categories, stores state in PostgreSQL and captures traffic through its recording proxy.`}
               class="mx-auto h-auto w-full max-w-4xl"
               loading="lazy"
             />
