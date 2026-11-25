@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -98,11 +99,22 @@ func isLoopbackAddr(addr string) bool {
 	if err != nil {
 		host = addr
 	}
-	if host == "localhost" {
+	if strings.EqualFold(host, "localhost") {
 		return true
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
+}
+
+// mcpListenToken returns the bearer token /mcp must require on a listener
+// without --web, or "" when none is needed. Only literal loopback addresses
+// may run without one; other hostnames are not resolved and count as exposed.
+func mcpListenToken(addr, token string) (string, error) {
+	token = strings.TrimSpace(token)
+	if token == "" && !isLoopbackAddr(addr) {
+		return "", fmt.Errorf("--listen %s is not a loopback address, so /mcp needs a bearer token: set ARTEX_MCP_TOKEN (for example ARTEX_MCP_TOKEN=$(openssl rand -hex 32)) and send it as \"Authorization: Bearer <token>\", or listen on localhost", addr)
+	}
+	return token, nil
 }
 
 func initLogging(debug bool) {
@@ -155,6 +167,16 @@ func cmdServe(args []string) {
 			*listen = v
 		} else {
 			*listen = "localhost:9400"
+		}
+	}
+
+	var listenToken string
+	if !*stdio && !*webUI {
+		var err error
+		listenToken, err = mcpListenToken(*listen, os.Getenv("ARTEX_MCP_TOKEN"))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
 		}
 	}
 
@@ -352,8 +374,12 @@ func cmdServe(args []string) {
 			runner.StopAll()
 		}
 	} else {
-		slog.Info("serving", "addr", *listen)
-		if err := srv.ServeHTTP(ctx, *listen); err != nil && ctx.Err() == nil {
+		var middleware []func(http.Handler) http.Handler
+		if listenToken != "" {
+			middleware = append(middleware, func(h http.Handler) http.Handler { return bearerAuth(listenToken, h) })
+		}
+		slog.Info("serving", "addr", *listen, "mcp_auth", listenToken != "")
+		if err := srv.ServeHTTP(ctx, *listen, middleware...); err != nil && ctx.Err() == nil {
 			slog.Error("http server failed", "err", err)
 			os.Exit(1)
 		}
