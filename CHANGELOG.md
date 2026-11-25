@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-25
+
 ### Added
 - HTTP MCP clients can send an `X-Artex-Identity` token signed with the data directory's `identity.key`, on both `--web` and plain `--listen`. A verified identity holds claims as `id:<name>` (or `id:<name>/owner:<x>` with `owner`), independent of the MCP session, so it keeps its claims across reconnects, server restarts and protocol eras, and needs no `owner` on protocol 2026-07-28. A header that fails to verify (malformed, forged, expired, or from another data directory or a rotated key) gets HTTP 401 after bearer auth. Requests without the header behave as before.
 - `list_sessions` returns an `identities` array (`name`, `self`, `last_active`) of identities that made requests to this server process within the claim lease, so clients on protocol 2026-07-28 show up.
@@ -17,6 +19,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - Claims held by an identity are labeled with the identity name in `claimed_by`, `list_changes`, claim errors and exports (`<name>/h-...` when `owner` subdivides it). Anonymous holders keep their hashed labels.
 - The MCP HTTP transport's logs redact anything shaped like an identity token.
+- `serve` over HTTP (`--web` or `--listen`) loads or creates `identity.key` in the data directory at startup and exits if it cannot; stdio is unaffected.
 - Web UI chat conversations hold claims as the identity `chat/<conversation id>`, minted from `identity.key` each time a conversation starts or resumes, so labels show that name and a resumed conversation keeps its claims across a server restart. This replaces the in-memory `X-Artex-Conversation` signer; a request still sending `X-Artex-Conversation` gets HTTP 400 telling the caller to start a new conversation.
 
 ## [0.5.1] - 2026-11-25
@@ -202,7 +205,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dockerfile for container deployments
 - GitHub Actions CI with PostgreSQL service container
 
-[Unreleased]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.4.0...v0.4.1
