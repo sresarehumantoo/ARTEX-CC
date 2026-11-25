@@ -8,6 +8,7 @@ httpprobe_probe. See https://artex-cc.com/docs/plugins/ for the contract.
 
 import ipaddress
 import json
+import os
 import re
 import ssl
 import sys
@@ -66,6 +67,10 @@ def in_scope(host, rules):
 def build_opener(proxy):
     handlers = [NoRedirect()]
     if proxy and proxy.get("url"):
+        # urllib bypasses even an explicit proxy for hosts in no_proxy, which
+        # would keep that traffic out of the recording proxy.
+        for var in ("no_proxy", "NO_PROXY"):
+            os.environ.pop(var, None)
         handlers.append(urllib.request.ProxyHandler({"http": proxy["url"], "https": proxy["url"]}))
         if proxy.get("ca_cert"):
             ctx = ssl.create_default_context(cafile=proxy["ca_cert"])

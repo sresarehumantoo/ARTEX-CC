@@ -19,8 +19,8 @@ func runExamplePlugin(t *testing.T, cfg PluginConfig, input string) (tools.Resul
 	if _, err := exec.LookPath("python3"); err != nil {
 		t.Skip("python3 not on PATH")
 	}
-	t.Setenv("NO_PROXY", "")
-	t.Setenv("no_proxy", "")
+	t.Setenv("NO_PROXY", "example.com,127.0.0.1,localhost")
+	t.Setenv("no_proxy", "example.com,127.0.0.1,localhost")
 
 	store := &graphStore{}
 	reg := tools.NewRegistry()
