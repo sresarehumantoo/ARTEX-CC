@@ -44,7 +44,7 @@ jobs:
           brew tap sresarehumantoo/tap
           want="${EXPECTED_TAG#v}"
           for _ in $(seq 1 20); do
-            have=$(brew info --cask --json=v2 "$CASK" | jq -r '.casks[0].version')
+            have=$(sed -nE 's/^ *version "([^"]+)".*/\1/p' "$(brew --repo sresarehumantoo/tap)/Casks/artex-cc.rb")
             echo "tap has $have${want:+, want $want}"
             if [ -z "$want" ] || [ "$have" = "$want" ]; then exit 0; fi
             sleep 15
