@@ -87,17 +87,21 @@ func New(registry *tools.Registry, opts ...Option) *Server {
 	)
 
 	for _, t := range registry.Tools() {
-		s.mcp.AddTool(convertTool(t), makeHandlerWithNotifier(t, s.notifier))
+		s.addTool(t)
 	}
 
-	s.registerListSessions()
+	s.addTool(s.listSessionsTool())
 
 	if s.store != nil && s.explorationID > 0 {
 		s.registerEngagementResource()
-		s.registerSwitchEngagement()
+		s.addTool(s.switchEngagementTool())
 	}
 
 	return s
+}
+
+func (s *Server) addTool(t tools.Tool) {
+	s.mcp.AddTool(convertTool(t), makeHandlerWithNotifier(t, s.notifier))
 }
 
 // Sessions returns the session manager for external inspection.
@@ -106,25 +110,25 @@ func (s *Server) Sessions() *SessionManager { return s.sessions }
 // MCPServer returns the underlying mcp-go server for use as an http.Handler.
 func (s *Server) MCPServer() *server.MCPServer { return s.mcp }
 
-func (s *Server) registerListSessions() {
-	tool := mcp.Tool{
+func (s *Server) listSessionsTool() tools.Tool {
+	return tools.Tool{
 		Name:        "list_sessions",
 		Description: "List all active MCP client sessions connected to this server.",
-		InputSchema: mcp.ToolInputSchema{
-			Type:       "object",
-			Properties: map[string]any{},
+		Category:    tools.CategoryEngagement,
+		ReadOnly:    true,
+		Schema: map[string]any{
+			"type":       "object",
+			"properties": map[string]any{},
+		},
+		Run: func(_ context.Context, _ json.RawMessage) (tools.Result, error) {
+			sessions := s.sessions.List()
+			out, _ := json.Marshal(map[string]any{
+				"count":    len(sessions),
+				"sessions": sessions,
+			})
+			return tools.Result{Content: string(out)}, nil
 		},
 	}
-	tool.Annotations.ReadOnlyHint = mcp.ToBoolPtr(true)
-
-	s.mcp.AddTool(tool, func(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		sessions := s.sessions.List()
-		out, _ := json.Marshal(map[string]any{
-			"count":    len(sessions),
-			"sessions": sessions,
-		})
-		return mcp.NewToolResultText(string(out)), nil
-	})
 }
 
 // SessionFromContext returns the application-level Session for the client

@@ -21,6 +21,7 @@ func RegisterEngagementTools(reg *Registry, store Store, taskID, explorationID i
 func makeCreateEngagement(store Store) Tool {
 	return Tool{
 		Name:        "create_engagement",
+		Category:    CategoryEngagement,
 		Description: "Create a new pentest engagement (task + exploration graph).",
 		Schema: obj(map[string]any{
 			"goal":        str("high-level goal for the engagement"),
@@ -62,6 +63,7 @@ func makeCreateEngagement(store Store) Tool {
 func makeListEngagements(store Store, activeTaskID int64) Tool {
 	return Tool{
 		Name:        "list_engagements",
+		Category:    CategoryEngagement,
 		Description: "List all pentest engagements with summary stats (goal, status, node/finding/asset counts).",
 		ReadOnly:    true,
 		Schema:      obj(map[string]any{}),
@@ -94,7 +96,8 @@ func makeListEngagements(store Store, activeTaskID int64) Tool {
 
 func makeGoalMet(store Store, taskID int64) Tool {
 	return Tool{
-		Name: "goal_met",
+		Name:     "goal_met",
+		Category: CategoryEngagement,
 		Description: "Mark the entire engagement as complete. Call this when all goals have been proved and the engagement is finished. " +
 			"Sets the task status to done. Provide an optional summary of what was accomplished.",
 		Schema: obj(map[string]any{
@@ -125,6 +128,7 @@ func makeGoalMet(store Store, taskID int64) Tool {
 func makeUpdateEngagement(store Store, taskID int64) Tool {
 	return Tool{
 		Name:        "update_engagement",
+		Category:    CategoryEngagement,
 		Description: "Update the current engagement's goal or description.",
 		Schema: obj(map[string]any{
 			"goal":        str("new goal for the engagement"),
@@ -174,7 +178,8 @@ func makeUpdateEngagement(store Store, taskID int64) Tool {
 
 func makeDeleteEngagement(store Store) Tool {
 	return Tool{
-		Name: "delete_engagement",
+		Name:     "delete_engagement",
+		Category: CategoryEngagement,
 		Description: "Delete an engagement and all its data (nodes, edges, findings, credentials, coverage, assets, constraints). " +
 			"This is irreversible. Both task_id and confirm=true are required.",
 		Schema: obj(map[string]any{
@@ -207,6 +212,7 @@ func makeDeleteEngagement(store Store) Tool {
 func makeEngagementActivity(store Store, explorationID int64) Tool {
 	return Tool{
 		Name:        "engagement_activity",
+		Category:    CategoryEngagement,
 		Description: "Show recent activity in the current engagement as a timeline of findings, assets, and graph nodes.",
 		ReadOnly:    true,
 		Schema: obj(map[string]any{
@@ -245,6 +251,7 @@ func makeEngagementActivity(store Store, explorationID int64) Tool {
 func makeEngagementStatus(store Store, defaultTaskID, defaultExplorationID int64) Tool {
 	return Tool{
 		Name:        "engagement_status",
+		Category:    CategoryEngagement,
 		Description: "Get the status of an engagement: goal, status, finding count, and coverage summary.",
 		ReadOnly:    true,
 		Schema: obj(map[string]any{
@@ -306,7 +313,8 @@ func makeEngagementStatus(store Store, defaultTaskID, defaultExplorationID int64
 
 func makeListCoverageGaps(store Store, taskID, explorationID int64) Tool {
 	return Tool{
-		Name: "list_coverage_gaps",
+		Name:     "list_coverage_gaps",
+		Category: CategoryEngagement,
 		Description: "Identify testing gaps in the current engagement: assets never targeted by an intent, " +
 			"intents with no recorded facts, goals not yet proven, and service ports discovered but not enriched.",
 		ReadOnly: true,

@@ -11,10 +11,39 @@ type Result struct {
 	IsError bool
 }
 
+// Tool categories, in the order the tool catalog presents them.
+const (
+	CategoryExploration = "Exploration graph"
+	CategoryAssets      = "Assets and scope"
+	CategoryFindings    = "Findings"
+	CategoryCredentials = "Credentials"
+	CategoryEvidence    = "Evidence"
+	CategoryEnrichment  = "Enrichment and ingestion"
+	CategoryEngagement  = "Engagement management"
+	CategoryActivity    = "Activity"
+	CategoryReporting   = "Reporting and export"
+	CategoryTraffic     = "Traffic"
+)
+
+// Categories lists every tool category in catalog order.
+var Categories = []string{
+	CategoryExploration,
+	CategoryAssets,
+	CategoryFindings,
+	CategoryCredentials,
+	CategoryEvidence,
+	CategoryEnrichment,
+	CategoryEngagement,
+	CategoryActivity,
+	CategoryReporting,
+	CategoryTraffic,
+}
+
 // Tool is an MCP tool definition with its JSON Schema and handler function.
 type Tool struct {
 	Name        string
 	Description string
+	Category    string
 	Schema      map[string]any
 	ReadOnly    bool
 	Run         func(ctx context.Context, input json.RawMessage) (Result, error)

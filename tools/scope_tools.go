@@ -14,6 +14,7 @@ func RegisterScopeTools(reg *Registry, store Store, taskID int64) {
 func makeCheckScope(store Store, taskID int64) Tool {
 	return Tool{
 		Name:        "check_scope",
+		Category:    CategoryAssets,
 		Description: "Check whether a target (domain, IP, or URL) is within the engagement's scope rules.",
 		ReadOnly:    true,
 		Schema: obj(map[string]any{
@@ -44,7 +45,8 @@ func makeCheckScope(store Store, taskID int64) Tool {
 
 func makeRecordCoverage(store Store, taskID int64) Tool {
 	return Tool{
-		Name: "record_coverage",
+		Name:     "record_coverage",
+		Category: CategoryAssets,
 		Description: "Record what you examined on a surface for one risk class (use the goal's vulnclass as risk_area when it applies), " +
 			"including negative results, so an absent finding is never read as a clean target.",
 		Schema: obj(map[string]any{

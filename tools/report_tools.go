@@ -15,6 +15,7 @@ func RegisterReportTools(reg *Registry, store Store, taskID, explorationID int64
 func makeGenerateReport(store Store, taskID, explorationID int64) Tool {
 	return Tool{
 		Name:        "generate_report",
+		Category:    CategoryReporting,
 		Description: "Generate a Markdown penetration test report from the current engagement's findings, assets, and coverage.",
 		ReadOnly:    true,
 		Schema:      obj(map[string]any{}),

@@ -12,7 +12,8 @@ func RegisterCredentialTools(reg *Registry, store Store, taskID int64) {
 
 func makeSaveTaskCredential(store Store, taskID int64) Tool {
 	return Tool{
-		Name: "save_task_credential",
+		Name:     "save_task_credential",
+		Category: CategoryCredentials,
 		Description: "Record (or update) a test account for this task's target. ALWAYS call this immediately after registering an account on the target, " +
 			"with the exact username and password you chose. Same (domain, username) is overwritten in place, not duplicated.\n" +
 			"Returns: {id, domain, username, source}.",
@@ -54,7 +55,8 @@ func makeSaveTaskCredential(store Store, taskID int64) Tool {
 
 func makeListTaskCredentials(store Store, taskID int64) Tool {
 	return Tool{
-		Name: "list_task_credentials",
+		Name:     "list_task_credentials",
+		Category: CategoryCredentials,
 		Description: "List this task's test accounts: user-declared accounts plus accounts recorded by earlier runs. " +
 			"Check this BEFORE registering a new account, and use matching entries for authenticated testing.",
 		ReadOnly: true,

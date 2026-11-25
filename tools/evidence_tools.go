@@ -25,7 +25,8 @@ func RegisterEvidenceTools(reg *Registry, evidenceStore *evidence.Store, store S
 
 func makeSaveEvidence(es *evidence.Store, store Store, taskID int64) Tool {
 	return Tool{
-		Name: "save_evidence",
+		Name:     "save_evidence",
+		Category: CategoryEvidence,
 		Description: "Save a piece of evidence (screenshot, PoC output, config extract, etc.) " +
 			"linked to a finding. Content is base64-encoded.",
 		Schema: obj(map[string]any{
@@ -99,6 +100,7 @@ func makeSaveEvidence(es *evidence.Store, store Store, taskID int64) Tool {
 func makeListEvidence(es *evidence.Store, taskID int64) Tool {
 	return Tool{
 		Name:        "list_evidence",
+		Category:    CategoryEvidence,
 		Description: "List evidence artifacts for the current engagement, optionally filtered by finding.",
 		ReadOnly:    true,
 		Schema: obj(map[string]any{
@@ -145,6 +147,7 @@ func makeListEvidence(es *evidence.Store, taskID int64) Tool {
 func makeGetEvidence(es *evidence.Store) Tool {
 	return Tool{
 		Name:        "get_evidence",
+		Category:    CategoryEvidence,
 		Description: "Read evidence content by ID. Returns base64-encoded data.",
 		ReadOnly:    true,
 		Schema: obj(map[string]any{
@@ -196,7 +199,8 @@ const (
 
 func makeCaptureCommandOutput(es *evidence.Store, store Store, taskID int64) Tool {
 	return Tool{
-		Name: "capture_command_output",
+		Name:     "capture_command_output",
+		Category: CategoryEvidence,
 		Description: "Run a command and save its combined stdout+stderr as evidence (kind=poc_output). " +
 			"The command must only target in-scope hosts. Returns evidence ID, exit code, and an output preview.",
 		Schema: obj(map[string]any{

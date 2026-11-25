@@ -21,7 +21,8 @@ func RegisterExplorationTools(reg *Registry, store Store, explorationID int64) {
 
 func makeGraphOverview(store Store, explorationID int64) Tool {
 	return Tool{
-		Name: "graph_overview",
+		Name:     "graph_overview",
+		Category: CategoryExploration,
 		Description: "The task board: goals and their states, open/running/done intents, recent facts, findings, credentials, coverage. " +
 			"Call this FIRST at the start of every planning cycle to understand what has been done, what is in progress, and what needs doing next. " +
 			"After subagents complete work, call it again to see their results and plan the next round. " +
@@ -40,7 +41,8 @@ func makeGraphOverview(store Store, explorationID int64) Tool {
 
 func makeAddIntent(store Store, explorationID int64) Tool {
 	return Tool{
-		Name: "add_intent",
+		Name:     "add_intent",
+		Category: CategoryExploration,
 		Description: "Generate exploration directions into the frontier and link them into the exploration graph. " +
 			"An intent is an open exploration direction: describe freely in one summary sentence what to explore/verify/exploit.\n" +
 			"Batch preferred: put multiple new directions into the intents array in a single submission (saves round trips). " +
@@ -121,7 +123,8 @@ func makeAddIntent(store Store, explorationID int64) Tool {
 
 func makeRecordFact(store Store, explorationID int64) Tool {
 	return Tool{
-		Name: "record_fact",
+		Name:     "record_fact",
+		Category: CategoryExploration,
 		Description: "Write an exploration fact/conclusion into the exploration graph, linked to the intent that produced it (intent_id). " +
 			"Call this IMMEDIATELY when you learn something, do not wait until the end. " +
 			"Facts written here are visible to the coordinator and other subagents via graph_overview and list_facts.\n" +
@@ -218,7 +221,8 @@ func makeRecordFact(store Store, explorationID int64) Tool {
 
 func makeListFacts(store Store, explorationID int64) Tool {
 	return Tool{
-		Name: "list_facts",
+		Name:     "list_facts",
+		Category: CategoryExploration,
 		Description: "Page through the exploration facts/conclusions, newest first (compact: id+summary+state+origin+source). " +
 			"All parameters optional: limit (default 20, max 100). Returns {facts, total}.",
 		ReadOnly: true,
@@ -263,7 +267,8 @@ func makeListFacts(store Store, explorationID int64) Tool {
 
 func makeNodeDetail(store Store) Tool {
 	return Tool{
-		Name: "node_detail",
+		Name:     "node_detail",
+		Category: CategoryExploration,
 		Description: "Fetch the full content of an exploration graph node by id. " +
 			"Only for exploration node ids returned by list_facts/list_findings/graph_overview; for assets use list_assets.",
 		ReadOnly: true,
@@ -293,7 +298,8 @@ func makeNodeDetail(store Store) Tool {
 
 func makeAddHint(store Store, explorationID int64) Tool {
 	return Tool{
-		Name: "add_hint",
+		Name:     "add_hint",
+		Category: CategoryExploration,
 		Description: "Attach a strategic hint to the exploration graph; the planner reads it the next time it generates intents.\n" +
 			"Batch preferred: put multiple hints in the hints array in a single submission. " +
 			"Returns an ids array. For a single hint, omit hints and pass the top-level text.",
@@ -336,7 +342,8 @@ func makeAddHint(store Store, explorationID int64) Tool {
 
 func makeSetGoals(store Store, explorationID int64) Tool {
 	return Tool{
-		Name: "set_goals",
+		Name:     "set_goals",
+		Category: CategoryExploration,
 		Description: "Add exploration goals to this task. A goal = a final deliverable/verifiable result, not an attack step.\n" +
 			"Batch preferred: put multiple goals in the goals array. For a single goal, pass the top-level text.\n" +
 			"vulnclass is optional: the corresponding vulnerability class.",
@@ -389,7 +396,8 @@ func makeSetGoals(store Store, explorationID int64) Tool {
 
 func makeSetConstraints(store Store, explorationID int64) Tool {
 	return Tool{
-		Name: "set_constraints",
+		Name:     "set_constraints",
+		Category: CategoryExploration,
 		Description: "Add operation constraints to this task to bound exploration: type=allow (operations permitted) or deny (operations forbidden).\n" +
 			"A constraint = a rule about which operations may/may not be performed.\n" +
 			"Batch preferred: put multiple constraints in the constraints array. For a single constraint, pass top-level text/type.",
@@ -438,7 +446,8 @@ func makeSetConstraints(store Store, explorationID int64) Tool {
 
 func makeProveGoal(store Store, explorationID int64) Tool {
 	return Tool{
-		Name: "prove_goal",
+		Name:     "prove_goal",
+		Category: CategoryExploration,
 		Description: "Call when you judge that a finding/fact proves a goal met: links the evidence node to the goal node and marks the goal met. " +
 			"A fact counts as evidence only when its confidence is observed. " +
 			"When evidence (findings or facts) proves a goal met, call this. When all goals are proved, the engagement is complete.",

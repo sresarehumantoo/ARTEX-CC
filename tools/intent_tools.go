@@ -16,6 +16,7 @@ func RegisterIntentTools(reg *Registry, store Store, explorationID int64) {
 func makeStartIntent(store Store) Tool {
 	return Tool{
 		Name:        "start_intent",
+		Category:    CategoryExploration,
 		Description: "Mark an open intent as running. Call this when you begin working on an intent.",
 		Schema: obj(map[string]any{
 			"node_id": intp("intent node id"),
@@ -56,7 +57,8 @@ func makeStartIntent(store Store) Tool {
 
 func makeCompleteIntent(store Store) Tool {
 	return Tool{
-		Name: "complete_intent",
+		Name:     "complete_intent",
+		Category: CategoryExploration,
 		Description: "Mark a running intent as done with a result summary. " +
 			"Call this when you have finished working on an intent and recorded all facts/findings.",
 		Schema: obj(map[string]any{
@@ -105,7 +107,8 @@ func makeCompleteIntent(store Store) Tool {
 
 func makeCancelIntent(store Store) Tool {
 	return Tool{
-		Name: "cancel_intent",
+		Name:     "cancel_intent",
+		Category: CategoryExploration,
 		Description: "Cancel an intent that is no longer needed. " +
 			"Use this when an intent is redundant, no longer applicable, or was created in error.",
 		Schema: obj(map[string]any{

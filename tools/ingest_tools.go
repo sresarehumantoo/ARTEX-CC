@@ -16,7 +16,8 @@ func RegisterIngestTools(reg *Registry, store Store, taskID, explorationID int64
 
 func makeIngestScannerOutput(store Store, taskID, explorationID int64) Tool {
 	return Tool{
-		Name: "ingest_scanner_output",
+		Name:     "ingest_scanner_output",
+		Category: CategoryEnrichment,
 		Description: "Parse output from common security scanners and import the results as assets and/or findings. " +
 			"Supported scanners: nmap (XML or greppable), nuclei (JSONL), httpx (JSONL), ffuf (JSON).",
 		Schema: obj(map[string]any{
@@ -154,7 +155,8 @@ func ingestAssetRef(a ingest.Asset) string {
 
 func makeIngestMasscan(store Store, taskID int64) Tool {
 	return Tool{
-		Name: "ingest_masscan",
+		Name:     "ingest_masscan",
+		Category: CategoryEnrichment,
 		Description: "Parse masscan output (XML or JSON) and import discovered hosts and open ports as assets. " +
 			"Masscan produces nmap-compatible XML or its own JSON list format.",
 		Schema: obj(map[string]any{

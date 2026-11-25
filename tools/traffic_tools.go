@@ -27,6 +27,7 @@ func RegisterTrafficTools(reg *Registry, t *traffic.Traffic, store Store, taskID
 func makeTrafficPatterns(t *traffic.Traffic) Tool {
 	return Tool{
 		Name:        "traffic_patterns",
+		Category:    CategoryTraffic,
 		Description: "Identify traffic patterns: most-requested paths (by url_template), hosts with the most HTTP errors (4xx/5xx with status breakdown), and endpoints that appeared recently. Optionally filter by host.",
 		ReadOnly:    true,
 		Schema: obj(map[string]any{
@@ -51,6 +52,7 @@ func makeTrafficPatterns(t *traffic.Traffic) Tool {
 func makeTrafficSearch(t *traffic.Traffic) Tool {
 	return Tool{
 		Name:        "traffic_search",
+		Category:    CategoryTraffic,
 		Description: traffic.TrafficSearchDescription,
 		ReadOnly:    true,
 		Schema: obj(map[string]any{
@@ -109,6 +111,7 @@ func makeTrafficSearch(t *traffic.Traffic) Tool {
 func makeTrafficGet(t *traffic.Traffic) Tool {
 	return Tool{
 		Name:        "traffic_get",
+		Category:    CategoryTraffic,
 		Description: traffic.TrafficGetDescription,
 		ReadOnly:    true,
 		Schema: obj(map[string]any{
@@ -151,6 +154,7 @@ func makeTrafficGet(t *traffic.Traffic) Tool {
 func makeTrafficBlob(t *traffic.Traffic) Tool {
 	return Tool{
 		Name:        "traffic_blob",
+		Category:    CategoryTraffic,
 		Description: "Read a segment of an oversized request or response body by its blob hash (shown in traffic_get as @blob sha256:<hash>). Returns at most 8 KiB per call; use offset to page through.",
 		ReadOnly:    true,
 		Schema: obj(map[string]any{
@@ -190,6 +194,7 @@ func makeTrafficBlob(t *traffic.Traffic) Tool {
 func makeTrafficMessages(t *traffic.Traffic) Tool {
 	return Tool{
 		Name:        "traffic_messages",
+		Category:    CategoryTraffic,
 		Description: "List WebSocket or SSE messages of a captured stream exchange. Use after traffic_get shows status 101 (WebSocket) or text/event-stream (SSE).",
 		ReadOnly:    true,
 		Schema: obj(map[string]any{
@@ -245,7 +250,8 @@ func makeTrafficMessages(t *traffic.Traffic) Tool {
 
 func makeTrafficReplay(t *traffic.Traffic, store Store, taskID int64) Tool {
 	return Tool{
-		Name: "traffic_replay",
+		Name:     "traffic_replay",
+		Category: CategoryTraffic,
 		Description: "Replay a captured HTTP request (optionally with modifications). " +
 			"Fetches the original request from the given exchange id, applies any header or body overrides, " +
 			"sends it through the recording proxy, and returns the new response.",
@@ -346,6 +352,7 @@ func makeTrafficReplay(t *traffic.Traffic, store Store, taskID int64) Tool {
 func makeTrafficHosts(t *traffic.Traffic) Tool {
 	return Tool{
 		Name:        "traffic_hosts",
+		Category:    CategoryTraffic,
 		Description: "List all recorded target hosts with their exchange counts, most recent activity first.",
 		ReadOnly:    true,
 		Schema:      obj(map[string]any{}),
@@ -362,6 +369,7 @@ func makeTrafficHosts(t *traffic.Traffic) Tool {
 func makeTrafficHARExport(t *traffic.Traffic) Tool {
 	return Tool{
 		Name:        "traffic_har_export",
+		Category:    CategoryTraffic,
 		Description: "Export captured traffic as a HAR 1.2 JSON document. Optionally filter by host.",
 		ReadOnly:    true,
 		Schema: obj(map[string]any{
@@ -407,6 +415,7 @@ func makeTrafficHARExport(t *traffic.Traffic) Tool {
 func makeTrafficStats(t *traffic.Traffic) Tool {
 	return Tool{
 		Name:        "traffic_stats",
+		Category:    CategoryTraffic,
 		Description: "Aggregate statistics about all captured traffic: total exchanges, unique hosts, status code distribution, method distribution, top 10 hosts, time range, and average response size.",
 		ReadOnly:    true,
 		Schema:      obj(map[string]any{}),
@@ -423,6 +432,7 @@ func makeTrafficStats(t *traffic.Traffic) Tool {
 func makeTrafficTimeline(t *traffic.Traffic) Tool {
 	return Tool{
 		Name:        "traffic_timeline",
+		Category:    CategoryTraffic,
 		Description: "Show traffic activity over time for a host, bucketed by minute, hour (default), or day. Useful for spotting rate limiting, session expiry, and WAF patterns.",
 		ReadOnly:    true,
 		Schema: obj(map[string]any{
@@ -491,6 +501,7 @@ func parseRawRequest(raw string) (method, reqURL string, headers map[string]stri
 func makeTrafficClear(t *traffic.Traffic) Tool {
 	return Tool{
 		Name:        "traffic_clear",
+		Category:    CategoryTraffic,
 		Description: "Delete all captured traffic for a given host substring. Returns the number of deleted exchanges.",
 		Schema: obj(map[string]any{
 			"host": str("host substring to match for deletion"),
