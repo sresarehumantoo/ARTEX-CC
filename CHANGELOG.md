@@ -10,7 +10,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The web UI Dashboard's Active Intents card shows who holds each running intent's claim and how long it has left (`chat/<conversation id>` names shortened, full name on hover), and lists intents whose claim lapsed with a "claim lapsed" hint naming the previous holder.
 
 ### Changed
-- A request whose `X-Artex-Identity` fails to verify gets HTTP 403 instead of 401, with the same reason in the body. MCP clients read a 401 as an OAuth challenge, so Claude Code hid the reason behind a Dynamic Client Registration error. Bearer token failures still get 401.
+- A request whose `X-Artex-Identity` fails to verify gets HTTP 400 instead of 401, with the same reason in the body. Claude Code reads a 401 as an OAuth challenge and hid the reason behind a Dynamic Client Registration error; a 403 would have cached the server as needing authentication. Bearer token failures still get 401.
 - Each rejected identity logs one warning with the reason (`malformed`, `bad_signature`, `expired`, `unknown_key` or `header`), the claimed name and key ID from the unverified token, and the remote address. The token is never logged.
 
 ## [0.6.0] - 2026-11-25

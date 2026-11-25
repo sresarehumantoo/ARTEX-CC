@@ -47,7 +47,7 @@ Issuance
 
 Verification
 
-- R6. An `/mcp` request with `X-Artex-Identity` that fails to parse, fails the MAC, names an unknown key ID, or is expired gets HTTP 403 with a short reason, before mcp-go sees it, and the server logs a warning with the reason class and the unverified name and key ID (never the token). Failing closed means a client misconfigured with a stale token notices at once instead of silently claiming anonymously. Not 401: the request already passed bearer auth (or none is required), and MCP clients treat a 401 as an OAuth challenge, so Claude Code replaced the reason with a Dynamic Client Registration error.
+- R6. An `/mcp` request with `X-Artex-Identity` that fails to parse, fails the MAC, names an unknown key ID, or is expired gets HTTP 400 with a short reason, before mcp-go sees it, and the server logs a warning with the reason class and the unverified name and key ID (never the token). Failing closed means a client misconfigured with a stale token notices at once instead of silently claiming anonymously. Not 401 or 403: tested against Claude Code 2.1.332, a 401 starts OAuth discovery and replaces the reason with a Dynamic Client Registration error, and a 403 marks the server as needing authentication in Claude Code's needs-auth cache, so it is skipped even after the token is fixed. A 400 shows the reason directly with no cached state.
 - R7. Verification is constant time on the MAC and allocates no state per token. It runs after bearer auth, so an unauthenticated request learns nothing about identity validity.
 - R8. Identity verification is mounted on every HTTP `/mcp` path: `--web` and plain `--listen`.
 - R9. Servers reread the key file when its inode, mtime or size changes (checked at most once per second). `rotate` writes a temp file and renames it into place, so the change is atomic and always visible. There is no grace period: per Q2, rotation is the revocation tool and every old token stops verifying at once. A `--grace` option keeping the old key as `identity.key.prev` can be added if a deployment needs zero-downtime rotation; nothing in the token format prevents it.
@@ -104,7 +104,7 @@ mac     = base64url(HMAC-SHA256(identity.key, "artex-identity-v1\x00" + payload)
 | `config/identitykey.go` (new) | `IdentityKey(dataDir)`; shares create logic with `labelkey.go` via an unexported `loadOrCreateKey(path)` |
 | `config/labelkey.go` | Move body into `loadOrCreateKey`; behavior unchanged |
 | `identity/identity.go` (new package) | `Signer{Issue(name, ttl), Verify(token) (Claims, error)}`, key reload by mtime, name validation |
-| `mcpserver/identity.go` (new) | `IdentityMiddleware(verifier)`: 403 on bad header, stores the name in the request context; `seen` map feeding `list_sessions` |
+| `mcpserver/identity.go` (new) | `IdentityMiddleware(verifier)`: 400 on bad header, stores the name in the request context; `seen` map feeding `list_sessions` |
 | `mcpserver/conversation.go` | Deleted after phase 3; `conversationOwner` replaced by identity lookup |
 | `mcpserver/handler.go` | `callerSessionID` drops the conversation fallback; handler also sets `tools.WithIdentity(ctx, name)` |
 | `mcpserver/transport_http.go` | Accept the identity middleware (it already takes a middleware list, line 12) |
@@ -116,12 +116,12 @@ mac     = base64url(HMAC-SHA256(identity.key, "artex-identity-v1\x00" + payload)
 | `eval/cmd/eval-runner/instances.go` | Per-instance config and token, prompt change, `--identity` flag |
 | `site/src/content/docs/docs/mcp-clients.md`, `CLAUDE.md`, `CHANGELOG.md`, completion script | Docs |
 
-The identity middleware is a plain `http.Handler` wrapper, not `WithHTTPContextFunc`, because only a handler can return 403 (R6). mcp-go derives the tool context from `r.Context()` in both eras (`server/streamable_http.go:860`), so the effect on tool calls is the same. `WithHTTPContextFunc` stays available if a future mcp-go stops propagating the request context.
+The identity middleware is a plain `http.Handler` wrapper, not `WithHTTPContextFunc`, because only a handler can return an error status (R6). mcp-go derives the tool context from `r.Context()` in both eras (`server/streamable_http.go:860`), so the effect on tool calls is the same. `WithHTTPContextFunc` stays available if a future mcp-go stops propagating the request context.
 
 ### Data flow for a tool call
 
 1. Request hits `/mcp`. `bearerAuth` checks `Authorization` (unchanged).
-2. Identity middleware: no header, pass through. Header present: parse, select key by `k`, verify MAC, check `exp` with 60 s skew, else 403 and a warning log. On success put `name` in the context and touch `seen[name]`.
+2. Identity middleware: no header, pass through. Header present: parse, select key by `k`, verify MAC, check `exp` with 60 s skew, else 400 and a warning log. On success put `name` in the context and touch `seen[name]`.
 3. mcp-go routes by era, builds the context from `r.Context()`, calls the tool handler.
 4. Handler sets `tools.WithSessionID` (unchanged) and `tools.WithIdentity`.
 5. `ClaimOwner` returns `id:<name>[/owner:x]` or falls back to today's rules. `store.ClaimIntent` is unchanged (`store/exploration.go:126`); the owner column is opaque text.
@@ -159,7 +159,7 @@ Integration (`mcpserver/claim_http_test.go` style, both eras):
 - Two modern clients with different identities: second `start_intent` gets a conflict naming the first by name.
 - Same identity on a legacy client, reconnect with a new `Mcp-Session-Id`: renew succeeds, `Renewed` is true.
 - Adversarial copy: client B sends A's `owner` string and B's own identity: conflict. Client B sends A's session ID (legacy) and B's identity: conflict, because identity wins.
-- Bad header: 403 on both `--web` and plain `--listen` stacks, and the tool never runs.
+- Bad header: 400 on both `--web` and plain `--listen` stacks, and the tool never runs.
 - Header without bearer on a token-protected listener: 401 from bearer auth, identical body whether the identity is valid, invalid or absent.
 - Two server processes on one data dir: claim through one, conflict through the other with the same label.
 - Web chat: conversation claims labeled `chat/<id>`, survive a runner restart of that conversation.

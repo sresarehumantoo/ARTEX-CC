@@ -71,8 +71,8 @@ func TestIdentityRejectionLogged(t *testing.T) {
 			req.Header.Set(IdentityHeader, tc.token)
 			rec := httptest.NewRecorder()
 			h.ServeHTTP(rec, req)
-			if rec.Code != http.StatusForbidden {
-				t.Fatalf("HTTP %d, want 403", rec.Code)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("HTTP %d, want 400", rec.Code)
 			}
 			out := buf.String()
 			if n := strings.Count(out, "\n"); n != 1 {
@@ -97,7 +97,7 @@ func TestIdentityRejectionLogged(t *testing.T) {
 	req.Header[IdentityHeader] = []string{valid, valid}
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
-	if out := buf.String(); rec.Code != http.StatusForbidden || strings.Count(out, "\n") != 1 || !strings.Contains(out, "reason=header") || strings.Contains(out, parts[2]) {
+	if out := buf.String(); rec.Code != http.StatusBadRequest || strings.Count(out, "\n") != 1 || !strings.Contains(out, "reason=header") || strings.Contains(out, parts[2]) {
 		t.Errorf("repeated header: HTTP %d, log %q", rec.Code, out)
 	}
 }

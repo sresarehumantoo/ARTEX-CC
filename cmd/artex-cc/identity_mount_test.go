@@ -189,8 +189,8 @@ func TestIdentityMountedOnBothHTTPPaths(t *testing.T) {
 				"legacy": func() *http.Response { r, _ := legacyHolder(t, p.url, bad, ""); return r }(),
 			} {
 				resp.Body.Close()
-				if resp.StatusCode != http.StatusForbidden {
-					t.Errorf("%s with foreign identity: HTTP %d, want 403", era, resp.StatusCode)
+				if resp.StatusCode != http.StatusBadRequest {
+					t.Errorf("%s with foreign identity: HTTP %d, want 400", era, resp.StatusCode)
 				}
 			}
 

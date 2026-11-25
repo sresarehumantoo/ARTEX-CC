@@ -36,9 +36,11 @@ var keyIDPattern = regexp.MustCompile(`^[0-9a-f]{8}$`)
 // the request context, where mcp-go passes it on to tool handlers in both
 // protocol eras. Requests without the header pass through unchanged. A
 // header that is present but does not verify, including an empty or repeated
-// one, gets 403 so a misconfigured client fails loudly instead of claiming
-// anonymously, and the rejection is logged. Not 401: MCP clients read a 401
-// as an OAuth challenge and replace the reason with a discovery error. A request carrying the retired X-Artex-Conversation header
+// one, gets 400 so a misconfigured client fails loudly instead of claiming
+// anonymously, and the rejection is logged. Not 401 or 403: Claude Code reads
+// a 401 as an OAuth challenge and caches a 403 as "needs authentication",
+// and both hide the reason. A request carrying the retired
+// X-Artex-Conversation header
 // gets 400, so a stale web chat process stops instead of moving its claims
 // to another holder. Mount it after bearer auth.
 func (s *Server) IdentityMiddleware(signer *identity.Signer) func(http.Handler) http.Handler {
@@ -55,7 +57,7 @@ func (s *Server) IdentityMiddleware(signer *identity.Signer) func(http.Handler) 
 			}
 			if len(values) != 1 || values[0] == "" {
 				slog.Warn("identity rejected", "reason", "header", "headers", len(values), "remote", r.RemoteAddr)
-				http.Error(w, "invalid "+IdentityHeader+": want exactly one non-empty token", http.StatusForbidden)
+				http.Error(w, "invalid "+IdentityHeader+": want exactly one non-empty token", http.StatusBadRequest)
 				return
 			}
 			claims, err := signer.Verify(values[0])
@@ -64,7 +66,7 @@ func (s *Server) IdentityMiddleware(signer *identity.Signer) func(http.Handler) 
 					if errors.Is(err, reject.err) {
 						name, keyID := claimedIdentity(values[0])
 						slog.Warn("identity rejected", "reason", reject.reason, "name", name, "key_id", keyID, "remote", r.RemoteAddr)
-						http.Error(w, "invalid "+IdentityHeader+": "+err.Error(), http.StatusForbidden)
+						http.Error(w, "invalid "+IdentityHeader+": "+err.Error(), http.StatusBadRequest)
 						return
 					}
 				}
