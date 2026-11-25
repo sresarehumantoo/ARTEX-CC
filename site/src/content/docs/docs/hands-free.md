@@ -17,7 +17,7 @@ Each iteration starts from `graph_overview`, not from conversation memory. The e
 
 - **No repeated work.** Done intents and coverage records tell Claude what has already been tested.
 - **Context loss is harmless.** If the conversation is compacted or restarted, the next iteration rebuilds its picture from the graph.
-- **Stale work is visible.** Intents left in `running` with no recent progress belong to an earlier session; Claude replaces them.
+- **Stale work is visible.** `start_intent` claims an intent for 30 minutes. A claim that is not renewed lapses, and the intent shows up as open again for any session to pick up.
 
 ## Steering
 
@@ -31,6 +31,14 @@ You do not have to stop the loop to change direction:
 ## Parallel work
 
 Claude Code can dispatch subagents. A common pattern is one subagent per open intent, each recording its own facts, coverage and findings into the shared graph. The [walkthrough](/docs/walkthrough/#dispatch-subagents-for-parallel-work) shows this in detail.
+
+You can also point several Claude Code instances (or other MCP clients) at the same engagement. Each one claims an intent with `start_intent` before working it, and a claim held by another session means "pick a different intent". Instead of re-reading the whole graph every iteration, each instance polls `list_changes` for what the others recorded since its last cursor, and sees the claims it still holds with their expiry. A loop prompt for that setup:
+
+```
+/loop 5m Continue the pentest alongside other agents: poll list_changes from your last cursor, claim open intents with start_intent and skip any another session holds, renew claims you still need, complete or cancel intents when done, prove goals when evidence exists.
+```
+
+Subagents inside one Claude Code process share its MCP session, so claims separate instances, not the subagents of one instance.
 
 ## Stopping
 
