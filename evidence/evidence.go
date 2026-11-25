@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -45,9 +47,38 @@ type Store struct {
 	dir string
 }
 
-// NewStore returns a Store rooted at dataDir/evidence.
+// NewStore returns a Store rooted at dataDir/evidence, restricting any
+// existing tree to the owner.
 func NewStore(dataDir string) *Store {
-	return &Store{dir: filepath.Join(dataDir, "evidence")}
+	s := &Store{dir: filepath.Join(dataDir, "evidence")}
+	tightenPerms(s.dir)
+	return s
+}
+
+// tightenPerms restricts evidence written by earlier versions (0755
+// directories, 0644 files) to the owner, since it can hold credentials.
+func tightenPerms(root string) {
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.Type()&fs.ModeSymlink != 0 {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		want := fs.FileMode(0o600)
+		if d.IsDir() {
+			want = 0o700
+		} else if !info.Mode().IsRegular() {
+			return nil
+		}
+		if info.Mode().Perm() != want {
+			if err := os.Chmod(path, want); err != nil {
+				slog.Warn("failed to restrict evidence file permissions", "path", path, "err", err)
+			}
+		}
+		return nil
+	})
 }
 
 func generateID() (string, error) {
