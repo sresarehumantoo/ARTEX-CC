@@ -1,12 +1,16 @@
 package tools
 
 import (
+	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -72,21 +76,53 @@ func ClaimOwner(ctx context.Context, owner string) (string, error) {
 	}
 }
 
-// OwnerLabel is the form of a claim owner shown to agents. It is a hash so
-// that a session ID or owner string seen in one client's output cannot be
-// replayed by another to take over its claims.
-func OwnerLabel(owner string) string {
+// OwnerLabeler turns claim owners into the labels shown to agents. Labels
+// are keyed hashes so that a session ID or owner string can be neither read
+// from another client's output and replayed, nor guessed from its label.
+type OwnerLabeler struct {
+	key []byte
+}
+
+func NewOwnerLabeler(key []byte) *OwnerLabeler {
+	return &OwnerLabeler{key: bytes.Clone(key)}
+}
+
+func (l *OwnerLabeler) Label(owner string) string {
 	if owner == "" {
 		return ""
 	}
-	sum := sha256.Sum256([]byte(owner))
-	return "h-" + hex.EncodeToString(sum[:6])
+	h := hmac.New(sha256.New, l.key)
+	h.Write([]byte(owner))
+	return "h-" + hex.EncodeToString(h.Sum(nil)[:6])
+}
+
+// ownerLabeler is process-wide because labels are rendered in tools, store
+// and mcpserver alike, including inside ClaimConflictError.Error. It starts
+// with a random key so a process that never calls SetOwnerLabeler still
+// hides owners; serve installs the data directory's key at startup.
+var ownerLabeler atomic.Pointer[OwnerLabeler]
+
+func init() {
+	key := make([]byte, 32)
+	_, _ = rand.Read(key)
+	ownerLabeler.Store(NewOwnerLabeler(key))
+}
+
+// SetOwnerLabeler replaces the labeler OwnerLabel uses.
+func SetOwnerLabeler(l *OwnerLabeler) {
+	ownerLabeler.Store(l)
+}
+
+// OwnerLabel is the form of a claim owner or session ID shown in tool
+// results, logs and exports.
+func OwnerLabel(owner string) string {
+	return ownerLabeler.Load().Label(owner)
 }
 
 // IntentClaim is the result of a successful ClaimIntent.
 type IntentClaim struct {
 	NodeID    int64
-	Owner     string
+	Owner     string `json:"-"`
 	ExpiresAt time.Time
 	Renewed   bool
 }
@@ -94,7 +130,7 @@ type IntentClaim struct {
 // ClaimConflictError means another session holds a live claim on the intent.
 type ClaimConflictError struct {
 	NodeID    int64
-	Owner     string
+	Owner     string `json:"-"`
 	ExpiresAt time.Time
 }
 
