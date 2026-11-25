@@ -306,7 +306,7 @@ func insertAssetReturningID(tx *sql.Tx, taskID int64, item AssetInput) (int64, e
 				VALUES ('service', 'http', $2, NULLIF($3,''), NULLIF($4,''), $5, $6::text[], ARRAY[$1::bigint], $7)
 				ON CONFLICT (url) WHERE type='service' AND service_type='http' DO UPDATE
 				SET task_ids = `+mergeTasks+`,
-				    technologies = (SELECT array_agg(DISTINCT t) FROM unnest(assets.technologies || EXCLUDED.technologies) t),
+				    technologies = COALESCE((SELECT array_agg(DISTINCT t) FROM unnest(assets.technologies || EXCLUDED.technologies) t), '{}'),
 				    last_seen = now()
 				RETURNING id`,
 				taskID, item.URL, DomainKey(item.Domain), strings.TrimSpace(item.IP), item.Port, stringArray(item.Technologies), extra).Scan(&id)
