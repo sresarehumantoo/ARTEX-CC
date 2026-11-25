@@ -9,7 +9,7 @@ import (
 )
 
 func TestCatalogCount(t *testing.T) {
-	const want = 62
+	const want = 63
 	if got := len(Catalog()); got != want {
 		t.Fatalf("catalog has %d tools, want %d; update this count and the docs when adding or removing tools", got, want)
 	}

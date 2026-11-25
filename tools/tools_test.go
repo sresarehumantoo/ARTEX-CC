@@ -67,6 +67,14 @@ func (m *mockStore) ClaimIntent(_ context.Context, id int64, owner string, lease
 	return &IntentClaim{NodeID: id, Owner: owner, ExpiresAt: time.Now().Add(lease)}, nil
 }
 
+func (m *mockStore) ListChanges(_ context.Context, _, _ int64, _ ChangeCursor, _ int) ([]Change, error) {
+	return nil, nil
+}
+
+func (m *mockStore) ListClaims(_ context.Context, _ int64, _ string) ([]HeldClaim, error) {
+	return nil, nil
+}
+
 func (m *mockStore) ListNodes(_ context.Context, _ int64, _ string, _ int) ([]Node, error) {
 	return nil, nil
 }

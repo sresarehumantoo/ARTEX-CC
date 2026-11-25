@@ -32,7 +32,7 @@ func TestWriteToolsText(t *testing.T) {
 	writeToolsText(&buf, mcpserver.Catalog())
 	out := buf.String()
 
-	for _, want := range []string{"Exploration graph (", "Traffic (", "graph_overview", "[proxy]", "62 tools"} {
+	for _, want := range []string{"Exploration graph (", "Traffic (", "graph_overview", "[proxy]", "63 tools"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q", want)
 		}

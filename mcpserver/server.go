@@ -237,6 +237,26 @@ Pattern:
   4. Plan next intents based on new facts
   5. Repeat
 
+## Several agents on one engagement
+
+When other sessions (separate Claude Code processes or HTTP clients) work the
+same engagement, coordinate through the graph:
+- Call start_intent before working an intent. If it fails because another
+  session holds the claim, pick a different intent; do not wait or retry.
+- Claims last 30 minutes. On long work, call start_intent on the same intent
+  again to renew it.
+- Finish with complete_intent, or cancel_intent if it is no longer worth
+  doing, so the claim is released.
+- Between rounds, poll list_changes with the cursor from your last call (the
+  first cursor is changes_cursor in graph_overview) instead of re-reading
+  graph_overview. It returns new facts, findings, intents with their claim
+  holder, goals, hints and assets, plus my_claims: the intents you hold and
+  when each expires. Re-read graph_overview when you run out of work, since
+  intents whose claims lapse reopen without showing up as changes.
+
+Subagents inside one Claude Code process share its MCP session, so their
+claims are yours; assign them distinct intents yourself.
+
 ## Recovery from context exhaustion
 
 The exploration graph preserves ALL state. If you start a fresh session or
