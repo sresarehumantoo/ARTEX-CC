@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -267,6 +268,22 @@ func possibleDuplicate(vulnclass, severity string, assets []int64, otherClass, o
 	return overlap && severity == otherSeverity
 }
 
+func lockFindingTx(ctx context.Context, tx *sql.Tx, id int64) (*Finding, error) {
+	var f Finding
+	err := tx.QueryRowContext(ctx,
+		"SELECT "+findingSelectCols+" FROM findings WHERE id = $1 FOR UPDATE", id,
+	).Scan(&f.ID, &f.TaskID, &f.NodeID, &f.VulnClass, &f.Name,
+		&f.Severity, &f.Summary, &f.Evidence, &f.Worker, &f.AssetIDs,
+		&f.Status, &f.Report, &f.MergedInto, &f.Dismissed, &f.DismissReason, &f.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &f, nil
+}
+
+// MergeFindings folds the secondaries into the live root of primaryID, the
+// finding reached by following merged_into. Secondaries that are already
+// merged, dismissed or the root itself are skipped and reported.
 func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs []int64) (*tools.MergedFinding, error) {
 	tx, err := s.BeginTx(ctx, nil)
 	if err != nil {
@@ -274,17 +291,48 @@ func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs
 	}
 	defer tx.Rollback()
 
-	var primary Finding
-	err = tx.QueryRowContext(ctx,
-		"SELECT "+findingSelectCols+" FROM findings WHERE id = $1 FOR UPDATE", primaryID,
-	).Scan(&primary.ID, &primary.TaskID, &primary.NodeID, &primary.VulnClass, &primary.Name,
-		&primary.Severity, &primary.Summary, &primary.Evidence, &primary.Worker, &primary.AssetIDs,
-		&primary.Status, &primary.Report, &primary.MergedInto, &primary.Dismissed, &primary.DismissReason, &primary.CreatedAt)
-	if err != nil {
-		return nil, fmt.Errorf("primary finding %d: %w", primaryID, err)
+	// Locking in id order serializes concurrent merges of the same findings,
+	// so two opposite merges cannot both commit and leave neither live.
+	ids := append([]int64{primaryID}, secondaryIDs...)
+	slices.Sort(ids)
+	ids = slices.Compact(ids)
+	locked := make(map[int64]*Finding, len(ids))
+	for _, id := range ids {
+		f, err := lockFindingTx(ctx, tx, id)
+		if err != nil {
+			if id == primaryID {
+				return nil, fmt.Errorf("primary finding %d: %w", id, err)
+			}
+			return nil, fmt.Errorf("secondary finding %d: %w", id, err)
+		}
+		locked[id] = f
 	}
 
-	primaryLive := primary.NodeID != nil && !primary.Dismissed && primary.MergedInto == nil
+	primary := locked[primaryID]
+	seen := map[int64]bool{primaryID: true}
+	for primary.MergedInto != nil {
+		next := *primary.MergedInto
+		if seen[next] {
+			return nil, fmt.Errorf("finding %d has a merged_into cycle", primaryID)
+		}
+		seen[next] = true
+		if locked[next] == nil {
+			f, err := lockFindingTx(ctx, tx, next)
+			if err != nil {
+				return nil, fmt.Errorf("finding %d (merge target of %d): %w", next, primary.ID, err)
+			}
+			locked[next] = f
+		}
+		primary = locked[next]
+	}
+	if primary.Dismissed {
+		if primary.ID == primaryID {
+			return nil, fmt.Errorf("primary finding %d is dismissed; pick a live finding as primary_id", primaryID)
+		}
+		return nil, fmt.Errorf("primary finding %d was merged into finding %d, which is dismissed; pick a live finding as primary_id", primaryID, primary.ID)
+	}
+	rootID := primary.ID
+	primaryLive := primary.NodeID != nil
 
 	var primaryAssets []int64
 	_ = json.Unmarshal(primary.AssetIDs, &primaryAssets)
@@ -298,18 +346,24 @@ func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs
 		evidenceParts = append(evidenceParts, primary.Evidence)
 	}
 
+	var skipped []tools.SkippedFinding
+	done := map[int64]bool{}
 	for _, secID := range secondaryIDs {
-		if secID == primaryID {
+		if secID == primaryID || done[secID] {
 			continue
 		}
-		var sec Finding
-		err = tx.QueryRowContext(ctx,
-			"SELECT "+findingSelectCols+" FROM findings WHERE id = $1 FOR UPDATE", secID,
-		).Scan(&sec.ID, &sec.TaskID, &sec.NodeID, &sec.VulnClass, &sec.Name,
-			&sec.Severity, &sec.Summary, &sec.Evidence, &sec.Worker, &sec.AssetIDs,
-			&sec.Status, &sec.Report, &sec.MergedInto, &sec.Dismissed, &sec.DismissReason, &sec.CreatedAt)
-		if err != nil {
-			return nil, fmt.Errorf("secondary finding %d: %w", secID, err)
+		done[secID] = true
+		sec := locked[secID]
+		switch {
+		case secID == rootID:
+			skipped = append(skipped, tools.SkippedFinding{ID: secID, Reason: "is the resolved primary"})
+			continue
+		case sec.MergedInto != nil:
+			skipped = append(skipped, tools.SkippedFinding{ID: secID, Reason: fmt.Sprintf("already merged into finding %d", *sec.MergedInto)})
+			continue
+		case sec.Dismissed:
+			skipped = append(skipped, tools.SkippedFinding{ID: secID, Reason: "dismissed"})
+			continue
 		}
 
 		var secAssets []int64
@@ -327,7 +381,7 @@ func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs
 
 		_, err = tx.ExecContext(ctx,
 			"UPDATE findings SET merged_into = $1, status = $2 WHERE id = $3",
-			primaryID, FindingStatusDuplicate, secID)
+			rootID, FindingStatusDuplicate, secID)
 		if err != nil {
 			return nil, fmt.Errorf("mark secondary %d: %w", secID, err)
 		}
@@ -352,7 +406,7 @@ func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs
 
 	_, err = tx.ExecContext(ctx,
 		"UPDATE findings SET asset_ids = $1, evidence = $2 WHERE id = $3",
-		string(mergedAssetJSON), mergedEvidence, primaryID)
+		string(mergedAssetJSON), mergedEvidence, rootID)
 	if err != nil {
 		return nil, fmt.Errorf("update primary: %w", err)
 	}
@@ -360,8 +414,8 @@ func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs
 		return nil, err
 	}
 
-	return &tools.MergedFinding{
-		ID:        primaryID,
+	out := &tools.MergedFinding{
+		ID:        rootID,
 		VulnClass: primary.VulnClass,
 		Name:      primary.Name,
 		Severity:  primary.Severity,
@@ -369,7 +423,12 @@ func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs
 		Evidence:  mergedEvidence,
 		AssetIDs:  primaryAssets,
 		Status:    primary.Status,
-	}, nil
+		Skipped:   skipped,
+	}
+	if rootID != primaryID {
+		out.RequestedPrimaryID = primaryID
+	}
+	return out, nil
 }
 
 func (s *Store) DismissFinding(ctx context.Context, findingID int64, reason string) error {
