@@ -182,6 +182,14 @@ func listenMiddleware(srv *mcpserver.Server, signer *identity.Signer, token stri
 	return middleware
 }
 
+func webHandler(mcp, restAPI http.Handler) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/mcp", mcp)
+	mux.Handle("/api/", restAPI)
+	mux.Handle("/", web.Handler())
+	return api.SecurityHeaders(mux)
+}
+
 func cmdServe(args []string) {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	listen := fs.String("listen", "", "HTTP listen address (or ARTEX_LISTEN env, default localhost:9400)")
@@ -406,15 +414,8 @@ func cmdServe(args []string) {
 			os.Exit(1)
 		}
 	} else if *webUI {
-		mux := http.NewServeMux()
-
-		mux.Handle("/mcp", webMCPHandler(srv, mcpToken, webIdentity))
-
-		mux.Handle("/api/", restAPI.Handler())
-
-		mux.Handle("/", web.Handler())
-
-		httpServer := &http.Server{Addr: *listen, Handler: mux}
+		mcpHandler := webMCPHandler(srv, mcpToken, webIdentity)
+		httpServer := &http.Server{Addr: *listen, Handler: webHandler(mcpHandler, restAPI.Handler())}
 		errCh := make(chan error, 1)
 		go func() { errCh <- httpServer.ListenAndServe() }()
 
@@ -432,7 +433,7 @@ func cmdServe(args []string) {
 			runner.StopAll()
 		}
 	} else {
-		middleware := listenMiddleware(srv, loadIdentitySigner(*dataDir), listenToken)
+		middleware := append(listenMiddleware(srv, loadIdentitySigner(*dataDir), listenToken), api.SecurityHeaders)
 		slog.Info("serving", "addr", *listen, "mcp_auth", listenToken != "")
 		if err := srv.ServeHTTP(ctx, *listen, middleware...); err != nil && ctx.Err() == nil {
 			slog.Error("http server failed", "err", err)
