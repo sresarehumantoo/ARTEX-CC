@@ -1,0 +1,386 @@
+[
+ {
+  "id": 38,
+  "exploration_id": 1,
+  "worker": "web-tester",
+  "kind": "coverage",
+  "tool": "record_coverage",
+  "summary": "Coverage: open_relay on mail.acme.example:25 (needs_follow_up)",
+  "created_at": "2026-11-25T01:39:54.321Z"
+ },
+ {
+  "id": 37,
+  "exploration_id": 1,
+  "worker": "web-tester",
+  "kind": "coverage",
+  "tool": "record_coverage",
+  "summary": "Coverage: rce on https://vpn.acme.example (ruled_out)",
+  "detail": "VPN exploitation excluded by rules of engagement",
+  "created_at": "2026-11-25T01:38:09.248Z"
+ },
+ {
+  "id": 36,
+  "exploration_id": 1,
+  "worker": "web-tester",
+  "kind": "coverage",
+  "tool": "record_coverage",
+  "summary": "Coverage: xss on http://api.acme.example/api/v2/search (no_issue_found)",
+  "created_at": "2026-11-25T01:36:17.429Z"
+ },
+ {
+  "id": 35,
+  "exploration_id": 1,
+  "worker": "web-tester",
+  "kind": "coverage",
+  "tool": "record_coverage",
+  "summary": "Coverage: auth_bypass on http://portal.acme.example/admin (needs_follow_up)",
+  "created_at": "2026-11-25T01:34:06.910Z"
+ },
+ {
+  "id": 34,
+  "exploration_id": 1,
+  "worker": "web-tester",
+  "kind": "coverage",
+  "tool": "record_coverage",
+  "summary": "Coverage: xss on http://portal.acme.example/login (no_issue_found)",
+  "created_at": "2026-11-25T01:31:58.449Z"
+ },
+ {
+  "id": 33,
+  "exploration_id": 1,
+  "worker": "web-tester",
+  "kind": "coverage",
+  "tool": "record_coverage",
+  "summary": "Coverage: sqli on http://api.acme.example/api/v2/auth/login (no_issue_found)",
+  "created_at": "2026-11-25T01:29:58.998Z"
+ },
+ {
+  "id": 32,
+  "exploration_id": 1,
+  "worker": "web-tester",
+  "kind": "coverage",
+  "tool": "record_coverage",
+  "summary": "Coverage: weak_credentials on http://api.acme.example/api/v2/auth/login (reported)",
+  "created_at": "2026-11-25T01:27:43.111Z"
+ },
+ {
+  "id": 31,
+  "exploration_id": 1,
+  "worker": "web-tester",
+  "kind": "coverage",
+  "tool": "record_coverage",
+  "summary": "Coverage: sqli on http://api.acme.example/api/v2/search (reported)",
+  "created_at": "2026-11-25T01:25:31.337Z"
+ },
+ {
+  "id": 30,
+  "exploration_id": 1,
+  "worker": "web-tester",
+  "kind": "coverage",
+  "tool": "record_coverage",
+  "summary": "Coverage: idor on http://api.acme.example/api/v2/users/{id} (reported)",
+  "created_at": "2026-11-25T01:21:52.758Z"
+ },
+ {
+  "id": 29,
+  "exploration_id": 1,
+  "worker": "recon-specialist",
+  "kind": "node",
+  "tool": "Bash",
+  "is_error": true,
+  "summary": "nmap -sV timed out against 203.0.113.25",
+  "detail": "Ports 993 and 587 filtered; retried with -T3",
+  "created_at": "2026-11-24T23:28:30.484Z"
+ },
+ {
+  "id": 28,
+  "exploration_id": 1,
+  "worker": "recon-specialist",
+  "kind": "asset",
+  "tool": "insert_assets",
+  "summary": "Inserted 19 assets from subdomain and port enumeration",
+  "detail": "6 subdomains, 4 IPs, 5 services, 4 endpoints",
+  "created_at": "2026-11-24T23:20:03.119Z"
+ },
+ {
+  "id": 27,
+  "exploration_id": 1,
+  "node_id": 21,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "complete_intent",
+  "summary": "Completed: Check internal endpoints listed in robots.txt",
+  "detail": "Internal DSN leaked",
+  "created_at": "2026-11-25T00:43:05.666Z"
+ },
+ {
+  "id": 26,
+  "exploration_id": 1,
+  "node_id": 15,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "complete_intent",
+  "summary": "Completed: Password spray service accounts discovered via the IDOR",
+  "detail": "1 valid credential",
+  "created_at": "2026-11-25T00:14:04.970Z"
+ },
+ {
+  "id": 25,
+  "exploration_id": 1,
+  "node_id": 12,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "complete_intent",
+  "summary": "Completed: Test /api/v2/users/{id} for broken object level authorization",
+  "detail": "BOLA confirmed across all ids",
+  "created_at": "2026-11-25T00:01:13.277Z"
+ },
+ {
+  "id": 24,
+  "exploration_id": 1,
+  "node_id": 9,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "complete_intent",
+  "summary": "Completed: Probe the portal for exposed source control and debug files",
+  "detail": "Exposed .git confirmed",
+  "created_at": "2026-11-24T23:49:40.265Z"
+ },
+ {
+  "id": 23,
+  "exploration_id": 1,
+  "node_id": 7,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "complete_intent",
+  "summary": "Completed: Enumerate subdomains and map the external attack surface",
+  "detail": "6 subdomains, 4 IPs, 3 HTTP services mapped",
+  "created_at": "2026-11-24T23:32:30.436Z"
+ },
+ {
+  "id": 22,
+  "exploration_id": 1,
+  "node_id": 28,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "add_intent",
+  "summary": "Planned: Check mail.acme.example for open relay and user enumeration",
+  "created_at": "2026-11-25T01:04:35.894Z"
+ },
+ {
+  "id": 21,
+  "exploration_id": 1,
+  "node_id": 27,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "add_intent",
+  "summary": "Planned: Fingerprint the VPN appliance version against known CVEs",
+  "created_at": "2026-11-25T01:01:05.049Z"
+ },
+ {
+  "id": 20,
+  "exploration_id": 1,
+  "node_id": 26,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "add_intent",
+  "summary": "Planned: Recover portal source from the exposed .git directory",
+  "created_at": "2026-11-25T00:56:25.828Z"
+ },
+ {
+  "id": 19,
+  "exploration_id": 1,
+  "node_id": 25,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "add_intent",
+  "summary": "Planned: Exploit search SQLi to read the users table and password hashes",
+  "created_at": "2026-11-25T00:50:35.126Z"
+ },
+ {
+  "id": 18,
+  "exploration_id": 1,
+  "node_id": 24,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "add_intent",
+  "summary": "Planned: Use svc-backup JWT to reach admin-only API routes",
+  "created_at": "2026-11-25T00:44:50.101Z"
+ },
+ {
+  "id": 17,
+  "exploration_id": 1,
+  "node_id": 23,
+  "worker": "web-tester",
+  "kind": "finding",
+  "tool": "report_finding",
+  "summary": "Reported low: Internal health endpoint discloses database DSN",
+  "created_at": "2026-11-25T00:39:48.459Z"
+ },
+ {
+  "id": 16,
+  "exploration_id": 1,
+  "node_id": 22,
+  "worker": "web-tester",
+  "kind": "node",
+  "tool": "record_fact",
+  "summary": "/api/v2/internal/health leaks the internal database DSN",
+  "detail": "db: postgres://portal@db01.int.acme.example:5432/portal",
+  "created_at": "2026-11-25T00:36:24.052Z"
+ },
+ {
+  "id": 15,
+  "exploration_id": 1,
+  "node_id": 21,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "add_intent",
+  "summary": "Planned: Check internal endpoints listed in robots.txt",
+  "created_at": "2026-11-25T00:30:57.273Z"
+ },
+ {
+  "id": 14,
+  "exploration_id": 1,
+  "node_id": 20,
+  "worker": "web-tester",
+  "kind": "finding",
+  "tool": "report_finding",
+  "summary": "Reported critical: SQL injection in /api/v2/search",
+  "created_at": "2026-11-25T00:26:37.615Z"
+ },
+ {
+  "id": 13,
+  "exploration_id": 1,
+  "node_id": 19,
+  "worker": "web-tester",
+  "kind": "node",
+  "tool": "record_fact",
+  "summary": "A single quote in q triggers a raw PostgreSQL syntax error",
+  "detail": "q=invoice' -> 500 pq: syntax error at or near \"'\"",
+  "created_at": "2026-11-25T00:20:47.447Z"
+ },
+ {
+  "id": 12,
+  "exploration_id": 1,
+  "node_id": 18,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "add_intent",
+  "summary": "Planned: Fuzz /api/v2/search for injection",
+  "created_at": "2026-11-25T00:15:50.989Z"
+ },
+ {
+  "id": 11,
+  "exploration_id": 1,
+  "node_id": 17,
+  "worker": "web-tester",
+  "kind": "finding",
+  "tool": "report_finding",
+  "summary": "Reported critical: Weak password on svc-backup service account",
+  "created_at": "2026-11-25T00:08:54.092Z"
+ },
+ {
+  "id": 10,
+  "exploration_id": 1,
+  "node_id": 16,
+  "worker": "web-tester",
+  "kind": "node",
+  "tool": "record_fact",
+  "summary": "svc-backup@acme.example authenticates with a seasonal password",
+  "detail": "POST /api/v2/auth/login svc-backup / Spring2026! -> 200 + JWT",
+  "created_at": "2026-11-25T00:06:18.868Z"
+ },
+ {
+  "id": 9,
+  "exploration_id": 1,
+  "node_id": 15,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "add_intent",
+  "summary": "Planned: Password spray service accounts discovered via the IDOR",
+  "created_at": "2026-11-25T00:02:26.425Z"
+ },
+ {
+  "id": 8,
+  "exploration_id": 1,
+  "node_id": 14,
+  "worker": "web-tester",
+  "kind": "finding",
+  "tool": "report_finding",
+  "summary": "Reported high: IDOR on /api/v2/users/{id} exposes all customer records",
+  "created_at": "2026-11-24T23:59:01.812Z"
+ },
+ {
+  "id": 7,
+  "exploration_id": 1,
+  "node_id": 13,
+  "worker": "web-tester",
+  "kind": "node",
+  "tool": "record_fact",
+  "summary": "Unauthenticated GET /api/v2/users/{id} returns any user's email, role and MFA state",
+  "detail": "users/1 -> admin@acme.example role=admin mfa=false",
+  "created_at": "2026-11-24T23:56:31.505Z"
+ },
+ {
+  "id": 6,
+  "exploration_id": 1,
+  "node_id": 12,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "add_intent",
+  "summary": "Planned: Test /api/v2/users/{id} for broken object level authorization",
+  "created_at": "2026-11-24T23:51:19.228Z"
+ },
+ {
+  "id": 5,
+  "exploration_id": 1,
+  "node_id": 11,
+  "worker": "web-tester",
+  "kind": "finding",
+  "tool": "report_finding",
+  "summary": "Reported medium: Exposed .git directory on customer portal",
+  "created_at": "2026-11-24T23:44:32.267Z"
+ },
+ {
+  "id": 4,
+  "exploration_id": 1,
+  "node_id": 10,
+  "worker": "web-tester",
+  "kind": "node",
+  "tool": "record_fact",
+  "summary": "/.git/config is served by the portal and names the internal GitLab remote",
+  "detail": "GET /.git/config -> 200, url = git@git.acme.example:web/portal.git",
+  "created_at": "2026-11-24T23:39:04.253Z"
+ },
+ {
+  "id": 3,
+  "exploration_id": 1,
+  "node_id": 9,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "add_intent",
+  "summary": "Planned: Probe the portal for exposed source control and debug files",
+  "created_at": "2026-11-24T23:34:18.347Z"
+ },
+ {
+  "id": 2,
+  "exploration_id": 1,
+  "node_id": 8,
+  "worker": "recon-specialist",
+  "kind": "node",
+  "tool": "record_fact",
+  "summary": "Six subdomains resolve; portal and api share an nginx/Express stack",
+  "detail": "subfinder + dnsx: portal, api, vpn, git, mail",
+  "created_at": "2026-11-24T23:26:47.633Z"
+ },
+ {
+  "id": 1,
+  "exploration_id": 1,
+  "node_id": 7,
+  "worker": "pentest-lead",
+  "kind": "intent",
+  "tool": "add_intent",
+  "summary": "Planned: Enumerate subdomains and map the external attack surface",
+  "created_at": "2026-11-24T23:20:23.689Z"
+ }
+]
