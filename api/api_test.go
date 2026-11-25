@@ -88,6 +88,12 @@ func (m *mockStore) UpdateNodeState(context.Context, int64, string) error { retu
 func (m *mockStore) ClaimIntent(context.Context, int64, string, time.Duration) (*tools.IntentClaim, error) {
 	return nil, nil
 }
+func (m *mockStore) ListChanges(context.Context, int64, int64, tools.ChangeCursor, int) ([]tools.Change, error) {
+	return nil, nil
+}
+func (m *mockStore) ListClaims(context.Context, int64, string) ([]tools.HeldClaim, error) {
+	return nil, nil
+}
 func (m *mockStore) ListNodes(_ context.Context, _ int64, _ string, _ int) ([]tools.Node, error) {
 	return m.listNodes, m.listNodesErr
 }

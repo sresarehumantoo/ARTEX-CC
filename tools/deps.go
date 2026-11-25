@@ -39,6 +39,8 @@ type Store interface {
 	CountOpenIntents(ctx context.Context, explorationID int64) (int, error)
 	OriginFactID(ctx context.Context, explorationID int64) (int64, error)
 	Edges(ctx context.Context, explorationID int64, limit int) ([]Edge, error)
+	ListChanges(ctx context.Context, explorationID, taskID int64, after ChangeCursor, limit int) ([]Change, error)
+	ListClaims(ctx context.Context, explorationID int64, owner string) ([]HeldClaim, error)
 	Root(ctx context.Context, explorationID int64) (description, goal string, err error)
 	AddConstraint(ctx context.Context, explorationID int64, kind, text, origin string) (int64, error)
 	ListConstraints(ctx context.Context, explorationID int64) ([]Constraint, error)
@@ -229,6 +231,7 @@ type Overview struct {
 	RecentFacts       []map[string]any `json:"recent_facts,omitempty"`
 	Coverage          map[string]any   `json:"coverage,omitempty"`
 	Credentials       []map[string]any `json:"task_credentials,omitempty"`
+	ChangesCursor     string           `json:"changes_cursor,omitempty"`
 }
 
 // Node is a vertex in the exploration graph (goal, hint, intent, fact, or finding).

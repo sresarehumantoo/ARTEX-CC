@@ -288,6 +288,12 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 		Coverage: map[string]any{},
 	}
 
+	var asOf time.Time
+	if err := s.QueryRowContext(ctx, `SELECT now()`).Scan(&asOf); err != nil {
+		return nil, err
+	}
+	ov.ChangesCursor = tools.ChangeCursor{At: asOf}.String()
+
 	var desc, goal sql.NullString
 	if err := s.QueryRowContext(ctx,
 		`SELECT COALESCE(description,''), COALESCE(goal,'') FROM explorations WHERE id = $1`,
