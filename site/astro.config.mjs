@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import starlightBlog from 'starlight-blog';
 import tailwindcss from '@tailwindcss/vite';
 import { analyticsBeacon } from './src/analytics.mjs';
 
@@ -23,6 +24,15 @@ export default defineConfig({
       social: [{ icon: 'github', label: 'GitHub', href: repo }],
       editLink: { baseUrl: `${repo}/edit/main/site/` },
       lastUpdated: true,
+      plugins: [
+        starlightBlog({
+          title: 'Blog',
+          authors: {
+            artex: { name: 'ARTEX-CC maintainers', url: repo },
+          },
+          metrics: { readingTime: true },
+        }),
+      ],
       customCss: ['./src/styles/global.css'],
       components: {
         ThemeProvider: './src/components/ThemeProvider.astro',
@@ -61,6 +71,7 @@ export default defineConfig({
         {
           label: 'Project',
           items: [
+            { label: 'Blog', link: '/blog/' },
             { label: 'Changelog', link: '/changelog/' },
             'roadmap',
             { label: 'Security', link: '/security/' },
