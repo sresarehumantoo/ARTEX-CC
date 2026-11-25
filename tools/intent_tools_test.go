@@ -181,15 +181,52 @@ func TestClaimOwner(t *testing.T) {
 		{sess, " sub1 ", "stdio-ab12/owner:sub1"},
 		{bare, "f00d", "owner:f00d"},
 		{WithSessionID(bare, ""), "f00d", "owner:f00d"},
+		{WithIdentity(bare, "alice"), "", "id:alice"},
+		{WithIdentity(bare, "alice"), " sub1 ", "id:alice/owner:sub1"},
+		{WithIdentity(sess, "alice"), "", "id:alice"},
+		{WithIdentity(sess, "alice"), "sub1", "id:alice/owner:sub1"},
+		{WithIdentity(sess, "alice"), "   ", "id:alice"},
+		{WithIdentity(sess, ""), "", "stdio-ab12"},
 	}
 	for _, c := range cases {
 		got, err := ClaimOwner(c.ctx, c.owner)
 		if err != nil || got != c.want {
-			t.Errorf("ClaimOwner(%q, %q) = %q, %v; want %q", SessionID(c.ctx), c.owner, got, err, c.want)
+			t.Errorf("ClaimOwner(%q, %q, %q) = %q, %v; want %q", IdentityName(c.ctx), SessionID(c.ctx), c.owner, got, err, c.want)
 		}
 	}
 	if _, err := ClaimOwner(bare, "  "); !errors.Is(err, ErrNoClaimOwner) {
 		t.Errorf("ClaimOwner with neither = %v, want ErrNoClaimOwner", err)
+	}
+}
+
+func TestOwnerLabelerGolden(t *testing.T) {
+	t.Parallel()
+	l := NewOwnerLabeler(bytes.Repeat([]byte{1}, 32))
+	cases := map[string]string{
+		"mcp-session-1":               "h-06e9ddc04fee",
+		"owner:f00d":                  "h-5e7da8e37e55",
+		"id:alice":                    "alice",
+		"id:eval/r1/i2":               "eval/r1/i2",
+		"id:alice/owner:sub1":         "alice/h-",
+		"id:chat/abc/owner:x/owner:y": "chat/abc/h-",
+	}
+	for owner, want := range cases {
+		got := l.Label(owner)
+		if strings.HasSuffix(want, "h-") {
+			if !strings.HasPrefix(got, want) || len(got) != len(want)+12 || strings.Contains(got, "sub1") {
+				t.Errorf("Label(%q) = %q, want %q plus a 12 hex hash", owner, got, want)
+			}
+			continue
+		}
+		if got != want {
+			t.Errorf("Label(%q) = %q, want %q", owner, got, want)
+		}
+	}
+	if l.Label("id:alice/owner:sub1") == l.Label("id:alice/owner:sub2") {
+		t.Error("owners under one identity must get distinct labels")
+	}
+	if l.Label("id:alice/owner:sub1") == l.Label("id:bob/owner:sub1") {
+		t.Error("the same owner under two identities must get distinct labels")
 	}
 }
 
