@@ -218,6 +218,9 @@ func (s *Server) handleReadEngagement(ctx context.Context, _ mcp.ReadResourceReq
 	slog.Debug("engagement resource read")
 	var b strings.Builder
 	b.WriteString(orchestrationGuide)
+	if tools.RequireIdentity {
+		b.WriteString(requireIdentityGuide)
+	}
 
 	taskID, explorationID := s.ActiveEngagement()
 	desc, goal, _ := s.store.Root(ctx, explorationID)
@@ -365,4 +368,16 @@ meeting goals, report what was tested and what remains unclear.
 
 For continuous autonomous operation, the user can run:
   /loop 5m Continue the pentest: call graph_overview, assess progress, dispatch subagents for open intents, prove goals when evidence exists.
+`
+
+const requireIdentityGuide = `
+## Identity required for claims
+
+This server requires a verified identity for intent claims. start_intent,
+complete_intent and cancel_intent are refused, and list_changes omits
+my_claims, unless your client sends an X-Artex-Identity header. An owner
+argument or an MCP session does not count. If you get that refusal, stop
+claiming and ask the operator to configure your MCP client with a token from
+artex-cc identity issue (--format claude-json prints a ready config). The
+other tools work without an identity.
 `

@@ -12,6 +12,32 @@ import (
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
+func TestServeEnvRequireIdentity(t *testing.T) {
+	t.Setenv("ARTEX_REQUIRE_IDENTITY", "1")
+	last := func(env []string) string {
+		v := "unset"
+		for _, kv := range env {
+			if s, ok := strings.CutPrefix(kv, "ARTEX_REQUIRE_IDENTITY="); ok {
+				v = s
+			}
+		}
+		return v
+	}
+	for name, c := range map[string]struct {
+		rc   runConfig
+		want string
+	}{
+		"stdio":            {runConfig{transport: "stdio"}, ""},
+		"http anonymous":   {runConfig{transport: "http"}, ""},
+		"http identities":  {runConfig{transport: "http", identity: true}, "1"},
+		"custom mcpConfig": {runConfig{transport: "stdio", mcpConfig: "x.json"}, "1"},
+	} {
+		if got := last(serveEnv(c.rc)); got != c.want {
+			t.Errorf("%s: ARTEX_REQUIRE_IDENTITY = %q, want %q", name, got, c.want)
+		}
+	}
+}
+
 func TestParseKillAfter(t *testing.T) {
 	k, err := parseKillAfter("2:3m", 3)
 	if err != nil || k.Instance != 2 || k.After != 3*time.Minute {
