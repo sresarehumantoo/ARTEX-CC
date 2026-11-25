@@ -86,8 +86,6 @@ ARTEX + Claude Opus 5.5 against [Forest](https://app.hackthebox.com/machines/For
 brew install --cask sresarehumantoo/tap/artex-cc
 ```
 
-The Homebrew cask is published starting with the first release after v0.4.0. Until then, use a pre-built binary.
-
 Docker Compose, pre-built binaries and `go install` are covered in [Getting started](https://artex-cc.com/docs/getting-started/).
 
 ## Quick start
