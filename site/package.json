@@ -9,8 +9,9 @@
   },
   "scripts": {
     "sync-media": "node scripts/sync-media.mjs",
-    "predev": "npm run sync-media",
-    "prebuild": "npm run sync-media",
+    "gen-tools": "node scripts/gen-tools.mjs",
+    "predev": "npm run sync-media && npm run gen-tools",
+    "prebuild": "npm run sync-media && npm run gen-tools",
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",

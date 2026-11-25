@@ -1,0 +1,12 @@
+{
+  "Exploration graph": "Plan, track and prove work in the exploration graph: intents, facts, hints, goals and constraints.",
+  "Assets and scope": "Insert and query assets, manage company and task scope, and record coverage.",
+  "Findings": "Report, list, merge, dismiss and bind findings to captured traffic.",
+  "Credentials": "Store and list credentials discovered during an engagement.",
+  "Evidence": "Save, list and retrieve proof-of-concept evidence, or capture command output as evidence.",
+  "Enrichment and ingestion": "DNS and HTTP enrichment, and importing nmap, nuclei, httpx, ffuf and masscan output.",
+  "Engagement management": "Create, switch, update and close engagements, and inspect their status.",
+  "Activity": "Read and write the engagement activity log.",
+  "Reporting and export": "Generate the Markdown report and move engagements between servers.",
+  "Traffic": "Search, inspect, replay and export traffic captured by the recording proxy."
+}
