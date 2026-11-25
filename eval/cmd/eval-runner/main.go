@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -73,6 +72,11 @@ type Scorecard struct {
 	IntentsFinished int             `json:"intents_finished"`
 	Score           float64         `json:"score"`
 	Details         ScorecardDetail `json:"details"`
+	Instances       int             `json:"instances"`
+	Transport       string          `json:"transport"`
+	Lease           string          `json:"lease,omitempty"`
+	TranscriptsDir  string          `json:"transcripts_dir,omitempty"`
+	Runs            []InstanceRun   `json:"runs,omitempty"`
 }
 
 type ScorecardDetail struct {
@@ -92,6 +96,10 @@ func main() {
 	modelOverride := flag.String("model", "", "override scenario model for Claude CLI")
 	mcpConfigFlag := flag.String("mcp-config", "", "path to existing MCP config file (skip generating one)")
 	skipHealth := flag.Bool("skip-health", false, "skip the target health check")
+	instances := flag.Int("instances", 1, "number of concurrent claude instances on the engagement")
+	transport := flag.String("transport", "stdio", "MCP transport: stdio (one serve process per instance) or http (one shared serve --listen)")
+	killAfter := flag.String("kill-after", "", "kill one instance after a delay, as INSTANCE:DURATION (e.g. 2:3m)")
+	lease := flag.String("lease", "", "intent lease passed to every serve process as ARTEX_INTENT_LEASE (needs a server that supports it)")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -110,6 +118,22 @@ func main() {
 	scenario, timeout, err := loadScenario(flag.Arg(0))
 	if err != nil {
 		log.Fatalf("load scenario: %v", err)
+	}
+
+	if *instances < 1 {
+		log.Fatalf("--instances must be at least 1")
+	}
+	if *transport != "stdio" && *transport != "http" {
+		log.Fatalf("--transport must be stdio or http, got %q", *transport)
+	}
+	kill, err := parseKillAfter(*killAfter, *instances)
+	if err != nil {
+		log.Fatalf("--kill-after: %v", err)
+	}
+	if *lease != "" {
+		if _, err := time.ParseDuration(*lease); err != nil {
+			log.Fatalf("--lease: %v", err)
+		}
 	}
 
 	if *targetOverride != "" {
@@ -162,9 +186,24 @@ func main() {
 	}
 
 	startedAt := time.Now()
+	stem := fmt.Sprintf("%s-%s", sanitize(scenario.Name), startedAt.Format("20060102-150405"))
+	rc := runConfig{
+		claudeBin:      *claudeBin,
+		artexBin:       *artexBin,
+		dsn:            dsn,
+		dataDir:        dataDir,
+		mcpConfig:      *mcpConfigFlag,
+		instances:      *instances,
+		transport:      *transport,
+		lease:          *lease,
+		kill:           kill,
+		transcriptsDir: filepath.Join(*outputDir, "transcripts-"+stem),
+	}
 
+	var runs []InstanceRun
 	if !*skipClaude {
-		if err := runClaude(ctx, *claudeBin, *artexBin, dsn, dataDir, *mcpConfigFlag, scenario, timeout); err != nil {
+		runs, err = runInstances(ctx, rc, scenario, timeout)
+		if err != nil {
 			slog.Warn("claude run ended", "err", err)
 		}
 	} else {
@@ -178,12 +217,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("scoring failed: %v", err)
 	}
+	scorecard.Instances = *instances
+	scorecard.Transport = *transport
+	scorecard.Lease = *lease
+	scorecard.Runs = runs
+	if len(runs) > 0 {
+		scorecard.TranscriptsDir = rc.transcriptsDir
+	}
 
 	out, _ := json.MarshalIndent(scorecard, "", "  ")
 	fmt.Println(string(out))
 
-	outPath := filepath.Join(*outputDir, fmt.Sprintf("scorecard-%s-%s.json",
-		sanitize(scenario.Name), startedAt.Format("20060102-150405")))
+	outPath := filepath.Join(*outputDir, "scorecard-"+stem+".json")
 	if err := os.WriteFile(outPath, out, 0644); err != nil {
 		slog.Warn("failed to write scorecard file", "path", outPath, "err", err)
 	} else {
@@ -273,52 +318,6 @@ func writeEngagementConfig(dir string, taskID, explorationID int64, sc Scenario)
 		return err
 	}
 	return os.WriteFile(filepath.Join(dir, ".artex.json"), data, 0644)
-}
-
-func runClaude(ctx context.Context, claudeBin, artexBin, dsn, dataDir, mcpConfigOverride string, sc Scenario, timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	prompt := fmt.Sprintf(
-		"You are a penetration tester. Your target is %s. Your goal: %s. "+
-			"Use the ARTEX MCP tools to track your work. "+
-			"Start by calling graph_overview to orient, then set goals, insert assets, and begin testing. "+
-			"Record every finding with report_finding. Record coverage for every surface you test. "+
-			"When done, call generate_report.",
-		sc.Target, sc.Goal,
-	)
-	if sc.Credentials.Username != "" {
-		prompt += fmt.Sprintf(" Known credentials: %s / %s.", sc.Credentials.Username, sc.Credentials.Password)
-	}
-
-	mcpConfigPath := mcpConfigOverride
-	if mcpConfigPath == "" {
-		mcpConfig := fmt.Sprintf(`{"mcpServers":{"artex":{"command":"%s","args":["serve","--stdio","--pg","%s","--data","%s"]}}}`,
-			artexBin, dsn, dataDir)
-		mcpConfigPath = filepath.Join(dataDir, "mcp.json")
-		if err := os.WriteFile(mcpConfigPath, []byte(mcpConfig), 0644); err != nil {
-			return fmt.Errorf("write mcp config: %w", err)
-		}
-	}
-
-	args := []string{
-		"--print",
-		"--dangerously-skip-permissions",
-		"--mcp-config", mcpConfigPath,
-		"--verbose",
-	}
-	if sc.Model != "" {
-		args = append(args, "--model", sc.Model)
-	}
-	args = append(args, "-p", prompt)
-
-	cmd := exec.CommandContext(ctx, claudeBin, args...)
-	cmd.Stdout = os.Stderr
-	cmd.Stderr = os.Stderr
-	cmd.Dir = dataDir
-
-	slog.Info("starting Claude", "bin", claudeBin, "model", sc.Model, "timeout", timeout)
-	return cmd.Run()
 }
 
 func score(ctx context.Context, s *store.Store, explorationID, taskID int64, sc Scenario, startedAt, finishedAt time.Time, timedOut bool) (*Scorecard, error) {

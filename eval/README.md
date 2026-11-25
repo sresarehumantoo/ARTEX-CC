@@ -40,7 +40,51 @@ docker compose down -v
 ```
 
 The runner calls `claude` (Claude Code CLI) in `--print --dangerously-skip-permissions`
-mode with an auto-generated MCP config pointing ARTEX at the eval Postgres.
+mode with an auto-generated MCP config pointing ARTEX at the eval Postgres. It also passes
+`--strict-mcp-config`, so instances load only that config: none of your own MCP servers or
+claude.ai connectors (mail, calendar, docs, DNS) are reachable from an unattended run. Each
+instance runs with `--output-format stream-json --verbose`, and its transcript is
+saved as `transcripts-<scenario>-<timestamp>/instance-<i>.jsonl` next to the
+scorecard, so every tool call, argument and result is on record.
+
+## Multiple instances
+
+`--instances N` starts N `claude` processes at once on the same engagement, with
+the same goal. When N is above 1, each prompt ends with "You are instance i of
+N; other agents are working this engagement at the same time" and a pointer to
+intent claims and `list_changes`. With N=1 the prompt is unchanged.
+
+`--transport` picks how instances reach ARTEX:
+
+- `stdio` (default): every `claude` process launches its own
+  `artex-cc serve --stdio`, so each instance has its own MCP session. Claims
+  belong to that session. All of them share the eval Postgres.
+- `http`: the runner starts one `artex-cc serve --listen` on a free loopback
+  port and points every instance at it. Each prompt also tells the agent to pick
+  a random hex owner label once and pass it as `owner` on `start_intent`,
+  `complete_intent`, `cancel_intent` and `list_changes`, which is how claims are
+  told apart on MCP protocol 2026-07-28. The server log is written to
+  `server.log` in the transcripts directory.
+
+`--kill-after INSTANCE:DURATION` kills one instance (its whole process group,
+including its `serve --stdio` child) after the delay, leaving its claims live,
+for the recovery test. The kill time is recorded in the scorecard's `runs`.
+
+`--lease DURATION` sets `ARTEX_INTENT_LEASE` on every `serve` process the runner
+starts, so a takeover test does not wait the default 30 minutes. It needs an
+`artex-cc` built with lease override support; older servers ignore it.
+
+The scenario timeout covers the whole run: when it passes, every instance still
+running is killed. The runner waits for all instances before scoring.
+
+```
+# Three instances over stdio, lease 2m, kill instance 2 after 3 minutes
+go run ../eval/cmd/eval-runner --instances 3 --transport stdio \
+  --lease 2m --kill-after 2:3m scenarios/vulnapp-full.yml
+
+# Three instances sharing one HTTP server
+go run ../eval/cmd/eval-runner --instances 3 --transport http scenarios/vulnapp-full.yml
+```
 
 ## What it measures
 
@@ -52,7 +96,8 @@ The scorecard (written to stdout and a JSON file) includes:
 - **Intent score** (20%): fraction of created intents that reached completion
 
 Additional data: total findings, total assets, coverage records, goals set,
-intents created/finished, wall-clock duration, timeout flag.
+intents created/finished, wall-clock duration, timeout flag, and per instance
+the transcript path, duration, exit error and kill time.
 
 ## Adding scenarios
 
@@ -122,6 +167,10 @@ The rule is scoped to that exact command prefix.
 | `--skip-health` | false | Skip the target health check |
 | `--output` | `.` | Directory for scorecard JSON files |
 | `--dry-run` | false | Set up engagement but skip Claude execution |
+| `--instances` | 1 | Number of concurrent `claude` instances on the engagement |
+| `--transport` | `stdio` | `stdio` (one `serve --stdio` per instance) or `http` (one shared `serve --listen`) |
+| `--kill-after` | (none) | Kill one instance after a delay, as `INSTANCE:DURATION` (e.g. `2:3m`) |
+| `--lease` | (server default) | Intent lease passed to every `serve` process as `ARTEX_INTENT_LEASE` |
 
 ## Windows target testing (manual)
 
