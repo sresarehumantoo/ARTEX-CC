@@ -5,7 +5,9 @@ import { getEntry } from 'astro:content';
 import Command from '../components/Command.astro';
 import logo from '../../../docs/brand/logo-dark.svg';
 import architecture from '../../../docs/architecture.svg';
-import webDemo from '../../../docs/web-demo.gif';
+import webDemoMp4 from '../../../docs/web-demo.mp4?url';
+import webDemoWebm from '../../../docs/web-demo.webm?url';
+import webDemoPoster from '../../../docs/web-demo-poster.png';
 import graph from '../../../docs/screenshots/graph.png';
 import findingDetail from '../../../docs/screenshots/finding-detail.png';
 import traffic from '../../../docs/screenshots/traffic.png';
@@ -214,15 +216,21 @@ const install = [
               <span class="size-2 rounded-full bg-neutral-700"></span>
               <span class="font-mono text-xs text-neutral-500">artex-cc serve --web</span>
             </div>
-            <img
-              src={webDemo.src}
-              width={webDemo.width}
-              height={webDemo.height}
-              alt="ARTEX-CC web UI walkthrough: dashboard, exploration graph, findings, traffic, coverage and report"
+            <video
+              width={webDemoPoster.width}
+              height={webDemoPoster.height}
+              poster={webDemoPoster.src}
+              aria-label="ARTEX-CC web UI walkthrough: dashboard, exploration graph, findings, traffic, coverage and report"
               class="block h-auto w-full"
-              decoding="async"
-              fetchpriority="low"
-            />
+              autoplay
+              muted
+              loop
+              playsinline
+              preload="metadata"
+            >
+              <source src={webDemoWebm} type="video/webm" />
+              <source src={webDemoMp4} type="video/mp4" />
+            </video>
           </figure>
         </div>
       </section>
