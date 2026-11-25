@@ -96,7 +96,7 @@ func TestListChangesGroupsAndAdvancesCursor(t *testing.T) {
 	m := &changesMockStore{
 		changes: []Change{
 			{Kind: "finding", Cursor: ChangeCursor{At: at, Kind: "finding", ID: 3}, Fields: map[string]any{"id": 3}},
-			{Kind: "intent", Cursor: ChangeCursor{At: at.Add(time.Second), Kind: "intent", ID: 9}, Fields: map[string]any{"id": 9, "claimed_by": "stdio-b"}},
+			{Kind: "intent", Cursor: ChangeCursor{At: at.Add(time.Second), Kind: "intent", ID: 9}, Fields: map[string]any{"id": 9, "claimed_by": OwnerLabel("stdio-b")}},
 		},
 		claims: []HeldClaim{{NodeID: 11, ExpiresAt: at.Add(30 * time.Minute)}},
 	}
@@ -112,7 +112,7 @@ func TestListChangesGroupsAndAdvancesCursor(t *testing.T) {
 	if !m.gotAfter.At.Equal(at.Add(-time.Hour)) {
 		t.Errorf("after = %v", m.gotAfter)
 	}
-	if out["session"] != "stdio-a" || out["truncated"] != false || out["count"] != float64(2) {
+	if out["session"] != OwnerLabel("stdio-a") || out["truncated"] != false || out["count"] != float64(2) {
 		t.Errorf("header = %v", out)
 	}
 	if want := m.changes[1].Cursor.String(); out["cursor"] != want {
@@ -161,5 +161,23 @@ func TestListChangesNoChangesKeepsCursor(t *testing.T) {
 	}
 	if m.gotLimit != maxChangesLimit+1 {
 		t.Errorf("store limit = %d, want %d", m.gotLimit, maxChangesLimit+1)
+	}
+}
+
+func TestListChangesOwnerArgument(t *testing.T) {
+	t.Parallel()
+	m := &changesMockStore{}
+	_, out := runListChanges(t, m, context.Background(), `{"since": "2026-11-25T09:00:00Z", "owner": "f00d"}`)
+	if m.gotOwner != "owner:f00d" || out["session"] != OwnerLabel("owner:f00d") {
+		t.Errorf("owner = %q, session = %v", m.gotOwner, out["session"])
+	}
+
+	m = &changesMockStore{}
+	_, out = runListChanges(t, m, context.Background(), `{"since": "2026-11-25T09:00:00Z"}`)
+	if _, ok := out["my_claims"]; ok || out["session"] != nil {
+		t.Errorf("sessionless call without owner returned claims: %v", out)
+	}
+	if msg, _ := out["claims_error"].(string); !strings.Contains(msg, "pass owner") {
+		t.Errorf("claims_error = %v", out["claims_error"])
 	}
 }

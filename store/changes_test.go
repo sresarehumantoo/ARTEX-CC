@@ -107,7 +107,7 @@ func TestListChanges(t *testing.T) {
 		t.Fatalf("updates = %+v, want intent and finding", got)
 	}
 	in := got["intent"]
-	if len(in) != 1 || in[0]["change"] != "updated" || in[0]["state"] != "running" || in[0]["claimed_by"] != "sess-a" {
+	if len(in) != 1 || in[0]["change"] != "updated" || in[0]["state"] != "running" || in[0]["claimed_by"] != tools.OwnerLabel("sess-a") {
 		t.Errorf("intent update = %v", in)
 	}
 	fi := got["finding"]

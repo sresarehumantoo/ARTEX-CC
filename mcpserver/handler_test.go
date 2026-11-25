@@ -27,7 +27,7 @@ func TestHandlerPassesSessionIDToTools(t *testing.T) {
 		session server.ClientSession
 		check   func(string) bool
 	}{
-		{nil, func(id string) bool { return id == tools.LocalSessionID }},
+		{nil, func(id string) bool { return id == "" }},
 		{server.NewInProcessSession("http-abc", nil), func(id string) bool { return id == "http-abc" }},
 		{server.NewInProcessSession("stdio", nil), func(id string) bool {
 			return id == stdioSessionID && strings.HasPrefix(id, "stdio-") && len(id) > len("stdio-")
