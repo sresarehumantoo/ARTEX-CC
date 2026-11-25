@@ -58,7 +58,7 @@ Claude runs autonomously on a 5-minute loop. You can steer it with `add_hint` or
 | `--data ./pentest` | Set the directory for traffic, evidence, and config |
 | `--debug` | Enable debug-level logging (verbose) |
 | `--pg DSN` | PostgreSQL connection string (or set `ARTEX_PG` env var) |
-| `--listen :9400` | Serve over HTTP instead of stdio |
+| `--listen localhost:9400` | Serve over HTTP instead of stdio (a non-loopback address needs `ARTEX_MCP_TOKEN` unless `--web` is set) |
 
 ## Credential encryption
 

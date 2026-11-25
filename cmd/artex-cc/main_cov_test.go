@@ -90,6 +90,17 @@ func TestIsLoopbackAddr(t *testing.T) {
 		{"example.com:443", false},
 		{"localhost", true},
 		{"127.0.0.1", true},
+		{"LocalHost:9400", true},
+		{"127.8.9.10:9400", true},
+		{"[::1]:0", true},
+		{":9400", false},
+		{"[::]:9400", false},
+		{"0.0.0.0", false},
+		{"10.0.0.5:9400", false},
+		{"[fe80::1]:9400", false},
+		{"localhost.example.com:9400", false},
+		{"myhost:9400", false},
+		{"", false},
 	} {
 		t.Run(tt.addr, func(t *testing.T) {
 			if got := isLoopbackAddr(tt.addr); got != tt.want {

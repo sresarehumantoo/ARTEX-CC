@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- `serve --listen` without `--web` refuses to start on a non-loopback address (anything other than `localhost`, `127.0.0.0/8` or `::1`, including `:9400` and `0.0.0.0`) unless `ARTEX_MCP_TOKEN` is set, and then requires it as a bearer token on `/mcp`. Previously such a listener exposed every tool without authentication. Loopback listeners are unchanged, and honor `ARTEX_MCP_TOKEN` when it is set.
+
 ## [0.5.0] - 2026-11-25
 
 ### Added
