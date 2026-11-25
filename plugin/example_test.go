@@ -25,7 +25,7 @@ func runExamplePlugin(t *testing.T, cfg PluginConfig, input string) (tools.Resul
 	store := &graphStore{}
 	reg := tools.NewRegistry()
 	tools.RegisterAll(reg, store, 1, 1)
-	ctxFn := func(context.Context) (PluginConfig, error) { return cfg, nil }
+	ctxFn := func(context.Context) (PluginConfig, *tools.Registry, error) { return cfg, reg, nil }
 	if err := DiscoverAndRegister(reg, "../examples/plugins", 30*time.Second, ctxFn); err != nil {
 		t.Fatal(err)
 	}

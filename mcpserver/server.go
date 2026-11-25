@@ -115,6 +115,14 @@ func (s *Server) ActiveEngagement() (taskID, explorationID int64) {
 	return s.taskID, s.explorationID
 }
 
+// ActiveRegistry returns the active engagement together with the registry
+// whose tools are bound to it, read under one lock so they always agree.
+func (s *Server) ActiveRegistry() (taskID, explorationID int64, registry *tools.Registry) {
+	s.engMu.RLock()
+	defer s.engMu.RUnlock()
+	return s.taskID, s.explorationID, s.registry
+}
+
 // Sessions returns the session manager for external inspection.
 func (s *Server) Sessions() *SessionManager { return s.sessions }
 

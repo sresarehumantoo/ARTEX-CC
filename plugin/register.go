@@ -57,12 +57,14 @@ func makeHandler(registry *tools.Registry, binPath, toolName string, timeout tim
 			Tool:  toolName,
 			Input: input,
 		}
+		target := registry
 		if contextFn != nil {
-			cfg, err := contextFn(ctx)
+			cfg, reg, err := contextFn(ctx)
 			if err != nil {
 				return tools.Result{}, fmt.Errorf("building plugin context: %w", err)
 			}
 			inv.Config = cfg
+			target = reg
 		}
 		result, err := Exec(ctx, binPath, inv, timeout)
 		if err != nil {
@@ -74,7 +76,7 @@ func makeHandler(registry *tools.Registry, binPath, toolName string, timeout tim
 			parts = append(parts, c.Text)
 		}
 		if !result.IsError {
-			if summary := persistResults(ctx, registry, result); summary != "" {
+			if summary := persistResults(ctx, target, result); summary != "" {
 				parts = append(parts, summary)
 			}
 		}
