@@ -17,6 +17,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/SREsAreHumanToo/ARTEX-CC/mcpserver"
 )
 
 const (
@@ -43,6 +45,7 @@ type Runner struct {
 	dataDir   string
 	maxConvs  int
 	settings  func() LLMSettings
+	signer    *mcpserver.ConversationSigner
 	store     *ChatStore
 	hub       *Hub
 	mu        sync.Mutex
@@ -51,6 +54,7 @@ type Runner struct {
 
 type runningConv struct {
 	cmd       *exec.Cmd
+	mcpConfig string
 	stdin     io.WriteCloser
 	cancel    context.CancelFunc
 	sessionID string
@@ -95,21 +99,26 @@ func NewRunner(claudeBin, mcpConfig, dataDir string, maxConversations int) *Runn
 	}
 }
 
+type mcpConfigFile struct {
+	MCPServers map[string]mcpHTTPServer `json:"mcpServers"`
+}
+
+type mcpHTTPServer struct {
+	Type    string            `json:"type"`
+	URL     string            `json:"url"`
+	Headers map[string]string `json:"headers"`
+}
+
+func writeMCPConfigFile(path string, cfg mcpConfigFile) error {
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o600)
+}
+
 func WriteMCPConfig(dataDir, listenAddr, token string) (string, error) {
 	_, port, err := net.SplitHostPort(listenAddr)
-	if err != nil {
-		return "", err
-	}
-	cfg := map[string]any{
-		"mcpServers": map[string]any{
-			"artex": map[string]any{
-				"type":    "http",
-				"url":     "http://127.0.0.1:" + port + "/mcp",
-				"headers": map[string]string{"Authorization": "Bearer " + token},
-			},
-		},
-	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return "", err
 	}
@@ -120,7 +129,47 @@ func WriteMCPConfig(dataDir, listenAddr, token string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	cfg := mcpConfigFile{MCPServers: map[string]mcpHTTPServer{
+		builtinMCPName: {
+			Type:    "http",
+			URL:     "http://127.0.0.1:" + port + "/mcp",
+			Headers: map[string]string{"Authorization": "Bearer " + token},
+		},
+	}}
+	if err := writeMCPConfigFile(path, cfg); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+// conversationMCPConfig writes a copy of the runner's MCP config whose artex
+// server also sends the conversation's signed identity, so its claims stay
+// its own on transports that have no MCP session.
+func (r *Runner) conversationMCPConfig(id string) (string, error) {
+	var cfg mcpConfigFile
+	data, err := os.ReadFile(r.mcpConfig)
+	if err != nil {
+		return "", err
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return "", fmt.Errorf("parse %s: %w", r.mcpConfig, err)
+	}
+	srv, ok := cfg.MCPServers[builtinMCPName]
+	if !ok {
+		return "", fmt.Errorf("%s has no %s server", r.mcpConfig, builtinMCPName)
+	}
+	headers := map[string]string{mcpserver.ConversationHeader: r.signer.Token(id)}
+	for k, v := range srv.Headers {
+		headers[k] = v
+	}
+	srv.Headers = headers
+	cfg.MCPServers[builtinMCPName] = srv
+	dir := filepath.Join(filepath.Dir(r.mcpConfig), "chat-mcp")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, id+".json")
+	if err := writeMCPConfigFile(path, cfg); err != nil {
 		return "", err
 	}
 	return path, nil
@@ -133,6 +182,12 @@ func (r *Runner) Bind(store *ChatStore, hub *Hub) {
 
 func (r *Runner) SetSettings(fn func() LLMSettings) {
 	r.settings = fn
+}
+
+// SetConversationSigner gives each conversation's claude process its own
+// signed identity on the artex MCP server.
+func (r *Runner) SetConversationSigner(s *mcpserver.ConversationSigner) {
+	r.signer = s
 }
 
 func (r *Runner) Available() bool {
@@ -179,6 +234,12 @@ func (r *Runner) Start(ctx context.Context, id, model, agent, systemPrompt strin
 	if model == "" {
 		model = settings.DefaultModel
 	}
+	mcpConfig := r.mcpConfig
+	if r.signer != nil {
+		if mcpConfig, err = r.conversationMCPConfig(id); err != nil {
+			return fmt.Errorf("write conversation mcp config: %w", err)
+		}
+	}
 
 	args := []string{
 		"-p",
@@ -186,7 +247,7 @@ func (r *Runner) Start(ctx context.Context, id, model, agent, systemPrompt strin
 		"--verbose",
 		"--input-format", "stream-json",
 		"--max-turns", strconv.Itoa(maxTurns),
-		"--mcp-config", r.mcpConfig,
+		"--mcp-config", mcpConfig,
 		"--strict-mcp-config",
 		"--allowedTools", "mcp__artex__*",
 	}
@@ -257,6 +318,7 @@ func (r *Runner) Start(ctx context.Context, id, model, agent, systemPrompt strin
 
 	rc := &runningConv{
 		cmd:       cmd,
+		mcpConfig: mcpConfig,
 		stdin:     stdin,
 		cancel:    cancel,
 		sessionID: conv.SessionID,
@@ -341,6 +403,9 @@ func (r *Runner) pump(id string, rc *runningConv, stdout io.Reader) {
 	}
 	err := rc.cmd.Wait()
 	rc.cancel()
+	if rc.mcpConfig != r.mcpConfig {
+		os.Remove(rc.mcpConfig)
+	}
 
 	r.mu.Lock()
 	if r.processes[id] == rc {

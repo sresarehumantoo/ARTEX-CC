@@ -271,6 +271,7 @@ func cmdServe(args []string) {
 	var restAPI *api.API
 	var runner *api.Runner
 	var mcpToken string
+	var conversations *mcpserver.ConversationSigner
 	if *webUI {
 		authRequired := *authFlag || envEnabled("ARTEX_AUTH") || !isLoopbackAddr(*listen)
 		apiOpts := []api.Option{api.WithDataDir(*dataDir), api.WithAuthRequired(authRequired), api.WithToolList(reg.Tools())}
@@ -288,7 +289,13 @@ func cmdServe(args []string) {
 			slog.Error("writing mcp config failed", "err", err)
 			os.Exit(1)
 		}
+		conversations, err = mcpserver.NewConversationSigner()
+		if err != nil {
+			slog.Error("generating conversation key failed", "err", err)
+			os.Exit(1)
+		}
 		runner = api.NewRunner(*claudeBin, mcpConfig, *dataDir, 0)
+		runner.SetConversationSigner(conversations)
 		apiOpts = append(apiOpts, api.WithRunner(runner))
 		restAPI = api.New(s, t, engCfg.TaskID, engCfg.ExplorationID, apiOpts...)
 	}
@@ -321,7 +328,7 @@ func cmdServe(args []string) {
 		mux := http.NewServeMux()
 
 		mcpHandler := server.NewStreamableHTTPServer(srv.MCPServer())
-		mux.Handle("/mcp", bearerAuth(mcpToken, mcpHandler))
+		mux.Handle("/mcp", bearerAuth(mcpToken, conversations.Middleware(mcpHandler)))
 
 		mux.Handle("/api/", restAPI.Handler())
 

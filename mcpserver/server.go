@@ -256,10 +256,11 @@ same engagement, coordinate through the graph:
 - Finish with complete_intent, or cancel_intent if it is no longer worth
   doing, so the claim is released. Both are refused on an intent another
   session holds; leave it to its owner.
-- Claims belong to your MCP session. If start_intent says the connection has
-  no session (HTTP clients on protocol 2026-07-28), pick an owner once, a
-  random hex string, and pass it as owner on every start_intent,
-  complete_intent, cancel_intent and list_changes call. With a session, owner
+- Claims belong to your MCP session, or to your conversation when you run in
+  the web UI chat. If start_intent says the connection has no session (HTTP
+  clients on protocol 2026-07-28), pick an owner once, a random hex string,
+  and pass it as owner on every start_intent, complete_intent, cancel_intent
+  and list_changes call. With a session, owner
   is optional and makes a separate holder inside it, so subagents of one
   process can each pass their own; keep passing the same value.
 - claimed_by, the session field of list_changes and claim errors show a
