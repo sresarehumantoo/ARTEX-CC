@@ -37,7 +37,7 @@ func ParseIntentLease(v string) (time.Duration, error) {
 }
 
 const ownerArgDesc = "stable label identifying you as a claim holder, e.g. a random hex string chosen once and passed on every claim call. " +
-	"Required when the transport has no session (MCP HTTP protocol 2026-07-28); otherwise optional, and it splits one session into separate holders"
+	"Required when the transport has no session and no X-Artex-Identity header (MCP HTTP protocol 2026-07-28); otherwise optional, and it splits your session or identity into separate holders"
 
 // ErrNoClaimOwner means a claim operation has neither an MCP session nor an
 // owner argument to identify the caller.
@@ -57,14 +57,37 @@ func SessionID(ctx context.Context) string {
 	return id
 }
 
-// ClaimOwner resolves who holds claims for this call. A session alone keeps
-// its ID, so claims from before the owner argument still match. An owner
-// argument is scoped under the session when there is one, so it can only
-// subdivide a session, never impersonate another one.
+type identityKey struct{}
+
+// WithIdentity returns a context carrying the caller's verified identity name.
+func WithIdentity(ctx context.Context, name string) context.Context {
+	return context.WithValue(ctx, identityKey{}, name)
+}
+
+// IdentityName returns the caller's verified identity name, or "" if the
+// call carried no identity.
+func IdentityName(ctx context.Context) string {
+	name, _ := ctx.Value(identityKey{}).(string)
+	return name
+}
+
+const identityHolderPrefix = "id:"
+
+// ClaimOwner resolves who holds claims for this call. A verified identity
+// takes precedence and leaves the session out, so the same identity keeps
+// its claims across reconnects and protocol eras. Without one, a session
+// alone keeps its ID, so claims from before the owner argument still match.
+// An owner argument is scoped under the identity or session when there is
+// one, so it can only subdivide that holder, never impersonate another one.
 func ClaimOwner(ctx context.Context, owner string) (string, error) {
 	session := SessionID(ctx)
+	name := IdentityName(ctx)
 	owner = strings.TrimSpace(owner)
 	switch {
+	case name != "" && owner != "":
+		return identityHolderPrefix + name + "/owner:" + owner, nil
+	case name != "":
+		return identityHolderPrefix + name, nil
 	case session != "" && owner != "":
 		return session + "/owner:" + owner, nil
 	case session != "":
@@ -87,12 +110,26 @@ func NewOwnerLabeler(key []byte) *OwnerLabeler {
 	return &OwnerLabeler{key: bytes.Clone(key)}
 }
 
+// Label returns the identity name for identity holders, with the owner part
+// hashed when there is one, and a keyed hash for every other holder. Names
+// are not secret: knowing one does not let a client forge its token.
 func (l *OwnerLabeler) Label(owner string) string {
 	if owner == "" {
 		return ""
 	}
+	if rest, ok := strings.CutPrefix(owner, identityHolderPrefix); ok {
+		// Identity names cannot contain ':', so the first "/owner:" ends the name.
+		if i := strings.Index(rest, "/owner:"); i >= 0 {
+			return rest[:i] + "/" + l.hash(rest[i+1:])
+		}
+		return rest
+	}
+	return l.hash(owner)
+}
+
+func (l *OwnerLabeler) hash(s string) string {
 	h := hmac.New(sha256.New, l.key)
-	h.Write([]byte(owner))
+	h.Write([]byte(s))
 	return "h-" + hex.EncodeToString(h.Sum(nil)[:6])
 }
 

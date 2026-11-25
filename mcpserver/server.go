@@ -26,6 +26,8 @@ type Server struct {
 	registry *tools.Registry
 	sessions *SessionManager
 
+	identities identitySeen
+
 	store         tools.Store
 	engMu         sync.RWMutex
 	taskID        int64
@@ -135,7 +137,9 @@ func (s *Server) listSessionsTool() tools.Tool {
 		Name: "list_sessions",
 		Description: "List all active MCP client sessions connected to this server. " +
 			"Each session shows its holder label, the same label claimed_by shows for claims it takes without an owner argument, " +
-			"and self is true on your own session.",
+			"and self is true on your own session. " +
+			"identities lists the X-Artex-Identity names that made requests to this server process within the claim lease, " +
+			"with self true on yours; clients on MCP HTTP protocol 2026-07-28 have no session and appear only there.",
 		Category: tools.CategoryEngagement,
 		ReadOnly: true,
 		Schema: map[string]any{
@@ -144,6 +148,21 @@ func (s *Server) listSessionsTool() tools.Tool {
 		},
 		Run: func(ctx context.Context, _ json.RawMessage) (tools.Result, error) {
 			caller := tools.SessionID(ctx)
+			callerIdentity := tools.IdentityName(ctx)
+			type identityEntry struct {
+				Name       string    `json:"name"`
+				Self       bool      `json:"self"`
+				LastActive time.Time `json:"last_active"`
+			}
+			seen := s.identities.active(time.Now().Add(-tools.IntentLease))
+			identities := make([]identityEntry, len(seen))
+			for i, id := range seen {
+				identities[i] = identityEntry{
+					Name:       id.Name,
+					Self:       callerIdentity != "" && id.Name == callerIdentity,
+					LastActive: id.LastActive,
+				}
+			}
 			type entry struct {
 				Label      string            `json:"label"`
 				Self       bool              `json:"self"`
@@ -163,8 +182,9 @@ func (s *Server) listSessionsTool() tools.Tool {
 				}
 			}
 			out, _ := json.Marshal(map[string]any{
-				"count":    len(entries),
-				"sessions": entries,
+				"count":      len(entries),
+				"sessions":   entries,
+				"identities": identities,
 			})
 			return tools.Result{Content: string(out)}, nil
 		},
@@ -281,18 +301,22 @@ same engagement, coordinate through the graph:
 - Finish with complete_intent, or cancel_intent if it is no longer worth
   doing, so the claim is released. Both are refused on an intent another
   session holds; leave it to its owner.
-- Claims belong to your MCP session, or to your conversation when you run in
-  the web UI chat. If start_intent says the connection has no session (HTTP
-  clients on protocol 2026-07-28), pick an owner once, a random hex string,
+- Claims belong to your identity when your client sends an X-Artex-Identity
+  header, otherwise to your MCP session, or to your conversation when you run
+  in the web UI chat. An identity keeps its claims across reconnects. If
+  start_intent says the connection has no session (HTTP clients on protocol
+  2026-07-28 without an identity), pick an owner once, a random hex string,
   and pass it as owner on every start_intent, complete_intent, cancel_intent
-  and list_changes call. With a session, owner
-  is optional and makes a separate holder inside it, so subagents of one
-  process can each pass their own; keep passing the same value.
+  and list_changes call. With an identity or a session, owner is optional
+  and makes a separate holder inside it, so subagents of one process can
+  each pass their own; keep passing the same value.
 - claimed_by, the session field of list_changes and claim errors show a
-  hashed holder label, not the session ID or owner. Compare claimed_by with
-  your own session label to recognize your claims. list_sessions shows each
-  session's label (what its claims carry without an owner) and marks yours
-  with self.
+  holder label: your identity name (plus a hashed suffix when you pass
+  owner), or a hashed label otherwise, never a session ID or owner. Compare
+  claimed_by with the session field of list_changes to recognize your
+  claims. list_sessions shows each session's label (what its claims carry
+  without an owner) and the identities active on this server, and marks
+  yours with self.
 - Intents left running from before claims existed have no lease and can be
   started by any session right away.
 - Between rounds, poll list_changes with the cursor from your last call (the

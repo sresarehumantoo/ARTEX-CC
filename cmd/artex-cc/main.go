@@ -23,6 +23,7 @@ import (
 	"github.com/SREsAreHumanToo/ARTEX-CC/api"
 	"github.com/SREsAreHumanToo/ARTEX-CC/config"
 	"github.com/SREsAreHumanToo/ARTEX-CC/evidence"
+	"github.com/SREsAreHumanToo/ARTEX-CC/identity"
 	"github.com/SREsAreHumanToo/ARTEX-CC/mcpserver"
 	"github.com/SREsAreHumanToo/ARTEX-CC/plugin"
 	"github.com/SREsAreHumanToo/ARTEX-CC/store"
@@ -133,6 +134,31 @@ func bearerAuth(token string, next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func loadIdentitySigner(dataDir string) *identity.Signer {
+	signer, err := identity.NewSigner(dataDir)
+	if err != nil {
+		slog.Error("loading identity key failed", "err", err)
+		os.Exit(1)
+	}
+	return signer
+}
+
+// webMCPHandler is /mcp under --web: bearer auth, then identity, then the
+// web chat conversation header.
+func webMCPHandler(srv *mcpserver.Server, token string, signer *identity.Signer, conversations *mcpserver.ConversationSigner) http.Handler {
+	return bearerAuth(token, srv.IdentityMiddleware(signer)(conversations.Middleware(srv.StreamableHTTP())))
+}
+
+// listenMiddleware is the ServeHTTP middleware for plain --listen. ServeHTTP
+// wraps in order, so bearer auth, appended last, runs first.
+func listenMiddleware(srv *mcpserver.Server, signer *identity.Signer, token string) []func(http.Handler) http.Handler {
+	middleware := []func(http.Handler) http.Handler{srv.IdentityMiddleware(signer)}
+	if token != "" {
+		middleware = append(middleware, func(h http.Handler) http.Handler { return bearerAuth(token, h) })
+	}
+	return middleware
 }
 
 func cmdServe(args []string) {
@@ -354,8 +380,7 @@ func cmdServe(args []string) {
 	} else if *webUI {
 		mux := http.NewServeMux()
 
-		mcpHandler := srv.StreamableHTTP()
-		mux.Handle("/mcp", bearerAuth(mcpToken, conversations.Middleware(mcpHandler)))
+		mux.Handle("/mcp", webMCPHandler(srv, mcpToken, loadIdentitySigner(*dataDir), conversations))
 
 		mux.Handle("/api/", restAPI.Handler())
 
@@ -379,10 +404,7 @@ func cmdServe(args []string) {
 			runner.StopAll()
 		}
 	} else {
-		var middleware []func(http.Handler) http.Handler
-		if listenToken != "" {
-			middleware = append(middleware, func(h http.Handler) http.Handler { return bearerAuth(listenToken, h) })
-		}
+		middleware := listenMiddleware(srv, loadIdentitySigner(*dataDir), listenToken)
 		slog.Info("serving", "addr", *listen, "mcp_auth", listenToken != "")
 		if err := srv.ServeHTTP(ctx, *listen, middleware...); err != nil && ctx.Err() == nil {
 			slog.Error("http server failed", "err", err)

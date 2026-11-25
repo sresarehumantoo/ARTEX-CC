@@ -12,13 +12,19 @@ import (
 // sessionIDPattern matches IDs from mcp-go's InsecureStatefulSessionIdManager.
 var sessionIDPattern = regexp.MustCompile(`mcp-session-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
 
-func redactSessionIDs(s string) string {
+// identityTokenPattern matches X-Artex-Identity tokens (ai1.<payload>.<mac>).
+var identityTokenPattern = regexp.MustCompile(`ai1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+`)
+
+const redactedIdentityToken = "ai1.[redacted]"
+
+func redactSecrets(s string) string {
+	s = identityTokenPattern.ReplaceAllLiteralString(s, redactedIdentityToken)
 	return sessionIDPattern.ReplaceAllStringFunc(s, tools.OwnerLabel)
 }
 
 // sessionRedactingHandler replaces raw MCP session IDs in mcp-go's transport
 // logs with their holder labels, since a logged ID can be replayed as
-// Mcp-Session-Id. It resolves slog.Default at each record rather than at
+// Mcp-Session-Id, and removes identity tokens for the same reason. It resolves slog.Default at each record rather than at
 // construction, so records still reach the web log tee installed later.
 type sessionRedactingHandler struct {
 	wrap []func(slog.Handler) slog.Handler
@@ -41,7 +47,7 @@ func (h *sessionRedactingHandler) Enabled(ctx context.Context, l slog.Level) boo
 }
 
 func (h *sessionRedactingHandler) Handle(ctx context.Context, r slog.Record) error {
-	out := slog.NewRecord(r.Time, r.Level, redactSessionIDs(r.Message), r.PC)
+	out := slog.NewRecord(r.Time, r.Level, redactSecrets(r.Message), r.PC)
 	r.Attrs(func(a slog.Attr) bool {
 		out.AddAttrs(redactAttr(a))
 		return true
@@ -74,7 +80,7 @@ func redactAttr(a slog.Attr) slog.Attr {
 		if (a.Key == "session" || a.Key == "sessionID") && v.String() != "" {
 			return slog.String(a.Key, tools.OwnerLabel(v.String()))
 		}
-		return slog.String(a.Key, redactSessionIDs(v.String()))
+		return slog.String(a.Key, redactSecrets(v.String()))
 	case slog.KindGroup:
 		group := v.Group()
 		redacted := make([]slog.Attr, len(group))
@@ -84,7 +90,7 @@ func redactAttr(a slog.Attr) slog.Attr {
 		return slog.Attr{Key: a.Key, Value: slog.GroupValue(redacted...)}
 	case slog.KindAny:
 		s := fmt.Sprint(v.Any())
-		if r := redactSessionIDs(s); r != s {
+		if r := redactSecrets(s); r != s {
 			return slog.String(a.Key, r)
 		}
 	}
