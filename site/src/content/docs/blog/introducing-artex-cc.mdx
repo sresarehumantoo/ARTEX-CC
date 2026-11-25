@@ -1,0 +1,191 @@
+---
+title: 'Autonomous pentesting with Claude Code: an exploration graph that keeps the agent on track'
+description: ARTEX-CC is an MCP server that gives Claude Code a persistent record of a pentest. No API key, no agent loop of its own, and an exploration graph that survives restarts.
+date: 2026-11-24
+authors: artex
+tags:
+  - launch
+  - claude-code
+  - mcp
+excerpt: Pentest agents built on LLMs lose state. ARTEX-CC is an MCP server that gives Claude Code an exploration graph, findings, coverage and a recording proxy, so the agent always knows what it tested, what it found and what is left. No API key needed.
+head:
+  - tag: link
+    attrs:
+      rel: canonical
+      href: https://artex-cc.com/blog/introducing-artex-cc/
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import architecture from '../../../../../docs/architecture.svg';
+import webDemoMp4 from '../../../../../docs/web-demo.mp4?url';
+import webDemoWebm from '../../../../../docs/web-demo.webm?url';
+import webDemoPoster from '../../../../../docs/web-demo-poster.png';
+import graph from '../../../../../docs/screenshots/graph.png';
+import findingDetail from '../../../../../docs/screenshots/finding-detail.png';
+
+If you have let an LLM agent drive a pentest for more than an hour, you have seen it lose its place. It runs nmap, works through a few hosts, and then the context window fills up or the session ends. The next session runs nmap again. It does not remember which endpoints it already tested, which credentials it found, or what it planned to try next. The findings it does produce sit in a chat transcript, with no link back to the request that proved them.
+
+The model is rarely the weak part. Claude Code is good at reading scan output, forming hypotheses and picking the next tool. What it lacks is a durable record. A pentest is mostly bookkeeping: what is in scope, what has been tested, what came back, which credential goes where, and what is still open. That record has to live somewhere other than the context window.
+
+ARTEX-CC is that record.
+
+<Aside type="caution" title="Authorized use only">
+ARTEX-CC is an offensive security tool for penetration testing, red teaming, CTFs and lab work. Use it only against systems you own or have explicit permission to test.
+</Aside>
+
+## What ARTEX-CC is
+
+ARTEX-CC is an [MCP](https://modelcontextprotocol.io/) server written in Go. It exposes 62 tools in ten categories: exploration graph, assets and scope, findings, credentials, evidence, enrichment and ingestion, engagement management, activity, reporting, and traffic capture. All state lives in PostgreSQL.
+
+It has no agent loop and no LLM client of its own. Claude Code decides what to test, which tools to call and in what order. ARTEX executes the calls and keeps the state. That means it never needs an API key: your existing Claude subscription is the entire AI side of the setup, with no token budget to manage.
+
+<Image src={architecture} alt="Claude Code calls ARTEX-CC over MCP. ARTEX exposes 62 tools in 10 categories, stores state in PostgreSQL and captures traffic through its recording proxy." />
+
+The project is derived from [ARTEX](https://github.com/BaaRai/ARTEX), which ships its own LLM agent loop. If you already pay for Claude, that loop is a second brain doing the same job, so ARTEX-CC removes it and keeps the data model: the same asset graph, exploration tracking and findings, exposed as tools. It is licensed AGPL-3.0, like upstream.
+
+Claude Code is the primary client, but anything that speaks MCP works. The [MCP clients](/docs/mcp-clients/) page has configs for Cursor, Cline, Windsurf, Zed and others.
+
+## The exploration graph
+
+The exploration graph is the core of the project. Think of it as a task board with typed nodes and edges:
+
+- **Goals** are what the engagement must prove. `prove_goal` links evidence to a goal.
+- **Intents** are planned next steps. They move from open to running to done, or get cancelled.
+- **Facts** are observations, linked to the intent that produced them.
+- **Findings** are vulnerabilities, linked to the affected assets, coverage records and captured traffic.
+- **Hints** and **constraints** steer the planner.
+
+Edges connect them (`derived_from`, `yields`, `spawns`, `proves`). Alongside the graph, ARTEX keeps an asset inventory (domains, IPs, subdomains, services, endpoints, apps), stored credentials, and a coverage ledger that records each surface, risk area and outcome.
+
+One call, `graph_overview`, summarizes all of it: goals, hints, the open, running and done intents, findings and coverage. Claude calls it at the start of every planning cycle and after any restart. That is the whole trick. Each cycle starts from the graph, not from conversation memory, so:
+
+- Done intents and coverage records tell Claude what has already been tested, and it does not repeat that work.
+- If the conversation is compacted or restarted, the next cycle rebuilds its picture from the graph.
+- Intents left in `running` with no recent progress belong to an earlier session, and Claude replaces them.
+
+It also makes [hands-free mode](/docs/hands-free/) practical. Claude Code's `/loop` command re-runs a prompt on an interval:
+
+```
+/loop 5m Continue the pentest: call graph_overview, assess progress, dispatch subagents for open intents, prove goals when evidence exists.
+```
+
+Every five minutes Claude reads the board, dispatches subagents for open intents (each writing its facts, coverage and findings into the shared graph), and proves goals when the evidence is there. You can steer it without stopping the loop: `add_hint` attaches a hint the planner sees on the next overview, `set_constraints` adds allow or deny rules, and scope rules are enforced by the asset, enrichment and traffic tools.
+
+## A real session: HTB Forest
+
+The first published eval ran Claude Opus 5.5 against [Forest](/evals/htb-forest/), a retired Easy-rated Hack The Box machine: a Windows Active Directory domain controller. The run was fully blind. The prompt banned web searches, writeup lookups and prior knowledge of the box, and the session log confirmed that no web tools were called. Claude Code talked to a Docker ARTEX instance over HTTP MCP. Both flags were captured in about eight minutes.
+
+| Phase | What the agent did |
+|-------|-------------------|
+| **Recon** | nmap found a Windows Server 2016 DC for `htb.local`. An RPC null session leaked the full user list. |
+| **Foothold** | `svc-alfresco` had Kerberos pre-auth disabled: AS-REP roast, cracked with hashcat and rockyou, WinRM, user flag. |
+| **Domain Admin** | Account Operators, created a user, Exchange Windows Permissions (WriteDACL), DCSync, Administrator NTLM hash, pass-the-hash, root flag. |
+| **Cleanup** | Restored the domain DACL, deleted the created user, removed uploaded scripts. |
+
+Two things in that run are worth pointing out. First, the agent hit two tooling failures and worked around both on its own: PowerView's ACL writes silently did nothing in a non-interactive WinRM session, so it switched to Impacket's `dacledit.py`, and OpenSSL 3's disabled MD4 support broke NTLM authentication until it enabled the legacy provider.
+
+Second, every step landed in the graph while it happened. By the end, the engagement held one asset, six facts (null session, Exchange, AS-REP, Account Operators, WriteDACL, DCSync), two findings (a HIGH for Kerberos pre-authentication disabled and a CRITICAL for the DACL chain to Domain Admin), two stored credentials, coverage for enumeration, AS-REP roasting and privilege escalation, a proved goal, and a generated report. The eval page lists remediations for both findings, with flags and hashes redacted.
+
+Forest has no web surface, so it does not exercise the recording proxy. The [example walkthrough](/docs/walkthrough/) covers that side, using a fictional bug bounty target, `app.example.com`. There, Claude has been sending requests through the proxy on `:8788`, finds that `/api/v2/users/{id}` returns full user records without authentication, and ties the finding to the exact exchange that proves it:
+
+```
+traffic_search({host: "api.example.com", query: "/api/v2/users"})
+traffic_get({id: "e5f6a7b8"})
+report_finding({vulnclass: "idor", severity: "high", intent_id: 14, asset_ids: [7], ...})
+bind_finding_traffic({finding_id: 1, snapshot_id: "e5f6a7b8", role: "proof"})
+record_coverage({surface: "api.example.com /api/v2/users/{id}", risk_area: "idor", outcome: "reported"})
+```
+
+That is the evidence chain in practice. The finding points at the intent that produced it, the asset it affects, the coverage record for that surface, and the captured request and response. When you read the report a week later, you can trace every claim back to the traffic.
+
+## The web UI and the live demo
+
+`artex-cc serve --web` adds a dashboard on the same port as the MCP endpoint. Everything Claude records through the tools shows up there live: the exploration graph, findings with their bound traffic, captured traffic, the coverage matrix, assets, credentials, and a printable report. It also has a chat page that runs the `claude` CLI as a subprocess, intercept approvals for tool calls that match allow, deny or ask rules, and live logs. The Docker image runs with `--web` enabled.
+
+<video
+  width={webDemoPoster.width}
+  height={webDemoPoster.height}
+  poster={webDemoPoster.src}
+  aria-label="ARTEX-CC web UI walkthrough: dashboard, exploration graph, findings, traffic, coverage and report"
+  style="width: 100%; height: auto;"
+  autoplay
+  muted
+  loop
+  playsinline
+  preload="metadata"
+>
+  <source src={webDemoWebm} type="video/webm" />
+  <source src={webDemoMp4} type="video/mp4" />
+</video>
+
+On a loopback listener the UI is open by default, and `--auth` adds a password. On any other listener a password is always required. Do not expose it to an untrusted network: it reads everything the engagement has recorded, including credentials.
+
+You can click through it without installing anything. The [live demo](/demo/) is the real web UI running against a fictional, seeded engagement. It is read-only and has no backend.
+
+<div class="screenshot-grid">
+  <figure>
+    <Image src={graph} alt="Exploration graph of goals, intents, facts and findings" widths={[640, 1280]} sizes="(min-width: 50rem) 24rem, 100vw" />
+    <figcaption>Exploration graph</figcaption>
+  </figure>
+  <figure>
+    <Image src={findingDetail} alt="Finding detail with the captured request and response bound as evidence" widths={[640, 1280]} sizes="(min-width: 50rem) 24rem, 100vw" />
+    <figcaption>A finding with its bound traffic</figcaption>
+  </figure>
+</div>
+
+## What ARTEX-CC focuses on
+
+There are other MCP servers for offensive security, and several of them wrap a large catalog of scanners. ARTEX-CC's emphasis is different: it is about the record, not the tool count. Concretely, it gives you:
+
+- **Persistent, resumable state.** The exploration graph and coverage ledger live in PostgreSQL. Stop for the night and the next session picks up from `graph_overview`. Engagements export to and import from portable JSON archives.
+- **Evidence chains.** Findings link to assets, coverage records and captured traffic. Findings can be merged or dismissed as false positives, and `generate_report` builds a Markdown report with a quality assessment of the findings (proof level, verification status, counterevidence).
+- **A built-in recording proxy.** A MITM proxy with an SQLite index, WebSocket and SSE capture, full-text body search, request replay with modifications, and HAR 1.2 export. A rate-limiting egress governor can pace outbound requests with quiet, balanced or aggressive profiles.
+- **Scope enforcement.** Scope rules are checked automatically by the asset, enrichment and traffic tools, which block out-of-scope actions unless explicitly overridden. `check_scope` answers the same question on demand.
+- **Scanner ingestion.** Output from nmap, nuclei, httpx, ffuf and masscan feeds straight into the asset graph.
+- **Credential encryption.** Set `ARTEX_CREDENTIAL_KEY` and stored passwords are encrypted with AES-256-GCM.
+
+The traffic tools are only registered when the proxy is running (`--proxy`), so without it ARTEX is a pure data server with 50 tools.
+
+## Getting started
+
+The quickest path is Docker:
+
+```sh
+git clone https://github.com/SREsAreHumanToo/ARTEX-CC.git
+cd ARTEX-CC
+docker compose up
+```
+
+That starts PostgreSQL and ARTEX together, with the MCP endpoint and web UI on `localhost:9400` and the recording proxy on `localhost:8788`. The container writes a ready-made MCP config, bearer token included, to `/app/data/mcp-config.json`.
+
+To run it natively, grab a binary from the [releases page](https://github.com/SREsAreHumanToo/ARTEX-CC/releases) or build it with Go 1.26 or later:
+
+```sh
+go install github.com/SREsAreHumanToo/ARTEX-CC/cmd/artex-cc@latest
+```
+
+Then, with PostgreSQL running, create an engagement:
+
+```sh
+createdb ccartex
+artex-cc init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
+```
+
+`init` creates the schema and the engagement, generates a CA certificate for HTTPS interception, and prints the MCP config to add to `~/.claude.json` or a project `.mcp.json`. Then start Claude Code and ask:
+
+```
+Pentest example.com, starting with reconnaissance.
+```
+
+The [getting started guide](/docs/getting-started/) covers both paths in detail.
+
+## What's next
+
+The [roadmap](/roadmap/) is public. The largest open item is collaborative multi-agent support: several Claude Code instances working one engagement at the same time, with locking on intents so they do not duplicate work, and a notification when a new finding is reported. PostgreSQL's advisory locks and `LISTEN`/`NOTIFY` provide the primitives; the work is the coordination protocol at the MCP level.
+
+Release 0.4.0 added an exec-based plugin system for registering external tools. The goal on the roadmap is for integrations such as nuclei, sqlmap and ffuf to write results directly into the asset graph and exploration state, contributed without changes to the core.
+
+More evals will follow, reported the same way as Forest: what the agent did, what ARTEX captured, and what went wrong.
+
+The code is on [GitHub](https://github.com/SREsAreHumanToo/ARTEX-CC). Bug reports go to [Issues](https://github.com/SREsAreHumanToo/ARTEX-CC/issues), and questions and ideas to [Discussions](https://github.com/SREsAreHumanToo/ARTEX-CC/discussions). If you run it against your own lab, we would like to hear what broke.
