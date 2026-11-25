@@ -124,16 +124,16 @@ func TestReportFindingWithDuplicates(t *testing.T) {
 func TestNormalizeVulnClass(t *testing.T) {
 	t.Parallel()
 	cases := map[string]string{
-		"IDOR":                              "idor",
-		" idor ":                            "idor",
-		"Insecure Direct Object Reference":  "idor",
-		"insecure-direct-object-references": "idor",
-		"SQL Injection":                     "sqli",
-		"sql_injection":                     "sqli",
-		"Cross-Site Scripting (XSS)":        "xss",
-		"Insecure Direct Object Reference (IDOR)": "idor",
-		"Stored XSS":             "storedxss",
-		"information-disclosure": "informationdisclosure",
+		"IDOR":                               "idor",
+		" idor ":                             "idor",
+		"Insecure Direct Object Reference":   "idor",
+		"insecure-direct-object-references":  "idor",
+		"SQL Injection":                      "sqli",
+		"sql_injection":                      "sqli",
+		"Cross-Site Scripting (XSS)":         "xss",
+		"Server-Side Request Forgery (SSRF)": "ssrf",
+		"Stored XSS":                         "storedxss",
+		"information-disclosure":             "informationdisclosure",
 	}
 	for in, want := range cases {
 		if got := NormalizeVulnClass(in); got != want {
