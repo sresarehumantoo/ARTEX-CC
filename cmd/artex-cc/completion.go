@@ -37,7 +37,7 @@ const bashCompletion = `_artex_cc() {
 
     case "${COMP_WORDS[1]}" in
         serve)
-            COMPREPLY=( $(compgen -W "--stdio --pg --proxy --data --listen --web --debug --version" -- "${cur}") )
+            COMPREPLY=( $(compgen -W "--stdio --pg --proxy --data --listen --web --debug --require-identity --version" -- "${cur}") )
             ;;
         init)
             COMPREPLY=( $(compgen -W "--goal --description --pg --data --version" -- "${cur}") )
@@ -108,6 +108,7 @@ _artex_cc() {
                         '--listen[HTTP listen address]:addr:' \
                         '--web[Enable web UI and REST API]' \
                         '--debug[Enable debug-level logging]' \
+                        '--require-identity[Refuse intent claims without a verified identity]' \
                         '--version[Print version and exit]'
                     ;;
                 init)
@@ -180,6 +181,7 @@ complete -c artex-cc -n '__fish_seen_subcommand_from serve' -l data -d 'Data dir
 complete -c artex-cc -n '__fish_seen_subcommand_from serve' -l listen -d 'HTTP listen address' -r
 complete -c artex-cc -n '__fish_seen_subcommand_from serve' -l web -d 'Enable web UI and REST API'
 complete -c artex-cc -n '__fish_seen_subcommand_from serve' -l debug -d 'Enable debug-level logging'
+complete -c artex-cc -n '__fish_seen_subcommand_from serve' -l require-identity -d 'Refuse intent claims without a verified identity'
 complete -c artex-cc -n '__fish_seen_subcommand_from serve' -l version -d 'Print version and exit'
 
 complete -c artex-cc -n '__fish_seen_subcommand_from init' -l goal -d 'Engagement goal' -r

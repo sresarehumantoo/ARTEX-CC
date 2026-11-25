@@ -181,7 +181,7 @@ Acceptance: all of the above pass in CI with `ARTEX_TEST_PG`; `go vet` clean; an
 | 3 | `artex-cc identity issue/rotate/show`, completion, `mcp-clients.md`, CHANGELOG | S, about 0.5 day |
 | 4 | Web chat moves to the identity signer; delete `conversation.go` | S, about 0.5 day |
 | 5 | Eval runner per-instance identities, `--identity` flag, eval plan doc | S, about 0.5 day |
-| 6 (optional) | Per-token revocation or `--require-identity`, per Q2 and Q3 | S each |
+| 6 (optional) | Per-token revocation or `--require-identity`, per Q2 and Q3. `--require-identity` is done (see Q3); per-token revocation is not planned | S each |
 
 PR 2 depends on the other agent's work in `transport_http.go` and `main.go` landing first; it should rebase on it rather than conflict.
 
@@ -191,7 +191,7 @@ Recorded 2026-11-25 by the maintainer.
 
 - Q1. Holder composition: drop the session from identity holders (R10). Issue one name per agent.
 - Q2. Revocation: rotation plus short TTLs only. No per-token revocation list until someone needs it.
-- Q3. `--require-identity`: add later in phase 6, off by default.
+- Q3. `--require-identity`: add later in phase 6, off by default. Done: `serve --require-identity` or `ARTEX_REQUIRE_IDENTITY` makes `start_intent`, `complete_intent`, `cancel_intent` and the `my_claims` part of `list_changes` refuse callers without a verified identity; session and `owner` holders do not count. It applies to HTTP only, and `serve --stdio` with it set exits at startup, since a stdio client cannot send the header. The eval runner clears an inherited value in its anonymous modes.
 - Q4. Engagement binding: no. Tokens bind to the data dir only.
 - Q5. Default CLI TTL: 7 days, with `--ttl` allowing up to 30 days. Short-lived users such as the eval runner issue their own per-run tokens instead of relying on the default.
 - Q6. Issuing endpoint: deferred until the web auth story supports it.

@@ -86,6 +86,14 @@ Claude Code expands `${ARTEX_MCP_TOKEN}` from its environment. Leave out `--bear
 
 A server that verifies identities rejects a request whose `X-Artex-Identity` is malformed, expired or signed by another key with HTTP 401, so a stale token fails loudly. Requests without the header behave as before. A server older than the identity release ignores the header, and claims fall back to the MCP session or the `owner` argument.
 
+### Requiring an identity
+
+`serve --require-identity` (or `ARTEX_REQUIRE_IDENTITY=1`) makes identities mandatory for claims. `start_intent`, `complete_intent` and `cancel_intent` then refuse any caller without a verified `X-Artex-Identity`, even one with an MCP session or an `owner` argument, and the error tells the agent to get a token from `artex-cc identity issue`. `list_changes` still returns changes but replaces `my_claims` with `claims_error`. Every other tool works as before. Agents see the requirement in `start_intent`'s description and in the orchestration guide resource. It is off by default.
+
+Web UI chat conversations and eval runner instances with identities (the default for `--transport http`) carry their own tokens and keep working. The eval runner's anonymous modes, stdio and `--identity=false`, cannot satisfy the requirement, so the runner clears an inherited `ARTEX_REQUIRE_IDENTITY` for the servers it starts in those modes.
+
+The setting applies to HTTP only. A stdio client cannot send headers, so `serve --stdio` with the setting on exits at startup with an error instead of starting a server whose every claim would fail.
+
 ## Claude Code
 
 File: `~/.claude.json` (user-wide) or `.mcp.json` in the project root.

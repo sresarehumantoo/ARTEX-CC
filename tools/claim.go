@@ -36,6 +36,12 @@ func ParseIntentLease(v string) (time.Duration, error) {
 	return d, nil
 }
 
+// RequireIdentity makes claim operations refuse callers without a verified
+// X-Artex-Identity. serve sets it from --require-identity or
+// ARTEX_REQUIRE_IDENTITY before registering tools, because start_intent's
+// description states it.
+var RequireIdentity bool
+
 const ownerArgDesc = "stable label identifying you as a claim holder, e.g. a random hex string chosen once and passed on every claim call. " +
 	"Required when the transport has no session and no X-Artex-Identity header (MCP HTTP protocol 2026-07-28); otherwise optional, and it splits your session or identity into separate holders"
 
@@ -43,6 +49,21 @@ const ownerArgDesc = "stable label identifying you as a claim holder, e.g. a ran
 // owner argument to identify the caller.
 var ErrNoClaimOwner = errors.New("this connection has no MCP session to own intent claims: " +
 	"pass owner, a stable label you pick once (e.g. a random hex string), on start_intent, complete_intent, cancel_intent and list_changes")
+
+// ErrIdentityRequired means RequireIdentity is on and the call carried no
+// verified identity. A session or an owner argument does not count.
+var ErrIdentityRequired = errors.New("this server requires a verified identity for intent claims (serve --require-identity or ARTEX_REQUIRE_IDENTITY): " +
+	"configure your MCP client to send an X-Artex-Identity header with a token from " +
+	"`artex-cc identity issue --data <dir> --name <name>` (add --format claude-json for a ready client config), then reconnect")
+
+// CheckIdentity returns ErrIdentityRequired when RequireIdentity is on and
+// the call has no verified identity.
+func CheckIdentity(ctx context.Context) error {
+	if RequireIdentity && IdentityName(ctx) == "" {
+		return ErrIdentityRequired
+	}
+	return nil
+}
 
 type sessionIDKey struct{}
 
@@ -80,6 +101,9 @@ const identityHolderPrefix = "id:"
 // An owner argument is scoped under the identity or session when there is
 // one, so it can only subdivide that holder, never impersonate another one.
 func ClaimOwner(ctx context.Context, owner string) (string, error) {
+	if err := CheckIdentity(ctx); err != nil {
+		return "", err
+	}
 	session := SessionID(ctx)
 	name := IdentityName(ctx)
 	owner = strings.TrimSpace(owner)

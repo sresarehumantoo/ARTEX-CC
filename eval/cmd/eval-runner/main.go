@@ -175,8 +175,8 @@ func main() {
 	slog.Info("engagement created", "task_id", taskID, "exploration_id", explorationID)
 
 	for _, sc := range scenario.Scope {
-		if err := s.AddTaskScope(ctx, taskID, "wildcard", sc, "eval scenario", "eval-runner"); err != nil {
-			slog.Warn("failed to add scope", "value", sc, "err", err)
+		if err := s.AddTaskScope(ctx, taskID, scopeKind(sc), sc, "eval scenario", "manual"); err != nil {
+			log.Fatalf("add scope %q: %v", sc, err)
 		}
 	}
 
@@ -436,6 +436,24 @@ func (e *envFlag) Set(v string) error {
 	}
 	*e = append(*e, v)
 	return nil
+}
+
+// scopeKind picks the task scope kind for a scenario scope entry: a CIDR, an
+// IP (optionally with a port), or otherwise one exact host, which subdomain
+// scope matches (port stripped) without widening to a registrable domain.
+func scopeKind(entry string) string {
+	entry = strings.TrimSpace(entry)
+	if _, _, err := net.ParseCIDR(entry); err == nil {
+		return "cidr"
+	}
+	host := entry
+	if h, _, err := net.SplitHostPort(entry); err == nil {
+		host = h
+	}
+	if net.ParseIP(strings.Trim(host, "[]")) != nil {
+		return "ip"
+	}
+	return "subdomain"
 }
 
 func coverageEntries(cov map[string]any) int {

@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `serve --require-identity` (or `ARTEX_REQUIRE_IDENTITY=1`), off by default, makes `start_intent`, `complete_intent` and `cancel_intent` refuse callers without a verified `X-Artex-Identity`, whatever session or `owner` they have, with an error pointing at `artex-cc identity issue`. `list_changes` returns `claims_error` instead of `my_claims` for such callers; other tools are unaffected. `start_intent`'s description and the orchestration guide state the requirement when it is on. It applies to HTTP only: `serve --stdio` with it set exits at startup, and an `ARTEX_REQUIRE_IDENTITY` value that is not a boolean is a startup error. The eval runner clears an inherited value for the servers it starts in its anonymous modes (stdio and `--identity=false`).
+
 ## [0.6.0] - 2026-11-25
 
 ### Added

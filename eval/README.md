@@ -81,6 +81,12 @@ intent claims and `list_changes`. With N=1 the prompt is unchanged.
 `--identity` has no effect with `stdio` or with `--mcp-config`; the scorecard's
 `identity` field says whether identities were used.
 
+`ARTEX_REQUIRE_IDENTITY` in the runner's environment passes through to the
+server only with identities, where every instance satisfies it. The anonymous
+modes (`stdio`, and `http` with `--identity=false`) are what it forbids, so the
+runner clears it for the servers it starts in those modes. With
+`--mcp-config` the runner leaves the environment alone.
+
 `--kill-after INSTANCE:DURATION` kills one instance (its whole process group,
 including its `serve --stdio` child) after the delay, leaving its claims live,
 for the recovery test. The kill time is recorded in the scorecard's `runs`.

@@ -21,7 +21,7 @@ func makeStartIntent(store Store) Tool {
 		Description: "Claim an open intent for this session and mark it running. Call this when you begin working on an intent. " +
 			fmt.Sprintf("The claim is exclusive for %d minutes; call again to renew it on long work. ", int(IntentLease.Minutes())) +
 			"Fails if another session holds a live claim, so pick a different intent. " +
-			"Pass the same owner on every claim call if you use one.",
+			"Pass the same owner on every claim call if you use one." + identityRequiredDesc(),
 		Schema: obj(map[string]any{
 			"node_id": intp("intent node id"),
 			"owner":   str(ownerArgDesc),
@@ -184,10 +184,20 @@ func makeCancelIntent(store Store) Tool {
 	}
 }
 
+func identityRequiredDesc() string {
+	if !RequireIdentity {
+		return ""
+	}
+	return " This server requires a verified X-Artex-Identity header for claims; without one, start_intent, complete_intent and cancel_intent are refused."
+}
+
 // claimRunning takes the claim on a running intent before it is closed, which
 // makes the ownership check atomic: it fails only while another holder has a
 // live lease. Open intents have no holder to check.
 func claimRunning(ctx context.Context, store Store, node *Node, owner string) (Result, bool) {
+	if err := CheckIdentity(ctx); err != nil {
+		return errResult(err.Error()), false
+	}
 	if node.State != "running" {
 		return Result{}, true
 	}
