@@ -27,6 +27,7 @@ store/migrations/  Numbered SQL migrations, embedded at build time
 mcpserver/         MCP protocol server (stdio and HTTP transports)
 tools/             Tool implementations registered with the MCP server
 config/            Configuration loading and engagement state (.artex.json)
+identity/          Signed client identity tokens (X-Artex-Identity)
 traffic/           Recording MITM proxy, SOCKS5, replay, HAR export, rewrite engine
 traffic/rewrite/   Rule-based request/response rewriting
 traffic/hookvm/    Sandboxed expression evaluator for rewrite hooks
