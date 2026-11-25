@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 
 	"github.com/SREsAreHumanToo/ARTEX-CC/evidence"
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
@@ -24,6 +25,7 @@ type Server struct {
 	sessions *SessionManager
 
 	store         tools.Store
+	engMu         sync.RWMutex
 	taskID        int64
 	explorationID int64
 	traffic       *traffic.Traffic
@@ -102,6 +104,14 @@ func New(registry *tools.Registry, opts ...Option) *Server {
 
 func (s *Server) addTool(t tools.Tool) {
 	s.mcp.AddTool(convertTool(t), makeHandlerWithNotifier(t, s.notifier))
+}
+
+// ActiveEngagement returns the engagement the server is bound to now, which
+// switch_engagement can change at runtime.
+func (s *Server) ActiveEngagement() (taskID, explorationID int64) {
+	s.engMu.RLock()
+	defer s.engMu.RUnlock()
+	return s.taskID, s.explorationID
 }
 
 // Sessions returns the session manager for external inspection.
