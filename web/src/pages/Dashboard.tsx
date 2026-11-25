@@ -16,7 +16,7 @@ import {
 import { DashboardSkeleton } from '../components/skeletons/DashboardSkeleton'
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Badge, severityVariant } from '../components/ui/badge'
-import { getEngagement, getActivity } from '../lib/api'
+import { getEngagement, getActivity, getAssets } from '../lib/api'
 import { cn } from '../lib/utils'
 import { StatusBadge } from '../components/StatusBadge'
 import type { Activity, EngagementData, GraphNode } from '../lib/types'
@@ -177,7 +177,7 @@ function RunningIntents({ intents }: { intents: GraphNode[] }) {
             {intents.map((i) => (
               <div key={i.id} className="flex items-start gap-3">
                 <p className="min-w-0 flex-1 text-sm text-foreground">
-                  {(i as any).label || (i.payload?.text as string) || `Intent #${i.id}`}
+                  {(i as any).label || (i as any).summary || (i.payload?.summary as string) || (i.payload?.text as string) || `Intent #${i.id}`}
                 </p>
                 <StatusBadge domain="intent" value={i.state} dot />
               </div>
@@ -532,6 +532,12 @@ export function Dashboard() {
     refetchInterval: 10_000,
   })
 
+  const assets = useQuery({
+    queryKey: ['assets', 'dashboard-total'],
+    queryFn: () => getAssets({ limit: '1' }),
+    refetchInterval: 10_000,
+  })
+
   const activity = useQuery({
     queryKey: ['activity', activityLimit],
     queryFn: () => getActivity({ limit: String(activityLimit) }),
@@ -585,11 +591,7 @@ export function Dashboard() {
           )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard icon={Server} title="Assets" value={e.facts} to="/assets">
-              {e.recent_facts.length > 0 && (
-                <span>{e.recent_facts.length} recent</span>
-              )}
-            </StatCard>
+            <StatCard icon={Server} title="Assets" value={assets.data?.total ?? 0} to="/assets" />
 
             <StatCard icon={Shield} title="Findings" value={e.findings_total} to="/findings">
               <SeverityBreakdown findings={e.finding_list} />
