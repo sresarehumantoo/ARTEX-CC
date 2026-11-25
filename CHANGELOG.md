@@ -36,6 +36,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `serve` over HTTP (`--web` or `--listen`) loads or creates `identity.key` in the data directory at startup and exits if it cannot; stdio is unaffected.
 - Web UI chat conversations hold claims as the identity `chat/<conversation id>`, minted from `identity.key` each time a conversation starts or resumes, so labels show that name and a resumed conversation keeps its claims across a server restart. This replaces the in-memory `X-Artex-Conversation` signer; a request still sending `X-Artex-Conversation` gets HTTP 400 telling the caller to start a new conversation.
 
+### Fixed
+- Asset URLs kept any `user:pass@` userinfo, so credentials surfaced in the graph, web UI and reports, and URLs differing only in scheme or host case or a default port (`:80` for http, `:443` for https) were stored as separate assets. URLs are now stored without userinfo, with a lowercase scheme and host and no default port; path and query are unchanged, and `url==` and `url!=` filters match the same normalized form.
+
 ## [0.5.1] - 2026-11-25
 
 ### Added
