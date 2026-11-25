@@ -97,6 +97,25 @@ func envEnabled(name string) bool {
 	return err == nil && v
 }
 
+// requireIdentity resolves --require-identity and ARTEX_REQUIRE_IDENTITY.
+// An unparsable env value is an error rather than off, so a typo cannot
+// silently disable the requirement. stdio is refused because a stdio client
+// cannot send X-Artex-Identity, so every claim would fail.
+func requireIdentity(flagSet, stdio bool, env string) (bool, error) {
+	on := flagSet
+	if v := strings.TrimSpace(env); v != "" && !on {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return false, fmt.Errorf("ARTEX_REQUIRE_IDENTITY=%q is not a boolean (use 1/true or 0/false)", env)
+		}
+		on = b
+	}
+	if on && stdio {
+		return false, fmt.Errorf("--require-identity (or ARTEX_REQUIRE_IDENTITY) needs an HTTP transport: stdio clients cannot send X-Artex-Identity, so every intent claim would be refused; unset it for stdio, or serve with --listen or --web")
+	}
+	return on, nil
+}
+
 func isLoopbackAddr(addr string) bool {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -178,6 +197,7 @@ func cmdServe(args []string) {
 	pluginDir := fs.String("plugin-dir", "", "plugin directory (or ARTEX_PLUGIN_DIR env, default ~/.artex/plugins)")
 	noPlugins := fs.Bool("no-plugins", false, "disable plugin loading")
 	shutdownSecs := fs.Int("timeout", 30, "graceful shutdown timeout in seconds")
+	requireIdentityFlag := fs.Bool("require-identity", false, "refuse intent claims from callers without a verified X-Artex-Identity (or ARTEX_REQUIRE_IDENTITY env; HTTP only)")
 	fs.Parse(args)
 
 	if *showVersion {
@@ -205,6 +225,12 @@ func cmdServe(args []string) {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(1)
 		}
+	}
+
+	identityRequired, err := requireIdentity(*requireIdentityFlag, *stdio, os.Getenv("ARTEX_REQUIRE_IDENTITY"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
 	}
 
 	initLogging(*debug)
@@ -255,6 +281,10 @@ func cmdServe(args []string) {
 		}
 		tools.IntentLease = lease
 		slog.Info("intent claim lease set", "lease", lease)
+	}
+	if identityRequired {
+		tools.RequireIdentity = true
+		slog.Info("intent claims require a verified identity")
 	}
 
 	if key, err := config.OwnerLabelKey(*dataDir); err != nil {
