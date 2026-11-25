@@ -12,7 +12,6 @@
 [![CI](https://github.com/SREsAreHumanToo/ARTEX-CC/actions/workflows/ci.yml/badge.svg)](https://github.com/SREsAreHumanToo/ARTEX-CC/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/SREsAreHumanToo/ARTEX-CC?logo=github)](https://github.com/SREsAreHumanToo/ARTEX-CC/releases)
 [![codecov](https://codecov.io/gh/SREsAreHumanToo/ARTEX-CC/graph/badge.svg)](https://codecov.io/gh/SREsAreHumanToo/ARTEX-CC)
-[![Go Report Card](https://goreportcard.com/badge/github.com/SREsAreHumanToo/ARTEX-CC)](https://goreportcard.com/report/github.com/SREsAreHumanToo/ARTEX-CC)
 [![Go Reference](https://pkg.go.dev/badge/github.com/SREsAreHumanToo/ARTEX-CC.svg)](https://pkg.go.dev/github.com/SREsAreHumanToo/ARTEX-CC)
 [![Go 1.26+](https://img.shields.io/badge/go-1.26%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
