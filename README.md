@@ -60,6 +60,19 @@ Claude calls: graph_overview → set_goals → insert_assets (domain: example.co
 
 Each tool call updates the exploration graph. Claude sees where it has been, what it found, and what it planned next. If you stop and resume hours later, `graph_overview` brings it back up to speed.
 
+### Eval: HTB Forest (blind, no writeups)
+
+ARTEX + Claude Opus 5.5 against [Forest](https://app.hackthebox.com/machines/Forest), a classic Active Directory box. Fully blind: no web searches, no writeup lookups, no hints. Both flags captured in ~8 minutes.
+
+| Phase | What the agent did |
+|-------|-------------------|
+| **Recon** | nmap → Windows Server 2016 DC for `htb.local`. RPC null session leaked the full user list. |
+| **Foothold** | `svc-alfresco` had Kerberos pre-auth disabled → AS-REP roast → cracked with hashcat/rockyou → WinRM → **user.txt** |
+| **Domain Admin** | Account Operators → created user → Exchange Windows Permissions (WriteDACL) → DCSync → Administrator NTLM hash → pass-the-hash → **root.txt** |
+| **Cleanup** | Restored domain DACL, deleted created user, removed uploaded scripts |
+
+The agent also solved two tooling issues inline (PowerView failing in non-interactive WinRM, OpenSSL 3 MD4 deprecation) without human intervention. Full walkthrough: [`docs/HTB_FOREST_EVAL.md`](docs/HTB_FOREST_EVAL.md).
+
 ## Web UI
 
 `artex-cc serve --web` adds a dashboard on the same port as the MCP endpoint. Everything Claude records through the tools shows up here live: the exploration graph, findings with their bound traffic, coverage, credentials, and a printable report.
