@@ -53,6 +53,7 @@ export default defineConfig({
             'docs/configuration',
             'docs/web-ui',
             'docs/hands-free',
+            'docs/plugins',
             'docs/walkthrough',
           ],
         },

@@ -48,6 +48,8 @@ artex-cc init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.examp
 
 Without `--proxy`, the eleven `traffic_*` tools and `bind_finding_traffic` are not registered.
 
+See [Plugins](/docs/plugins/) for how the plugin directory is scanned and what a plugin receives and returns.
+
 ## `init` flags
 
 | Flag | Purpose | Default |
