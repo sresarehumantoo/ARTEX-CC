@@ -77,6 +77,7 @@ type Scorecard struct {
 	Lease           string          `json:"lease,omitempty"`
 	TranscriptsDir  string          `json:"transcripts_dir,omitempty"`
 	Runs            []InstanceRun   `json:"runs,omitempty"`
+	Coordination    *Coordination   `json:"coordination,omitempty"`
 }
 
 type ScorecardDetail struct {
@@ -223,6 +224,18 @@ func main() {
 	scorecard.Runs = runs
 	if len(runs) > 0 {
 		scorecard.TranscriptsDir = rc.transcriptsDir
+		leaseDur, _ := time.ParseDuration(*lease)
+		coord, err := scoreRun(ctx, s, explorationID, runs, leaseDur)
+		if err != nil {
+			slog.Warn("coordination scoring failed", "err", err)
+		} else {
+			scorecard.Coordination = coord
+			summary := coord.Summary()
+			fmt.Fprint(os.Stderr, "\n"+summary+"\n")
+			if err := os.WriteFile(filepath.Join(rc.transcriptsDir, "coordination.txt"), []byte(summary), 0644); err != nil {
+				slog.Warn("failed to write coordination summary", "err", err)
+			}
+		}
 	}
 
 	out, _ := json.MarshalIndent(scorecard, "", "  ")

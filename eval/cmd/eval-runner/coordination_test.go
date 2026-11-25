@@ -1,0 +1,382 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
+)
+
+var t0 = time.Date(2026, 11, 25, 12, 0, 0, 0, time.UTC)
+
+// transcript builds a stream-json file in the shape claude --print
+// --output-format stream-json --verbose writes.
+type transcript struct {
+	lines []string
+	n     int
+}
+
+func (b *transcript) add(v any) {
+	data, _ := json.Marshal(v)
+	b.lines = append(b.lines, string(data))
+}
+
+func (b *transcript) call(at time.Time, tool string, input any, result string, isError bool) *transcript {
+	b.n++
+	id := fmt.Sprintf("toolu_%d", b.n)
+	name := tool
+	if tool != "Bash" {
+		name = "mcp__artex__" + tool
+	}
+	b.add(map[string]any{
+		"type":      "assistant",
+		"timestamp": at.Add(-time.Second).Format(time.RFC3339Nano),
+		"message": map[string]any{
+			"id":      fmt.Sprintf("msg_%d", b.n),
+			"content": []any{map[string]any{"type": "tool_use", "id": id, "name": name, "input": input}},
+			"usage":   map[string]any{"input_tokens": 10, "output_tokens": 5, "cache_read_input_tokens": 100},
+		},
+	})
+	b.add(map[string]any{
+		"type":      "user",
+		"timestamp": at.Format(time.RFC3339Nano),
+		"message": map[string]any{
+			"role": "user",
+			"content": []any{map[string]any{
+				"type": "tool_result", "tool_use_id": id, "is_error": isError,
+				"content": []any{map[string]any{"type": "text", "text": result}},
+			}},
+		},
+	})
+	return b
+}
+
+func (b *transcript) claim(at time.Time, intent int64, holder string, lease time.Duration) *transcript {
+	return b.call(at, "start_intent", map[string]any{"node_id": intent},
+		fmt.Sprintf("intent %d is now running; claimed by %s until %s", intent, holder, at.Add(lease).UTC().Format(time.RFC3339)), false)
+}
+
+func (b *transcript) conflict(at time.Time, intent int64, holder string) *transcript {
+	return b.call(at, "start_intent", map[string]any{"node_id": intent},
+		fmt.Sprintf("intent %d is claimed by %s until %s (in 25m0s); pick another intent", intent, holder, at.Add(25*time.Minute).Format(time.RFC3339)), true)
+}
+
+func (b *transcript) other(at time.Time) *transcript {
+	return b.call(at, "graph_overview", map[string]any{}, `{"goals":[]}`, false)
+}
+
+func (b *transcript) result(cost float64) *transcript {
+	b.add(map[string]any{
+		"type": "result", "subtype": "success", "total_cost_usd": cost,
+		"usage": map[string]any{"input_tokens": 7, "output_tokens": 3, "cache_creation_input_tokens": 50, "cache_read_input_tokens": 900},
+	})
+	return b
+}
+
+func (b *transcript) parse(t *testing.T, instance int) *Transcript {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), fmt.Sprintf("instance-%d.jsonl", instance))
+	if err := os.WriteFile(path, []byte(strings.Join(b.lines, "\n")+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	tr, err := parseTranscript(instance, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tr
+}
+
+func at(min int) time.Time { return t0.Add(time.Duration(min) * time.Minute) }
+
+func TestParseTranscript(t *testing.T) {
+	b := &transcript{}
+	b.claim(at(1), 10, "h-aaa", 30*time.Minute)
+	// A second line for the same API message must not count its usage twice.
+	b.add(map[string]any{"type": "assistant", "message": map[string]any{
+		"id": "msg_1", "content": []any{map[string]any{"type": "text", "text": "ok"}},
+		"usage": map[string]any{"input_tokens": 10, "output_tokens": 5, "cache_read_input_tokens": 100},
+	}})
+	b.add(map[string]any{"type": "user", "timestamp": at(2).Format(time.RFC3339Nano), "message": map[string]any{
+		"content": []any{map[string]any{"type": "tool_result", "tool_use_id": "missing", "content": "x"}},
+	}})
+	b.lines = append(b.lines, `{"type":"assistant","message":{"content":[{"type":"tool_use","id":"cut`)
+	tr := b.parse(t, 1)
+
+	if len(tr.Calls) != 1 || tr.Calls[0].Tool != "start_intent" || !tr.Calls[0].At.Equal(at(1)) {
+		t.Fatalf("calls: %+v", tr.Calls)
+	}
+	if !strings.HasPrefix(tr.Calls[0].Result, "intent 10 is now running") {
+		t.Fatalf("result text: %q", tr.Calls[0].Result)
+	}
+	if tr.HasResult || tr.Usage.InputTokens != 10 || tr.Usage.CacheReadTokens != 100 {
+		t.Fatalf("usage without a result message: %+v", tr)
+	}
+
+	tr = b.result(1.25).parse(t, 1)
+	if !tr.HasResult || tr.CostUSD != 1.25 || tr.Usage.OutputTokens != 3 || tr.Usage.CacheCreationTokens != 50 {
+		t.Fatalf("usage from the result message: %+v", tr)
+	}
+}
+
+func TestResultTextString(t *testing.T) {
+	if got := resultText(json.RawMessage(`"plain"`)); got != "plain" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestDoubleClaims(t *testing.T) {
+	one := (&transcript{}).
+		claim(at(0), 10, "h-aaa", 30*time.Minute).
+		claim(at(0), 12, "h-aaa", 2*time.Minute).
+		claim(at(0), 13, "h-aaa", 30*time.Minute).
+		call(at(1), "complete_intent", map[string]any{"node_id": 13}, "intent 13 marked done", false).
+		call(at(1), "start_intent", map[string]any{"node_id": 10},
+			fmt.Sprintf("intent 10 is now running; renewed by h-aaa until %s", at(31).Format(time.RFC3339)), false)
+	two := (&transcript{}).
+		claim(at(5), 10, "h-bbb", 30*time.Minute).
+		claim(at(3), 12, "h-bbb", 30*time.Minute).
+		claim(at(4), 13, "h-bbb", 30*time.Minute)
+
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{one.parse(t, 1), two.parse(t, 2)}})
+	if len(c.DoubleClaims) != 1 {
+		t.Fatalf("want one double claim, got %+v", c.DoubleClaims)
+	}
+	d := c.DoubleClaims[0]
+	if d.IntentID != 10 || d.FirstInstance != 1 || d.SecondInstance != 2 || d.SecondHolder != "h-bbb" {
+		t.Fatalf("double claim: %+v", d)
+	}
+	if c.Instances[0].ClaimsTaken != 4 || c.Instances[1].ClaimsTaken != 3 {
+		t.Fatalf("claims taken: %+v", c.Instances)
+	}
+}
+
+func TestDoubleClaimsUsesLeaseWhenExpiryUnparsable(t *testing.T) {
+	one := (&transcript{}).call(at(0), "start_intent", map[string]any{"node_id": 10},
+		"intent 10 is now running; claimed by h-aaa until soon", false)
+	two := (&transcript{}).claim(at(3), 10, "h-bbb", time.Minute)
+
+	in := CoordinationInput{Transcripts: []*Transcript{one.parse(t, 1), two.parse(t, 2)}, Lease: 2 * time.Minute}
+	if c := scoreCoordination(in); len(c.DoubleClaims) != 0 {
+		t.Fatalf("claim after a 2m lease is not a double claim: %+v", c.DoubleClaims)
+	}
+	in.Lease = 0
+	if c := scoreCoordination(in); len(c.DoubleClaims) != 1 {
+		t.Fatalf("default 30m lease should flag it: %+v", c.DoubleClaims)
+	}
+}
+
+func TestConflictHandling(t *testing.T) {
+	handled := (&transcript{}).
+		conflict(at(1), 20, "h-aaa").
+		other(at(1)).
+		call(at(2), "start_intent", map[string]any{"node_id": "21"}, "intent 21 is not open", true)
+	unhandled := (&transcript{}).
+		conflict(at(1), 20, "h-aaa").
+		other(at(1)).other(at(1)).other(at(1)).other(at(1)).other(at(1)).
+		claim(at(2), 21, "h-ccc", 30*time.Minute).
+		conflict(at(3), 22, "h-aaa").
+		conflict(at(3), 22, "h-aaa")
+
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{handled.parse(t, 2), unhandled.parse(t, 3)}})
+	if c.Conflicts != 4 || c.ConflictsHandled != 1 || c.ConflictsHandledPc != 25 {
+		t.Fatalf("conflicts %d handled %d (%.0f%%)", c.Conflicts, c.ConflictsHandled, c.ConflictsHandledPc)
+	}
+	if len(c.UnhandledConflicts) != 3 || c.UnhandledConflicts[0] != (ConflictRef{Instance: 3, Call: 0, IntentID: 20}) {
+		t.Fatalf("unhandled: %+v", c.UnhandledConflicts)
+	}
+	if c.Instances[1].Conflicts != 3 {
+		t.Fatalf("per instance conflicts: %+v", c.Instances)
+	}
+}
+
+func TestRefusedCompletions(t *testing.T) {
+	b := (&transcript{}).
+		call(at(1), "complete_intent", map[string]any{"node_id": 10},
+			"intent 10 is claimed by h-aaa until 2026-11-25T12:30:00Z (in 29m0s); pick another intent", true).
+		call(at(1), "cancel_intent", map[string]any{"node_id": 11},
+			"intent 11 is claimed by h-aaa until 2026-11-25T12:30:00Z (in 29m0s); pick another intent", true).
+		call(at(2), "complete_intent", map[string]any{"node_id": 12}, "intent 12 marked done", false)
+
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{b.parse(t, 1)}})
+	if c.RefusedCompletions != 2 || c.Conflicts != 0 {
+		t.Fatalf("refused %d conflicts %d", c.RefusedCompletions, c.Conflicts)
+	}
+}
+
+func finding(at time.Time, findingID, nodeID int64) (time.Time, string, any, string, bool) {
+	return at, "report_finding", map[string]any{"vulnclass": "x", "severity": "high", "summary": "s"},
+		fmt.Sprintf(`{"finding_id":%d,"node_id":%d}`, findingID, nodeID), false
+}
+
+func TestDuplicateFindings(t *testing.T) {
+	one := (&transcript{}).call(finding(at(1), 1, 100)).call(finding(at(1), 3, 102)).call(finding(at(1), 5, 104))
+	two := (&transcript{}).call(finding(at(2), 2, 101)).call(finding(at(2), 4, 103)).call(finding(at(2), 6, 105))
+	findings := []EngagementFinding{
+		{ID: 1, VulnClass: "SQL Injection", AssetIDs: []int64{5}},
+		{ID: 2, VulnClass: "sql_injection", AssetIDs: []int64{5}, MergedInto: 1},
+		{ID: 3, VulnClass: "ssrf", AssetIDs: []int64{5}},
+		{ID: 4, VulnClass: "SSRF", AssetIDs: []int64{5}},
+		{ID: 5, VulnClass: "idor", AssetIDs: []int64{5}},
+		{ID: 6, VulnClass: "idor", AssetIDs: []int64{6}},
+		{ID: 7, VulnClass: "ssrf", AssetIDs: []int64{5}},
+	}
+
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{one.parse(t, 1), two.parse(t, 2)}, Findings: findings})
+	df := c.DuplicateFindings
+	if df.Raw != 3 || df.AfterMerges != 2 || len(df.Groups) != 2 {
+		t.Fatalf("duplicates: %+v", df)
+	}
+	if g := df.Groups[0]; g.VulnClass != "sqlinjection" || g.Live != 1 || len(g.Instances) != 2 {
+		t.Fatalf("sqli group: %+v", g)
+	}
+}
+
+func bash(at time.Time, cmd string) (time.Time, string, any, string, bool) {
+	return at, "Bash", map[string]any{"command": cmd, "description": "scan"}, "ok", false
+}
+
+func TestRedundantReconAndListChanges(t *testing.T) {
+	one := (&transcript{}).
+		call(bash(at(1), "nmap  -sV -p- localhost")).
+		call(bash(at(2), "curl -s http://localhost:8083/")).
+		call(at(3), "list_changes", map[string]any{"since": "c1.fact.1"}, `{"count":0}`, false).
+		call(at(4), "list_changes", map[string]any{"since": "c1.fact.1"}, `{"count":0}`, false)
+	two := (&transcript{}).
+		call(bash(at(1), "nmap -sV -p- localhost\n")).
+		call(bash(at(2), "nmap -sV -p- localhost")).
+		call(at(3), "list_changes", map[string]any{"since": "c1.fact.1"}, `{"count":0}`, false)
+	three := (&transcript{}).call(bash(at(1), "curl -s http://localhost:8083/admin"))
+
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{one.parse(t, 1), two.parse(t, 2), three.parse(t, 3)}})
+	rr := c.RedundantRecon
+	if rr.SharedCommands != 1 || rr.RedundantRuns != 1 || rr.Examples[0].Runs != 3 || rr.Examples[0].Command != "nmap -sV -p- localhost" {
+		t.Fatalf("redundant recon: %+v", rr)
+	}
+	if c.Instances[0].ListChanges != 2 || c.Instances[1].ListChanges != 1 || c.Instances[2].ListChanges != 0 {
+		t.Fatalf("list_changes: %+v", c.Instances)
+	}
+	if c.Instances[1].BashCommands != 2 {
+		t.Fatalf("bash commands: %+v", c.Instances[1])
+	}
+}
+
+func TestCrossInstanceParents(t *testing.T) {
+	one := (&transcript{}).
+		call(at(1), "add_intent", map[string]any{"summary": "probe"}, "intent created: 10", false).
+		call(at(2), "record_fact", map[string]any{"facts": []any{map[string]any{"summary": "port 8083 open", "intent_id": 10}}}, "fact created: 200", false)
+	two := (&transcript{}).
+		call(at(3), "add_intent", map[string]any{"intents": []any{map[string]any{"summary": "a"}, map[string]any{"summary": "b"}}},
+			`{"ids":[300,0,301],"errors":{"1":"summary must not be empty"}}`, false).
+		call(at(4), "record_fact", map[string]any{"facts": []any{map[string]any{"summary": "x", "intent_id": 10}}}, "fact created: 201", false).
+		call(finding(at(5), 9, 202))
+	edges := []tools.Edge{
+		{From: 10, Rel: tools.RelYields, To: 200},
+		{From: 200, Rel: tools.RelDerivedFrom, To: 300},
+		{From: 10, Rel: tools.RelYields, To: 201},
+		{From: 300, Rel: tools.RelYields, To: 202},
+		{From: 1, Rel: tools.RelDerivedFrom, To: 10},
+	}
+
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{one.parse(t, 1), two.parse(t, 2)}, Edges: edges})
+	cp := c.CrossParents
+	if cp.Total != 2 || cp.ByKind["intent"] != 1 || cp.ByKind["fact"] != 1 {
+		t.Fatalf("cross parents: %+v", cp)
+	}
+	if c.Instances[1].CrossParents != 2 || c.Instances[1].NodesCreated != 4 {
+		t.Fatalf("instance 2: %+v", c.Instances[1])
+	}
+}
+
+func TestTakeoverAfterKill(t *testing.T) {
+	killed := (&transcript{}).
+		claim(at(0), 30, "h-bbb", 2*time.Minute).
+		claim(at(0), 31, "h-bbb", 2*time.Minute).
+		claim(at(0), 32, "h-bbb", 2*time.Minute).
+		call(at(0), "complete_intent", map[string]any{"node_id": 32}, "intent 32 marked done", false).
+		call(at(0), "record_fact", map[string]any{"facts": []any{
+			map[string]any{"summary": "a", "intent_id": 30},
+			map[string]any{"summary": "b", "intent_id": 30},
+		}}, `{"ids":[400,401]}`, false)
+	survivor := (&transcript{}).
+		conflict(at(1), 30, "h-bbb").
+		claim(at(1), 33, "h-ccc", 2*time.Minute).
+		claim(at(3), 30, "h-ccc", 2*time.Minute)
+	edges := []tools.Edge{{From: 30, Rel: tools.RelYields, To: 400}}
+
+	c := scoreCoordination(CoordinationInput{
+		Transcripts: []*Transcript{killed.parse(t, 2), survivor.parse(t, 3)},
+		Edges:       edges,
+		Kills:       map[int]time.Time{2: at(1)},
+	})
+	if len(c.Takeovers) != 2 {
+		t.Fatalf("takeovers: %+v", c.Takeovers)
+	}
+	tk := c.Takeovers[0]
+	if tk.IntentID != 30 || tk.TakenBy != 3 || tk.TakenAt == nil || !tk.TakenAt.Equal(at(3)) || !tk.AfterLeaseLapsed {
+		t.Fatalf("takeover of 30: %+v", tk)
+	}
+	if tk.FactsRecorded != 2 || tk.FactsAttached != 1 {
+		t.Fatalf("facts: %+v", tk)
+	}
+	if missed := c.Takeovers[1]; missed.IntentID != 31 || missed.TakenAt != nil {
+		t.Fatalf("intent 31 was never taken over: %+v", missed)
+	}
+	if len(c.DoubleClaims) != 0 {
+		t.Fatalf("takeover after the lease is not a double claim: %+v", c.DoubleClaims)
+	}
+	if !strings.Contains(c.Summary(), "intent 31 held by killed instance 2 was never taken over") {
+		t.Fatalf("summary:\n%s", c.Summary())
+	}
+}
+
+func TestUsageTotals(t *testing.T) {
+	done := (&transcript{}).other(at(1)).result(2.5)
+	killed := (&transcript{}).other(at(1)).other(at(2))
+
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{done.parse(t, 1), killed.parse(t, 2)}})
+	if !c.Instances[0].ResultMessage || c.Instances[1].ResultMessage {
+		t.Fatalf("result flags: %+v", c.Instances)
+	}
+	if c.Instances[1].Usage.InputTokens != 20 || c.Instances[1].Usage.CacheReadTokens != 200 {
+		t.Fatalf("killed instance usage: %+v", c.Instances[1].Usage)
+	}
+	if c.Total.CostUSD != 2.5 || c.Total.Usage.InputTokens != 27 || c.Total.Usage.OutputTokens != 13 {
+		t.Fatalf("totals: %+v", c.Total)
+	}
+}
+
+func TestRealStreamJSON(t *testing.T) {
+	tr, err := parseTranscript(1, filepath.Join("testdata", "claude-stream.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tr.Calls) != 4 || tr.Calls[1].Tool != "add_intent" || tr.Calls[1].Result != "intent created: 4" {
+		t.Fatalf("calls: %+v", tr.Calls)
+	}
+	if !tr.Calls[3].IsError || !strings.Contains(tr.Calls[3].Result, "pick another intent") {
+		t.Fatalf("conflict result: %+v", tr.Calls[3])
+	}
+	if !tr.HasResult || tr.CostUSD <= 0 || tr.Usage.OutputTokens == 0 {
+		t.Fatalf("usage: %+v", tr)
+	}
+
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{tr}})
+	if c.Instances[0].ClaimsTaken != 1 || c.Conflicts != 1 || c.ConflictsHandled != 0 || c.Instances[0].NodesCreated != 1 {
+		t.Fatalf("scored: %+v", c)
+	}
+}
+
+func TestSummary(t *testing.T) {
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{(&transcript{}).other(at(1)).parse(t, 1)}})
+	s := c.Summary()
+	for _, want := range []string{"Concurrent double claims: 0 (pass)", "no conflicts", "Duplicate findings: 0 raw"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("summary lacks %q:\n%s", want, s)
+		}
+	}
+}
