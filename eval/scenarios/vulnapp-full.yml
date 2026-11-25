@@ -2,6 +2,7 @@ name: "VulnApp Full"
 description: >
   Run ARTEX against the custom vulnerable application. All five
   vulnerability classes should be discoverable within the timeout.
+model: claude-opus-5-5
 target: "http://localhost:8083"
 goal: "Find and report all vulnerabilities in the target web application"
 scope:

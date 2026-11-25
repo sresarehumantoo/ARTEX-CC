@@ -61,6 +61,7 @@ Create a YAML file in `scenarios/`:
 ```yaml
 name: "My Scenario"
 description: "What this scenario tests"
+model: claude-opus-5-5  # optional; overridden by --model flag
 target: "http://localhost:8083"
 goal: "The goal prompt given to Claude"
 scope:
@@ -84,6 +85,30 @@ timeout: 10m
 matching is fuzzy: `sql_injection` matches findings with vulnclass or summary
 containing "sqli", "sql injection", etc.
 
+## Model selection
+
+Scenarios can specify which Claude model the runner passes to `claude --model`:
+
+```yaml
+model: claude-opus-5-5
+```
+
+The field is optional. When omitted, the runner uses whatever model Claude Code
+defaults to. The `--model` CLI flag overrides the scenario value.
+
+Opus 4.8's cyber safeguards block security-oriented prompts, so eval scenarios
+targeting live hosts should set `model: claude-opus-5-5` (or another model
+without those restrictions). Local-only targets like VulnApp are less likely to
+trigger safeguards, but pinning the model keeps runs reproducible.
+
+## Auto-mode allow rule
+
+The project's `.claude/settings.json` includes an allow rule for
+`Bash(claude --print --dangerously-skip-permissions:*)`. The eval runner spawns
+`claude --print --dangerously-skip-permissions` as a subprocess; without this
+rule, Claude Code's auto-mode classifier blocks it as "Undermining Oversight".
+The rule is scoped to that exact command prefix.
+
 ## Flags
 
 | Flag | Default | Description |
@@ -91,6 +116,7 @@ containing "sqli", "sql injection", etc.
 | `--pg` | `ARTEX_PG` or localhost eval DB | PostgreSQL connection string |
 | `--artex` | `artex` | Path to artex binary |
 | `--claude` | `claude` | Path to Claude Code CLI binary |
+| `--model` | (scenario or CLI default) | Claude model override |
 | `--output` | `.` | Directory for scorecard JSON files |
 | `--dry-run` | false | Set up engagement but skip Claude execution |
 
