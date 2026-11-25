@@ -1,0 +1,4039 @@
+{
+ "/api/engagement": {
+  "coverage": {
+   "entries": 9,
+   "gaps": 2
+  },
+  "description": "",
+  "done_intents_total": 5,
+  "exploration_id": 1,
+  "facts": 7,
+  "finding_list": [
+   {
+    "finding_id": 1,
+    "id": 11,
+    "name": "Exposed .git directory on customer portal",
+    "severity": "medium",
+    "state": "confirmed",
+    "summary": "The portal serves /.git/config, exposing repository metadata and the internal GitLab remote. Full source may be recoverable.",
+    "vulnclass": "info_disclosure"
+   },
+   {
+    "finding_id": 2,
+    "id": 14,
+    "name": "IDOR on /api/v2/users/{id} exposes all customer records",
+    "severity": "high",
+    "state": "confirmed",
+    "summary": "The users endpoint returns full profile data for any numeric id with no authentication or ownership check. Enumerating ids 1-3 returned every account including the administrator.",
+    "vulnclass": "idor"
+   },
+   {
+    "finding_id": 3,
+    "id": 17,
+    "name": "Weak password on svc-backup service account",
+    "severity": "critical",
+    "state": "confirmed",
+    "summary": "The svc-backup service account uses the seasonal password Spring2026! and has no MFA. Login returns a valid JWT with service role, granting API access.",
+    "vulnclass": "weak_credentials"
+   },
+   {
+    "finding_id": 4,
+    "id": 20,
+    "name": "SQL injection in /api/v2/search",
+    "severity": "critical",
+    "state": "confirmed",
+    "summary": "The q parameter is concatenated into a PostgreSQL query. A single quote produces a database syntax error, and boolean payloads change result counts.",
+    "vulnclass": "sqli"
+   },
+   {
+    "finding_id": 5,
+    "id": 23,
+    "name": "Internal health endpoint discloses database DSN",
+    "severity": "low",
+    "state": "confirmed",
+    "summary": "The unauthenticated health endpoint returns the internal PostgreSQL host, port, user and database name.",
+    "vulnclass": "info_disclosure"
+   }
+  ],
+  "findings_dismissed": 0,
+  "findings_merged": 0,
+  "findings_total": 5,
+  "frontier_open": 5,
+  "goal": "Obtain domain admin on the ACME Corp external perimeter",
+  "goals": [
+   {
+    "id": 2,
+    "state": "open",
+    "text": "Gain authenticated admin access to the customer portal",
+    "vulnclass": "auth_bypass"
+   },
+   {
+    "id": 3,
+    "state": "met",
+    "text": "Demonstrate access to customer PII",
+    "vulnclass": "idor"
+   },
+   {
+    "id": 4,
+    "state": "open",
+    "text": "Obtain a foothold on the internal network",
+    "vulnclass": "rce"
+   }
+  ],
+  "hints": [
+   {
+    "id": 5,
+    "state": "active",
+    "text": "Client says the API team reuses seasonal passwords for service accounts"
+   },
+   {
+    "id": 6,
+    "state": "active",
+    "text": "VPN appliance is out of scope for exploitation, fingerprint only"
+   }
+  ],
+  "open_intents": [
+   {
+    "asset_ids": [
+     3,
+     12
+    ],
+    "id": 24,
+    "state": "open",
+    "summary": "Use svc-backup JWT to reach admin-only API routes"
+   },
+   {
+    "asset_ids": [
+     3,
+     18
+    ],
+    "id": 25,
+    "state": "open",
+    "summary": "Exploit search SQLi to read the users table and password hashes"
+   },
+   {
+    "asset_ids": [
+     2,
+     11
+    ],
+    "id": 26,
+    "state": "open",
+    "summary": "Recover portal source from the exposed .git directory"
+   },
+   {
+    "asset_ids": [
+     4,
+     13
+    ],
+    "id": 27,
+    "state": "open",
+    "summary": "Fingerprint the VPN appliance version against known CVEs"
+   },
+   {
+    "asset_ids": [
+     6,
+     15
+    ],
+    "id": 28,
+    "state": "open",
+    "summary": "Check mail.acme.example for open relay and user enumeration"
+   }
+  ],
+  "recent_done_intents": [
+   {
+    "asset_ids": [
+     1
+    ],
+    "id": 7,
+    "result": "6 subdomains, 4 IPs, 3 HTTP services mapped",
+    "state": "done",
+    "summary": "Enumerate subdomains and map the external attack surface"
+   },
+   {
+    "asset_ids": [
+     2,
+     11
+    ],
+    "id": 9,
+    "result": "Exposed .git confirmed",
+    "state": "done",
+    "summary": "Probe the portal for exposed source control and debug files"
+   },
+   {
+    "asset_ids": [
+     3,
+     16
+    ],
+    "id": 12,
+    "result": "BOLA confirmed across all ids",
+    "state": "done",
+    "summary": "Test /api/v2/users/{id} for broken object level authorization"
+   },
+   {
+    "asset_ids": [
+     3,
+     17
+    ],
+    "id": 15,
+    "result": "1 valid credential",
+    "state": "done",
+    "summary": "Password spray service accounts discovered via the IDOR"
+   },
+   {
+    "asset_ids": [
+     3,
+     12
+    ],
+    "id": 21,
+    "result": "Internal DSN leaked",
+    "state": "done",
+    "summary": "Check internal endpoints listed in robots.txt"
+   }
+  ],
+  "recent_facts": [
+   {
+    "id": 1,
+    "state": "origin",
+    "text": "task root"
+   },
+   {
+    "confidence": "observed",
+    "evidence": "subfinder + dnsx: portal, api, vpn, git, mail",
+    "id": 8,
+    "source": "tool_output",
+    "state": "confirmed",
+    "summary": "Six subdomains resolve; portal and api share an nginx/Express stack"
+   },
+   {
+    "confidence": "observed",
+    "evidence": "GET /.git/config -> 200, url = git@git.acme.example:web/portal.git",
+    "id": 10,
+    "source": "target_response",
+    "state": "confirmed",
+    "summary": "/.git/config is served by the portal and names the internal GitLab remote"
+   },
+   {
+    "confidence": "observed",
+    "evidence": "users/1 -> admin@acme.example role=admin mfa=false",
+    "id": 13,
+    "source": "target_response",
+    "state": "confirmed",
+    "summary": "Unauthenticated GET /api/v2/users/{id} returns any user's email, role and MFA state"
+   },
+   {
+    "confidence": "observed",
+    "evidence": "POST /api/v2/auth/login svc-backup / Spring2026! -> 200 + JWT",
+    "id": 16,
+    "source": "target_response",
+    "state": "confirmed",
+    "summary": "svc-backup@acme.example authenticates with a seasonal password"
+   },
+   {
+    "confidence": "observed",
+    "evidence": "q=invoice' -> 500 pq: syntax error at or near \"'\"",
+    "id": 19,
+    "source": "target_response",
+    "state": "confirmed",
+    "summary": "A single quote in q triggers a raw PostgreSQL syntax error"
+   },
+   {
+    "confidence": "observed",
+    "evidence": "db: postgres://portal@db01.int.acme.example:5432/portal",
+    "id": 22,
+    "source": "target_response",
+    "state": "confirmed",
+    "summary": "/api/v2/internal/health leaks the internal database DSN"
+   }
+  ],
+  "running_intents": [
+   {
+    "asset_ids": [
+     3,
+     18
+    ],
+    "id": 18,
+    "state": "running",
+    "summary": "Fuzz /api/v2/search for injection"
+   }
+  ],
+  "task": {
+   "description": "",
+   "goal": "Obtain domain admin on the ACME Corp external perimeter"
+  },
+  "task_credentials": [
+   {
+    "domain": "api.acme.example",
+    "id": 1,
+    "note": "service role JWT, no MFA",
+    "source": "agent",
+    "username": "svc-backup@acme.example"
+   }
+  ],
+  "task_id": 1
+ },
+ "/api/graph": {
+  "edges": [
+   {
+    "from": 1,
+    "rel": "spawns",
+    "to": 2
+   },
+   {
+    "from": 1,
+    "rel": "spawns",
+    "to": 3
+   },
+   {
+    "from": 1,
+    "rel": "spawns",
+    "to": 4
+   },
+   {
+    "from": 1,
+    "rel": "derived_from",
+    "to": 7
+   },
+   {
+    "from": 1,
+    "rel": "derived_from",
+    "to": 27
+   },
+   {
+    "from": 1,
+    "rel": "derived_from",
+    "to": 28
+   },
+   {
+    "from": 7,
+    "rel": "yields",
+    "to": 8
+   },
+   {
+    "from": 8,
+    "rel": "derived_from",
+    "to": 9
+   },
+   {
+    "from": 8,
+    "rel": "derived_from",
+    "to": 12
+   },
+   {
+    "from": 8,
+    "rel": "derived_from",
+    "to": 18
+   },
+   {
+    "from": 8,
+    "rel": "derived_from",
+    "to": 21
+   },
+   {
+    "from": 9,
+    "rel": "yields",
+    "to": 10
+   },
+   {
+    "from": 9,
+    "rel": "yields",
+    "to": 11
+   },
+   {
+    "from": 10,
+    "rel": "derived_from",
+    "to": 26
+   },
+   {
+    "from": 12,
+    "rel": "yields",
+    "to": 13
+   },
+   {
+    "from": 12,
+    "rel": "yields",
+    "to": 14
+   },
+   {
+    "from": 13,
+    "rel": "proves",
+    "to": 3
+   },
+   {
+    "from": 13,
+    "rel": "derived_from",
+    "to": 15
+   },
+   {
+    "from": 15,
+    "rel": "yields",
+    "to": 16
+   },
+   {
+    "from": 15,
+    "rel": "yields",
+    "to": 17
+   },
+   {
+    "from": 16,
+    "rel": "derived_from",
+    "to": 24
+   },
+   {
+    "from": 18,
+    "rel": "yields",
+    "to": 19
+   },
+   {
+    "from": 18,
+    "rel": "yields",
+    "to": 20
+   },
+   {
+    "from": 19,
+    "rel": "derived_from",
+    "to": 25
+   },
+   {
+    "from": 21,
+    "rel": "yields",
+    "to": 22
+   },
+   {
+    "from": 21,
+    "rel": "yields",
+    "to": 23
+   }
+  ],
+  "nodes": [
+   {
+    "id": 1,
+    "kind": "fact",
+    "state": "origin",
+    "payload": {
+     "text": "task root"
+    },
+    "origin": "system"
+   },
+   {
+    "id": 2,
+    "kind": "goal",
+    "state": "open",
+    "payload": {
+     "text": "Gain authenticated admin access to the customer portal",
+     "vulnclass": "auth_bypass"
+    },
+    "origin": "system"
+   },
+   {
+    "id": 3,
+    "kind": "goal",
+    "state": "met",
+    "payload": {
+     "text": "Demonstrate access to customer PII",
+     "vulnclass": "idor"
+    },
+    "origin": "system"
+   },
+   {
+    "id": 4,
+    "kind": "goal",
+    "state": "open",
+    "payload": {
+     "text": "Obtain a foothold on the internal network",
+     "vulnclass": "rce"
+    },
+    "origin": "system"
+   },
+   {
+    "id": 5,
+    "kind": "hint",
+    "state": "active",
+    "payload": {
+     "text": "Client says the API team reuses seasonal passwords for service accounts"
+    },
+    "origin": "human"
+   },
+   {
+    "id": 6,
+    "kind": "hint",
+    "state": "active",
+    "payload": {
+     "text": "VPN appliance is out of scope for exploitation, fingerprint only"
+    },
+    "origin": "human"
+   },
+   {
+    "id": 7,
+    "kind": "intent",
+    "state": "done",
+    "payload": {
+     "asset_ids": [
+      1
+     ],
+     "result": "6 subdomains, 4 IPs, 3 HTTP services mapped",
+     "summary": "Enumerate subdomains and map the external attack surface"
+    },
+    "origin": "planner"
+   },
+   {
+    "id": 8,
+    "kind": "fact",
+    "state": "confirmed",
+    "payload": {
+     "confidence": "observed",
+     "evidence": "subfinder + dnsx: portal, api, vpn, git, mail",
+     "source": "tool_output",
+     "summary": "Six subdomains resolve; portal and api share an nginx/Express stack"
+    },
+    "origin": "worker"
+   },
+   {
+    "id": 9,
+    "kind": "intent",
+    "state": "done",
+    "payload": {
+     "asset_ids": [
+      2,
+      11
+     ],
+     "result": "Exposed .git confirmed",
+     "summary": "Probe the portal for exposed source control and debug files"
+    },
+    "origin": "planner"
+   },
+   {
+    "id": 10,
+    "kind": "fact",
+    "state": "confirmed",
+    "payload": {
+     "confidence": "observed",
+     "evidence": "GET /.git/config -> 200, url = git@git.acme.example:web/portal.git",
+     "source": "target_response",
+     "summary": "/.git/config is served by the portal and names the internal GitLab remote"
+    },
+    "origin": "worker"
+   },
+   {
+    "id": 11,
+    "kind": "finding",
+    "state": "confirmed",
+    "payload": {
+     "finding_id": 1,
+     "name": "Exposed .git directory on customer portal",
+     "severity": "medium",
+     "summary": "The portal serves /.git/config, exposing repository metadata and the internal GitLab remote. Full source may be recoverable.",
+     "vulnclass": "info_disclosure"
+    },
+    "origin": "worker"
+   },
+   {
+    "id": 12,
+    "kind": "intent",
+    "state": "done",
+    "payload": {
+     "asset_ids": [
+      3,
+      16
+     ],
+     "result": "BOLA confirmed across all ids",
+     "summary": "Test /api/v2/users/{id} for broken object level authorization"
+    },
+    "origin": "planner"
+   },
+   {
+    "id": 13,
+    "kind": "fact",
+    "state": "confirmed",
+    "payload": {
+     "confidence": "observed",
+     "evidence": "users/1 -> admin@acme.example role=admin mfa=false",
+     "source": "target_response",
+     "summary": "Unauthenticated GET /api/v2/users/{id} returns any user's email, role and MFA state"
+    },
+    "origin": "worker"
+   },
+   {
+    "id": 14,
+    "kind": "finding",
+    "state": "confirmed",
+    "payload": {
+     "finding_id": 2,
+     "name": "IDOR on /api/v2/users/{id} exposes all customer records",
+     "severity": "high",
+     "summary": "The users endpoint returns full profile data for any numeric id with no authentication or ownership check. Enumerating ids 1-3 returned every account including the administrator.",
+     "vulnclass": "idor"
+    },
+    "origin": "worker"
+   },
+   {
+    "id": 15,
+    "kind": "intent",
+    "state": "done",
+    "payload": {
+     "asset_ids": [
+      3,
+      17
+     ],
+     "result": "1 valid credential",
+     "summary": "Password spray service accounts discovered via the IDOR"
+    },
+    "origin": "planner"
+   },
+   {
+    "id": 16,
+    "kind": "fact",
+    "state": "confirmed",
+    "payload": {
+     "confidence": "observed",
+     "evidence": "POST /api/v2/auth/login svc-backup / Spring2026! -> 200 + JWT",
+     "source": "target_response",
+     "summary": "svc-backup@acme.example authenticates with a seasonal password"
+    },
+    "origin": "worker"
+   },
+   {
+    "id": 17,
+    "kind": "finding",
+    "state": "confirmed",
+    "payload": {
+     "finding_id": 3,
+     "name": "Weak password on svc-backup service account",
+     "severity": "critical",
+     "summary": "The svc-backup service account uses the seasonal password Spring2026! and has no MFA. Login returns a valid JWT with service role, granting API access.",
+     "vulnclass": "weak_credentials"
+    },
+    "origin": "worker"
+   },
+   {
+    "id": 18,
+    "kind": "intent",
+    "state": "running",
+    "payload": {
+     "asset_ids": [
+      3,
+      18
+     ],
+     "summary": "Fuzz /api/v2/search for injection"
+    },
+    "origin": "planner"
+   },
+   {
+    "id": 19,
+    "kind": "fact",
+    "state": "confirmed",
+    "payload": {
+     "confidence": "observed",
+     "evidence": "q=invoice' -> 500 pq: syntax error at or near \"'\"",
+     "source": "target_response",
+     "summary": "A single quote in q triggers a raw PostgreSQL syntax error"
+    },
+    "origin": "worker"
+   },
+   {
+    "id": 20,
+    "kind": "finding",
+    "state": "confirmed",
+    "payload": {
+     "finding_id": 4,
+     "name": "SQL injection in /api/v2/search",
+     "severity": "critical",
+     "summary": "The q parameter is concatenated into a PostgreSQL query. A single quote produces a database syntax error, and boolean payloads change result counts.",
+     "vulnclass": "sqli"
+    },
+    "origin": "worker"
+   },
+   {
+    "id": 21,
+    "kind": "intent",
+    "state": "done",
+    "payload": {
+     "asset_ids": [
+      3,
+      12
+     ],
+     "result": "Internal DSN leaked",
+     "summary": "Check internal endpoints listed in robots.txt"
+    },
+    "origin": "planner"
+   },
+   {
+    "id": 22,
+    "kind": "fact",
+    "state": "confirmed",
+    "payload": {
+     "confidence": "observed",
+     "evidence": "db: postgres://portal@db01.int.acme.example:5432/portal",
+     "source": "target_response",
+     "summary": "/api/v2/internal/health leaks the internal database DSN"
+    },
+    "origin": "worker"
+   },
+   {
+    "id": 23,
+    "kind": "finding",
+    "state": "confirmed",
+    "payload": {
+     "finding_id": 5,
+     "name": "Internal health endpoint discloses database DSN",
+     "severity": "low",
+     "summary": "The unauthenticated health endpoint returns the internal PostgreSQL host, port, user and database name.",
+     "vulnclass": "info_disclosure"
+    },
+    "origin": "worker"
+   },
+   {
+    "id": 24,
+    "kind": "intent",
+    "state": "open",
+    "payload": {
+     "asset_ids": [
+      3,
+      12
+     ],
+     "summary": "Use svc-backup JWT to reach admin-only API routes"
+    },
+    "origin": "planner"
+   },
+   {
+    "id": 25,
+    "kind": "intent",
+    "state": "open",
+    "payload": {
+     "asset_ids": [
+      3,
+      18
+     ],
+     "summary": "Exploit search SQLi to read the users table and password hashes"
+    },
+    "origin": "planner"
+   },
+   {
+    "id": 26,
+    "kind": "intent",
+    "state": "open",
+    "payload": {
+     "asset_ids": [
+      2,
+      11
+     ],
+     "summary": "Recover portal source from the exposed .git directory"
+    },
+    "origin": "planner"
+   },
+   {
+    "id": 27,
+    "kind": "intent",
+    "state": "open",
+    "payload": {
+     "asset_ids": [
+      4,
+      13
+     ],
+     "summary": "Fingerprint the VPN appliance version against known CVEs"
+    },
+    "origin": "planner"
+   },
+   {
+    "id": 28,
+    "kind": "intent",
+    "state": "open",
+    "payload": {
+     "asset_ids": [
+      6,
+      15
+     ],
+     "summary": "Check mail.acme.example for open relay and user enumeration"
+    },
+    "origin": "planner"
+   }
+  ]
+ },
+ "/api/findings": [
+  {
+   "id": 5,
+   "node_id": 23,
+   "vulnclass": "info_disclosure",
+   "severity": "low",
+   "summary": "The unauthenticated health endpoint returns the internal PostgreSQL host, port, user and database name.",
+   "status": "pending",
+   "created_at": "2026-11-25T00:39:48.459Z"
+  },
+  {
+   "id": 4,
+   "node_id": 20,
+   "vulnclass": "sqli",
+   "severity": "critical",
+   "summary": "The q parameter is concatenated into a PostgreSQL query. A single quote produces a database syntax error, and boolean payloads change result counts.",
+   "status": "pending",
+   "created_at": "2026-11-25T00:26:37.615Z"
+  },
+  {
+   "id": 3,
+   "node_id": 17,
+   "vulnclass": "weak_credentials",
+   "severity": "critical",
+   "summary": "The svc-backup service account uses the seasonal password Spring2026! and has no MFA. Login returns a valid JWT with service role, granting API access.",
+   "status": "pending",
+   "created_at": "2026-11-25T00:08:54.092Z"
+  },
+  {
+   "id": 2,
+   "node_id": 14,
+   "vulnclass": "idor",
+   "severity": "high",
+   "summary": "The users endpoint returns full profile data for any numeric id with no authentication or ownership check. Enumerating ids 1-3 returned every account including the administrator.",
+   "status": "pending",
+   "created_at": "2026-11-24T23:59:01.812Z"
+  },
+  {
+   "id": 1,
+   "node_id": 11,
+   "vulnclass": "info_disclosure",
+   "severity": "medium",
+   "summary": "The portal serves /.git/config, exposing repository metadata and the internal GitLab remote. Full source may be recoverable.",
+   "status": "pending",
+   "created_at": "2026-11-24T23:44:32.267Z"
+  }
+ ],
+ "/api/coverage": {
+  "entries": [
+   {
+    "surface": "http://portal.acme.example/admin",
+    "risk_area": "auth_bypass",
+    "outcome": "needs_follow_up",
+    "evidence": "",
+    "reason": "",
+    "updated_at": "2026-11-25T01:34:06.910Z"
+   },
+   {
+    "surface": "http://api.acme.example/api/v2/users/{id}",
+    "risk_area": "idor",
+    "outcome": "reported",
+    "evidence": "",
+    "reason": "",
+    "updated_at": "2026-11-25T01:21:52.758Z"
+   },
+   {
+    "surface": "mail.acme.example:25",
+    "risk_area": "open_relay",
+    "outcome": "needs_follow_up",
+    "evidence": "",
+    "reason": "",
+    "updated_at": "2026-11-25T01:39:54.321Z"
+   },
+   {
+    "surface": "https://vpn.acme.example",
+    "risk_area": "rce",
+    "outcome": "ruled_out",
+    "evidence": "",
+    "reason": "VPN exploitation excluded by rules of engagement",
+    "updated_at": "2026-11-25T01:38:09.248Z"
+   },
+   {
+    "surface": "http://api.acme.example/api/v2/auth/login",
+    "risk_area": "sqli",
+    "outcome": "no_issue_found",
+    "evidence": "16",
+    "reason": "",
+    "updated_at": "2026-11-25T01:29:58.998Z"
+   },
+   {
+    "surface": "http://api.acme.example/api/v2/search",
+    "risk_area": "sqli",
+    "outcome": "reported",
+    "evidence": "",
+    "reason": "",
+    "updated_at": "2026-11-25T01:25:31.337Z"
+   },
+   {
+    "surface": "http://api.acme.example/api/v2/auth/login",
+    "risk_area": "weak_credentials",
+    "outcome": "reported",
+    "evidence": "",
+    "reason": "",
+    "updated_at": "2026-11-25T01:27:43.111Z"
+   },
+   {
+    "surface": "http://api.acme.example/api/v2/search",
+    "risk_area": "xss",
+    "outcome": "no_issue_found",
+    "evidence": "19",
+    "reason": "",
+    "updated_at": "2026-11-25T01:36:17.429Z"
+   },
+   {
+    "surface": "http://portal.acme.example/login",
+    "risk_area": "xss",
+    "outcome": "no_issue_found",
+    "evidence": "10",
+    "reason": "",
+    "updated_at": "2026-11-25T01:31:58.449Z"
+   }
+  ],
+  "gaps": [
+   {
+    "kind": "needs_follow_up",
+    "surface": "http://portal.acme.example/admin",
+    "risk_area": "auth_bypass"
+   },
+   {
+    "kind": "needs_follow_up",
+    "surface": "mail.acme.example:25",
+    "risk_area": "open_relay"
+   }
+  ],
+  "unexamined": []
+ },
+ "/api/coverage/gaps": {
+  "untargeted_assets": [
+   {
+    "id": 5,
+    "type": "subdomain",
+    "label": "git.acme.example",
+    "data": {
+     "domain": "git.acme.example",
+     "record_type": "CNAME",
+     "record_value": [
+      "acme.gitlab-host.example"
+     ],
+     "root_domain": "acme.example"
+    }
+   },
+   {
+    "id": 7,
+    "type": "ip",
+    "label": "203.0.113.10",
+    "data": {
+     "bound_domains": [
+      "portal.acme.example"
+     ],
+     "ip": "203.0.113.10",
+     "open_ports": [
+      {
+       "port": 80,
+       "service": "http"
+      },
+      {
+       "port": 443,
+       "service": "https"
+      }
+     ]
+    }
+   },
+   {
+    "id": 8,
+    "type": "ip",
+    "label": "203.0.113.11",
+    "data": {
+     "bound_domains": [
+      "api.acme.example"
+     ],
+     "ip": "203.0.113.11",
+     "open_ports": [
+      {
+       "port": 443,
+       "service": "https"
+      },
+      {
+       "port": 8443,
+       "service": "https-alt"
+      }
+     ]
+    }
+   },
+   {
+    "id": 9,
+    "type": "ip",
+    "label": "203.0.113.20",
+    "data": {
+     "bound_domains": [
+      "vpn.acme.example"
+     ],
+     "ip": "203.0.113.20",
+     "open_ports": [
+      {
+       "port": 443,
+       "service": "https"
+      },
+      {
+       "port": 1194,
+       "service": "openvpn"
+      }
+     ]
+    }
+   },
+   {
+    "id": 10,
+    "type": "ip",
+    "label": "203.0.113.25",
+    "data": {
+     "ip": "203.0.113.25",
+     "open_ports": [
+      {
+       "port": 25,
+       "service": "smtp"
+      },
+      {
+       "port": 587,
+       "service": "submission"
+      },
+      {
+       "port": 993,
+       "service": "imaps"
+      }
+     ]
+    }
+   },
+   {
+    "id": 14,
+    "type": "service",
+    "label": "ssh",
+    "data": {
+     "ip": "203.0.113.20",
+     "port": 22,
+     "service_name": "ssh"
+    }
+   },
+   {
+    "id": 19,
+    "type": "endpoint",
+    "label": "GET http://portal.acme.example/.git/config",
+    "data": {
+     "method": "GET",
+     "url": "http://portal.acme.example/.git/config"
+    }
+   }
+  ],
+  "unresolved_intents": [
+   {
+    "id": 25,
+    "kind": "intent",
+    "state": "open",
+    "payload": {
+     "asset_ids": [
+      3,
+      18
+     ],
+     "summary": "Exploit search SQLi to read the users table and password hashes"
+    },
+    "origin": "planner"
+   },
+   {
+    "id": 24,
+    "kind": "intent",
+    "state": "open",
+    "payload": {
+     "asset_ids": [
+      3,
+      12
+     ],
+     "summary": "Use svc-backup JWT to reach admin-only API routes"
+    },
+    "origin": "planner"
+   },
+   {
+    "id": 26,
+    "kind": "intent",
+    "state": "open",
+    "payload": {
+     "asset_ids": [
+      2,
+      11
+     ],
+     "summary": "Recover portal source from the exposed .git directory"
+    },
+    "origin": "planner"
+   },
+   {
+    "id": 27,
+    "kind": "intent",
+    "state": "open",
+    "payload": {
+     "asset_ids": [
+      4,
+      13
+     ],
+     "summary": "Fingerprint the VPN appliance version against known CVEs"
+    },
+    "origin": "planner"
+   },
+   {
+    "id": 28,
+    "kind": "intent",
+    "state": "open",
+    "payload": {
+     "asset_ids": [
+      6,
+      15
+     ],
+     "summary": "Check mail.acme.example for open relay and user enumeration"
+    },
+    "origin": "planner"
+   }
+  ],
+  "unproven_goals": [
+   {
+    "id": 2,
+    "kind": "goal",
+    "state": "open",
+    "payload": {
+     "text": "Gain authenticated admin access to the customer portal",
+     "vulnclass": "auth_bypass"
+    },
+    "origin": "system"
+   },
+   {
+    "id": 4,
+    "kind": "goal",
+    "state": "open",
+    "payload": {
+     "text": "Obtain a foothold on the internal network",
+     "vulnclass": "rce"
+    },
+    "origin": "system"
+   }
+  ],
+  "unenriched_services": [
+   {
+    "id": 13,
+    "type": "service",
+    "label": "https://vpn.acme.example",
+    "data": {
+     "page_title": "GlobalProtect Portal",
+     "status_code": 200,
+     "technologies": [
+      "PAN-OS"
+     ],
+     "url": "https://vpn.acme.example"
+    }
+   },
+   {
+    "id": 14,
+    "type": "service",
+    "label": "ssh",
+    "data": {
+     "ip": "203.0.113.20",
+     "port": 22,
+     "service_name": "ssh"
+    }
+   },
+   {
+    "id": 15,
+    "type": "service",
+    "label": "smtp",
+    "data": {
+     "ip": "203.0.113.25",
+     "port": 25,
+     "service_name": "smtp"
+    }
+   }
+  ]
+ },
+ "/api/credentials": [
+  {
+   "id": 1,
+   "domain": "api.acme.example",
+   "username": "svc-backup@acme.example",
+   "password": "Spring2026!",
+   "source": "agent",
+   "note": "service role JWT, no MFA"
+  }
+ ],
+ "/api/constraints": [
+  {
+   "id": 1,
+   "kind": "deny",
+   "text": "No denial-of-service or destructive payloads"
+  },
+  {
+   "id": 2,
+   "kind": "allow",
+   "text": "Testing window 09:00-18:00 UTC"
+  }
+ ],
+ "/api/tasks": [
+  {
+   "id": 1,
+   "title": "Obtain domain admin on the ACME Corp external perimeter",
+   "status": "created",
+   "created_at": "2026-11-24T21:34:11.806Z",
+   "stats": {
+    "findings": 5,
+    "assets": 19,
+    "coverage_pct": 100
+   }
+  }
+ ],
+ "/api/system": {
+  "arch": "amd64",
+  "data_dir": "/app/data",
+  "go_version": "go1.26.11",
+  "os": "linux",
+  "version": "(devel)"
+ },
+ "/api/tools": [
+  {
+   "name": "insert_assets",
+   "description": "Register newly discovered assets in bulk; multiple types can be mixed in one call (see the type enum).\nRequired fields per type: root_domain->domain; ip->ip (must be IPv4/IPv6, not a hostname); subdomain->domain; app->app_name; service(HTTP)->url; service(non-HTTP)->service_name+port (at least one of ip/domain); endpoint->url+method. See each field's own description for the rest.\nauth/technologies/params are append-merged, not overwritten.\nReturns: {results:[{index,id,type}], errors:[{index,error}]}",
+   "read_only": false,
+   "category": "assets",
+   "schema": {
+    "properties": {
+     "assets": {
+      "description": "asset array; each element is one asset record",
+      "items": {
+       "properties": {
+        "app_icp": {
+         "description": "application ICP registration (optional)",
+         "type": "string"
+        },
+        "app_name": {
+         "description": "application name (required for app type)",
+         "type": "string"
+        },
+        "auth": {
+         "description": "discovered credentials (optional)",
+         "items": {
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "bound_domains": {
+         "description": "list of domains bound to this IP (optional for ip type)",
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "bundle_id": {
+         "description": "Bundle ID (optional for app type)",
+         "type": "string"
+        },
+        "category": {
+         "description": "application category (optional)",
+         "type": "string"
+        },
+        "company_id": {
+         "description": "owning company id (optional for app type)",
+         "type": "integer"
+        },
+        "content_length": {
+         "description": "HTTP response body size in bytes (optional)",
+         "type": "integer"
+        },
+        "description": {
+         "description": "application description (optional)",
+         "type": "string"
+        },
+        "domain": {
+         "description": "root domain or subdomain (required for root_domain/subdomain)",
+         "type": "string"
+        },
+        "favicon_mmh3": {
+         "description": "favicon MMH3 hash (optional)",
+         "type": "string"
+        },
+        "icp": {
+         "description": "ICP registration number (optional)",
+         "type": "string"
+        },
+        "ip": {
+         "description": "IP address (must be IPv4/IPv6, not a hostname; required for ip type)",
+         "type": "string"
+        },
+        "method": {
+         "description": "HTTP method (required for endpoint)",
+         "type": "string"
+        },
+        "open_ports": {
+         "description": "list of open ports (optional for ip type)",
+         "items": {
+          "properties": {
+           "port": {
+            "description": "port number",
+            "type": "integer"
+           },
+           "service": {
+            "description": "service name (optional)",
+            "type": "string"
+           }
+          },
+          "required": [
+           "port"
+          ],
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "page_title": {
+         "description": "page <title> content (optional)",
+         "type": "string"
+        },
+        "params": {
+         "description": "request parameters (optional)",
+         "items": {
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "port": {
+         "description": "port number (required for non-HTTP service)",
+         "type": "integer"
+        },
+        "record_type": {
+         "description": "DNS record type: A/AAAA/CNAME/MX etc. (optional for subdomain)",
+         "type": "string"
+        },
+        "record_value": {
+         "description": "list of DNS record values (optional for subdomain)",
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "service_ip": {
+         "description": "optional enrichment IP",
+         "type": "string"
+        },
+        "service_name": {
+         "description": "service name, e.g. ssh/mysql/redis (required for non-HTTP service)",
+         "type": "string"
+        },
+        "status_code": {
+         "description": "HTTP response status code (optional)",
+         "type": "integer"
+        },
+        "technologies": {
+         "description": "tech-stack list (optional)",
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": {
+         "description": "asset type",
+         "enum": [
+          "root_domain",
+          "ip",
+          "subdomain",
+          "app",
+          "service",
+          "endpoint"
+         ],
+         "type": "string"
+        },
+        "url": {
+         "description": "full URL including scheme and port (required for HTTP service)",
+         "type": "string"
+        }
+       },
+       "required": [
+        "type"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "assets"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "list_assets",
+   "description": "Query the asset library: search by DSL expression, or fetch directly by id/ids; supports pagination.\nDSL: field=value fuzzy (ILIKE) | field==value exact | field!=value exclusion | numeric fields support > >= < <= | a bare word = full-text fuzzy; combine with AND/OR (AND binds tighter), parentheses for grouping.\nWhen neither id nor ids is passed, dsl must be non-empty.\nAvailable fields: domain, root_domain, ip, url, page_title, icp, service_name, app_name, method, service_type, record_type, technology, port, status_code, company_id.",
+   "read_only": true,
+   "category": "assets",
+   "schema": {
+    "properties": {
+     "dsl": {
+      "description": "DSL query expression (must be non-empty when id/ids are not passed)",
+      "type": "string"
+     },
+     "id": {
+      "description": "fetch by a single asset id",
+      "type": "integer"
+     },
+     "ids": {
+      "description": "fetch by multiple asset ids",
+      "items": {
+       "type": "integer"
+      },
+      "type": "array"
+     },
+     "limit": {
+      "description": "return cap, default 10",
+      "type": "integer"
+     },
+     "offset": {
+      "description": "pagination offset, default 0",
+      "type": "integer"
+     },
+     "type": {
+      "description": "asset type filter: root_domain|ip|subdomain|app|service|endpoint",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "list_companies",
+   "description": "List the companies in the asset library with their asset scopes and attributed asset counts. The optional search fuzzy-filters by company name (case-insensitive); empty returns all.",
+   "read_only": true,
+   "category": "other",
+   "schema": {
+    "properties": {
+     "search": {
+      "description": "fuzzy filter by company name (optional, case-insensitive)",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "add_company_scope",
+   "description": "Add domains/IPs/CIDRs/ICP registrations/company keywords to a company's asset scope. Company names are unique: if the company doesn't exist it is created; if it exists it is reused.\nscope is one entry per line; the system auto-recognizes: root domain / URL / single IP / CIDR range / ICP registration / company keyword.\nAlways give reason explaining the attribution basis.",
+   "read_only": false,
+   "category": "engagement",
+   "schema": {
+    "properties": {
+     "company": {
+      "description": "company name (created if absent, reused if present)",
+      "type": "string"
+     },
+     "logo": {
+      "description": "company logo URL (optional)",
+      "type": "string"
+     },
+     "reason": {
+      "description": "attribution basis (evidence/source); required",
+      "type": "string"
+     },
+     "scope": {
+      "description": "asset scope, one entry per line",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company",
+     "scope"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "add_task_scope",
+   "description": "Add test scope to this task (coverage scope, not enforced): it is the denominator of asset test coverage.\nSupported kinds: company / root_domain / subdomain / ip / cidr / icp / keyword.\nUse the entries array for multiple entries.",
+   "read_only": false,
+   "category": "engagement",
+   "schema": {
+    "properties": {
+     "entries": {
+      "description": "batch: [{kind, value}]",
+      "items": {
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "kind": {
+      "description": "company / root_domain / subdomain / ip / cidr / icp / keyword",
+      "type": "string"
+     },
+     "reason": {
+      "description": "basis for adding (for audit); required",
+      "type": "string"
+     },
+     "value": {
+      "description": "company name or id / domain / IP / CIDR / ICP / keyword",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "list_untested_assets",
+   "description": "Query the assets inside the scope of this task that haven't been covered by fact anchors yet.\nOptional filter by asset type: root_domain/subdomain/service/app/endpoint/ip.\nPagination: page starts at 1, page_size defaults to 10. Returns {assets, total, page, page_size}.",
+   "read_only": true,
+   "category": "assets",
+   "schema": {
+    "properties": {
+     "page": {
+      "description": "page number, starting at 1 (default 1)",
+      "type": "integer"
+     },
+     "page_size": {
+      "description": "entries per page (default 10)",
+      "type": "integer"
+     },
+     "type": {
+      "description": "asset type filter (optional)",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "graph_overview",
+   "description": "The task board: goals and their states, open/running/done intents, recent facts, findings, credentials, coverage. Call this FIRST at the start of every planning cycle to understand what has been done, what is in progress, and what needs doing next. After subagents complete work, call it again to see their results and plan the next round. Includes strategic hints from the human/main agent that must be incorporated when generating intents.",
+   "read_only": true,
+   "category": "graph",
+   "schema": {
+    "properties": {},
+    "type": "object"
+   }
+  },
+  {
+   "name": "add_intent",
+   "description": "Generate exploration directions into the frontier and link them into the exploration graph. An intent is an open exploration direction: describe freely in one summary sentence what to explore/verify/exploit.\nBatch preferred: put multiple new directions into the intents array in a single submission (saves round trips). Returns an ids array, same length and order as intents. For a single intent, omit intents and pass the top-level summary.\nAfter calling graph_overview and identifying gaps, use this to queue new work. Each intent is one exploration direction.",
+   "read_only": false,
+   "category": "graph",
+   "schema": {
+    "properties": {
+     "asset_ids": {
+      "description": "target asset ids this direction tests/attacks",
+      "items": {
+       "type": "integer"
+      },
+      "type": "array"
+     },
+     "intents": {
+      "description": "[Prefer this] array of exploration directions to add",
+      "items": {
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "parent_ids": {
+      "description": "upstream anchor ids: which confirmed fact/finding nodes this direction is synthesized from",
+      "items": {
+       "type": "integer"
+      },
+      "type": "array"
+     },
+     "priority": {
+      "description": "priority 0-10, default 5",
+      "type": "integer"
+     },
+     "summary": {
+      "description": "[single] one sentence describing this exploration direction",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "record_fact",
+   "description": "Write an exploration fact/conclusion into the exploration graph, linked to the intent that produced it (intent_id). Call this IMMEDIATELY when you learn something, do not wait until the end. Facts written here are visible to the coordinator and other subagents via graph_overview and list_facts.\nUsed to record both positive conclusions (fingerprinting/enumeration) and negative conclusions ('port closed'/'parameter not injectable').\nMultiple observations from one exploration must be consolidated into ONE fact, not split into many.\nfacts is the preferred parameter: facts:[{...}] with one item per mutually distinct conclusion.\nevidence = one line of key evidence supporting this conclusion.\nconfidence = observed (seen directly) | inferred (inferred from phenomena).\nsource = target_response | tool_output | third_party_intel | operator_input | inference (default).",
+   "read_only": false,
+   "category": "graph",
+   "schema": {
+    "properties": {
+     "facts": {
+      "description": "The facts to record, usually exactly one.",
+      "items": {
+       "properties": {
+        "asset_ids": {
+         "description": "Asset IDs explicitly involved in this fact.",
+         "items": {
+          "type": "integer"
+         },
+         "type": "array"
+        },
+        "confidence": {
+         "description": "observed | inferred",
+         "type": "string"
+        },
+        "detail": {
+         "description": "Details of this fact.",
+         "type": "string"
+        },
+        "evidence": {
+         "description": "One line of key evidence.",
+         "type": "string"
+        },
+        "intent_id": {
+         "description": "The intent that produced this fact.",
+         "type": "integer"
+        },
+        "source": {
+         "description": "where the content came from",
+         "enum": [
+          "target_response",
+          "tool_output",
+          "third_party_intel",
+          "operator_input",
+          "inference"
+         ],
+         "type": "string"
+        },
+        "summary": {
+         "description": "Required: a non-empty one-sentence summary of this conclusion.",
+         "type": "string"
+        }
+       },
+       "required": [
+        "summary"
+       ],
+       "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+     }
+    },
+    "required": [
+     "facts"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "list_facts",
+   "description": "Page through the exploration facts/conclusions, newest first (compact: id+summary+state+origin+source). All parameters optional: limit (default 20, max 100). Returns {facts, total}.",
+   "read_only": true,
+   "category": "graph",
+   "schema": {
+    "properties": {
+     "limit": {
+      "description": "number of entries to return, default 20, max 100",
+      "type": "integer"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "node_detail",
+   "description": "Fetch the full content of an exploration graph node by id. Only for exploration node ids returned by list_facts/list_findings/graph_overview; for assets use list_assets.",
+   "read_only": true,
+   "category": "graph",
+   "schema": {
+    "properties": {
+     "id": {
+      "description": "exploration graph node id",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "add_hint",
+   "description": "Attach a strategic hint to the exploration graph; the planner reads it the next time it generates intents.\nBatch preferred: put multiple hints in the hints array in a single submission. Returns an ids array. For a single hint, omit hints and pass the top-level text.",
+   "read_only": false,
+   "category": "graph",
+   "schema": {
+    "properties": {
+     "asset_ids": {
+      "description": "asset ids to anchor (optional)",
+      "items": {
+       "type": "integer"
+      },
+      "type": "array"
+     },
+     "hints": {
+      "description": "[Prefer this] array of hints to add",
+      "items": {
+       "properties": {
+        "asset_ids": {
+         "description": "asset ids to anchor (optional)",
+         "items": {
+          "type": "integer"
+         },
+         "type": "array"
+        },
+        "text": {
+         "description": "hint content",
+         "type": "string"
+        }
+       },
+       "required": [
+        "text"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "text": {
+      "description": "[single] hint content",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "set_goals",
+   "description": "Add exploration goals to this task. A goal = a final deliverable/verifiable result, not an attack step.\nBatch preferred: put multiple goals in the goals array. For a single goal, pass the top-level text.\nvulnclass is optional: the corresponding vulnerability class.",
+   "read_only": false,
+   "category": "engagement",
+   "schema": {
+    "properties": {
+     "goals": {
+      "description": "[Prefer this] array of goals to add",
+      "items": {
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "text": {
+      "description": "[single] one independently verifiable final goal",
+      "type": "string"
+     },
+     "vulnclass": {
+      "description": "corresponding vulnerability class (optional)",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "set_constraints",
+   "description": "Add operation constraints to this task to bound exploration: type=allow (operations permitted) or deny (operations forbidden).\nA constraint = a rule about which operations may/may not be performed.\nBatch preferred: put multiple constraints in the constraints array. For a single constraint, pass top-level text/type.",
+   "read_only": false,
+   "category": "graph",
+   "schema": {
+    "properties": {
+     "constraints": {
+      "description": "[Prefer this] array of constraints to add",
+      "items": {
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "text": {
+      "description": "[single] the content of one operation constraint",
+      "type": "string"
+     },
+     "type": {
+      "description": "allow or deny; defaults to deny when omitted",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "prove_goal",
+   "description": "Call when you judge that a finding/fact proves a goal met: links the evidence node to the goal node and marks the goal met. A fact counts as evidence only when its confidence is observed. When evidence (findings or facts) proves a goal met, call this. When all goals are proved, the engagement is complete.",
+   "read_only": false,
+   "category": "engagement",
+   "schema": {
+    "properties": {
+     "evidence_id": {
+      "description": "id of the finding/fact node that proves it",
+      "type": "integer"
+     },
+     "goal_id": {
+      "description": "goal node id",
+      "type": "integer"
+     },
+     "reason": {
+      "description": "why this evidence satisfies the goal",
+      "type": "string"
+     }
+    },
+    "required": [
+     "goal_id",
+     "evidence_id"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "report_finding",
+   "description": "Record a confirmed finding, with evidence providing verifiable proof such as command output and logs. Pass the current intent_id when in a task context. After reporting, the coordinator sees this in graph_overview and can use it as evidence for prove_goal.",
+   "read_only": false,
+   "category": "findings",
+   "schema": {
+    "properties": {
+     "asset_ids": {
+      "description": "affected asset ids",
+      "items": {
+       "type": "integer"
+      },
+      "type": "array"
+     },
+     "evidence": {
+      "description": "evidence/PoC text",
+      "type": "string"
+     },
+     "intent_id": {
+      "description": "the current task's intent id",
+      "type": "integer"
+     },
+     "name": {
+      "description": "vulnerability name",
+      "type": "string"
+     },
+     "severity": {
+      "description": "severity level",
+      "enum": [
+       "critical",
+       "high",
+       "medium",
+       "low"
+      ],
+      "type": "string"
+     },
+     "summary": {
+      "description": "finding summary",
+      "type": "string"
+     },
+     "vulnclass": {
+      "description": "vulnerability class",
+      "type": "string"
+     }
+    },
+    "required": [
+     "vulnclass",
+     "severity",
+     "summary"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "list_findings",
+   "description": "List the confirmed findings of this task (compact: id+vulnclass+severity+summary+state+status+traffic_count).",
+   "read_only": true,
+   "category": "findings",
+   "schema": {
+    "properties": {},
+    "type": "object"
+   }
+  },
+  {
+   "name": "merge_findings",
+   "description": "Merge two or more findings into a single primary finding. Evidence and assets from secondary findings are folded into the primary. Secondary findings are marked as duplicates with a pointer to the primary.",
+   "read_only": false,
+   "category": "findings",
+   "schema": {
+    "properties": {
+     "finding_ids": {
+      "description": "all finding ids to merge (must include primary_id)",
+      "items": {
+       "type": "integer"
+      },
+      "type": "array"
+     },
+     "primary_id": {
+      "description": "the finding to keep as the merged result",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "finding_ids",
+     "primary_id"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "dismiss_finding",
+   "description": "Mark a finding as dismissed (false positive). Dismissed findings are excluded from generate_report output.",
+   "read_only": false,
+   "category": "findings",
+   "schema": {
+    "properties": {
+     "finding_id": {
+      "description": "the finding to dismiss",
+      "type": "integer"
+     },
+     "reason": {
+      "description": "why this finding is a false positive",
+      "type": "string"
+     }
+    },
+    "required": [
+     "finding_id",
+     "reason"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "save_task_credential",
+   "description": "Record (or update) a test account for this task's target. ALWAYS call this immediately after registering an account on the target, with the exact username and password you chose. Same (domain, username) is overwritten in place, not duplicated.\nReturns: {id, domain, username, source}.",
+   "read_only": false,
+   "category": "credentials",
+   "schema": {
+    "properties": {
+     "domain": {
+      "description": "domain or host the account belongs to",
+      "type": "string"
+     },
+     "note": {
+      "description": "optional context",
+      "type": "string"
+     },
+     "password": {
+      "description": "the exact password that was set",
+      "type": "string"
+     },
+     "username": {
+      "description": "login name / email used",
+      "type": "string"
+     }
+    },
+    "required": [
+     "domain",
+     "username",
+     "password"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "list_task_credentials",
+   "description": "List this task's test accounts: user-declared accounts plus accounts recorded by earlier runs. Check this BEFORE registering a new account, and use matching entries for authenticated testing.",
+   "read_only": true,
+   "category": "credentials",
+   "schema": {
+    "properties": {},
+    "type": "object"
+   }
+  },
+  {
+   "name": "record_coverage",
+   "description": "Record what you examined on a surface for one risk class (use the goal's vulnclass as risk_area when it applies), including negative results, so an absent finding is never read as a clean target.",
+   "read_only": false,
+   "category": "coverage",
+   "schema": {
+    "properties": {
+     "evidence": {
+      "description": "required for no_issue_found: a fact id, intent id or traffic id that shows the test",
+      "type": "string"
+     },
+     "outcome": {
+      "description": "result for this surface and risk class",
+      "enum": [
+       "reported",
+       "no_issue_found",
+       "ruled_out",
+       "not_applicable",
+       "needs_follow_up"
+      ],
+      "type": "string"
+     },
+     "reason": {
+      "description": "required for ruled_out and not_applicable: why",
+      "type": "string"
+     },
+     "risk_area": {
+      "description": "risk class, e.g. sqli, xss, idor",
+      "type": "string"
+     },
+     "surface": {
+      "description": "what was examined: a URL, endpoint, parameter, host or feature",
+      "type": "string"
+     }
+    },
+    "required": [
+     "surface",
+     "risk_area",
+     "outcome"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "check_scope",
+   "description": "Check whether a target (domain, IP, or URL) is within the engagement's scope rules.",
+   "read_only": true,
+   "category": "engagement",
+   "schema": {
+    "properties": {
+     "target": {
+      "description": "domain, IP address, or URL to check",
+      "type": "string"
+     }
+    },
+    "required": [
+     "target"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "generate_report",
+   "description": "Generate a Markdown penetration test report from the current engagement's findings, assets, and coverage.",
+   "read_only": true,
+   "category": "engagement",
+   "schema": {
+    "properties": {},
+    "type": "object"
+   }
+  },
+  {
+   "name": "create_engagement",
+   "description": "Create a new pentest engagement (task + exploration graph).",
+   "read_only": false,
+   "category": "engagement",
+   "schema": {
+    "properties": {
+     "description": {
+      "description": "detailed description of the engagement scope",
+      "type": "string"
+     },
+     "goal": {
+      "description": "high-level goal for the engagement",
+      "type": "string"
+     }
+    },
+    "required": [
+     "goal"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "list_engagements",
+   "description": "List all pentest engagements with summary stats (goal, status, node/finding/asset counts).",
+   "read_only": true,
+   "category": "engagement",
+   "schema": {
+    "properties": {},
+    "type": "object"
+   }
+  },
+  {
+   "name": "engagement_status",
+   "description": "Get the status of an engagement: goal, status, finding count, and coverage summary.",
+   "read_only": true,
+   "category": "engagement",
+   "schema": {
+    "properties": {
+     "task_id": {
+      "description": "task id (defaults to current engagement)",
+      "type": "integer"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "goal_met",
+   "description": "Mark the entire engagement as complete. Call this when all goals have been proved and the engagement is finished. Sets the task status to done. Provide an optional summary of what was accomplished.",
+   "read_only": false,
+   "category": "engagement",
+   "schema": {
+    "properties": {
+     "summary": {
+      "description": "optional summary of what was accomplished",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "update_engagement",
+   "description": "Update the current engagement's goal or description.",
+   "read_only": false,
+   "category": "engagement",
+   "schema": {
+    "properties": {
+     "description": {
+      "description": "new description for the engagement",
+      "type": "string"
+     },
+     "goal": {
+      "description": "new goal for the engagement",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "delete_engagement",
+   "description": "Delete an engagement and all its data (nodes, edges, findings, credentials, coverage, assets, constraints). This is irreversible. Both task_id and confirm=true are required.",
+   "read_only": false,
+   "category": "engagement",
+   "schema": {
+    "properties": {
+     "confirm": {
+      "description": "must be true to confirm deletion",
+      "type": "boolean"
+     },
+     "task_id": {
+      "description": "task id of the engagement to delete",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "task_id",
+     "confirm"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "engagement_activity",
+   "description": "Show recent activity in the current engagement as a timeline of findings, assets, and graph nodes.",
+   "read_only": true,
+   "category": "engagement",
+   "schema": {
+    "properties": {
+     "limit": {
+      "description": "maximum number of entries to return (default 20)",
+      "type": "integer"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "list_coverage_gaps",
+   "description": "Identify testing gaps in the current engagement: assets never targeted by an intent, intents with no recorded facts, goals not yet proven, and service ports discovered but not enriched.",
+   "read_only": true,
+   "category": "coverage",
+   "schema": {
+    "properties": {},
+    "type": "object"
+   }
+  },
+  {
+   "name": "enrich_domain",
+   "description": "Run DNS enrichment on a domain: resolves A/AAAA/CNAME/MX/NS/TXT records and performs reverse DNS on discovered IPs. Returns discovered facts and any new assets (IPs, subdomains from CNAMEs).",
+   "read_only": true,
+   "category": "enrichment",
+   "schema": {
+    "properties": {
+     "domain": {
+      "description": "domain or subdomain to enrich",
+      "type": "string"
+     },
+     "timeout": {
+      "description": "timeout in seconds (default 30)",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "domain"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "enrich_ip",
+   "description": "Run reverse DNS on an IP address. Returns PTR records and any discovered hostnames as new assets.",
+   "read_only": true,
+   "category": "enrichment",
+   "schema": {
+    "properties": {
+     "ip": {
+      "description": "IPv4 or IPv6 address",
+      "type": "string"
+     },
+     "timeout": {
+      "description": "timeout in seconds (default 30)",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "ip"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "enrich_service",
+   "description": "Probe an HTTP(S) service for status code, redirect chain, server headers, page title, TLS certificate info (CN, SAN, issuer, expiry), and technology fingerprinting from headers and HTML meta tags. Scheme defaults to https for ports 443/8443, http otherwise.",
+   "read_only": true,
+   "category": "enrichment",
+   "schema": {
+    "properties": {
+     "host": {
+      "description": "hostname or IP",
+      "type": "string"
+     },
+     "port": {
+      "description": "port number (1-65535)",
+      "type": "integer"
+     },
+     "scheme": {
+      "description": "http or https (auto-detected from port if omitted)",
+      "type": "string"
+     },
+     "timeout": {
+      "description": "timeout in seconds (default 30)",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "host",
+     "port"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "list_activity",
+   "description": "List recent activity log entries for this engagement: intents started/completed, facts recorded, findings reported, tool calls. Optionally filter by node_id, kind, or since (time). Returns newest first.",
+   "read_only": true,
+   "category": "activity",
+   "schema": {
+    "properties": {
+     "format": {
+      "description": "output format (default json)",
+      "enum": [
+       "json",
+       "csv"
+      ],
+      "type": "string"
+     },
+     "kind": {
+      "description": "filter by activity kind (e.g. tool_use, tool_result, intent_start, intent_done, finding)",
+      "type": "string"
+     },
+     "limit": {
+      "description": "number of entries to return, default 50, max 500",
+      "type": "integer"
+     },
+     "node_id": {
+      "description": "filter to activity on a specific exploration node",
+      "type": "integer"
+     },
+     "since": {
+      "description": "only return entries created after this time (RFC 3339 or duration like 1h, 30m)",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "log_activity",
+   "description": "Record an activity log entry for this engagement. Use this to log significant actions, decisions, or observations that should be visible in the activity timeline.",
+   "read_only": false,
+   "category": "activity",
+   "schema": {
+    "properties": {
+     "action": {
+      "description": "what happened (used as the activity kind)",
+      "type": "string"
+     },
+     "detail": {
+      "description": "detailed description of the activity",
+      "type": "string"
+     },
+     "node_id": {
+      "description": "related exploration node id (optional)",
+      "type": "integer"
+     },
+     "summary": {
+      "description": "one-line summary",
+      "type": "string"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "start_intent",
+   "description": "Mark an open intent as running. Call this when you begin working on an intent.",
+   "read_only": false,
+   "category": "graph",
+   "schema": {
+    "properties": {
+     "node_id": {
+      "description": "intent node id",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "node_id"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "complete_intent",
+   "description": "Mark a running intent as done with a result summary. Call this when you have finished working on an intent and recorded all facts/findings.",
+   "read_only": false,
+   "category": "graph",
+   "schema": {
+    "properties": {
+     "node_id": {
+      "description": "intent node id",
+      "type": "integer"
+     },
+     "result": {
+      "description": "brief result summary",
+      "type": "string"
+     }
+    },
+    "required": [
+     "node_id"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "cancel_intent",
+   "description": "Cancel an intent that is no longer needed. Use this when an intent is redundant, no longer applicable, or was created in error.",
+   "read_only": false,
+   "category": "graph",
+   "schema": {
+    "properties": {
+     "node_id": {
+      "description": "intent node id",
+      "type": "integer"
+     },
+     "reason": {
+      "description": "why this intent is being cancelled",
+      "type": "string"
+     }
+    },
+    "required": [
+     "node_id"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "export_engagement",
+   "description": "Export the current engagement (or a specific one). Includes assets, exploration graph, findings, credentials, coverage, and scope. Format: json (default) returns the full export object; csv returns per-entity CSV tables (assets, findings, nodes).",
+   "read_only": true,
+   "category": "engagement",
+   "schema": {
+    "properties": {
+     "format": {
+      "description": "export format: json (default) or csv",
+      "enum": [
+       "json",
+       "csv"
+      ],
+      "type": "string"
+     },
+     "task_id": {
+      "description": "task id to export (defaults to current engagement)",
+      "type": "integer"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "import_engagement",
+   "description": "Import a previously exported engagement from JSON. Creates a new engagement with all the imported data (assets, graph, findings, credentials, coverage, scope). Returns the new task_id and exploration_id.",
+   "read_only": false,
+   "category": "engagement",
+   "schema": {
+    "properties": {
+     "data": {
+      "description": "the exported engagement JSON string",
+      "type": "string"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "ingest_scanner_output",
+   "description": "Parse output from common security scanners and import the results as assets and/or findings. Supported scanners: nmap (XML or greppable), nuclei (JSONL), httpx (JSONL), ffuf (JSON).",
+   "read_only": false,
+   "category": "enrichment",
+   "schema": {
+    "properties": {
+     "output": {
+      "description": "the scanner output to parse",
+      "type": "string"
+     },
+     "scanner": {
+      "description": "scanner that produced the output",
+      "enum": [
+       "nmap",
+       "nuclei",
+       "httpx",
+       "ffuf"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "scanner",
+     "output"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "ingest_masscan",
+   "description": "Parse masscan output (XML or JSON) and import discovered hosts and open ports as assets. Masscan produces nmap-compatible XML or its own JSON list format.",
+   "read_only": false,
+   "category": "enrichment",
+   "schema": {
+    "properties": {
+     "data": {
+      "description": "the masscan output to parse",
+      "type": "string"
+     },
+     "format": {
+      "description": "output format: xml or json",
+      "enum": [
+       "xml",
+       "json"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "format",
+     "data"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "save_evidence",
+   "description": "Save a piece of evidence (screenshot, PoC output, config extract, etc.) linked to a finding. Content is base64-encoded.",
+   "read_only": false,
+   "category": "evidence",
+   "schema": {
+    "properties": {
+     "content_base64": {
+      "description": "base64-encoded file content",
+      "type": "string"
+     },
+     "filename": {
+      "description": "original filename for the artifact",
+      "type": "string"
+     },
+     "finding_id": {
+      "description": "finding to attach this evidence to",
+      "type": "integer"
+     },
+     "kind": {
+      "description": "type of evidence",
+      "enum": [
+       "screenshot",
+       "poc_output",
+       "request_response",
+       "config_file",
+       "log_extract",
+       "other"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "finding_id",
+     "kind",
+     "filename",
+     "content_base64"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "list_evidence",
+   "description": "List evidence artifacts for the current engagement, optionally filtered by finding.",
+   "read_only": true,
+   "category": "evidence",
+   "schema": {
+    "properties": {
+     "finding_id": {
+      "description": "filter by finding id (optional)",
+      "type": "integer"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "get_evidence",
+   "description": "Read evidence content by ID. Returns base64-encoded data.",
+   "read_only": true,
+   "category": "evidence",
+   "schema": {
+    "properties": {
+     "id": {
+      "description": "evidence id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "capture_command_output",
+   "description": "Run a command and save its combined stdout+stderr as evidence (kind=poc_output). The command must only target in-scope hosts. Returns evidence ID, exit code, and an output preview.",
+   "read_only": false,
+   "category": "evidence",
+   "schema": {
+    "properties": {
+     "command": {
+      "description": "shell command to execute",
+      "type": "string"
+     },
+     "description": {
+      "description": "what this command demonstrates",
+      "type": "string"
+     },
+     "finding_id": {
+      "description": "finding to attach this evidence to",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "finding_id",
+     "command"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "traffic_search",
+   "description": "Query the target traffic the recording proxy has captured (host is required; accepts a bare host, host:port, or full URL, optionally filtered further by URL substring or body keyword). When a port is specified, only that service's traffic is returned, avoiding cross-talk between different ports on the same IP. body_contains runs a full-text search over the captured request/response headers and bodies, supporting any substring including Chinese (at least 3 characters). Returns only an ultra-light index (id/method/url/status/resp_len) with no response content; once results are non-empty, use traffic_get to verify the request/response of each one, then hand the IDs that actually support the current vulnerability to bind_finding_traffic. Returns 3 by default, at most 10 per page; use page to paginate when there are more results.",
+   "read_only": true,
+   "category": "traffic",
+   "schema": {
+    "properties": {
+     "body_contains": {
+      "description": "full-text body search (min 3 chars; optional)",
+      "type": "string"
+     },
+     "host": {
+      "description": "target host (required): bare host, host:port, or full URL",
+      "type": "string"
+     },
+     "limit": {
+      "description": "results per page, default 3, max 10",
+      "type": "integer"
+     },
+     "page": {
+      "description": "0-based page number for pagination",
+      "type": "integer"
+     },
+     "query": {
+      "description": "URL/metadata substring filter (optional)",
+      "type": "string"
+     }
+    },
+    "required": [
+     "host"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "traffic_get",
+   "description": "Fetch the raw request/response of one captured traffic record by id (truncated when too large). Use together with traffic_search to avoid re-curling. A WebSocket (status 101) or SSE (text/event-stream) record shows only its handshake here; read its messages with traffic_messages. When proxy rewrite rules changed the exchange, the result starts with a REWRITTEN line naming the rule ids, and shows the request as the client sent it and the response as the target sent it. traffic_search searches only these original values: it never finds a value a rewrite rule wrote.",
+   "read_only": true,
+   "category": "traffic",
+   "schema": {
+    "properties": {
+     "id": {
+      "description": "exchange id from traffic_search",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "traffic_blob",
+   "description": "Read a segment of an oversized request or response body by its blob hash (shown in traffic_get as @blob sha256:<hash>). Returns at most 8 KiB per call; use offset to page through.",
+   "read_only": true,
+   "category": "traffic",
+   "schema": {
+    "properties": {
+     "hash": {
+      "description": "sha256 blob hash from traffic_get output",
+      "type": "string"
+     },
+     "limit": {
+      "description": "bytes to read, max 8192 (default 8192)",
+      "type": "integer"
+     },
+     "offset": {
+      "description": "byte offset to start reading (default 0)",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "hash"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "traffic_messages",
+   "description": "List WebSocket or SSE messages of a captured stream exchange. Use after traffic_get shows status 101 (WebSocket) or text/event-stream (SSE).",
+   "read_only": true,
+   "category": "traffic",
+   "schema": {
+    "properties": {
+     "direction": {
+      "description": "filter: c2s (client to server), s2c (server to client), or empty for both",
+      "type": "string"
+     },
+     "id": {
+      "description": "exchange id",
+      "type": "string"
+     },
+     "limit": {
+      "description": "messages per page, default 50, max 200",
+      "type": "integer"
+     },
+     "offset": {
+      "description": "0-based offset for pagination",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "traffic_replay",
+   "description": "Replay a captured HTTP request (optionally with modifications). Fetches the original request from the given exchange id, applies any header or body overrides, sends it through the recording proxy, and returns the new response.",
+   "read_only": false,
+   "category": "traffic",
+   "schema": {
+    "properties": {
+     "apply_rules": {
+      "description": "apply capture rewrite rules to the replay (default false)",
+      "type": "boolean"
+     },
+     "id": {
+      "description": "exchange id to replay",
+      "type": "string"
+     },
+     "modify_body": {
+      "description": "override the request body (optional)",
+      "type": "string"
+     },
+     "modify_headers": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "description": "header overrides: {name: value} to set, {name: \"\"} to remove",
+      "type": "object"
+     },
+     "modify_method": {
+      "description": "override the HTTP method (optional)",
+      "type": "string"
+     },
+     "modify_url": {
+      "description": "override the request URL (optional)",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "traffic_hosts",
+   "description": "List all recorded target hosts with their exchange counts, most recent activity first.",
+   "read_only": true,
+   "category": "traffic",
+   "schema": {
+    "properties": {},
+    "type": "object"
+   }
+  },
+  {
+   "name": "traffic_har_export",
+   "description": "Export captured traffic as a HAR 1.2 JSON document. Optionally filter by host.",
+   "read_only": true,
+   "category": "traffic",
+   "schema": {
+    "properties": {
+     "host": {
+      "description": "host substring filter (optional; empty exports all)",
+      "type": "string"
+     },
+     "method": {
+      "description": "HTTP method filter (optional)",
+      "type": "string"
+     },
+     "status": {
+      "description": "status code or class filter, e.g. 200 or 4xx (optional)",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "traffic_stats",
+   "description": "Aggregate statistics about all captured traffic: total exchanges, unique hosts, status code distribution, method distribution, top 10 hosts, time range, and average response size.",
+   "read_only": true,
+   "category": "traffic",
+   "schema": {
+    "properties": {},
+    "type": "object"
+   }
+  },
+  {
+   "name": "traffic_timeline",
+   "description": "Show traffic activity over time for a host, bucketed by minute, hour (default), or day. Useful for spotting rate limiting, session expiry, and WAF patterns.",
+   "read_only": true,
+   "category": "traffic",
+   "schema": {
+    "properties": {
+     "bucket": {
+      "description": "time bucket granularity (default hour)",
+      "enum": [
+       "minute",
+       "hour",
+       "day"
+      ],
+      "type": "string"
+     },
+     "host": {
+      "description": "target host (required)",
+      "type": "string"
+     }
+    },
+    "required": [
+     "host"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "traffic_patterns",
+   "description": "Identify traffic patterns: most-requested paths (by url_template), hosts with the most HTTP errors (4xx/5xx with status breakdown), and endpoints that appeared recently. Optionally filter by host.",
+   "read_only": true,
+   "category": "traffic",
+   "schema": {
+    "properties": {
+     "host": {
+      "description": "host substring filter (optional; empty analyzes all traffic)",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   }
+  },
+  {
+   "name": "traffic_clear",
+   "description": "Delete all captured traffic for a given host substring. Returns the number of deleted exchanges.",
+   "read_only": false,
+   "category": "traffic",
+   "schema": {
+    "properties": {
+     "host": {
+      "description": "host substring to match for deletion",
+      "type": "string"
+     }
+    },
+    "required": [
+     "host"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "bind_finding_traffic",
+   "description": "Link a traffic exchange (snapshot) to a finding as evidence. Use traffic_search to find the snapshot_id, then bind it here with a role describing how it supports the finding.",
+   "read_only": false,
+   "category": "traffic",
+   "schema": {
+    "properties": {
+     "finding_id": {
+      "description": "finding id",
+      "type": "integer"
+     },
+     "note": {
+      "description": "optional note about this traffic evidence",
+      "type": "string"
+     },
+     "role": {
+      "description": "how this traffic supports the finding (default: supporting)",
+      "enum": [
+       "baseline",
+       "proof",
+       "verification",
+       "supporting"
+      ],
+      "type": "string"
+     },
+     "snapshot_id": {
+      "description": "traffic snapshot id from traffic_search/traffic_get",
+      "type": "string"
+     }
+    },
+    "required": [
+     "finding_id",
+     "snapshot_id"
+    ],
+    "type": "object"
+   }
+  }
+ ],
+ "/api/mcp/servers": [
+  {
+   "name": "artex (built-in)",
+   "type": "http",
+   "url": "/mcp",
+   "env_keys": [],
+   "built_in": true
+  }
+ ],
+ "/api/skills": [],
+ "/api/agents": [
+  {
+   "id": "pentest-lead",
+   "name": "Pentest Lead",
+   "description": "Orchestrates the engagement, tracks progress, and dispatches work to specialists",
+   "system_prompt": "You are the lead pentester for this ARTEX engagement. When a conversation starts, call graph_overview to understand the current state, then ask the user which target or technique to focus on. Be direct and task-oriented: do not make small talk. Assess coverage, prioritize open intents, and dispatch focused work for them. Use the MCP tools to track assets, findings, and evidence, and prove goals when evidence exists. Stay within the engagement constraints at all times.",
+   "model": "opus",
+   "allowed_tools": [
+    "mcp__artex__*",
+    "Bash",
+    "Read"
+   ],
+   "created_at": "2026-11-25T01:42:46.784Z",
+   "updated_at": "2026-11-25T01:42:46.784Z"
+  },
+  {
+   "id": "recon-specialist",
+   "name": "Recon Specialist",
+   "description": "Reconnaissance, asset discovery, and port scanning",
+   "system_prompt": "You are a reconnaissance specialist. Enumerate the target's attack surface: subdomains, hosts, open ports, services, and technologies. Record every discovery with insert_asset and keep notes on how it was found. Prefer passive techniques first, and stay within scope.",
+   "model": "sonnet",
+   "allowed_tools": [
+    "mcp__artex__insert_asset",
+    "mcp__artex__graph_overview",
+    "Bash",
+    "Read"
+   ],
+   "created_at": "2026-11-25T01:42:46.785Z",
+   "updated_at": "2026-11-25T01:42:46.785Z"
+  },
+  {
+   "id": "web-tester",
+   "name": "Web Tester",
+   "description": "Web application testing: XSS, SQL injection, and authentication bypass",
+   "system_prompt": "You are a web application security tester. Test discovered web surfaces for XSS, SQL injection, authentication and authorization bypass, and other OWASP Top 10 issues. Confirm each issue with a minimal proof of concept, capture evidence, and record findings with clear reproduction steps.",
+   "model": "sonnet",
+   "allowed_tools": [
+    "mcp__artex__*",
+    "Bash",
+    "Read",
+    "WebFetch"
+   ],
+   "created_at": "2026-11-25T01:42:46.786Z",
+   "updated_at": "2026-11-25T01:42:46.786Z"
+  }
+ ],
+ "/api/llm/settings": {
+  "backend": "claude",
+  "default_model": "",
+  "master_model": "opus",
+  "subagent_model": "sonnet",
+  "subagent_strategy": "parallel",
+  "max_parallel_subagents": 3,
+  "max_turns": 50,
+  "max_conversations": 4,
+  "thinking": "default",
+  "global_system_prompt": "You are an autonomous pentesting assistant driving an ARTEX engagement through ARTEX-CC. Use the MCP tools (graph_overview, insert_asset, insert_finding, etc.) to track assets, findings, and coverage. When a conversation starts, even with a greeting, orient to the engagement by calling graph_overview, then ask what target or technique to focus on. Be direct and task-focused, and skip small talk."
+ },
+ "/api/llm/status": {
+  "backends": [
+   {
+    "id": "claude",
+    "name": "Claude Code",
+    "available": true,
+    "path": "/usr/local/bin/claude",
+    "version": "2.1.331 (Claude Code)",
+    "enabled": true
+   }
+  ],
+  "models": [
+   {
+    "id": "opus",
+    "label": "Opus (latest)",
+    "group": "Aliases"
+   },
+   {
+    "id": "sonnet",
+    "label": "Sonnet (latest)",
+    "group": "Aliases"
+   },
+   {
+    "id": "haiku",
+    "label": "Haiku (latest)",
+    "group": "Aliases"
+   },
+   {
+    "id": "fable",
+    "label": "Fable (latest)",
+    "group": "Aliases"
+   },
+   {
+    "id": "claude-mythos-5-2",
+    "label": "Mythos 5.2",
+    "group": "Mythos"
+   },
+   {
+    "id": "claude-mythos-5-1",
+    "label": "Mythos 5.1",
+    "group": "Mythos"
+   },
+   {
+    "id": "claude-fable-5-2",
+    "label": "Fable 5.2",
+    "group": "Fable"
+   },
+   {
+    "id": "claude-fable-5-1",
+    "label": "Fable 5.1",
+    "group": "Fable"
+   },
+   {
+    "id": "claude-fable-5",
+    "label": "Fable 5",
+    "group": "Fable"
+   },
+   {
+    "id": "claude-opus-5-5",
+    "label": "Opus 5.5",
+    "group": "Claude 5.5"
+   },
+   {
+    "id": "claude-sonnet-5-5",
+    "label": "Sonnet 5.5",
+    "group": "Claude 5.5"
+   },
+   {
+    "id": "claude-haiku-5-5",
+    "label": "Haiku 5.5",
+    "group": "Claude 5.5"
+   },
+   {
+    "id": "claude-opus-5",
+    "label": "Opus 5",
+    "group": "Claude 5"
+   },
+   {
+    "id": "claude-sonnet-5",
+    "label": "Sonnet 5",
+    "group": "Claude 5"
+   },
+   {
+    "id": "claude-opus-4-8",
+    "label": "Opus 4.8",
+    "group": "Claude 4"
+   },
+   {
+    "id": "claude-opus-4-7",
+    "label": "Opus 4.7",
+    "group": "Claude 4"
+   },
+   {
+    "id": "claude-opus-4-6",
+    "label": "Opus 4.6",
+    "group": "Claude 4"
+   },
+   {
+    "id": "claude-sonnet-4-6",
+    "label": "Sonnet 4.6",
+    "group": "Claude 4"
+   },
+   {
+    "id": "claude-haiku-4-5",
+    "label": "Haiku 4.5",
+    "group": "Claude 4"
+   }
+  ]
+ },
+ "/api/usage": [
+  {
+   "conversation_id": "a865b41d-d62c-594b-a326-47b095a8c1ea",
+   "conversation_title": "API authorization testing",
+   "model": "sonnet",
+   "total_input_tokens": 26310,
+   "total_output_tokens": 3870,
+   "total_cache_read_tokens": 58800,
+   "total_cache_creation_tokens": 7100,
+   "total_cost_usd": 0.2216,
+   "total_duration_ms": 131000,
+   "total_turns": 9,
+   "result_count": 1,
+   "first_time": "2026-11-25T00:28:20.816Z",
+   "last_time": "2026-11-25T00:28:20.816Z"
+  },
+  {
+   "conversation_id": "eb812252-65c8-55be-893e-f09f57c7e84b",
+   "conversation_title": "Recon acme.example",
+   "model": "opus",
+   "total_input_tokens": 18420,
+   "total_output_tokens": 2310,
+   "total_cache_read_tokens": 41200,
+   "total_cache_creation_tokens": 6300,
+   "total_cost_usd": 0.4172,
+   "total_duration_ms": 94000,
+   "total_turns": 6,
+   "result_count": 1,
+   "first_time": "2026-11-24T23:42:20.185Z",
+   "last_time": "2026-11-24T23:42:20.185Z"
+  }
+ ],
+ "/api/usage/totals": {
+  "total_input_tokens": 44730,
+  "total_output_tokens": 6180,
+  "total_cache_read_tokens": 100000,
+  "total_cache_creation_tokens": 13400,
+  "total_cost_usd": 0.6388,
+  "total_duration_ms": 225000,
+  "total_turns": 15,
+  "conversation_count": 2,
+  "by_model": {
+   "opus": {
+    "input_tokens": 18420,
+    "output_tokens": 2310,
+    "cost_usd": 0.4172
+   },
+   "sonnet": {
+    "input_tokens": 26310,
+    "output_tokens": 3870,
+    "cost_usd": 0.2216
+   }
+  }
+ },
+ "/api/commands/stats": {
+  "total": 10,
+  "by_tool": {
+   "Bash": 6,
+   "mcp__artex__graph_overview": 1,
+   "mcp__artex__insert_assets": 1,
+   "mcp__artex__report_finding": 1,
+   "mcp__artex__save_task_credential": 1
+  },
+  "by_conversation": {
+   "a865b41d-d62c-594b-a326-47b095a8c1ea": 6,
+   "eb812252-65c8-55be-893e-f09f57c7e84b": 4
+  },
+  "error_count": 1
+ },
+ "/api/claude/status": {
+  "available": true,
+  "path": "/usr/local/bin/claude",
+  "version": "2.1.331 (Claude Code)"
+ },
+ "/api/intercept/rules": [
+  {
+   "id": "r8f4de0bf8d15",
+   "pattern": "Bash",
+   "scope": "tool_name",
+   "action": "ask",
+   "description": "Require approval for shell commands",
+   "enabled": true,
+   "created_at": "2026-11-25T01:42:47.006Z"
+  },
+  {
+   "id": "re9daf9d9df37",
+   "pattern": "mcp__artex__dismiss_finding",
+   "scope": "tool_name",
+   "action": "deny",
+   "description": "Block auto-dismissing findings",
+   "enabled": true,
+   "created_at": "2026-11-25T01:42:47.007Z"
+  },
+  {
+   "id": "r72fa9ff14918",
+   "pattern": "mcp__artex__*",
+   "scope": "tool_name",
+   "action": "allow",
+   "description": "Allow all ARTEX tools by default",
+   "enabled": true,
+   "created_at": "2026-11-25T01:42:47.008Z"
+  }
+ ],
+ "/api/approvals": [],
+ "/api/conversations": [
+  {
+   "id": "a865b41d-d62c-594b-a326-47b095a8c1ea",
+   "title": "API authorization testing",
+   "model": "sonnet",
+   "agent": "web-tester",
+   "session_id": "d7eedb36-d365-58a0-8c88-39cadf685a6b",
+   "status": "idle",
+   "created_at": "2026-11-24T23:44:27.823Z",
+   "updated_at": "2026-11-25T00:28:20.816Z"
+  },
+  {
+   "id": "eb812252-65c8-55be-893e-f09f57c7e84b",
+   "title": "Recon acme.example",
+   "model": "opus",
+   "agent": "pentest-lead",
+   "session_id": "d6449dc7-d001-5f08-9cef-d0f18c5ace9e",
+   "status": "idle",
+   "created_at": "2026-11-24T23:06:40.879Z",
+   "updated_at": "2026-11-24T23:42:20.185Z"
+  }
+ ],
+ "/api/tasks/1/goals": [
+  {
+   "id": 2,
+   "state": "open",
+   "text": "Gain authenticated admin access to the customer portal",
+   "vulnclass": "auth_bypass"
+  },
+  {
+   "id": 3,
+   "state": "met",
+   "text": "Demonstrate access to customer PII",
+   "vulnclass": "idor"
+  },
+  {
+   "id": 4,
+   "state": "open",
+   "text": "Obtain a foothold on the internal network",
+   "vulnclass": "rce"
+  }
+ ],
+ "/api/findings/5": {
+  "created_at": "2026-11-25T00:39:48.459Z",
+  "id": 5,
+  "node_id": 23,
+  "severity": "low",
+  "status": "pending",
+  "summary": "The unauthenticated health endpoint returns the internal PostgreSQL host, port, user and database name.",
+  "traffic_bindings": [
+   {
+    "id": 8,
+    "finding_id": 5,
+    "snapshot_id": "1795570964-0016",
+    "role": "proof",
+    "note": "",
+    "position": 0
+   }
+  ],
+  "vulnclass": "info_disclosure"
+ },
+ "/api/findings/4": {
+  "created_at": "2026-11-25T00:26:37.615Z",
+  "id": 4,
+  "node_id": 20,
+  "severity": "critical",
+  "status": "pending",
+  "summary": "The q parameter is concatenated into a PostgreSQL query. A single quote produces a database syntax error, and boolean payloads change result counts.",
+  "traffic_bindings": [
+   {
+    "id": 5,
+    "finding_id": 4,
+    "snapshot_id": "1795570964-0015",
+    "role": "proof",
+    "note": "",
+    "position": 0
+   },
+   {
+    "id": 6,
+    "finding_id": 4,
+    "snapshot_id": "1795570964-0014",
+    "role": "baseline",
+    "note": "",
+    "position": 1
+   }
+  ],
+  "vulnclass": "sqli"
+ },
+ "/api/findings/3": {
+  "created_at": "2026-11-25T00:08:54.092Z",
+  "id": 3,
+  "node_id": 17,
+  "severity": "critical",
+  "status": "pending",
+  "summary": "The svc-backup service account uses the seasonal password Spring2026! and has no MFA. Login returns a valid JWT with service role, granting API access.",
+  "traffic_bindings": [
+   {
+    "id": 3,
+    "finding_id": 3,
+    "snapshot_id": "1795570964-0013",
+    "role": "proof",
+    "note": "",
+    "position": 0
+   },
+   {
+    "id": 4,
+    "finding_id": 3,
+    "snapshot_id": "1795570964-0012",
+    "role": "baseline",
+    "note": "",
+    "position": 1
+   }
+  ],
+  "vulnclass": "weak_credentials"
+ },
+ "/api/findings/2": {
+  "created_at": "2026-11-24T23:59:01.812Z",
+  "id": 2,
+  "node_id": 14,
+  "severity": "high",
+  "status": "pending",
+  "summary": "The users endpoint returns full profile data for any numeric id with no authentication or ownership check. Enumerating ids 1-3 returned every account including the administrator.",
+  "traffic_bindings": [
+   {
+    "id": 1,
+    "finding_id": 2,
+    "snapshot_id": "1795570964-0007",
+    "role": "proof",
+    "note": "",
+    "position": 0
+   },
+   {
+    "id": 2,
+    "finding_id": 2,
+    "snapshot_id": "1795570964-0009",
+    "role": "supporting",
+    "note": "",
+    "position": 1
+   }
+  ],
+  "vulnclass": "idor"
+ },
+ "/api/findings/1": {
+  "created_at": "2026-11-24T23:44:32.267Z",
+  "id": 1,
+  "node_id": 11,
+  "severity": "medium",
+  "status": "pending",
+  "summary": "The portal serves /.git/config, exposing repository metadata and the internal GitLab remote. Full source may be recoverable.",
+  "traffic_bindings": [
+   {
+    "id": 7,
+    "finding_id": 1,
+    "snapshot_id": "1795570964-0006",
+    "role": "proof",
+    "note": "",
+    "position": 0
+   }
+  ],
+  "vulnclass": "info_disclosure"
+ },
+ "/api/agents/pentest-lead": {
+  "id": "pentest-lead",
+  "name": "Pentest Lead",
+  "description": "Orchestrates the engagement, tracks progress, and dispatches work to specialists",
+  "system_prompt": "You are the lead pentester for this ARTEX engagement. When a conversation starts, call graph_overview to understand the current state, then ask the user which target or technique to focus on. Be direct and task-oriented: do not make small talk. Assess coverage, prioritize open intents, and dispatch focused work for them. Use the MCP tools to track assets, findings, and evidence, and prove goals when evidence exists. Stay within the engagement constraints at all times.",
+  "model": "opus",
+  "allowed_tools": [
+   "mcp__artex__*",
+   "Bash",
+   "Read"
+  ],
+  "created_at": "2026-11-25T01:42:46.784Z",
+  "updated_at": "2026-11-25T01:42:46.784Z"
+ },
+ "/api/agents/recon-specialist": {
+  "id": "recon-specialist",
+  "name": "Recon Specialist",
+  "description": "Reconnaissance, asset discovery, and port scanning",
+  "system_prompt": "You are a reconnaissance specialist. Enumerate the target's attack surface: subdomains, hosts, open ports, services, and technologies. Record every discovery with insert_asset and keep notes on how it was found. Prefer passive techniques first, and stay within scope.",
+  "model": "sonnet",
+  "allowed_tools": [
+   "mcp__artex__insert_asset",
+   "mcp__artex__graph_overview",
+   "Bash",
+   "Read"
+  ],
+  "created_at": "2026-11-25T01:42:46.785Z",
+  "updated_at": "2026-11-25T01:42:46.785Z"
+ },
+ "/api/agents/web-tester": {
+  "id": "web-tester",
+  "name": "Web Tester",
+  "description": "Web application testing: XSS, SQL injection, and authentication bypass",
+  "system_prompt": "You are a web application security tester. Test discovered web surfaces for XSS, SQL injection, authentication and authorization bypass, and other OWASP Top 10 issues. Confirm each issue with a minimal proof of concept, capture evidence, and record findings with clear reproduction steps.",
+  "model": "sonnet",
+  "allowed_tools": [
+   "mcp__artex__*",
+   "Bash",
+   "Read",
+   "WebFetch"
+  ],
+  "created_at": "2026-11-25T01:42:46.786Z",
+  "updated_at": "2026-11-25T01:42:46.786Z"
+ },
+ "/api/conversations/a865b41d-d62c-594b-a326-47b095a8c1ea": {
+  "id": "a865b41d-d62c-594b-a326-47b095a8c1ea",
+  "title": "API authorization testing",
+  "model": "sonnet",
+  "agent": "web-tester",
+  "session_id": "d7eedb36-d365-58a0-8c88-39cadf685a6b",
+  "status": "idle",
+  "created_at": "2026-11-24T23:44:27.823Z",
+  "updated_at": "2026-11-25T00:28:20.816Z"
+ },
+ "/api/conversations/a865b41d-d62c-594b-a326-47b095a8c1ea/messages": [
+  {
+   "seq": 1,
+   "kind": "user",
+   "text": "Test the users API for IDOR, then check whether any service account has a weak password.",
+   "time": "2026-11-24T23:47:12.385Z"
+  },
+  {
+   "seq": 2,
+   "kind": "tool_use",
+   "tool_name": "Bash",
+   "tool_id": "t1",
+   "input": {
+    "command": "curl -s http://api.acme.example/api/v2/users/1",
+    "description": "Fetch user 1 without auth"
+   },
+   "time": "2026-11-24T23:49:56.947Z"
+  },
+  {
+   "seq": 3,
+   "kind": "tool_result",
+   "text": "{\n  \"id\": 1,\n  \"email\": \"admin@acme.example\",\n  \"role\": \"admin\",\n  \"mfa\": false\n}",
+   "tool_id": "t1",
+   "time": "2026-11-24T23:52:41.509Z"
+  },
+  {
+   "seq": 4,
+   "kind": "tool_use",
+   "tool_name": "Bash",
+   "tool_id": "t2",
+   "input": {
+    "command": "for i in 2 3; do curl -s http://api.acme.example/api/v2/users/$i; done",
+    "description": "Enumerate more ids"
+   },
+   "time": "2026-11-24T23:55:26.072Z"
+  },
+  {
+   "seq": 5,
+   "kind": "tool_result",
+   "text": "{\"id\": 2, \"email\": \"j.doe@acme.example\", \"role\": \"user\", \"mfa\": true}\n{\"id\": 3, \"email\": \"svc-backup@acme.example\", \"role\": \"service\", \"mfa\": false}",
+   "tool_id": "t2",
+   "time": "2026-11-24T23:58:10.634Z"
+  },
+  {
+   "seq": 6,
+   "kind": "text",
+   "text": "Every id returns a full profile with no session at all. That is a textbook BOLA, and it leaks a service account.",
+   "time": "2026-11-25T00:00:55.196Z"
+  },
+  {
+   "seq": 7,
+   "kind": "tool_use",
+   "tool_name": "mcp__artex__report_finding",
+   "tool_id": "t3",
+   "input": {
+    "name": "IDOR on /api/v2/users/{id} exposes all customer records",
+    "severity": "high",
+    "vulnclass": "idor"
+   },
+   "time": "2026-11-25T00:03:39.758Z"
+  },
+  {
+   "seq": 8,
+   "kind": "tool_result",
+   "text": "{\"finding_id\": 2}",
+   "tool_id": "t3",
+   "time": "2026-11-25T00:06:24.320Z"
+  },
+  {
+   "seq": 9,
+   "kind": "tool_use",
+   "tool_name": "Bash",
+   "tool_id": "t4",
+   "input": {
+    "command": "sqlmap -u http://api.acme.example/api/v2/search --data '{\"q\":\"x\"}' --batch"
+   },
+   "time": "2026-11-25T00:09:08.882Z"
+  },
+  {
+   "seq": 10,
+   "kind": "tool_result",
+   "text": "sh: sqlmap: command not found",
+   "tool_id": "t4",
+   "is_error": true,
+   "time": "2026-11-25T00:11:53.444Z"
+  },
+  {
+   "seq": 11,
+   "kind": "tool_use",
+   "tool_name": "Bash",
+   "tool_id": "t5",
+   "input": {
+    "command": "curl -s -X POST http://api.acme.example/api/v2/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"svc-backup@acme.example\",\"password\":\"Spring2026!\"}'",
+    "description": "Try a seasonal password"
+   },
+   "time": "2026-11-25T00:14:38.006Z"
+  },
+  {
+   "seq": 12,
+   "kind": "tool_result",
+   "text": "{\"token\": \"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIzIiwicm9sZSI6InNlcnZpY2UifQ.c2lnbmF0dXJl\", \"user\": {\"id\": 3, \"role\": \"service\"}}",
+   "tool_id": "t5",
+   "time": "2026-11-25T00:17:22.568Z"
+  },
+  {
+   "seq": 13,
+   "kind": "tool_use",
+   "tool_name": "mcp__artex__save_task_credential",
+   "tool_id": "t6",
+   "input": {
+    "domain": "api.acme.example",
+    "username": "svc-backup@acme.example",
+    "note": "service role JWT, no MFA"
+   },
+   "time": "2026-11-25T00:20:07.130Z"
+  },
+  {
+   "seq": 14,
+   "kind": "tool_result",
+   "text": "credential saved: 1",
+   "tool_id": "t6",
+   "time": "2026-11-25T00:22:51.692Z"
+  },
+  {
+   "seq": 15,
+   "kind": "text",
+   "text": "`svc-backup` accepts **Spring2026!** and returns a service-role JWT. I saved the credential and reported it as critical. Suggested next intent: use that token against the admin-only routes.",
+   "time": "2026-11-25T00:25:36.254Z"
+  },
+  {
+   "seq": 16,
+   "kind": "result",
+   "usage": {
+    "input_tokens": 26310,
+    "output_tokens": 3870,
+    "cache_read_tokens": 58800,
+    "cache_creation_tokens": 7100,
+    "cost_usd": 0.2216,
+    "duration_ms": 131000,
+    "num_turns": 9
+   },
+   "time": "2026-11-25T00:28:20.816Z"
+  }
+ ],
+ "/api/conversations/eb812252-65c8-55be-893e-f09f57c7e84b": {
+  "id": "eb812252-65c8-55be-893e-f09f57c7e84b",
+  "title": "Recon acme.example",
+  "model": "opus",
+  "agent": "pentest-lead",
+  "session_id": "d6449dc7-d001-5f08-9cef-d0f18c5ace9e",
+  "status": "idle",
+  "created_at": "2026-11-24T23:06:40.879Z",
+  "updated_at": "2026-11-24T23:42:20.185Z"
+ },
+ "/api/conversations/eb812252-65c8-55be-893e-f09f57c7e84b/messages": [
+  {
+   "seq": 1,
+   "kind": "user",
+   "text": "Start recon on acme.example. Scope is the root domain and 203.0.113.0/24.",
+   "time": "2026-11-24T23:09:25.441Z"
+  },
+  {
+   "seq": 2,
+   "kind": "thinking",
+   "text": "Orient first with graph_overview, then enumerate subdomains and record what resolves.",
+   "time": "2026-11-24T23:12:10.003Z"
+  },
+  {
+   "seq": 3,
+   "kind": "tool_use",
+   "tool_name": "mcp__artex__graph_overview",
+   "tool_id": "t1",
+   "input": {},
+   "time": "2026-11-24T23:14:54.565Z"
+  },
+  {
+   "seq": 4,
+   "kind": "tool_result",
+   "text": "{\"goal\": \"Obtain domain admin on the ACME Corp external perimeter\", \"assets\": 0, \"open_intents\": 0}",
+   "tool_id": "t1",
+   "time": "2026-11-24T23:17:39.127Z"
+  },
+  {
+   "seq": 5,
+   "kind": "text",
+   "text": "The engagement is fresh. I'll enumerate subdomains and resolve them before inserting assets.",
+   "time": "2026-11-24T23:20:23.689Z"
+  },
+  {
+   "seq": 6,
+   "kind": "tool_use",
+   "tool_name": "Bash",
+   "tool_id": "t2",
+   "input": {
+    "command": "subfinder -silent -d acme.example | dnsx -silent -a -resp",
+    "description": "Enumerate and resolve subdomains"
+   },
+   "time": "2026-11-24T23:23:08.251Z"
+  },
+  {
+   "seq": 7,
+   "kind": "tool_result",
+   "text": "portal.acme.example [203.0.113.10]\napi.acme.example [203.0.113.11]\nvpn.acme.example [203.0.113.20]\nmail.acme.example [203.0.113.25]\ngit.acme.example [acme.gitlab-host.example]\n",
+   "tool_id": "t2",
+   "time": "2026-11-24T23:25:52.813Z"
+  },
+  {
+   "seq": 8,
+   "kind": "tool_use",
+   "tool_name": "Bash",
+   "tool_id": "t3",
+   "input": {
+    "command": "nmap -sT -p 22,25,80,443,587,993,1194,8443 203.0.113.10-25",
+    "description": "Port scan in-scope hosts"
+   },
+   "time": "2026-11-24T23:28:37.375Z"
+  },
+  {
+   "seq": 9,
+   "kind": "tool_result",
+   "text": "203.0.113.10: 80/tcp open http, 443/tcp open https\n203.0.113.11: 443/tcp open https, 8443/tcp open https-alt\n203.0.113.20: 443/tcp open https, 1194/tcp open openvpn\n203.0.113.25: 25/tcp open smtp\n",
+   "tool_id": "t3",
+   "time": "2026-11-24T23:31:21.937Z"
+  },
+  {
+   "seq": 10,
+   "kind": "tool_use",
+   "tool_name": "mcp__artex__insert_assets",
+   "tool_id": "t4",
+   "input": {
+    "assets": [
+     {
+      "type": "subdomain",
+      "domain": "portal.acme.example"
+     },
+     {
+      "type": "subdomain",
+      "domain": "api.acme.example"
+     }
+    ]
+   },
+   "time": "2026-11-24T23:34:06.499Z"
+  },
+  {
+   "seq": 11,
+   "kind": "tool_result",
+   "text": "{\"results\": [{\"index\": 0, \"id\": 2, \"type\": \"subdomain\"}, {\"index\": 1, \"id\": 3, \"type\": \"subdomain\"}], \"errors\": []}",
+   "tool_id": "t4",
+   "time": "2026-11-24T23:36:51.061Z"
+  },
+  {
+   "seq": 12,
+   "kind": "text",
+   "text": "## Recon summary\n\n| Host | IP | Services |\n|------|----|----------|\n| portal.acme.example | 203.0.113.10 | http, https |\n| api.acme.example | 203.0.113.11 | https, https-alt |\n| vpn.acme.example | 203.0.113.20 | https, openvpn |\n| mail.acme.example | 203.0.113.25 | smtp |\n\nThe portal and API share an nginx/Express stack. Next up: the API's object-level authorization.",
+   "time": "2026-11-24T23:39:35.623Z"
+  },
+  {
+   "seq": 13,
+   "kind": "result",
+   "usage": {
+    "input_tokens": 18420,
+    "output_tokens": 2310,
+    "cache_read_tokens": 41200,
+    "cache_creation_tokens": 6300,
+    "cost_usd": 0.4172,
+    "duration_ms": 94000,
+    "num_turns": 6
+   },
+   "time": "2026-11-24T23:42:20.185Z"
+  }
+ ],
+ "/api/assets/19": {
+  "id": 19,
+  "type": "endpoint",
+  "label": "GET http://portal.acme.example/.git/config",
+  "data": {
+   "method": "GET",
+   "url": "http://portal.acme.example/.git/config"
+  }
+ },
+ "/api/assets/19/findings": [
+  {
+   "id": 1,
+   "node_id": 11,
+   "vulnclass": "info_disclosure",
+   "severity": "medium",
+   "summary": "The portal serves /.git/config, exposing repository metadata and the internal GitLab remote. Full source may be recoverable.",
+   "status": "pending",
+   "created_at": "2026-11-24T23:44:32.267Z"
+  }
+ ],
+ "/api/assets/18": {
+  "id": 18,
+  "type": "endpoint",
+  "label": "POST http://api.acme.example/api/v2/search",
+  "data": {
+   "method": "POST",
+   "params": [
+    {
+     "in": "body",
+     "name": "q"
+    }
+   ],
+   "url": "http://api.acme.example/api/v2/search"
+  }
+ },
+ "/api/assets/18/findings": [
+  {
+   "id": 4,
+   "node_id": 20,
+   "vulnclass": "sqli",
+   "severity": "critical",
+   "summary": "The q parameter is concatenated into a PostgreSQL query. A single quote produces a database syntax error, and boolean payloads change result counts.",
+   "status": "pending",
+   "created_at": "2026-11-25T00:26:37.615Z"
+  }
+ ],
+ "/api/assets/17": {
+  "id": 17,
+  "type": "endpoint",
+  "label": "POST http://api.acme.example/api/v2/auth/login",
+  "data": {
+   "method": "POST",
+   "params": [
+    {
+     "in": "body",
+     "name": "email"
+    },
+    {
+     "in": "body",
+     "name": "password"
+    }
+   ],
+   "url": "http://api.acme.example/api/v2/auth/login"
+  }
+ },
+ "/api/assets/17/findings": [
+  {
+   "id": 3,
+   "node_id": 17,
+   "vulnclass": "weak_credentials",
+   "severity": "critical",
+   "summary": "The svc-backup service account uses the seasonal password Spring2026! and has no MFA. Login returns a valid JWT with service role, granting API access.",
+   "status": "pending",
+   "created_at": "2026-11-25T00:08:54.092Z"
+  }
+ ],
+ "/api/assets/16": {
+  "id": 16,
+  "type": "endpoint",
+  "label": "GET http://api.acme.example/api/v2/users/{id}",
+  "data": {
+   "method": "GET",
+   "params": [
+    {
+     "in": "path",
+     "name": "id"
+    }
+   ],
+   "url": "http://api.acme.example/api/v2/users/{id}"
+  }
+ },
+ "/api/assets/16/findings": [
+  {
+   "id": 2,
+   "node_id": 14,
+   "vulnclass": "idor",
+   "severity": "high",
+   "summary": "The users endpoint returns full profile data for any numeric id with no authentication or ownership check. Enumerating ids 1-3 returned every account including the administrator.",
+   "status": "pending",
+   "created_at": "2026-11-24T23:59:01.812Z"
+  }
+ ],
+ "/api/assets/15": {
+  "id": 15,
+  "type": "service",
+  "label": "smtp",
+  "data": {
+   "ip": "203.0.113.25",
+   "port": 25,
+   "service_name": "smtp"
+  }
+ },
+ "/api/assets/15/findings": [],
+ "/api/assets/14": {
+  "id": 14,
+  "type": "service",
+  "label": "ssh",
+  "data": {
+   "ip": "203.0.113.20",
+   "port": 22,
+   "service_name": "ssh"
+  }
+ },
+ "/api/assets/14/findings": [],
+ "/api/assets/13": {
+  "id": 13,
+  "type": "service",
+  "label": "https://vpn.acme.example",
+  "data": {
+   "page_title": "GlobalProtect Portal",
+   "status_code": 200,
+   "technologies": [
+    "PAN-OS"
+   ],
+   "url": "https://vpn.acme.example"
+  }
+ },
+ "/api/assets/13/findings": [],
+ "/api/assets/12": {
+  "id": 12,
+  "type": "service",
+  "label": "http://api.acme.example",
+  "data": {
+   "status_code": 200,
+   "technologies": [
+    "nginx 1.25.3",
+    "Express",
+    "PostgreSQL"
+   ],
+   "url": "http://api.acme.example"
+  }
+ },
+ "/api/assets/12/findings": [
+  {
+   "id": 5,
+   "node_id": 23,
+   "vulnclass": "info_disclosure",
+   "severity": "low",
+   "summary": "The unauthenticated health endpoint returns the internal PostgreSQL host, port, user and database name.",
+   "status": "pending",
+   "created_at": "2026-11-25T00:39:48.459Z"
+  }
+ ],
+ "/api/assets/11": {
+  "id": 11,
+  "type": "service",
+  "label": "http://portal.acme.example",
+  "data": {
+   "page_title": "ACME Customer Portal",
+   "status_code": 200,
+   "technologies": [
+    "nginx 1.25.3",
+    "Express",
+    "React"
+   ],
+   "url": "http://portal.acme.example"
+  }
+ },
+ "/api/assets/11/findings": [
+  {
+   "id": 1,
+   "node_id": 11,
+   "vulnclass": "info_disclosure",
+   "severity": "medium",
+   "summary": "The portal serves /.git/config, exposing repository metadata and the internal GitLab remote. Full source may be recoverable.",
+   "status": "pending",
+   "created_at": "2026-11-24T23:44:32.267Z"
+  }
+ ],
+ "/api/assets/10": {
+  "id": 10,
+  "type": "ip",
+  "label": "203.0.113.25",
+  "data": {
+   "ip": "203.0.113.25",
+   "open_ports": [
+    {
+     "port": 25,
+     "service": "smtp"
+    },
+    {
+     "port": 587,
+     "service": "submission"
+    },
+    {
+     "port": 993,
+     "service": "imaps"
+    }
+   ]
+  }
+ },
+ "/api/assets/10/findings": [],
+ "/api/assets/9": {
+  "id": 9,
+  "type": "ip",
+  "label": "203.0.113.20",
+  "data": {
+   "bound_domains": [
+    "vpn.acme.example"
+   ],
+   "ip": "203.0.113.20",
+   "open_ports": [
+    {
+     "port": 443,
+     "service": "https"
+    },
+    {
+     "port": 1194,
+     "service": "openvpn"
+    }
+   ]
+  }
+ },
+ "/api/assets/9/findings": [],
+ "/api/assets/8": {
+  "id": 8,
+  "type": "ip",
+  "label": "203.0.113.11",
+  "data": {
+   "bound_domains": [
+    "api.acme.example"
+   ],
+   "ip": "203.0.113.11",
+   "open_ports": [
+    {
+     "port": 443,
+     "service": "https"
+    },
+    {
+     "port": 8443,
+     "service": "https-alt"
+    }
+   ]
+  }
+ },
+ "/api/assets/8/findings": [],
+ "/api/assets/7": {
+  "id": 7,
+  "type": "ip",
+  "label": "203.0.113.10",
+  "data": {
+   "bound_domains": [
+    "portal.acme.example"
+   ],
+   "ip": "203.0.113.10",
+   "open_ports": [
+    {
+     "port": 80,
+     "service": "http"
+    },
+    {
+     "port": 443,
+     "service": "https"
+    }
+   ]
+  }
+ },
+ "/api/assets/7/findings": [],
+ "/api/assets/6": {
+  "id": 6,
+  "type": "subdomain",
+  "label": "mail.acme.example",
+  "data": {
+   "domain": "mail.acme.example",
+   "record_type": "MX",
+   "record_value": [
+    "203.0.113.25"
+   ],
+   "root_domain": "acme.example"
+  }
+ },
+ "/api/assets/6/findings": [],
+ "/api/assets/5": {
+  "id": 5,
+  "type": "subdomain",
+  "label": "git.acme.example",
+  "data": {
+   "domain": "git.acme.example",
+   "record_type": "CNAME",
+   "record_value": [
+    "acme.gitlab-host.example"
+   ],
+   "root_domain": "acme.example"
+  }
+ },
+ "/api/assets/5/findings": [],
+ "/api/assets/4": {
+  "id": 4,
+  "type": "subdomain",
+  "label": "vpn.acme.example",
+  "data": {
+   "domain": "vpn.acme.example",
+   "record_type": "A",
+   "record_value": [
+    "203.0.113.20"
+   ],
+   "root_domain": "acme.example"
+  }
+ },
+ "/api/assets/4/findings": [],
+ "/api/assets/3": {
+  "id": 3,
+  "type": "subdomain",
+  "label": "api.acme.example",
+  "data": {
+   "domain": "api.acme.example",
+   "record_type": "A",
+   "record_value": [
+    "203.0.113.11"
+   ],
+   "root_domain": "acme.example"
+  }
+ },
+ "/api/assets/3/findings": [
+  {
+   "id": 4,
+   "node_id": 20,
+   "vulnclass": "sqli",
+   "severity": "critical",
+   "summary": "The q parameter is concatenated into a PostgreSQL query. A single quote produces a database syntax error, and boolean payloads change result counts.",
+   "status": "pending",
+   "created_at": "2026-11-25T00:26:37.615Z"
+  },
+  {
+   "id": 3,
+   "node_id": 17,
+   "vulnclass": "weak_credentials",
+   "severity": "critical",
+   "summary": "The svc-backup service account uses the seasonal password Spring2026! and has no MFA. Login returns a valid JWT with service role, granting API access.",
+   "status": "pending",
+   "created_at": "2026-11-25T00:08:54.092Z"
+  },
+  {
+   "id": 2,
+   "node_id": 14,
+   "vulnclass": "idor",
+   "severity": "high",
+   "summary": "The users endpoint returns full profile data for any numeric id with no authentication or ownership check. Enumerating ids 1-3 returned every account including the administrator.",
+   "status": "pending",
+   "created_at": "2026-11-24T23:59:01.812Z"
+  }
+ ],
+ "/api/assets/2": {
+  "id": 2,
+  "type": "subdomain",
+  "label": "portal.acme.example",
+  "data": {
+   "domain": "portal.acme.example",
+   "record_type": "A",
+   "record_value": [
+    "203.0.113.10"
+   ],
+   "root_domain": "acme.example"
+  }
+ },
+ "/api/assets/2/findings": [],
+ "/api/assets/1": {
+  "id": 1,
+  "type": "root_domain",
+  "label": "acme.example",
+  "data": {
+   "domain": "acme.example",
+   "root_domain": "acme.example"
+  }
+ },
+ "/api/assets/1/findings": [],
+ "/api/traffic/1795570964-0017": {
+  "id": "1795570964-0017",
+  "request": "GET / HTTP/1.1\nHost: vpn.acme.example\nAccept-Encoding: identity\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nConnection: close\n\n",
+  "response": "HTTP 200\nX-Powered-By: Express\nContent-Length: 122\nServer: nginx/1.25.3\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: text/html\n\n<html><head><title>ACME Customer Portal</title></head><body><h1>ACME Portal</h1><a href='/login'>Sign in</a></body></html>"
+ },
+ "/api/traffic/1795570964-0016": {
+  "id": "1795570964-0016",
+  "request": "GET /api/v2/internal/health HTTP/1.1\nHost: api.acme.example\nConnection: close\nAccept-Encoding: identity\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\n\n",
+  "response": "HTTP 200\nServer: nginx/1.25.3\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: application/json\nX-Powered-By: Express\nContent-Length: 105\n\n{\n  \"status\": \"ok\",\n  \"db\": \"postgres://portal@db01.int.acme.example:5432/portal\",\n  \"version\": \"4.2.1\"\n}"
+ },
+ "/api/traffic/1795570964-0015": {
+  "id": "1795570964-0015",
+  "request": "POST /api/v2/search HTTP/1.1\nHost: api.acme.example\nContent-Length: 17\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nContent-Type: application/json\nConnection: close\nAccept-Encoding: identity\n\n{\"q\": \"invoice'\"}",
+  "response": "HTTP 500\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: application/json\nX-Powered-By: Express\nContent-Length: 66\nServer: nginx/1.25.3\n\n{\n  \"error\": \"pq: syntax error at or near \\\"'\\\" at character 41\"\n}"
+ },
+ "/api/traffic/1795570964-0014": {
+  "id": "1795570964-0014",
+  "request": "POST /api/v2/search HTTP/1.1\nHost: api.acme.example\nConnection: close\nAccept-Encoding: identity\nContent-Length: 16\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nContent-Type: application/json\n\n{\"q\": \"invoice\"}",
+  "response": "HTTP 200\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: application/json\nX-Powered-By: Express\nContent-Length: 54\nServer: nginx/1.25.3\n\n{\n  \"results\": [],\n  \"query\": \"{\\\"q\\\": \\\"invoice\\\"}\"\n}"
+ },
+ "/api/traffic/1795570964-0013": {
+  "id": "1795570964-0013",
+  "request": "POST /api/v2/auth/login HTTP/1.1\nHost: api.acme.example\nAccept-Encoding: identity\nContent-Length: 63\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nContent-Type: application/json\nConnection: close\n\n{\"email\": \"svc-backup@acme.example\", \"password\": \"Spring2026!\"}",
+  "response": "HTTP 200\nContent-Type: application/json\nX-Powered-By: Express\nSet-Cookie: session=8f2c1d; HttpOnly\nContent-Length: 199\nServer: nginx/1.25.3\nDate: Wed, 25 Nov 2026 01:42:44 GMT\n\n{\n  \"token\": \"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIzIiwicm9sZSI6InNlcnZpY2UifQ.c2lnbmF0dXJl\",\n  \"user\": {\n    \"id\": 3,\n    \"email\": \"svc-backup@acme.example\",\n    \"role\": \"service\",\n    \"mfa\": false\n  }\n}"
+ },
+ "/api/traffic/1795570964-0012": {
+  "id": "1795570964-0012",
+  "request": "POST /api/v2/auth/login HTTP/1.1\nHost: api.acme.example\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nContent-Type: application/json\nConnection: close\nAccept-Encoding: identity\nContent-Length: 52\n\n{\"email\": \"admin@acme.example\", \"password\": \"admin\"}",
+  "response": "HTTP 401\nServer: nginx/1.25.3\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: application/json\nX-Powered-By: Express\nContent-Length: 36\n\n{\n  \"error\": \"invalid credentials\"\n}"
+ },
+ "/api/traffic/1795570964-0011": {
+  "id": "1795570964-0011",
+  "request": "GET /api/v2/users HTTP/1.1\nHost: api.acme.example\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nConnection: close\nAccept-Encoding: identity\n\n",
+  "response": "HTTP 200\nServer: nginx/1.25.3\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: application/json\nX-Powered-By: Express\nContent-Length: 359\n\n{\n  \"users\": [\n    {\n      \"id\": 1,\n      \"email\": \"admin@acme.example\",\n      \"role\": \"admin\",\n      \"mfa\": false\n    },\n    {\n      \"id\": 2,\n      \"email\": \"j.doe@acme.example\",\n      \"role\": \"user\",\n      \"mfa\": true\n    },\n    {\n      \"id\": 3,\n      \"email\": \"svc-backup@acme.example\",\n      \"role\": \"service\",\n      \"mfa\": false\n    }\n  ],\n  \"total\": 3\n}"
+ },
+ "/api/traffic/1795570964-0010": {
+  "id": "1795570964-0010",
+  "request": "GET /api/v2/users/4 HTTP/1.1\nHost: api.acme.example\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nConnection: close\nAccept-Encoding: identity\n\n",
+  "response": "HTTP 404\nX-Powered-By: Express\nContent-Length: 26\nServer: nginx/1.25.3\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: application/json\n\n{\n  \"error\": \"not found\"\n}"
+ },
+ "/api/traffic/1795570964-0009": {
+  "id": "1795570964-0009",
+  "request": "GET /api/v2/users/3 HTTP/1.1\nHost: api.acme.example\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nConnection: close\nAccept-Encoding: identity\n\n",
+  "response": "HTTP 200\nServer: nginx/1.25.3\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: application/json\nX-Powered-By: Express\nContent-Length: 88\n\n{\n  \"id\": 3,\n  \"email\": \"svc-backup@acme.example\",\n  \"role\": \"service\",\n  \"mfa\": false\n}"
+ },
+ "/api/traffic/1795570964-0008": {
+  "id": "1795570964-0008",
+  "request": "GET /api/v2/users/2 HTTP/1.1\nHost: api.acme.example\nAccept-Encoding: identity\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nConnection: close\n\n",
+  "response": "HTTP 200\nX-Powered-By: Express\nContent-Length: 79\nServer: nginx/1.25.3\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: application/json\n\n{\n  \"id\": 2,\n  \"email\": \"j.doe@acme.example\",\n  \"role\": \"user\",\n  \"mfa\": true\n}"
+ },
+ "/api/traffic/1795570964-0007": {
+  "id": "1795570964-0007",
+  "request": "GET /api/v2/users/1 HTTP/1.1\nHost: api.acme.example\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nConnection: close\nAccept-Encoding: identity\n\n",
+  "response": "HTTP 200\nServer: nginx/1.25.3\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: application/json\nX-Powered-By: Express\nContent-Length: 81\n\n{\n  \"id\": 1,\n  \"email\": \"admin@acme.example\",\n  \"role\": \"admin\",\n  \"mfa\": false\n}"
+ },
+ "/api/traffic/1795570964-0006": {
+  "id": "1795570964-0006",
+  "request": "GET /.git/config HTTP/1.1\nHost: portal.acme.example\nAccept-Encoding: identity\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nConnection: close\n\n",
+  "response": "HTTP 200\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: text/plain\nX-Powered-By: Express\nContent-Length: 97\nServer: nginx/1.25.3\n\n[core]\n\trepositoryformatversion = 0\n[remote \"origin\"]\n\turl = git@git.acme.example:web/portal.git\n"
+ },
+ "/api/traffic/1795570964-0005": {
+  "id": "1795570964-0005",
+  "request": "GET /login?next=/admin HTTP/1.1\nHost: portal.acme.example\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nConnection: close\nAccept-Encoding: identity\n\n",
+  "response": "HTTP 200\nServer: nginx/1.25.3\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: text/html\nX-Powered-By: Express\nContent-Length: 172\n\n<html><head><title>Sign in | ACME</title></head><body><form method=post action=/api/v2/auth/login><input name=email><input name=password type=password></form></body></html>"
+ },
+ "/api/traffic/1795570964-0004": {
+  "id": "1795570964-0004",
+  "request": "GET /admin HTTP/1.1\nHost: portal.acme.example\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nConnection: close\nAccept-Encoding: identity\n\n",
+  "response": "HTTP 302\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: text/html\nX-Powered-By: Express\nLocation: /login?next=/admin\nContent-Length: 0\nServer: nginx/1.25.3\n\n"
+ },
+ "/api/traffic/1795570964-0003": {
+  "id": "1795570964-0003",
+  "request": "GET /login HTTP/1.1\nHost: portal.acme.example\nAccept-Encoding: identity\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nConnection: close\n\n",
+  "response": "HTTP 200\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: text/html\nX-Powered-By: Express\nContent-Length: 172\nServer: nginx/1.25.3\n\n<html><head><title>Sign in | ACME</title></head><body><form method=post action=/api/v2/auth/login><input name=email><input name=password type=password></form></body></html>"
+ },
+ "/api/traffic/1795570964-0002": {
+  "id": "1795570964-0002",
+  "request": "GET /robots.txt HTTP/1.1\nHost: portal.acme.example\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nConnection: close\nAccept-Encoding: identity\n\n",
+  "response": "HTTP 200\nServer: nginx/1.25.3\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: text/plain\nX-Powered-By: Express\nContent-Length: 58\n\nUser-agent: *\nDisallow: /admin\nDisallow: /api/v2/internal\n"
+ },
+ "/api/traffic/1795570964-0001": {
+  "id": "1795570964-0001",
+  "request": "GET / HTTP/1.1\nHost: portal.acme.example\nAccept-Encoding: identity\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nConnection: close\n\n",
+  "response": "HTTP 200\nServer: nginx/1.25.3\nDate: Wed, 25 Nov 2026 01:42:44 GMT\nContent-Type: text/html\nX-Powered-By: Express\nContent-Length: 122\n\n<html><head><title>ACME Customer Portal</title></head><body><h1>ACME Portal</h1><a href='/login'>Sign in</a></body></html>"
+ },
+ "/api/auth/status": {
+  "auth_required": false,
+  "initialized": true
+ }
+}

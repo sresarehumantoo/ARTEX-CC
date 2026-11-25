@@ -14,6 +14,7 @@ import { useDocumentTitle } from './hooks/useDocumentTitle'
 import { useSSERefresh } from './hooks/useSSERefresh'
 import { AUTH_REQUIRED_EVENT, checkAuthStatus } from './lib/auth'
 import { Dashboard } from './pages/Dashboard'
+import { DemoBanner } from './demo/DemoBanner'
 
 const Tasks = lazy(() => import('./pages/Tasks'))
 const Commands = lazy(() => import('./pages/Commands'))
@@ -95,6 +96,7 @@ function MainLayout() {
     <div className="flex h-screen bg-background text-foreground">
       <Sidebar mobileOpen={mobileMenuOpen} onMobileClose={() => setMobileMenuOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
+        {import.meta.env.MODE === 'demo' && <DemoBanner />}
         <Header onToggleSidebar={toggleSidebar} onOpenPalette={() => setShowPalette(true)} />
         <main className={cn('flex-1 overflow-y-auto', content_layout === 'centered' && 'mx-auto w-full max-w-screen-2xl')}>
           <ConnectionBanner />

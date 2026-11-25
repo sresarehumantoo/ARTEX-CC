@@ -1,0 +1,281 @@
+[
+ {
+  "id": 19,
+  "type": "endpoint",
+  "label": "GET http://portal.acme.example/.git/config",
+  "data": {
+   "method": "GET",
+   "url": "http://portal.acme.example/.git/config"
+  }
+ },
+ {
+  "id": 18,
+  "type": "endpoint",
+  "label": "POST http://api.acme.example/api/v2/search",
+  "data": {
+   "method": "POST",
+   "params": [
+    {
+     "in": "body",
+     "name": "q"
+    }
+   ],
+   "url": "http://api.acme.example/api/v2/search"
+  }
+ },
+ {
+  "id": 17,
+  "type": "endpoint",
+  "label": "POST http://api.acme.example/api/v2/auth/login",
+  "data": {
+   "method": "POST",
+   "params": [
+    {
+     "in": "body",
+     "name": "email"
+    },
+    {
+     "in": "body",
+     "name": "password"
+    }
+   ],
+   "url": "http://api.acme.example/api/v2/auth/login"
+  }
+ },
+ {
+  "id": 16,
+  "type": "endpoint",
+  "label": "GET http://api.acme.example/api/v2/users/{id}",
+  "data": {
+   "method": "GET",
+   "params": [
+    {
+     "in": "path",
+     "name": "id"
+    }
+   ],
+   "url": "http://api.acme.example/api/v2/users/{id}"
+  }
+ },
+ {
+  "id": 15,
+  "type": "service",
+  "label": "smtp",
+  "data": {
+   "ip": "203.0.113.25",
+   "port": 25,
+   "service_name": "smtp"
+  }
+ },
+ {
+  "id": 14,
+  "type": "service",
+  "label": "ssh",
+  "data": {
+   "ip": "203.0.113.20",
+   "port": 22,
+   "service_name": "ssh"
+  }
+ },
+ {
+  "id": 13,
+  "type": "service",
+  "label": "https://vpn.acme.example",
+  "data": {
+   "page_title": "GlobalProtect Portal",
+   "status_code": 200,
+   "technologies": [
+    "PAN-OS"
+   ],
+   "url": "https://vpn.acme.example"
+  }
+ },
+ {
+  "id": 12,
+  "type": "service",
+  "label": "http://api.acme.example",
+  "data": {
+   "status_code": 200,
+   "technologies": [
+    "nginx 1.25.3",
+    "Express",
+    "PostgreSQL"
+   ],
+   "url": "http://api.acme.example"
+  }
+ },
+ {
+  "id": 11,
+  "type": "service",
+  "label": "http://portal.acme.example",
+  "data": {
+   "page_title": "ACME Customer Portal",
+   "status_code": 200,
+   "technologies": [
+    "nginx 1.25.3",
+    "Express",
+    "React"
+   ],
+   "url": "http://portal.acme.example"
+  }
+ },
+ {
+  "id": 10,
+  "type": "ip",
+  "label": "203.0.113.25",
+  "data": {
+   "ip": "203.0.113.25",
+   "open_ports": [
+    {
+     "port": 25,
+     "service": "smtp"
+    },
+    {
+     "port": 587,
+     "service": "submission"
+    },
+    {
+     "port": 993,
+     "service": "imaps"
+    }
+   ]
+  }
+ },
+ {
+  "id": 9,
+  "type": "ip",
+  "label": "203.0.113.20",
+  "data": {
+   "bound_domains": [
+    "vpn.acme.example"
+   ],
+   "ip": "203.0.113.20",
+   "open_ports": [
+    {
+     "port": 443,
+     "service": "https"
+    },
+    {
+     "port": 1194,
+     "service": "openvpn"
+    }
+   ]
+  }
+ },
+ {
+  "id": 8,
+  "type": "ip",
+  "label": "203.0.113.11",
+  "data": {
+   "bound_domains": [
+    "api.acme.example"
+   ],
+   "ip": "203.0.113.11",
+   "open_ports": [
+    {
+     "port": 443,
+     "service": "https"
+    },
+    {
+     "port": 8443,
+     "service": "https-alt"
+    }
+   ]
+  }
+ },
+ {
+  "id": 7,
+  "type": "ip",
+  "label": "203.0.113.10",
+  "data": {
+   "bound_domains": [
+    "portal.acme.example"
+   ],
+   "ip": "203.0.113.10",
+   "open_ports": [
+    {
+     "port": 80,
+     "service": "http"
+    },
+    {
+     "port": 443,
+     "service": "https"
+    }
+   ]
+  }
+ },
+ {
+  "id": 6,
+  "type": "subdomain",
+  "label": "mail.acme.example",
+  "data": {
+   "domain": "mail.acme.example",
+   "record_type": "MX",
+   "record_value": [
+    "203.0.113.25"
+   ],
+   "root_domain": "acme.example"
+  }
+ },
+ {
+  "id": 5,
+  "type": "subdomain",
+  "label": "git.acme.example",
+  "data": {
+   "domain": "git.acme.example",
+   "record_type": "CNAME",
+   "record_value": [
+    "acme.gitlab-host.example"
+   ],
+   "root_domain": "acme.example"
+  }
+ },
+ {
+  "id": 4,
+  "type": "subdomain",
+  "label": "vpn.acme.example",
+  "data": {
+   "domain": "vpn.acme.example",
+   "record_type": "A",
+   "record_value": [
+    "203.0.113.20"
+   ],
+   "root_domain": "acme.example"
+  }
+ },
+ {
+  "id": 3,
+  "type": "subdomain",
+  "label": "api.acme.example",
+  "data": {
+   "domain": "api.acme.example",
+   "record_type": "A",
+   "record_value": [
+    "203.0.113.11"
+   ],
+   "root_domain": "acme.example"
+  }
+ },
+ {
+  "id": 2,
+  "type": "subdomain",
+  "label": "portal.acme.example",
+  "data": {
+   "domain": "portal.acme.example",
+   "record_type": "A",
+   "record_value": [
+    "203.0.113.10"
+   ],
+   "root_domain": "acme.example"
+  }
+ },
+ {
+  "id": 1,
+  "type": "root_domain",
+  "label": "acme.example",
+  "data": {
+   "domain": "acme.example",
+   "root_domain": "acme.example"
+  }
+ }
+]
