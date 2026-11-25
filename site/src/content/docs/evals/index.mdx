@@ -1,0 +1,42 @@
+---
+title: Evals
+description: How ARTEX and Claude perform against real targets, and how we decide what to test.
+sidebar:
+  label: Overview
+  order: 0
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+
+Each eval runs Claude Code against a target with ARTEX as its only bookkeeping layer, then records what the agent did, what ARTEX captured, and what went wrong. Runs are reported as they happened, including the rough edges.
+
+<CardGrid>
+  <LinkCard
+    title="HTB Forest (blind)"
+    description="Active Directory domain controller. No web searches, no writeups. Both flags in about eight minutes: AS-REP roast, WriteDACL abuse, DCSync, pass-the-hash."
+    href="/evals/htb-forest/"
+  />
+  <LinkCard
+    title="Winforge CTF"
+    description="Custom Windows Server 2025 scenario: SQL injection to admin token theft, plus a smoke test of every web dashboard page."
+    href="/evals/winforge-ctf/"
+  />
+  <LinkCard
+    title="HTB harness assessment"
+    description="Should ARTEX automate Hack The Box runs? Terms of service, architecture and risk, and what belongs in the repo."
+    href="/evals/htb-harness/"
+  />
+</CardGrid>
+
+## HTB Forest at a glance
+
+| Phase | What the agent did |
+|-------|-------------------|
+| **Recon** | nmap found a Windows Server 2016 DC for `htb.local`. An RPC null session leaked the full user list. |
+| **Foothold** | `svc-alfresco` had Kerberos pre-auth disabled: AS-REP roast, cracked with hashcat and rockyou, WinRM, **user.txt** |
+| **Domain Admin** | Account Operators, created a user, Exchange Windows Permissions (WriteDACL), DCSync, Administrator NTLM hash, pass-the-hash, **root.txt** |
+| **Cleanup** | Restored the domain DACL, deleted the created user, removed uploaded scripts |
+
+The agent also solved two tooling problems inline (PowerView failing under non-interactive WinRM, and the OpenSSL 3 MD4 deprecation) without human help.
+
+The broader evaluation plan (tool-level, orchestration, end-to-end and safety evals) lives in [`docs/EVAL_PLAN.md`](https://github.com/SREsAreHumanToo/ARTEX-CC/blob/main/docs/EVAL_PLAN.md) in the repository.
