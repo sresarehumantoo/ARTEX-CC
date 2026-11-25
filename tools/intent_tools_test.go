@@ -149,6 +149,22 @@ func TestCompleteAndCancelReleaseClaim(t *testing.T) {
 	}
 }
 
+func TestParseIntentLease(t *testing.T) {
+	t.Parallel()
+	good := map[string]time.Duration{"1m": time.Minute, "2m": 2 * time.Minute, " 45m ": 45 * time.Minute, "1h": time.Hour}
+	for in, want := range good {
+		got, err := ParseIntentLease(in)
+		if err != nil || got != want {
+			t.Errorf("ParseIntentLease(%q) = %v, %v; want %v", in, got, err, want)
+		}
+	}
+	for _, in := range []string{"", "30", "30s", "90s", "0m", "-5m", "soon"} {
+		if got, err := ParseIntentLease(in); err == nil {
+			t.Errorf("ParseIntentLease(%q) = %v, want an error", in, got)
+		}
+	}
+}
+
 func TestClaimOwner(t *testing.T) {
 	t.Parallel()
 	bare := context.Background()
