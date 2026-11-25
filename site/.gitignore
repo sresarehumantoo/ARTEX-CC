@@ -3,3 +3,5 @@ dist/
 .astro/
 public/favicon.svg
 public/social-preview.png
+src/content/docs/docs/tools/
+src/data/tool-stats.json

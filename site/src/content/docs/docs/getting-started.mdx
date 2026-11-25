@@ -4,8 +4,9 @@ description: Install ARTEX, create an engagement, connect Claude Code and start 
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import toolStats from '../../../data/tool-stats.json';
 
-ARTEX is an MCP server. Claude Code (or any other MCP client) launches it, discovers its 62 tools, and drives the engagement through them. All state lives in PostgreSQL, so you can stop and resume at any point.
+ARTEX is an MCP server. Claude Code (or any other MCP client) launches it, discovers its {toolStats.tools} tools, and drives the engagement through them. All state lives in PostgreSQL, so you can stop and resume at any point.
 
 <Aside type="caution" title="Authorized use only">
 ARTEX is an offensive security tool for penetration testing, red teaming, CTFs and lab work. Use it only against systems you own or have explicit permission to test.

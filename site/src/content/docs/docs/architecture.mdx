@@ -5,8 +5,9 @@ description: How Claude Code and ARTEX split the work, the exploration graph, an
 
 import { Image } from 'astro:assets';
 import architecture from '../../../../../docs/architecture.svg';
+import toolStats from '../../../data/tool-stats.json';
 
-<Image src={architecture} alt="Claude Code (the brain) calls ARTEX-CC (62 tools in 10 categories) over MCP; ARTEX stores state in PostgreSQL and captures traffic through its recording proxy" />
+<Image src={architecture} alt={`Claude Code (the brain) calls ARTEX-CC (${toolStats.tools} tools in ${toolStats.categories} categories) over MCP; ARTEX stores state in PostgreSQL and captures traffic through its recording proxy`} />
 
 Claude Code decides what to test, which tools to call, and in what order. ARTEX executes the calls: inserting assets, tracking the exploration graph, recording findings and credentials, logging coverage, and capturing HTTP traffic through its recording proxy. The exploration graph keeps Claude oriented across long engagements so it does not repeat work or lose context.
 
