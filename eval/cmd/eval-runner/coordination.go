@@ -367,9 +367,10 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 					ic.ClaimsTaken++
 				} else if m := conflictRe.FindStringSubmatch(call.Result); m != nil {
 					id, _ := strconv.ParseInt(m[1], 10, 64)
+					until, _ := time.Parse(time.RFC3339, m[3])
 					c.Conflicts++
 					ic.Conflicts++
-					if conflictHandled(t.Calls, i, id) {
+					if conflictHandled(t.Calls, i, id, until) {
 						c.ConflictsHandled++
 					} else {
 						c.UnhandledConflicts = append(c.UnhandledConflicts, ConflictRef{t.Instance, i, id})
@@ -443,11 +444,16 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 // being told another holder has it. Retrying the same intent, or completing,
 // cancelling or recording work against it within the next conflictWindow
 // calls, is mishandling. Moving to another intent, carrying on with a claim it
-// already holds, or polling and waiting when nothing is left are all fine.
-func conflictHandled(calls []ToolCall, i int, intent int64) bool {
+// already holds, or polling and waiting when nothing is left are all fine, as
+// is claiming the intent again once the other holder's lease (until) lapsed.
+func conflictHandled(calls []ToolCall, i int, intent int64, until time.Time) bool {
 	for j := i + 1; j < len(calls) && j <= i+conflictWindow; j++ {
 		switch calls[j].Tool {
-		case "start_intent", "complete_intent", "cancel_intent":
+		case "start_intent":
+			if inputNodeID(calls[j].Input) == intent {
+				return !until.IsZero() && !calls[j].At.Before(until)
+			}
+		case "complete_intent", "cancel_intent":
 			if inputNodeID(calls[j].Input) == intent {
 				return false
 			}
