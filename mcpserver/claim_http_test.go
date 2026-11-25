@@ -66,6 +66,13 @@ func (m *claimStore) owner(id int64) string {
 
 func callModern(t *testing.T, url, tool string, args map[string]any) (string, bool) {
 	t.Helper()
+	resp := postModern(t, url, nil, tool, args)
+	defer resp.Body.Close()
+	return decodeToolResult(t, tool, resp)
+}
+
+func postModern(t *testing.T, url string, header http.Header, tool string, args map[string]any) *http.Response {
+	t.Helper()
 	params := map[string]any{
 		"name":      tool,
 		"arguments": args,
@@ -85,11 +92,18 @@ func callModern(t *testing.T, url, tool string, args map[string]any) (string, bo
 	req.Header.Set(mcp.HeaderProtocolVersion, mcp.ProtocolVersion20260728)
 	req.Header.Set(mcp.HeaderMethod, "tools/call")
 	req.Header.Set(mcp.HeaderName, tool)
+	for k, v := range header {
+		req.Header[k] = v
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	return resp
+}
+
+func decodeToolResult(t *testing.T, tool string, resp *http.Response) (string, bool) {
+	t.Helper()
 	raw, _ := io.ReadAll(resp.Body)
 	var rr struct {
 		Result *mcp.CallToolResult `json:"result"`
