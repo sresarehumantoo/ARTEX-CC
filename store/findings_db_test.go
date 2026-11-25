@@ -346,37 +346,52 @@ func TestDismissFindingMock(t *testing.T) {
 
 func TestFindPotentialDuplicatesMock(t *testing.T) {
 	t.Parallel()
+	s, mock := newRegexpMockStore(t)
+	rows := sqlmock.NewRows([]string{"id", "vulnclass", "severity", "summary", "asset_ids"}).
+		AddRow(int64(30), "Insecure Direct Object Reference", "medium", "IDOR on /api/orders", []byte("[1]")).
+		AddRow(int64(20), "xss", "high", "XSS on asset 2", []byte("[2]")).
+		AddRow(int64(10), "sqli", "low", "SQLi elsewhere", []byte("[9]"))
+	mock.ExpectQuery(`SELECT .+ FROM findings f\s+JOIN tasks t`).
+		WithArgs(int64(5)).
+		WillReturnRows(rows)
 
-	t.Run("empty input", func(t *testing.T) {
-		s, _ := newRegexpMockStore(t)
-		ids, err := s.FindPotentialDuplicates(context.Background(), "high", nil)
-		if err != nil {
-			t.Fatalf("FindPotentialDuplicates: %v", err)
-		}
-		if ids != nil {
-			t.Errorf("expected nil, got %v", ids)
-		}
-	})
+	got, err := s.FindPotentialDuplicates(context.Background(), 5, "IDOR", "high", []int64{1, 2})
+	if err != nil {
+		t.Fatalf("FindPotentialDuplicates: %v", err)
+	}
+	if len(got) != 2 || got[0].ID != 30 || got[1].ID != 20 {
+		t.Fatalf("got %+v, want findings 30 (same class) and 20 (same severity, shared asset)", got)
+	}
+	if got[0].Summary != "IDOR on /api/orders" {
+		t.Errorf("summary not carried: %+v", got[0])
+	}
+}
 
-	t.Run("with results", func(t *testing.T) {
-		s, mock := newRegexpMockStore(t)
-		rows := sqlmock.NewRows([]string{"id"}).AddRow(int64(10)).AddRow(int64(20))
-
-		mock.ExpectQuery(`SELECT id FROM findings`).
-			WithArgs("high", "[1,2]").
-			WillReturnRows(rows)
-
-		ids, err := s.FindPotentialDuplicates(context.Background(), "high", []int64{1, 2})
-		if err != nil {
-			t.Fatalf("FindPotentialDuplicates: %v", err)
+func TestPossibleDuplicate(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name              string
+		vc, sev           string
+		assets            []int64
+		otherVC, otherSev string
+		otherAssets       []int64
+		want              bool
+	}{
+		{"same class, case and spacing differ", "IDOR", "high", []int64{1}, " idor ", "medium", []int64{1}, true},
+		{"class alias", "idor", "high", []int64{1}, "Insecure Direct Object Reference", "high", []int64{1}, true},
+		{"same class, different assets", "idor", "high", []int64{1}, "idor", "high", []int64{2}, false},
+		{"same class, new has no assets", "idor", "high", nil, "idor", "medium", []int64{2}, true},
+		{"same class, existing has no assets", "idor", "high", []int64{1}, "IDOR", "low", nil, true},
+		{"different class, same severity, shared asset", "xss", "high", []int64{1, 3}, "sqli", "high", []int64{3}, true},
+		{"different class, different severity, shared asset", "xss", "high", []int64{1}, "sqli", "low", []int64{1}, false},
+		{"different class, no assets", "xss", "high", nil, "sqli", "high", nil, false},
+		{"empty class never matches on class", "", "high", nil, "", "high", nil, false},
+	}
+	for _, c := range cases {
+		if got := possibleDuplicate(c.vc, c.sev, c.assets, c.otherVC, c.otherSev, c.otherAssets); got != c.want {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
 		}
-		if len(ids) != 2 {
-			t.Fatalf("got %d ids, want 2", len(ids))
-		}
-		if ids[0] != 10 || ids[1] != 20 {
-			t.Errorf("ids = %v, want [10 20]", ids)
-		}
-	})
+	}
 }
 
 func TestMergeFindingsMock(t *testing.T) {

@@ -20,7 +20,11 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 		Category: CategoryFindings,
 		Description: "Record a confirmed finding, with evidence providing verifiable proof such as command output and logs. " +
 			"Pass the current intent_id when in a task context. " +
-			"After reporting, the coordinator sees this in graph_overview and can use it as evidence for prove_goal.",
+			"After reporting, the coordinator sees this in graph_overview and can use it as evidence for prove_goal.\n" +
+			"Before reporting, especially when other agents work the same engagement, call list_findings (or list_changes) and check for " +
+			"an existing finding with the same vulnclass on the same asset; if it is the same issue, add to it instead of filing a new one. " +
+			"Pass asset_ids so duplicates can be detected. If the response has possible_duplicates, compare them and call merge_findings for " +
+			"any that are the same issue rather than leaving both.",
 		Schema: obj(map[string]any{
 			"vulnclass": str("vulnerability class"),
 			"name":      str("vulnerability name"),
@@ -76,7 +80,7 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 				AssetIDs:      pidList(a.AssetIDs),
 			}
 
-			dupes, _ := store.FindPotentialDuplicates(ctx, input.Severity, input.AssetIDs)
+			dupes, _ := store.FindPotentialDuplicates(ctx, explorationID, input.VulnClass, input.Severity, input.AssetIDs)
 
 			findingID, nodeID, err := store.AddFinding(ctx, input)
 			if err != nil {
@@ -86,6 +90,9 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 			resp := map[string]any{"finding_id": findingID, "node_id": nodeID}
 			if len(dupes) > 0 {
 				resp["possible_duplicates"] = dupes
+				resp["duplicate_note"] = fmt.Sprintf("Open findings that may be the same issue: same vulnclass, or same severity on an overlapping asset. "+
+					"If one is the same issue, call merge_findings with finding_ids including %d and primary_id set to the best-evidenced one; "+
+					"if they are distinct issues, leave them.", findingID)
 			}
 			return jsonResult(resp)
 		},
@@ -283,4 +290,45 @@ func makeDismissFinding(store Store) Tool {
 			return textResult(fmt.Sprintf("finding %d dismissed: %s", findingID, reason)), nil
 		},
 	}
+}
+
+var vulnClassAliases = map[string]string{
+	"insecuredirectobjectreference":  "idor",
+	"insecuredirectobjectreferences": "idor",
+	"brokenobjectlevelauthorization": "idor",
+	"bola":                           "idor",
+	"sqlinjection":                   "sqli",
+	"crosssitescripting":             "xss",
+	"crosssiterequestforgery":        "csrf",
+	"serversiderequestforgery":       "ssrf",
+	"remotecodeexecution":            "rce",
+	"localfileinclusion":             "lfi",
+	"xmlexternalentity":              "xxe",
+	"xmlexternalentities":            "xxe",
+	"servertemplateinjection":        "ssti",
+	"serversidetemplateinjection":    "ssti",
+}
+
+// NormalizeVulnClass maps spelling variants of a vulnerability class to one
+// key: case, spaces, punctuation and parenthesized parts are ignored and
+// common long forms map to their acronym, so "IDOR" and "Insecure Direct
+// Object Reference (IDOR)" match.
+func NormalizeVulnClass(s string) string {
+	var b strings.Builder
+	depth := 0
+	for _, r := range strings.ToLower(s) {
+		switch {
+		case r == '(':
+			depth++
+		case r == ')' && depth > 0:
+			depth--
+		case depth == 0 && ((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')):
+			b.WriteRune(r)
+		}
+	}
+	key := b.String()
+	if alias, ok := vulnClassAliases[key]; ok {
+		return alias
+	}
+	return key
 }

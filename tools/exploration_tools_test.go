@@ -18,6 +18,17 @@ type explorationMockStore struct {
 	listNodes     []Node
 	edgeErr       error
 	constraintErr error
+	goalsResult   *GoalsResult
+	gotGoals      []GoalInput
+	gotAppend     bool
+}
+
+func (m *explorationMockStore) AddGoals(ctx context.Context, explorationID int64, goals []GoalInput, appendGoals bool) (*GoalsResult, error) {
+	m.gotGoals, m.gotAppend = goals, appendGoals
+	if m.goalsResult != nil {
+		return m.goalsResult, nil
+	}
+	return m.mockStore.AddGoals(ctx, explorationID, goals, appendGoals)
 }
 
 func newExplorationMockStore() *explorationMockStore {
@@ -509,8 +520,100 @@ func TestSetGoalsHappyPath(t *testing.T) {
 	if r.IsError {
 		t.Fatalf("expected success, got error: %s", r.Content)
 	}
-	if !strings.Contains(r.Content, "goal created") {
-		t.Errorf("expected goal created message, got: %s", r.Content)
+	var out struct {
+		Created []GoalRef `json:"created"`
+	}
+	if err := json.Unmarshal([]byte(r.Content), &out); err != nil {
+		t.Fatalf("decode %s: %v", r.Content, err)
+	}
+	if len(out.Created) != 1 || out.Created[0].Text != "find SQL injection" {
+		t.Errorf("created = %+v", out.Created)
+	}
+}
+
+func TestSetGoalsAlreadySet(t *testing.T) {
+	t.Parallel()
+	ms := newExplorationMockStore()
+	ms.goalsResult = &GoalsResult{
+		Created:  []GoalRef{},
+		Skipped:  []SkippedGoal{{Text: "get RCE", Reason: GoalSkipAlreadySet}},
+		Existing: []GoalRef{{ID: 7, Text: "dump the database", State: "open"}},
+	}
+	reg := NewRegistry()
+	RegisterExplorationTools(reg, ms, 1)
+
+	tool, _ := reg.Lookup("set_goals")
+	r, err := tool.Run(context.Background(), json.RawMessage(`{"goals": [{"text": "  get RCE "}, {"text": ""}]}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if r.IsError {
+		t.Fatalf("expected success, got error: %s", r.Content)
+	}
+	if ms.gotAppend {
+		t.Error("append passed as true, want false")
+	}
+	if len(ms.gotGoals) != 1 || ms.gotGoals[0].Text != "get RCE" {
+		t.Errorf("store got goals %+v, want the one trimmed non-empty goal", ms.gotGoals)
+	}
+	var out struct {
+		Created  []GoalRef         `json:"created"`
+		Skipped  []SkippedGoal     `json:"skipped"`
+		Existing []GoalRef         `json:"existing_goals"`
+		Errors   map[string]string `json:"errors"`
+		Note     string            `json:"note"`
+	}
+	if err := json.Unmarshal([]byte(r.Content), &out); err != nil {
+		t.Fatalf("decode %s: %v", r.Content, err)
+	}
+	if len(out.Created) != 0 || len(out.Skipped) != 1 || len(out.Existing) != 1 || out.Existing[0].ID != 7 {
+		t.Errorf("unexpected result: %s", r.Content)
+	}
+	if out.Errors["1"] == "" {
+		t.Errorf("expected an error for the empty goal at index 1: %s", r.Content)
+	}
+	if !strings.Contains(out.Note, "append: true") {
+		t.Errorf("note should explain append, got %q", out.Note)
+	}
+}
+
+func TestSetGoalsAppendPassedThrough(t *testing.T) {
+	t.Parallel()
+	ms := newExplorationMockStore()
+	ms.goalsResult = &GoalsResult{
+		Created: []GoalRef{{ID: 12, Text: "read /etc/passwd", State: "open"}},
+		Skipped: []SkippedGoal{{Text: "Dump the database.", Reason: GoalSkipDuplicate, ExistingID: 7}},
+	}
+	reg := NewRegistry()
+	RegisterExplorationTools(reg, ms, 1)
+
+	tool, _ := reg.Lookup("set_goals")
+	r, err := tool.Run(context.Background(), json.RawMessage(`{"append": true, "goals": [{"text": "read /etc/passwd"}, {"text": "Dump the database."}]}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ms.gotAppend {
+		t.Error("append not passed to the store")
+	}
+	if strings.Contains(r.Content, "existing_goals") {
+		t.Errorf("existing_goals should only appear when nothing was added: %s", r.Content)
+	}
+	if !strings.Contains(r.Content, `"existing_id":7`) || !strings.Contains(r.Content, `"reason":"duplicate"`) {
+		t.Errorf("expected the duplicate skip in the result: %s", r.Content)
+	}
+}
+
+func TestNormalizeGoalText(t *testing.T) {
+	t.Parallel()
+	cases := map[string]string{
+		"Dump the database":         "dump the database",
+		"  dump   THE\tdatabase.  ": "dump the database",
+		"Get RCE...":                "get rce",
+	}
+	for in, want := range cases {
+		if got := NormalizeGoalText(in); got != want {
+			t.Errorf("NormalizeGoalText(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 

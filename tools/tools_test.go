@@ -103,6 +103,14 @@ func (m *mockStore) OriginFactID(_ context.Context, _ int64) (int64, error) {
 	return 1, nil
 }
 
+func (m *mockStore) AddGoals(_ context.Context, _ int64, goals []GoalInput, _ bool) (*GoalsResult, error) {
+	res := &GoalsResult{Created: []GoalRef{}}
+	for i, g := range goals {
+		res.Created = append(res.Created, GoalRef{ID: int64(100 + i), Text: g.Text, State: "open"})
+	}
+	return res, nil
+}
+
 func (m *mockStore) Edges(_ context.Context, _ int64, _ int) ([]Edge, error) {
 	return nil, nil
 }
@@ -211,7 +219,7 @@ func (m *mockStore) ListActivity(_ context.Context, _ int64, _ ActivityFilter) (
 	return nil, nil
 }
 
-func (m *mockStore) FindPotentialDuplicates(_ context.Context, _ string, _ []int64) ([]int64, error) {
+func (m *mockStore) FindPotentialDuplicates(_ context.Context, _ int64, _, _ string, _ []int64) ([]Finding, error) {
 	return nil, nil
 }
 

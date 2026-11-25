@@ -69,7 +69,7 @@ func (m *mockStore) ListFindings(_ context.Context, _ int64) ([]tools.Finding, e
 	return m.listFindings, m.listFindingsErr
 }
 func (m *mockStore) FindingExists(context.Context, int64) (bool, error) { return false, nil }
-func (m *mockStore) FindPotentialDuplicates(context.Context, string, []int64) ([]int64, error) {
+func (m *mockStore) FindPotentialDuplicates(context.Context, int64, string, string, []int64) ([]tools.Finding, error) {
 	return nil, nil
 }
 func (m *mockStore) MergeFindings(context.Context, int64, []int64) (*tools.MergedFinding, error) {
@@ -105,6 +105,9 @@ func (m *mockStore) Frontier(context.Context, int64, int) ([]tools.Node, error) 
 func (m *mockStore) CountFinishedIntents(context.Context, int64) (int, error) { return 0, nil }
 func (m *mockStore) CountOpenIntents(context.Context, int64) (int, error)     { return 0, nil }
 func (m *mockStore) OriginFactID(context.Context, int64) (int64, error)       { return 0, nil }
+func (m *mockStore) AddGoals(context.Context, int64, []tools.GoalInput, bool) (*tools.GoalsResult, error) {
+	return &tools.GoalsResult{}, nil
+}
 func (m *mockStore) Edges(_ context.Context, _ int64, _ int) ([]tools.Edge, error) {
 	return m.edges, m.edgesErr
 }

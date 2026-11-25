@@ -602,3 +602,95 @@ func nullID(id int64) any {
 	}
 	return id
 }
+
+// AddGoals adds goals in one transaction that holds the exploration row lock,
+// so concurrent callers (several agents setting goals at startup) see each
+// other's goals instead of both inserting.
+func (s *Store) AddGoals(ctx context.Context, explorationID int64, goals []tools.GoalInput, appendGoals bool) (*tools.GoalsResult, error) {
+	tx, err := s.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	var locked int64
+	if err := tx.QueryRowContext(ctx,
+		`SELECT id FROM explorations WHERE id = $1 FOR UPDATE`, explorationID,
+	).Scan(&locked); err != nil {
+		return nil, fmt.Errorf("lock exploration %d: %w", explorationID, err)
+	}
+
+	rows, err := tx.QueryContext(ctx,
+		`SELECT id, COALESCE(payload->>'text', ''), state FROM exploration_nodes
+		 WHERE exploration_id = $1 AND kind = $2 ORDER BY id`,
+		explorationID, KindGoal)
+	if err != nil {
+		return nil, err
+	}
+	var existing []tools.GoalRef
+	for rows.Next() {
+		var g tools.GoalRef
+		if err := rows.Scan(&g.ID, &g.Text, &g.State); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		existing = append(existing, g)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	res := &tools.GoalsResult{Created: []tools.GoalRef{}}
+	if len(existing) > 0 && !appendGoals {
+		res.Existing = existing
+		for _, g := range goals {
+			res.Skipped = append(res.Skipped, tools.SkippedGoal{Text: g.Text, Reason: tools.GoalSkipAlreadySet})
+		}
+		return res, tx.Commit()
+	}
+
+	seen := make(map[string]int64, len(existing)+len(goals))
+	for _, g := range existing {
+		seen[tools.NormalizeGoalText(g.Text)] = g.ID
+	}
+
+	var origin int64
+	if err := tx.QueryRowContext(ctx,
+		`SELECT id FROM exploration_nodes WHERE exploration_id = $1 AND kind = 'fact' AND (state = 'origin' OR origin = 'system') ORDER BY id LIMIT 1`,
+		explorationID).Scan(&origin); err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+
+	for _, g := range goals {
+		key := tools.NormalizeGoalText(g.Text)
+		if id, dup := seen[key]; dup {
+			res.Skipped = append(res.Skipped, tools.SkippedGoal{Text: g.Text, Reason: tools.GoalSkipDuplicate, ExistingID: id})
+			continue
+		}
+		payload := map[string]any{"text": g.Text}
+		if g.VulnClass != "" {
+			payload["vulnclass"] = g.VulnClass
+		}
+		raw, _ := json.Marshal(payload)
+		var id int64
+		if err := tx.QueryRowContext(ctx,
+			`INSERT INTO exploration_nodes(exploration_id, kind, payload, priority, state, origin)
+			 VALUES ($1, $2, $3, 0, 'open', 'system') RETURNING id`,
+			explorationID, KindGoal, string(raw)).Scan(&id); err != nil {
+			return nil, err
+		}
+		if origin > 0 {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO exploration_edges(exploration_id, src_id, rel, dst_id)
+				 VALUES ($1, $2, $3, $4)
+				 ON CONFLICT (exploration_id, src_id, rel, dst_id) DO NOTHING`,
+				explorationID, origin, RelSpawns, id); err != nil {
+				return nil, err
+			}
+		}
+		seen[key] = id
+		res.Created = append(res.Created, tools.GoalRef{ID: id, Text: g.Text, State: "open"})
+	}
+	return res, tx.Commit()
+}
