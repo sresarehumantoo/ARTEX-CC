@@ -165,3 +165,20 @@ func TestCoverageEntries(t *testing.T) {
 		}
 	}
 }
+
+func TestEnvFlag(t *testing.T) {
+	var e envFlag
+	for _, ok := range []string{"TELEPORT_HOME=/tmp/empty", "WINFORGE_TSH_IDENTITY=/run/eval/forge.pem", "EMPTY="} {
+		if err := e.Set(ok); err != nil {
+			t.Fatalf("Set(%q): %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"NOEQUALS", "=value", " =x"} {
+		if err := e.Set(bad); err == nil {
+			t.Errorf("Set(%q) accepted", bad)
+		}
+	}
+	if len(e) != 3 || e[2] != "EMPTY=" {
+		t.Fatalf("collected %v", e)
+	}
+}

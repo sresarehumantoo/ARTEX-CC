@@ -27,6 +27,7 @@ type runConfig struct {
 	instances      int
 	transport      string
 	lease          string
+	extraEnv       []string
 	identity       bool
 	runID          string
 	kill           *killSpec
@@ -245,7 +246,7 @@ func runInstance(ctx context.Context, rc runConfig, sc Scenario, mcpConfigPath s
 	cmd.Stdout = out
 	cmd.Stderr = os.Stderr
 	cmd.Dir = rc.dataDir
-	cmd.Env = serveEnv(rc.lease)
+	cmd.Env = append(serveEnv(rc.lease), rc.extraEnv...)
 	setProcessGroup(cmd)
 	cmd.Cancel = func() error { return killProcessGroup(cmd) }
 	cmd.WaitDelay = 10 * time.Second
