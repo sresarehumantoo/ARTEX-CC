@@ -64,6 +64,32 @@ func TestParseScopeLine(t *testing.T) {
 		}
 	})
 
+	t.Run("domain wildcard", func(t *testing.T) {
+		r, err := ParseScopeLine("domain", "*.Example.com")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if r.Domain != "example.com" {
+			t.Errorf("Domain = %q, want %q", r.Domain, "example.com")
+		}
+		for _, host := range []string{"example.com", "api.example.com", "a.b.example.com"} {
+			if !matchesDomain(host, r.Domain) {
+				t.Errorf("matchesDomain(%q, %q) = false, want true", host, r.Domain)
+			}
+		}
+		if matchesDomain("notexample.com", r.Domain) {
+			t.Errorf("matchesDomain(%q, %q) = true, want false", "notexample.com", r.Domain)
+		}
+	})
+
+	t.Run("domain wildcard invalid", func(t *testing.T) {
+		for _, v := range []string{"*.", "*", "*.*.example.com", "api.*.example.com"} {
+			if _, err := ParseScopeLine("domain", v); err == nil {
+				t.Errorf("ParseScopeLine(%q): expected error", v)
+			}
+		}
+	})
+
 	t.Run("domain invalid", func(t *testing.T) {
 		_, err := ParseScopeLine("domain", "has spaces")
 		if err == nil {
