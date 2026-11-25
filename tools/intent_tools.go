@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 )
 
 func RegisterIntentTools(reg *Registry, store Store, explorationID int64) {
@@ -15,9 +16,11 @@ func RegisterIntentTools(reg *Registry, store Store, explorationID int64) {
 
 func makeStartIntent(store Store) Tool {
 	return Tool{
-		Name:        "start_intent",
-		Category:    CategoryExploration,
-		Description: "Mark an open intent as running. Call this when you begin working on an intent.",
+		Name:     "start_intent",
+		Category: CategoryExploration,
+		Description: "Claim an open intent for this session and mark it running. Call this when you begin working on an intent. " +
+			fmt.Sprintf("The claim is exclusive for %d minutes; call again to renew it on long work. ", int(IntentLease.Minutes())) +
+			"Fails if another session holds a live claim, so pick a different intent.",
 		Schema: obj(map[string]any{
 			"node_id": intp("intent node id"),
 		}, "node_id"),
@@ -43,14 +46,20 @@ func makeStartIntent(store Store) Tool {
 			if node.Kind != KindIntent {
 				return errResult(fmt.Sprintf("node %d is a %s, not an intent", id, node.Kind)), nil
 			}
-			if node.State != "open" {
+			if node.State != "open" && node.State != "running" {
 				return errResult(fmt.Sprintf("intent %d is %q, must be open to start", id, node.State)), nil
 			}
 
-			if err := store.UpdateNodeState(ctx, id, "running"); err != nil {
+			claim, err := store.ClaimIntent(ctx, id, SessionID(ctx), IntentLease)
+			if err != nil {
 				return errResult(err.Error()), nil
 			}
-			return textResult(fmt.Sprintf("intent %d is now running", id)), nil
+			verb := "claimed"
+			if claim.Renewed {
+				verb = "renewed"
+			}
+			return textResult(fmt.Sprintf("intent %d is now running; %s by session %s until %s",
+				id, verb, claim.Owner, claim.ExpiresAt.UTC().Format(time.RFC3339))), nil
 		},
 	}
 }
@@ -110,7 +119,8 @@ func makeCancelIntent(store Store) Tool {
 		Name:     "cancel_intent",
 		Category: CategoryExploration,
 		Description: "Cancel an intent that is no longer needed. " +
-			"Use this when an intent is redundant, no longer applicable, or was created in error.",
+			"Use this when an intent is redundant, no longer applicable, or was created in error. " +
+			"Refused while another session holds a live claim on the intent.",
 		Schema: obj(map[string]any{
 			"node_id": intp("intent node id"),
 			"reason":  str("why this intent is being cancelled"),
@@ -141,6 +151,13 @@ func makeCancelIntent(store Store) Tool {
 			terminalStates := map[string]bool{"done": true, "stopped": true, "deleted": true}
 			if terminalStates[node.State] {
 				return errResult(fmt.Sprintf("intent %d is already %q", id, node.State)), nil
+			}
+			// Taking the claim first makes the ownership check atomic: it fails
+			// only while another session holds a live lease.
+			if node.State == "running" {
+				if _, err := store.ClaimIntent(ctx, id, SessionID(ctx), IntentLease); err != nil {
+					return errResult(err.Error()), nil
+				}
 			}
 
 			var merge map[string]any

@@ -45,7 +45,7 @@
   "save_evidence": "`{id, sha256, size, path}`.",
   "set_constraints": "Single mode: `\"constraint created: <id>\"`. Batch mode: `{ids: [...], errors: {...}}`.",
   "set_goals": "Single mode: `\"goal created: <id>\"`. Batch mode: `{ids: [...], errors: {...}}`.",
-  "start_intent": "`\"intent <id> is now running\"`.",
+  "start_intent": "`\"intent <id> is now running; claimed by session <session> until <time>\"` (`renewed` when the caller already held the claim). Errors with the holder and expiry if another session has a live claim.",
   "switch_engagement": "`\"switched to engagement <id> (exploration <id>): <goal>\"`.",
   "traffic_blob": "`{total, offset, length, data}`.",
   "traffic_clear": "`{deleted, host}`.",

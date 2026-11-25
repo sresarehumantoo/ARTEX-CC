@@ -85,6 +85,9 @@ func (m *mockStore) AddNode(_ context.Context, _ int64, _ string, _ map[string]a
 	return m.addNodeID, m.addNodeErr
 }
 func (m *mockStore) UpdateNodeState(context.Context, int64, string) error { return nil }
+func (m *mockStore) ClaimIntent(context.Context, int64, string, time.Duration) (*tools.IntentClaim, error) {
+	return nil, nil
+}
 func (m *mockStore) ListNodes(_ context.Context, _ int64, _ string, _ int) ([]tools.Node, error) {
 	return m.listNodes, m.listNodesErr
 }

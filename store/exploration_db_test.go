@@ -16,7 +16,7 @@ func nodeRows() *sqlmock.Rows {
 	return sqlmock.NewRows([]string{
 		"id", "kind", "payload", "priority", "state",
 		"origin", "owner", "blocked_reason", "delete_reason",
-		"anchors_json", "created_at", "updated_at",
+		"anchors_json", "created_at", "updated_at", "claim_expires_at",
 	})
 }
 
@@ -131,7 +131,7 @@ func TestUpdateNodeFields_StateOnly(t *testing.T) {
 	s, mock := newRegexpMockStore(t)
 	ctx := context.Background()
 
-	mock.ExpectExec(`UPDATE exploration_nodes SET state = \$1 WHERE id = \$2`).
+	mock.ExpectExec(`UPDATE exploration_nodes SET state = \$1, owner = NULL, claim_expires_at = NULL WHERE id = \$2`).
 		WithArgs("running", int64(7)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
@@ -167,7 +167,7 @@ func TestUpdateNodeFields_Both(t *testing.T) {
 	s, mock := newRegexpMockStore(t)
 	ctx := context.Background()
 
-	mock.ExpectExec(`UPDATE exploration_nodes SET state = \$1 WHERE id = \$2`).
+	mock.ExpectExec(`UPDATE exploration_nodes SET state = \$1, owner = NULL, claim_expires_at = NULL WHERE id = \$2`).
 		WithArgs("done", int64(7)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(`UPDATE exploration_nodes SET payload = payload`).
@@ -237,8 +237,8 @@ func TestMockListNodes_NoFilter(t *testing.T) {
 	now := time.Now()
 
 	rows := nodeRows().
-		AddRow(int64(1), "goal", []byte(`{"text":"find xss"}`), 5, "open", "system", "", "", "", "[]", now, now).
-		AddRow(int64(2), "intent", []byte(`{"summary":"test login"}`), 3, "open", "planner", "", "", "", "[10]", now, now)
+		AddRow(int64(1), "goal", []byte(`{"text":"find xss"}`), 5, "open", "system", "", "", "", "[]", now, now, nil).
+		AddRow(int64(2), "intent", []byte(`{"summary":"test login"}`), 3, "open", "planner", "", "", "", "[10]", now, now, nil)
 
 	mock.ExpectQuery(`SELECT .+ FROM exploration_nodes`).
 		WithArgs(int64(1)).
@@ -269,7 +269,7 @@ func TestMockListNodes_WithKindAndLimit(t *testing.T) {
 	now := time.Now()
 
 	rows := nodeRows().
-		AddRow(int64(2), "intent", []byte(`{}`), 5, "open", "planner", "", "", "", "[]", now, now)
+		AddRow(int64(2), "intent", []byte(`{}`), 5, "open", "planner", "", "", "", "[]", now, now, nil)
 
 	mock.ExpectQuery(`SELECT .+ FROM exploration_nodes`).
 		WithArgs(int64(1), "intent", 10).
@@ -334,7 +334,7 @@ func TestMockNodeDetail_Found(t *testing.T) {
 	mock.ExpectQuery(`SELECT .+ FROM exploration_nodes n WHERE n.id`).
 		WithArgs(int64(5)).
 		WillReturnRows(nodeRows().
-			AddRow(int64(5), "fact", []byte(`{"text":"found vuln"}`), 3, "confirmed", "worker", "", "", "", "[]", now, now))
+			AddRow(int64(5), "fact", []byte(`{"text":"found vuln"}`), 3, "confirmed", "worker", "", "", "", "[]", now, now, nil))
 
 	node, err := s.NodeDetail(ctx, 5)
 	if err != nil {
@@ -380,8 +380,8 @@ func TestMockFrontier(t *testing.T) {
 	now := time.Now()
 
 	rows := nodeRows().
-		AddRow(int64(3), "intent", []byte(`{"summary":"high prio"}`), 10, "open", "planner", "", "", "", "[]", now, now).
-		AddRow(int64(4), "intent", []byte(`{"summary":"low prio"}`), 1, "open", "planner", "", "", "", "[]", now, now)
+		AddRow(int64(3), "intent", []byte(`{"summary":"high prio"}`), 10, "open", "planner", "", "", "", "[]", now, now, nil).
+		AddRow(int64(4), "intent", []byte(`{"summary":"low prio"}`), 1, "open", "planner", "", "", "", "[]", now, now, nil)
 
 	mock.ExpectQuery(`SELECT .+ FROM exploration_nodes n.*WHERE.*intent.*open.*ORDER BY.*priority`).
 		WithArgs(int64(1)).
@@ -406,7 +406,7 @@ func TestMockFrontier_WithLimit(t *testing.T) {
 	now := time.Now()
 
 	rows := nodeRows().
-		AddRow(int64(3), "intent", []byte(`{}`), 10, "open", "planner", "", "", "", "[]", now, now)
+		AddRow(int64(3), "intent", []byte(`{}`), 10, "open", "planner", "", "", "", "[]", now, now, nil)
 
 	mock.ExpectQuery(`SELECT .+ FROM exploration_nodes n`).
 		WithArgs(int64(1), 5).
