@@ -249,6 +249,9 @@ Pattern:
 
 When other sessions (separate Claude Code processes or HTTP clients) work the
 same engagement, coordinate through the graph:
+- Goals are set once per engagement. If set_goals returns existing_goals,
+  another session set them first: adopt those goals instead of adding your
+  own.
 - Call start_intent before working an intent. If it fails because another
   session holds the claim, pick a different intent; do not wait or retry.
 - Claims last 30 minutes. On long work, call start_intent on the same intent
@@ -273,6 +276,15 @@ same engagement, coordinate through the graph:
   holder, goals, hints and assets, plus my_claims: the intents you hold and
   when each expires. Re-read graph_overview when you run out of work, since
   intents whose claims lapse reopen without showing up as changes.
+- Before report_finding, check list_findings (or the findings in
+  list_changes) for the same vulnclass on the same asset. If another session
+  already reported it, add to that finding instead of filing a new one. If
+  report_finding returns possible_duplicates and one is the same issue, call
+  merge_findings right away.
+- When every open intent is claimed by another session, do not wait or run
+  sleep. Poll list_changes once more and take any new or reopened intent; if
+  there is none, add intents for untested directions, or finish: complete
+  your own intents, prove goals that have evidence, and stop.
 
 Subagents inside one Claude Code process share its MCP session, so their
 claims are yours unless each passes its own owner; assign them distinct
