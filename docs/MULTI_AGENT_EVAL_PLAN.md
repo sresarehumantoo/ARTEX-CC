@@ -6,7 +6,7 @@ Since v0.5.0, several Claude Code instances (or other MCP clients) can work one 
 
 - `start_intent` claims an intent for 30 minutes by default (`tools.IntentLease`, overridden by `ARTEX_INTENT_LEASE`). A claim held by another holder means "pick a different intent"; calling `start_intent` again renews it.
 - `complete_intent` and `cancel_intent` are refused on an intent another holder has a live claim on.
-- Claims belong to the MCP session. HTTP clients on MCP protocol 2026-07-28 have no session and pass an `owner` argument instead. Holders appear as hashed labels.
+- Claims belong to the MCP session. HTTP clients can carry a signed `X-Artex-Identity` instead (see `docs/CLIENT_IDENTITY_PLAN.md`); the identity then holds the claim regardless of session or protocol era, and its label is the identity name. Anonymous HTTP clients on MCP protocol 2026-07-28 have no session and pass an `owner` argument; their holders appear as hashed labels.
 - `list_changes` returns what other instances recorded since a cursor, plus the caller's live claims.
 - Changes from other `serve` processes on the same database arrive over `pg_notify` and reach the web UI.
 
@@ -21,7 +21,7 @@ What has no coverage is the part that decides whether the feature works in pract
 3. **Shared awareness.** Does each instance poll `list_changes` and build on facts another instance recorded, instead of rediscovering them?
 4. **Recovery.** If an instance dies mid-intent, does another take the intent over after the lease lapses, without losing the facts already recorded?
 5. **Worth it.** Compared with one instance, does parallel work finish faster or cover more, and at what extra token cost?
-6. **Transports.** Do claims behave the same with stdio (one session per process) and with HTTP on protocol 2026-07-28 (owner argument)?
+6. **Transports.** Do claims behave the same with stdio (one session per process), with HTTP identities, and with anonymous HTTP on protocol 2026-07-28 (owner argument)?
 
 ## 3. Prerequisites
 
@@ -36,7 +36,8 @@ A takeover test that waits 30 minutes per attempt is impractical, so `serve` rea
 `eval/cmd/eval-runner` used to run one `claude --print` process. It now has:
 
 - `--instances N` (default 1): start N `claude` processes concurrently against the same engagement, each with the same goal and a short instance-specific suffix ("you are instance 2 of 3; other agents are working this engagement").
-- `--transport stdio|http`: stdio gives each instance its own `artex-cc serve --stdio` process (its own MCP session, shared PostgreSQL). HTTP points every instance at one `artex-cc serve --listen` and tells each agent to pick an owner label once and pass it on claim calls.
+- `--transport stdio|http`: stdio gives each instance its own `artex-cc serve --stdio` process (its own MCP session, shared PostgreSQL). HTTP points every instance at one `artex-cc serve --listen`.
+- `--identity` (default true, HTTP only): each HTTP instance gets its own `X-Artex-Identity` named `eval/<run>/i<n>`, minted by the runner with the run's data directory key and a TTL of the scenario timeout plus the lease, in its own 0600 MCP config that is deleted with the data directory. The prompt then says nothing about `owner`, and holder labels in transcripts and reports name the instance. `--identity=false` keeps the anonymous path: one shared config, and each agent is told to pick an owner label once and pass it on claim calls.
 - `--kill-after INSTANCE:DURATION` for the recovery test: kill one instance after a delay, with its claims still live.
 - `--lease DURATION`: passed to every `serve` process as `ARTEX_INTENT_LEASE`.
 - `--output-format stream-json` for every instance, saved as `transcripts-<scenario>-<timestamp>/instance-N.jsonl` under `--output`, so every tool call, argument and result is on record. Claim history is not persisted in the database (an intent only stores its current holder and `claim_expires_at`), so transcripts are the source of truth for coordination metrics.
@@ -64,10 +65,11 @@ VulnApp (`eval/vulnapp`) has five independent problem areas: SQL injection (`/ap
 |---|---|---|---|
 | A1 | 1 | stdio | Baseline: findings, wall clock, tokens |
 | A2 | 3 | stdio | Coordination metrics, speedup over A1 |
-| A3 | 3 | http (owner argument) | Same as A2 over the sessionless transport |
+| A3 | 3 | http, `--identity=false` (owner argument) | Same as A2 over the sessionless transport with agent-chosen owners |
 | A4 | 3 | stdio, lease 2m, kill instance 2 after its first claim | Recovery and takeover |
+| A5 | 3 | http (identities, the default) | Same as A2 with runner-issued identities; holder labels must match instance numbers (`holder_mismatches` 0) |
 
-Run each of A1 to A3 three times; agent behavior varies run to run, so report the median and the worst coordination result, not the best. Same model for every run (`--model`), pinned in the scenario.
+Run each of A1, A2, A3 and A5 three times; agent behavior varies run to run, so report the median and the worst coordination result, not the best. Same model for every run (`--model`), pinned in the scenario.
 
 Exit criteria for phase 1: zero concurrent double claims across all runs, conflict handling at 90% or more, a successful takeover in A4, and no drop in findings against A1. If agents mishandle conflicts, fix the tool description or the orchestration guide in `artex://engagement` before moving to Winforge; that is the cheap place to iterate.
 
@@ -83,7 +85,7 @@ Winforge is the SSH-only Windows Server lab VM from the [Winforge CTF eval](http
 | Run | Instances | Transport | Purpose |
 |---|---|---|---|
 | W1 | 1 | http (Docker ARTEX, as in the original eval) | Baseline on the three-track scenario |
-| W2 | 3 | http, owner argument | Coordination across tracks |
+| W2 | 3 | http, identities | Coordination across tracks |
 | W3 | 3 | stdio (native `artex-cc`, Homebrew or binary) | Session-based claims on the same target |
 | W4 | 3 | http, lease 2m, kill one instance mid-track | Recovery against a real target |
 

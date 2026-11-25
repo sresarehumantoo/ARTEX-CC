@@ -12,6 +12,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `artex-cc identity rotate` replaces `identity.key` atomically, revoking every token issued from that data directory.
 - `artex-cc identity show` prints the current key ID, or decodes a token (argument or `-` for stdin) and reports its name, key ID, issue and expiry times and whether it verifies, without printing the token.
 - Shell completion for the `identity` subcommands.
+- Eval runner: with `--transport http`, each instance gets its own `X-Artex-Identity` named `eval/<run>/i<n>`, minted per run with a TTL of the scenario timeout plus the lease and written only to that instance's 0600 MCP config in the temporary data directory. Prompts no longer ask HTTP instances to pick an `owner`. `--identity=false` keeps the anonymous owner path. The coordination scorecard parses identity holder labels, lists each instance's `holders`, attributes unhandled conflicts to the holding instance, and counts `holder_mismatches`.
 
 ### Changed
 - Claims held by an identity are labeled with the identity name in `claimed_by`, `list_changes`, claim errors and exports (`<name>/h-...` when `owner` subdivides it). Anonymous holders keep their hashed labels.

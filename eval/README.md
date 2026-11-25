@@ -60,11 +60,26 @@ intent claims and `list_changes`. With N=1 the prompt is unchanged.
   `artex-cc serve --stdio`, so each instance has its own MCP session. Claims
   belong to that session. All of them share the eval Postgres.
 - `http`: the runner starts one `artex-cc serve --listen` on a free loopback
-  port and points every instance at it. Each prompt also tells the agent to pick
-  a random hex owner label once and pass it as `owner` on `start_intent`,
-  `complete_intent`, `cancel_intent` and `list_changes`, which is how claims are
-  told apart on MCP protocol 2026-07-28. The server log is written to
-  `server.log` in the transcripts directory.
+  port and points every instance at it. The server log is written to
+  `server.log` in the transcripts directory. By default each instance gets its
+  own signed `X-Artex-Identity`, named `eval/<run>/i<n>` (`<run>` is the run's
+  start time, `20060102-150405`), so claims belong to the instance without any
+  `owner` argument and holder labels in the transcripts read
+  `eval/<run>/i<n>`. The runner mints the tokens in process with the temporary
+  data directory's `identity.key`, which the server verifies against, with a
+  TTL of the scenario timeout plus the lease (`--lease`, else 30m). Each token
+  is written only into that instance's own MCP config (`mcp-i<n>.json`, mode
+  0600) inside the temporary data directory, which is deleted when the run
+  ends; tokens are never logged or copied into the scorecard or transcripts.
+- `http` with `--identity=false`: the anonymous path. Every instance shares one
+  MCP config without an identity, and each prompt tells the agent to pick a
+  random hex owner label once and pass it as `owner` on `start_intent`,
+  `complete_intent`, `cancel_intent` and `list_changes`, which is how
+  anonymous claims are told apart on MCP protocol 2026-07-28. Holder labels
+  are hashed (`h-...`).
+
+`--identity` has no effect with `stdio` or with `--mcp-config`; the scorecard's
+`identity` field says whether identities were used.
 
 `--kill-after INSTANCE:DURATION` kills one instance (its whole process group,
 including its `serve --stdio` child) after the delay, leaving its claims live,
@@ -82,8 +97,11 @@ running is killed. The runner waits for all instances before scoring.
 go run ../eval/cmd/eval-runner --instances 3 --transport stdio \
   --lease 2m --kill-after 2:3m scenarios/vulnapp-full.yml
 
-# Three instances sharing one HTTP server
+# Three instances sharing one HTTP server, one identity each
 go run ../eval/cmd/eval-runner --instances 3 --transport http scenarios/vulnapp-full.yml
+
+# The same over the anonymous owner argument
+go run ../eval/cmd/eval-runner --instances 3 --transport http --identity=false scenarios/vulnapp-full.yml
 ```
 
 ## What it measures
@@ -112,6 +130,8 @@ transcripts are the source of truth for claims.
 | `double_claims` | Successful `start_intent` results replayed in time order (tool result timestamps); a claim by a second instance before the previous holder's expiry (from the result text, else `--lease` or 30m) and with no `complete_intent`/`cancel_intent` in between. Pass: 0 |
 | `conflicts_handled` | `start_intent` results saying the intent "is claimed by" another holder, counted as handled when one of the next 5 tool calls of that instance is `start_intent` on a different intent. Pass: 90% or more |
 | `refused_completions` | `complete_intent` or `cancel_intent` refused because another holder has a live claim |
+| `holders`, `holder_instance` | Holder labels each instance claimed under, and for each unhandled conflict the instance holding the intent: read from the label for `eval/<run>/i<n>` identities, else the instance whose own claims carried that hashed label |
+| `holder_mismatches` | Successful claims whose `eval/<run>/i<n>` label names a different instance than the transcript it appears in, which means the per-instance configs were crossed. Pass: 0 |
 | `duplicate_findings` | Findings grouped by normalized vulnclass and asset (asset 0 when a finding has none) that were reported by more than one instance, which comes from the `report_finding` results. `raw` counts every extra finding; `after_merges` ignores merged and dismissed ones. Pass: 0 after merges |
 | `redundant_recon` | Bash commands, whitespace-normalized, run by more than one instance; `redundant_runs` counts the instances beyond the first per command |
 | `list_changes_calls` | Per instance |
@@ -191,6 +211,7 @@ The rule is scoped to that exact command prefix.
 | `--transport` | `stdio` | `stdio` (one `serve --stdio` per instance) or `http` (one shared `serve --listen`) |
 | `--kill-after` | (none) | Kill one instance after a delay, as `INSTANCE:DURATION` (e.g. `2:3m`) |
 | `--lease` | (server default) | Intent lease passed to every `serve` process as `ARTEX_INTENT_LEASE` |
+| `--identity` | true | With `--transport http`, give each instance its own `X-Artex-Identity`; `false` keeps the anonymous `owner` argument path |
 
 ## Windows target testing (manual)
 
