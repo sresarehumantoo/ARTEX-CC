@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/SREsAreHumanToo/ARTEX-CC/identity"
 	"github.com/SREsAreHumanToo/ARTEX-CC/mcpserver"
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
@@ -49,6 +50,15 @@ func TestMCPListenToken(t *testing.T) {
 
 func startListenServer(t *testing.T, token string) string {
 	t.Helper()
+	signer, err := identity.NewSigner(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return serveListen(t, mcpserver.New(tools.NewRegistry()), signer, token)
+}
+
+func serveListen(t *testing.T, srv *mcpserver.Server, signer *identity.Signer, token string) string {
+	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -56,14 +66,9 @@ func startListenServer(t *testing.T, token string) string {
 	addr := ln.Addr().String()
 	ln.Close()
 
-	var middleware []func(http.Handler) http.Handler
-	if token != "" {
-		middleware = append(middleware, func(h http.Handler) http.Handler { return bearerAuth(token, h) })
-	}
-	srv := mcpserver.New(tools.NewRegistry())
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	go srv.ServeHTTP(ctx, addr, middleware...)
+	go srv.ServeHTTP(ctx, addr, listenMiddleware(srv, signer, token)...)
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
