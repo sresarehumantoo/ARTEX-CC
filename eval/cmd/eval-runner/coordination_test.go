@@ -390,3 +390,23 @@ func TestSummary(t *testing.T) {
 		}
 	}
 }
+
+func TestConflictRetryAfterLeaseLapse(t *testing.T) {
+	expiresSoon := func(b *transcript, at time.Time, until time.Time) *transcript {
+		return b.call(at, "start_intent", map[string]any{"node_id": 50},
+			fmt.Sprintf("intent 50 is claimed by h-aaa until %s (in 1s); pick another intent", until.UTC().Format(time.RFC3339)), true)
+	}
+	takeover := expiresSoon(&transcript{}, at(1), at(1).Add(time.Second)).
+		other(at(1).Add(time.Second)).
+		claim(at(1).Add(3*time.Second), 50, "h-bbb", time.Minute)
+	tooSoon := expiresSoon(&transcript{}, at(1), at(1).Add(time.Minute)).
+		claim(at(1).Add(2*time.Second), 50, "h-ccc", time.Minute)
+
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{takeover.parse(t, 1), tooSoon.parse(t, 2)}})
+	if c.Conflicts != 2 || c.ConflictsHandled != 1 {
+		t.Fatalf("conflicts %d handled %d: %+v", c.Conflicts, c.ConflictsHandled, c.UnhandledConflicts)
+	}
+	if len(c.UnhandledConflicts) != 1 || c.UnhandledConflicts[0].Instance != 2 {
+		t.Fatalf("unhandled: %+v", c.UnhandledConflicts)
+	}
+}
