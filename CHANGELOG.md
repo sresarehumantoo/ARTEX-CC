@@ -5,7 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-25
+
+### Added
+- Web UI chat conversations hold intent claims automatically through a server-signed per-conversation identity, so their first `start_intent` succeeds without an `owner` argument and separate conversations never share claims.
+- Eval runner: `--instances`, `--transport stdio|http`, `--kill-after` and `--lease` run several Claude instances on one engagement, save each instance's transcript, and score coordination (claims, conflicts, duplicates, takeover) in the scorecard and `coordination.txt`.
+
 ### Changed
+- `set_goals` sets goals once per engagement: concurrent calls serialize, later calls return `existing_goals` instead of adding more unless `append: true`, and goals matching an existing one are skipped. The response is now always JSON.
+- `possible_duplicates` is scoped to the engagement and matches findings on a normalized vulnerability class (with aliases such as BOLA and IDOR), excluding dismissed and merged findings, and returns `{id, vulnclass, severity, summary}` entries.
+- The orchestration guide tells parallel agents to adopt existing goals, check for duplicate findings before reporting, and poll `list_changes` instead of sleeping when every open intent is claimed.
 - `serve --listen` without `--web` refuses to start on a non-loopback address (anything other than `localhost`, `127.0.0.0/8` or `::1`, including `:9400` and `0.0.0.0`) unless `ARTEX_MCP_TOKEN` is set, and then requires it as a bearer token on `/mcp`. Previously such a listener exposed every tool without authentication. Loopback listeners are unchanged, and honor `ARTEX_MCP_TOKEN` when it is set.
 - `list_sessions` returns each session's hashed holder `label` and a `self` flag instead of its raw session ID.
 - Claim holder labels are keyed with a random secret stored in `owner-label.key` in the data directory (created on first start, mode 0600), so processes sharing a data directory show the same labels. Labels shown before this change no longer match.
@@ -179,7 +188,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dockerfile for container deployments
 - GitHub Actions CI with PostgreSQL service container
 
-[Unreleased]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.3.0...v0.4.0
