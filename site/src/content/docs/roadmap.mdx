@@ -10,15 +10,15 @@ import toolStats from '../../data/tool-stats.json';
 ARTEX is a working MCP tool server for penetration testing. It exposes ARTEX's
 data model as tools Claude Code calls directly, with no separate LLM API key.
 
-**Lines of code:** ~31,000 Go.
+**Lines of code:** ~30,000 Go, excluding tests.
 
 **Tool count:** {toolStats.tools} registered tools (core + traffic + evidence + enrich + ingest + scope + intent + activity + triage + coverage).
 
-**Test count:** 910+ test runs across all packages.
+**Test count:** 1,470 Go test functions across all packages.
 
 **What works today:**
 
-- **CLI:** `serve` (stdio and HTTP transports), `init` (creates engagement, schema, CA cert), `version` (with `--json`), `health` (PostgreSQL connectivity check, `--format json`, `--timeout`), `completion` (bash/zsh/fish). `--version` flag on all subcommands. `--timeout` for graceful shutdown. `ARTEX_PG` env var override.
+- **CLI:** `serve` (stdio and HTTP transports, `--web` for the web UI), `init` (creates engagement, schema, CA cert; `--dry-run` and `--format json`), `tools` (prints the tool catalog, `--json`, no database needed), `version` (with `--json`), `health` (PostgreSQL connectivity check, `--format json`, `--timeout`), `completion` (bash/zsh/fish). `--version` flag on all subcommands. `--timeout` for graceful shutdown. `ARTEX_PG` and `ARTEX_LISTEN` env var overrides.
 - **Store (PostgreSQL):** Full schema with auto-migration. Assets (6 types), companies, company scope, task scope, exploration graph (nodes, edges, anchors, constraints), findings, credentials, coverage ledger with history, intercept rules, activity log. Engagement export/import to portable JSON archives.
 - **Exploration graph:** Goals, intents, facts, findings, hints, constraints. Edges connect them (derived_from, yields, spawns, proves). Frontier query. Graph overview for situational awareness. Prove-goal workflow with confidence gating. Intent lifecycle (start, complete, cancel).
 - **Asset management:** Bulk insert with upsert, DSL-based queries (fuzzy, exact, exclusion, numeric comparisons, boolean combinators, parentheses), untested-asset queries, company scope attribution.
@@ -40,12 +40,16 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 - **Raw TCP/UDP capture.**
 - **Transparent proxy (Linux):** iptables-based transparent interception.
 - **Intercept rules:** Tool-call interception with allow/deny/ask actions and timeout policy.
+- **Web UI:** `serve --web` serves a dashboard on the MCP port: exploration graph, findings with bound traffic, assets, coverage, credentials, traffic explorer, report, plus chat with a Claude subprocess runner, agents and presets, intercept approvals, and password auth.
+- **Multi-client MCP:** Per-client session state over the HTTP transport, with the `list_sessions` tool.
+- **Plugins:** Exec-based plugin system. Executables in the plugin directory describe their tools with `--manifest` and are registered as MCP tools.
+- **Traffic analysis:** `traffic_patterns` for temporal analysis, `traffic_stats` with request size statistics, `traffic_clear` to delete captured traffic by host.
 - **MCP resource:** `artex://engagement` resource serves the orchestration guide with live engagement context.
 - **Structured logging:** slog-based JSON logging across all packages.
 - **CI:** GitHub Actions with fmt-check, `go build`, `go vet`, `go test`, Codecov coverage reporting, and store tests against a real PostgreSQL instance.
-- **Distribution:** v0.1.1 released with cross-platform binaries (goreleaser), .deb packaging, Dockerfile, Homebrew formula auto-generated.
-- **Documentation:** [Tool reference](/docs/tools/), [MCP client configs](/docs/mcp-clients/), AGENTS.md contributor guide, demo GIF.
-- **Community files:** AGPL-3.0 license, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, example engagement walkthrough, godoc comments on all exported types. Zero open issues, 76+ PRs merged.
+- **Distribution:** v0.4.1 released with cross-platform binaries (goreleaser), .deb packaging, a Homebrew cask, and a Docker image that ships the web UI, the Claude CLI and a pentest tooling layer (nmap, impacket, evil-winrm, nuclei, ffuf and more).
+- **Documentation:** Project site at [artex-cc.com](https://artex-cc.com) with docs, evals, a blog, a [tool reference](/docs/tools/) generated from `artex-cc tools --json`, [MCP client configs](/docs/mcp-clients/) and a [live demo](/demo/) of the web UI. AGENTS.md contributor guide.
+- **Community files:** AGPL-3.0 license, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, example engagement walkthrough, godoc comments on all exported types. Zero open issues, 140+ PRs merged.
 
 
 ## 2. P0: Ship blockers (all complete)
@@ -118,7 +122,7 @@ Done. CSV export format for findings, assets, and nodes alongside existing markd
 
 ### ✅ 4.1 Test coverage
 
-910+ test runs across all packages. Integration-level multi-tool workflow tests added. Coverage reporting via Codecov. Nine packages above 85% coverage.
+1,470 Go test functions across all packages. Integration-level multi-tool workflow tests added. Coverage reporting via Codecov. Nine packages above 85% coverage.
 
 ### ✅ 4.2 Error message consistency
 
@@ -153,7 +157,7 @@ Done. goreleaser publishes the cask to `SREsAreHumanToo/homebrew-tap`. Install w
 
 ### ✅ 5.4 Example engagement walkthrough
 
-Done. Annotated walkthrough in `docs/examples/` showing init through report generation.
+Done. Annotated [walkthrough](/docs/walkthrough/) showing init through report generation.
 
 ### ✅ 5.5 Good first issues
 
@@ -171,28 +175,31 @@ Done. Project-level CLAUDE.md and AGENTS.md for contributor and agent onboarding
 
 Done. First tagged release with cross-platform binaries via goreleaser and GitHub Actions.
 
+### ✅ 5.9 Project site
+
+Done. Docs, evals, changelog, blog, generated tool reference and a static live demo of the web UI at [artex-cc.com](https://artex-cc.com).
+
 
 ## 6. P4: Future vision
 
 ### 6.1 Plugin system for external tools
+
+**Status:** The exec-based plugin interface shipped in 0.4.0: plugins register MCP tools and return text results. Writing results directly into the asset graph and exploration state is still open.
 
 **What:** A plugin interface that lets users register custom MCP tools (e.g., nuclei scanner, sqlmap, ffuf) that write results directly into the asset graph and exploration state.
 **Effort:** L
 **Dependencies:** None directly, but benefits from stable tool/store interfaces.
 **Rationale:** ARTEX's value is the data model and orchestration, not any one scanner. A plugin system lets the community contribute tool integrations without modifying core.
 
-### 6.2 Web dashboard
+### ✅ 6.2 Web dashboard
 
-**What:** A read-only web UI that visualizes the exploration graph, asset inventory, findings timeline, and coverage heatmap. Served alongside the HTTP transport.
-**Effort:** L
-**Dependencies:** None.
-**Rationale:** The exploration graph is the core abstraction, but it is only accessible through JSON tool responses today. A visual graph makes it useful for humans reviewing an engagement, not just Claude.
+Done. `serve --web` serves the web UI alongside the HTTP transport: exploration graph, asset inventory, findings, coverage, traffic and report views, and it grew beyond read-only with chat, agents and intercept approvals. See [Web UI](/docs/web-ui/).
 
 ### 6.3 Collaborative multi-agent support
 
 **What:** Multiple Claude Code instances (or other MCP clients) working the same engagement simultaneously, with locking on intents to prevent duplicate work and a notification mechanism when new findings are reported.
 **Effort:** L
-**Dependencies:** Multi-engagement switching (3.4, done), intent lifecycle (3.5, done).
+**Dependencies:** Multi-engagement switching (3.4, done), intent lifecycle (3.5, done), multi-client MCP support (6.8, done).
 **Rationale:** Large engagements benefit from multiple agents working in parallel. PostgreSQL's advisory locks and LISTEN/NOTIFY provide the primitives; the challenge is the MCP-level coordination protocol.
 
 ### ✅ 6.4 Scope enforcement
@@ -203,24 +210,14 @@ Done. Promoted to P1 and implemented. `check_scope` tool with enforcement in ass
 
 Done. `merge_findings`, `dismiss_finding`, and `bind_finding_traffic` tools in `tools/finding_tools.go`.
 
-### 6.6 Temporal analysis of traffic
+### ✅ 6.6 Temporal analysis of traffic
 
-**What:** Tools to analyze traffic patterns over time: request frequency by host, response time trends, status code distribution, new endpoints appearing. Useful for identifying rate limiting, WAF behavior, and session expiry.
-**Effort:** M
-**Dependencies:** Traffic proxy (already built).
-**Rationale:** Traffic analysis is currently limited to search and individual exchange inspection. Temporal analysis reveals patterns that individual exchanges don't.
+Done. `traffic_patterns` tool for temporal traffic analysis, shipped in 0.4.0.
 
-### 6.7 Demo GIF / screencast
+### ✅ 6.7 Demo GIF / screencast
 
-**What:** An animated demo (GIF or asciinema recording) showing ARTEX in action: initializing an engagement, running reconnaissance, discovering a finding, and generating a report. Embed in the README.
-**Effort:** S
-**Dependencies:** None.
-**Status:** Script exists but recording not yet done.
-**Rationale:** A 60-second visual walkthrough communicates the tool's value faster than any amount of documentation.
+Done. The README embeds a walkthrough recording of the web UI, and the project site serves a [live demo](/demo/).
 
-### 6.8 Multi-client MCP support
+### ✅ 6.8 Multi-client MCP support
 
-**What:** Support multiple simultaneous MCP client connections over the HTTP transport, with per-client session state and shared engagement data.
-**Effort:** M
-**Dependencies:** Collaborative multi-agent support (6.3) would benefit from this.
-**Rationale:** The HTTP transport currently serves one client. Supporting multiple clients enables team-based workflows where different operators or agents connect to the same running server.
+Done. The HTTP transport tracks a session per connected client with its own state, and `list_sessions` lists them. Shipped in 0.4.0.
