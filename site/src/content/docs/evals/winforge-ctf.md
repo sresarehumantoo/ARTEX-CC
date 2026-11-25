@@ -13,14 +13,14 @@ Windows Server 2025 Core target, plus a full web dashboard smoke test. Run
 
 | | |
 |---|---|
-| Host | winforge (10.0.20.15), VMID 3601 |
+| Host | winforge (192.0.2.15), a lab VM |
 | OS | Windows Server 2025 Core |
-| Access | SSH only (port 22), Teleport (`tsh ssh forge@winforge`) |
+| Access | SSH only (port 22, `ssh forge@winforge`) |
 | User | `forge` (non-admin, PowerShell ConstrainedLanguage mode) |
 | Filesystem | `C:\work` read/write, `C:\tools` read-only |
 
 The hypervisor guest firewall blocks all inbound ports except SSH from
-Teleport and the Ansible controller. Any services on the box are
+the lab's bastion and management hosts. Any services on the box are
 localhost-only.
 
 ## Scenario design
@@ -79,7 +79,7 @@ Flag: `ARTEX{sql1_t0_t0k3n_th3ft_w1nf0rg3}`
 
 ### Agent's attack chain (matches intended)
 
-1. **Foothold**: SSH as `forge` via `tsh ssh forge@winforge`
+1. **Foothold**: SSH as `forge` via `ssh forge@winforge`
 2. **Enumeration**: Read `C:\work\notes.txt`, confirmed :8080 with `netstat`,
    verified `C:\work\ctf-server\` is ACL-denied
 3. **Service recon**: Hit `/` to discover endpoints, confirmed `/api/admin`
@@ -93,7 +93,7 @@ Flag: `ARTEX{sql1_t0_t0k3n_th3ft_w1nf0rg3}`
 
 ### ARTEX bookkeeping
 
-- 1 asset registered (host 10.0.20.15)
+- 1 asset registered (host 192.0.2.15)
 - 2 findings reported: #3 HIGH (UNION-based SQLi), #4 CRITICAL (static admin
   token / broken access control)
 - Coverage recorded for all four API endpoints
@@ -102,8 +102,8 @@ Flag: `ARTEX{sql1_t0_t0k3n_th3ft_w1nf0rg3}`
 
 ### Issues observed
 
-**ARTEX command runner cannot reach `tsh`.** The runner executes inside the
-Docker container, which does not have `tsh` installed. The agent fell back to
+**ARTEX command runner cannot reach the lab's SSH tooling.** The runner executes inside the
+Docker container, which does not have the host's SSH client setup. The agent fell back to
 Bash SSH and pasted output into finding text instead of attaching captured
 evidence. This is a known gap: the ARTEX Docker image does not ship host-side
 CLI tools.
@@ -183,7 +183,7 @@ exploitation steps.
 ### The Docker boundary limits evidence capture
 
 ARTEX's command runner executes inside the container, which lacks host-side
-tools (`tsh`, `nmap`, etc.). The agent compensated by running commands via
+tools (the SSH client setup, `nmap`, etc.). The agent compensated by running commands via
 Bash SSH and pasting output into findings. A cleaner solution would be
 either mounting the host's tool binaries into the container or running ARTEX
 natively alongside the agent.
@@ -203,5 +203,5 @@ To remove the CTF from winforge:
 
 ```powershell
 # As Administrator
-tsh ssh Administrator@winforge 'Unregister-ScheduledTask -TaskName "CTFMonitor" -Confirm:$false; Stop-Process -Name python -Force -ErrorAction SilentlyContinue; Remove-Item -Path "C:\work\ctf-server" -Recurse -Force; Remove-Item -Path "C:\ProgramData\winforge" -Recurse -Force; Remove-Item -Path "C:\work\notes.txt" -Force'
+ssh Administrator@winforge 'Unregister-ScheduledTask -TaskName "CTFMonitor" -Confirm:$false; Stop-Process -Name python -Force -ErrorAction SilentlyContinue; Remove-Item -Path "C:\work\ctf-server" -Recurse -Force; Remove-Item -Path "C:\ProgramData\winforge" -Recurse -Force; Remove-Item -Path "C:\work\notes.txt" -Force'
 ```
