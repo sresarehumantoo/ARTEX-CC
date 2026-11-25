@@ -71,6 +71,7 @@ Each variable is a fallback for the matching flag; a flag on the command line wi
 | `ARTEX_LISTEN` | `--listen` | HTTP listen address for `serve` | `localhost:9400` |
 | `ARTEX_AUTH` | `--auth` | Require password login for the web UI on a loopback listener (`1`/`true`). Non-loopback listeners always require it. | off |
 | `ARTEX_CREDENTIAL_KEY` | | Hex-encoded 32-byte AES-256-GCM key for encrypting stored credentials | none (plaintext) |
+| `ARTEX_INTENT_LEASE` | | How long a `start_intent` claim stays exclusive, in whole minutes (Go duration such as `2m`). Shorten it only for tests and evals | `30m` |
 | `ARTEX_CLAUDE_BIN` | `--claude-bin` | Path to the `claude` CLI used by the web UI chat | `claude` |
 | `ARTEX_PLUGIN_DIR` | `--plugin-dir` | Plugin directory | `~/.artex/plugins` |
 | `ARTEX_NOISE_PROFILE` | | Egress pacing profile: `off`, `quiet`, `balanced` or `aggressive` | `off` |

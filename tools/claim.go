@@ -10,9 +10,27 @@ import (
 	"time"
 )
 
+// DefaultIntentLease is the claim lease when ARTEX_INTENT_LEASE is unset.
+const DefaultIntentLease = 30 * time.Minute
+
 // IntentLease is how long a start_intent claim stays exclusive before another
 // session may take the intent over. Calling start_intent again renews it.
-const IntentLease = 30 * time.Minute
+// serve sets it from ARTEX_INTENT_LEASE before registering tools, because
+// start_intent's description states it.
+var IntentLease = DefaultIntentLease
+
+// ParseIntentLease parses an ARTEX_INTENT_LEASE value. Only whole minutes are
+// accepted since agents are told the lease in minutes.
+func ParseIntentLease(v string) (time.Duration, error) {
+	d, err := time.ParseDuration(strings.TrimSpace(v))
+	if err != nil {
+		return 0, fmt.Errorf("intent lease %q: %w", v, err)
+	}
+	if d < time.Minute || d%time.Minute != 0 {
+		return 0, fmt.Errorf("intent lease %q must be a whole number of minutes, at least 1m", v)
+	}
+	return d, nil
+}
 
 const ownerArgDesc = "stable label identifying you as a claim holder, e.g. a random hex string chosen once and passed on every claim call. " +
 	"Required when the transport has no session (MCP HTTP protocol 2026-07-28); otherwise optional, and it splits one session into separate holders"

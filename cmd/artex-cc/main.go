@@ -198,6 +198,16 @@ func cmdServe(args []string) {
 		slog.Warn("ARTEX_CREDENTIAL_KEY is not set; credentials will be stored in plaintext")
 	}
 
+	if v := os.Getenv("ARTEX_INTENT_LEASE"); v != "" {
+		lease, err := tools.ParseIntentLease(v)
+		if err != nil {
+			slog.Error("invalid intent lease", "err", err)
+			os.Exit(1)
+		}
+		tools.IntentLease = lease
+		slog.Info("intent claim lease set", "lease", lease)
+	}
+
 	reg := tools.NewRegistry()
 	tools.RegisterAll(reg, s, engCfg.TaskID, engCfg.ExplorationID)
 
