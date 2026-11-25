@@ -13,8 +13,9 @@ import (
 
 // DiscoverAndRegister scans dir for plugins and registers their tools into
 // the registry. Each tool is namespaced as pluginname_toolname.
-// If dir does not exist, it returns nil.
-func DiscoverAndRegister(registry *tools.Registry, dir string, timeout time.Duration) error {
+// If dir does not exist, it returns nil. contextFn, when non-nil, supplies
+// the invocation config at call time.
+func DiscoverAndRegister(registry *tools.Registry, dir string, timeout time.Duration, contextFn ContextFunc) error {
 	ctx := context.Background()
 	plugins, err := Discover(ctx, dir)
 	if err != nil {
@@ -22,12 +23,12 @@ func DiscoverAndRegister(registry *tools.Registry, dir string, timeout time.Dura
 	}
 
 	for _, p := range plugins {
-		registerPlugin(registry, p, timeout)
+		registerPlugin(registry, p, timeout, contextFn)
 	}
 	return nil
 }
 
-func registerPlugin(registry *tools.Registry, p discovered, timeout time.Duration) {
+func registerPlugin(registry *tools.Registry, p discovered, timeout time.Duration, contextFn ContextFunc) {
 	for _, mt := range p.Manifest.Tools {
 		toolName := p.Manifest.Name + "_" + mt.Name
 		schema, err := schemaToMap(mt.Schema)
@@ -44,17 +45,24 @@ func registerPlugin(registry *tools.Registry, p discovered, timeout time.Duratio
 			Name:        toolName,
 			Description: mt.Description,
 			Schema:      schema,
-			Run:         makeHandler(binPath, pluginToolName, timeout),
+			Run:         makeHandler(binPath, pluginToolName, timeout, contextFn),
 		})
 		slog.Debug("registered plugin tool", "tool", toolName, "plugin", p.Manifest.Name)
 	}
 }
 
-func makeHandler(binPath, toolName string, timeout time.Duration) func(context.Context, json.RawMessage) (tools.Result, error) {
+func makeHandler(binPath, toolName string, timeout time.Duration, contextFn ContextFunc) func(context.Context, json.RawMessage) (tools.Result, error) {
 	return func(ctx context.Context, input json.RawMessage) (tools.Result, error) {
 		inv := Invocation{
 			Tool:  toolName,
 			Input: input,
+		}
+		if contextFn != nil {
+			cfg, err := contextFn(ctx)
+			if err != nil {
+				return tools.Result{}, fmt.Errorf("building plugin context: %w", err)
+			}
+			inv.Config = cfg
 		}
 		result, err := Exec(ctx, binPath, inv, timeout)
 		if err != nil {

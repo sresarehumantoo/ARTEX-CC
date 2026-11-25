@@ -23,7 +23,7 @@ printf '{"content":[{"type":"text","text":"ran %s"}]}' "$TOOL"
 `)
 
 	reg := tools.NewRegistry()
-	if err := DiscoverAndRegister(reg, dir, 10*time.Second); err != nil {
+	if err := DiscoverAndRegister(reg, dir, 10*time.Second, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -62,7 +62,7 @@ printf '{"content":[{"type":"text","text":"hi %s"}]}' "$WHO"
 `)
 
 	reg := tools.NewRegistry()
-	if err := DiscoverAndRegister(reg, dir, 10*time.Second); err != nil {
+	if err := DiscoverAndRegister(reg, dir, 10*time.Second, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -85,7 +85,7 @@ printf '{"content":[{"type":"text","text":"hi %s"}]}' "$WHO"
 
 func TestDiscoverAndRegister_MissingDir(t *testing.T) {
 	reg := tools.NewRegistry()
-	if err := DiscoverAndRegister(reg, "/nonexistent/dir/xyz", 10*time.Second); err != nil {
+	if err := DiscoverAndRegister(reg, "/nonexistent/dir/xyz", 10*time.Second, nil); err != nil {
 		t.Fatal(err)
 	}
 	if len(reg.Tools()) != 0 {
@@ -100,7 +100,7 @@ echo '{"name":"bs","version":"1.0.0","tools":[{"name":"ok","description":"ok","s
 `)
 
 	reg := tools.NewRegistry()
-	if err := DiscoverAndRegister(reg, dir, 10*time.Second); err != nil {
+	if err := DiscoverAndRegister(reg, dir, 10*time.Second, nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := reg.Lookup("bs_ok"); !ok {
@@ -118,7 +118,7 @@ echo '{"name":"ns","version":"1.0.0","tools":[{"name":"bare","description":"no s
 `)
 
 	reg := tools.NewRegistry()
-	if err := DiscoverAndRegister(reg, dir, 10*time.Second); err != nil {
+	if err := DiscoverAndRegister(reg, dir, 10*time.Second, nil); err != nil {
 		t.Fatal(err)
 	}
 	tool, ok := reg.Lookup("ns_bare")
@@ -146,7 +146,7 @@ EOF
 `)
 
 	reg := tools.NewRegistry()
-	if err := DiscoverAndRegister(reg, dir, 10*time.Second); err != nil {
+	if err := DiscoverAndRegister(reg, dir, 10*time.Second, nil); err != nil {
 		t.Fatal(err)
 	}
 	tool, _ := reg.Lookup("multi_lines")
