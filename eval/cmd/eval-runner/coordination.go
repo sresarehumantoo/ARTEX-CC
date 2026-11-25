@@ -191,6 +191,15 @@ func inputNodeID(raw json.RawMessage) int64 {
 	return n
 }
 
+func inputIntentID(raw json.RawMessage) int64 {
+	var a struct {
+		IntentID json.RawMessage `json:"intent_id"`
+	}
+	_ = json.Unmarshal(raw, &a)
+	n, _ := strconv.ParseInt(strings.Trim(string(a.IntentID), `"`), 10, 64)
+	return n
+}
+
 // EngagementFinding is a finding in the final engagement with its assets.
 type EngagementFinding struct {
 	ID         int64
@@ -430,17 +439,25 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 	return c
 }
 
-// conflictHandled reports whether one of the next conflictWindow calls starts
-// a different intent.
+// conflictHandled reports whether an agent left a claimed intent alone after
+// being told another holder has it. Retrying the same intent, or completing,
+// cancelling or recording work against it within the next conflictWindow
+// calls, is mishandling. Moving to another intent, carrying on with a claim it
+// already holds, or polling and waiting when nothing is left are all fine.
 func conflictHandled(calls []ToolCall, i int, intent int64) bool {
 	for j := i + 1; j < len(calls) && j <= i+conflictWindow; j++ {
-		if calls[j].Tool == "start_intent" {
-			if id := inputNodeID(calls[j].Input); id != 0 && id != intent {
-				return true
+		switch calls[j].Tool {
+		case "start_intent", "complete_intent", "cancel_intent":
+			if inputNodeID(calls[j].Input) == intent {
+				return false
+			}
+		case "report_finding", "record_fact", "record_coverage":
+			if inputIntentID(calls[j].Input) == intent {
+				return false
 			}
 		}
 	}
-	return false
+	return true
 }
 
 func releasedBetween(releases []releaseEvent, intent int64, from, to time.Time) bool {

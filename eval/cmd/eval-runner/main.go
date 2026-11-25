@@ -387,12 +387,7 @@ func score(ctx context.Context, s *store.Store, explorationID, taskID int64, sc 
 
 	overallScore := findingTypeScore*0.40 + findingCountScore*0.25 + assetScore*0.15 + intentScore*0.20
 
-	coverageCount := 0
-	if cov, ok := overview.Coverage["total"]; ok {
-		if n, ok := cov.(float64); ok {
-			coverageCount = int(n)
-		}
-	}
+	coverageCount := coverageEntries(overview.Coverage)
 
 	return &Scorecard{
 		Scenario:        sc.Name,
@@ -417,6 +412,18 @@ func score(ctx context.Context, s *store.Store, explorationID, taskID int64, sc 
 			IntentScore:       intentScore,
 		},
 	}, nil
+}
+
+// coverageEntries reads the ledger row count from graph_overview's coverage
+// map: an int straight from the store, a float64 after a JSON round trip.
+func coverageEntries(cov map[string]any) int {
+	switch n := cov["entries"].(type) {
+	case int:
+		return n
+	case float64:
+		return int(n)
+	}
+	return 0
 }
 
 func matchFindings(findings []tools.Finding, expected []ExpectedFinding) (matched int, missed []string) {

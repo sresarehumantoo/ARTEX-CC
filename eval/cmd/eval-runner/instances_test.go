@@ -64,3 +64,19 @@ func TestClaudeArgsLoadOnlyTheEvalMCPConfig(t *testing.T) {
 		t.Errorf("empty model should omit --model: %v", noModel)
 	}
 }
+
+func TestCoverageEntries(t *testing.T) {
+	for _, tc := range []struct {
+		cov  map[string]any
+		want int
+	}{
+		{map[string]any{"entries": 20, "gaps": 2}, 20},
+		{map[string]any{"entries": float64(7)}, 7},
+		{map[string]any{"total": 9}, 0},
+		{nil, 0},
+	} {
+		if got := coverageEntries(tc.cov); got != tc.want {
+			t.Errorf("coverageEntries(%v) = %d, want %d", tc.cov, got, tc.want)
+		}
+	}
+}
