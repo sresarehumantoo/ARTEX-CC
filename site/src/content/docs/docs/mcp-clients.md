@@ -41,6 +41,51 @@ artex-cc serve --listen 0.0.0.0:9400 --pg "<dsn>"
 
 If `ARTEX_MCP_TOKEN` is set on a loopback listener, it is required there too. The token travels in plain HTTP, so put a TLS proxy or an SSH tunnel in front of a listener that crosses an untrusted network.
 
+## Separate claim holders
+
+Every HTTP client that shares the bearer token is the same principal. To keep several agents from holding, renewing or cancelling each other's intent claims, give each one a signed identity and send it as an `X-Artex-Identity` header. A client with an identity holds its claims under that name, keeps them across reconnects and server restarts, and needs no `owner` argument.
+
+Issue one with the data directory the server uses. It runs offline and needs no database:
+
+```sh
+artex-cc identity issue --data ./pentest --name recon-1
+```
+
+The token is printed on stdout and nothing else; the name, key ID and expiry go to stderr. `--format header` prints `X-Artex-Identity: <token>`, and `--format claude-json` prints a ready-made config:
+
+```sh
+artex-cc identity issue --data ./pentest --name recon-1 --format claude-json \
+  --url http://artex-host:9400/mcp --bearer-env ARTEX_MCP_TOKEN > recon-1.mcp.json
+claude --mcp-config recon-1.mcp.json
+```
+
+```json
+{
+  "mcpServers": {
+    "artex": {
+      "type": "http",
+      "url": "http://artex-host:9400/mcp",
+      "headers": {
+        "Authorization": "Bearer ${ARTEX_MCP_TOKEN}",
+        "X-Artex-Identity": "ai1.<payload>.<mac>"
+      }
+    }
+  }
+}
+```
+
+Claude Code expands `${ARTEX_MCP_TOKEN}` from its environment. Leave out `--bearer-env` for a loopback listener without a token, or replace the value with the token from `mcp-config.json` when the server runs with `--web`. Other clients take the same two headers in their own HTTP server settings.
+
+- Names are lowercase letters, digits and `.`, `_`, `/`, `-`, up to 64 characters. `chat/` and `eval/` are reserved for the web UI and the eval runner.
+- Use one name per concurrently running agent. Two clients with the same identity are one holder.
+- Tokens last 7 days by default; `--ttl` takes a duration such as `12h` or `14d`, up to `30d`.
+- The token is a credential for claims only. It grants no access without the bearer token, and the bearer token alone still reaches every tool.
+- The signing key is `identity.key` in the data directory. Every server process serving that directory accepts the same tokens; a server with a different `--data` rejects them.
+- `artex-cc identity show --data ./pentest -` reads a token from stdin and prints its name, key ID, issue and expiry times, and whether it verifies, without printing the token. With no token it prints the current key ID.
+- `artex-cc identity rotate --data ./pentest` replaces the key, which revokes every token issued from that directory. Running servers pick up the new key without a restart. There is no per-token revocation; keep TTLs short instead.
+
+A server that verifies identities rejects a request whose `X-Artex-Identity` is malformed, expired or signed by another key with HTTP 401, so a stale token fails loudly. Requests without the header behave as before. A server older than the identity release ignores the header, and claims fall back to the MCP session or the `owner` argument.
+
 ## Claude Code
 
 File: `~/.claude.json` (user-wide) or `.mcp.json` in the project root.

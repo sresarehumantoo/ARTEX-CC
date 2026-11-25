@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - HTTP MCP clients can send an `X-Artex-Identity` token signed with the data directory's `identity.key`, on both `--web` and plain `--listen`. A verified identity holds claims as `id:<name>` (or `id:<name>/owner:<x>` with `owner`), independent of the MCP session, so it keeps its claims across reconnects, server restarts and protocol eras, and needs no `owner` on protocol 2026-07-28. A header that fails to verify (malformed, forged, expired, or from another data directory or a rotated key) gets HTTP 401 after bearer auth. Requests without the header behave as before.
 - `list_sessions` returns an `identities` array (`name`, `self`, `last_active`) of identities that made requests to this server process within the claim lease, so clients on protocol 2026-07-28 show up.
+- `artex-cc identity issue` prints a signed `X-Artex-Identity` token for an HTTP MCP client (`--format token|header|claude-json`, `--ttl` default 7d, max 30d), offline from the data directory's `identity.key`. Names under `chat/` and `eval/` are refused.
+- `artex-cc identity rotate` replaces `identity.key` atomically, revoking every token issued from that data directory.
+- `artex-cc identity show` prints the current key ID, or decodes a token (argument or `-` for stdin) and reports its name, key ID, issue and expiry times and whether it verifies, without printing the token.
+- Shell completion for the `identity` subcommands.
 
 ### Changed
 - Claims held by an identity are labeled with the identity name in `claimed_by`, `list_changes`, claim errors and exports (`<name>/h-...` when `owner` subdivides it). Anonymous holders keep their hashed labels.

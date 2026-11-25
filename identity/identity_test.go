@@ -377,3 +377,29 @@ func TestConcurrentVerifyDuringRotation(t *testing.T) {
 		t.Errorf("err %v, want ErrUnknownKey", err)
 	}
 }
+
+func TestDecodeSkipsSignatureAndExpiry(t *testing.T) {
+	t.Parallel()
+	s, c := newTestSigner(t, t.TempDir())
+	tok := issue(t, s, "alice", time.Hour)
+	c.advance(2 * time.Hour)
+	if _, err := s.Verify(tok); !errors.Is(err, ErrExpired) {
+		t.Fatalf("err %v, want ErrExpired", err)
+	}
+	parts := strings.Split(tok, ".")
+	forged := parts[0] + "." + parts[1] + "." + base64.RawURLEncoding.EncodeToString(make([]byte, 32))
+	got, err := Decode(forged)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyID, err := s.KeyID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Name != "alice" || got.KeyID != keyID || !got.ExpiresAt.Equal(got.IssuedAt.Add(time.Hour)) {
+		t.Errorf("claims %+v", got)
+	}
+	if _, err := Decode("ai1.x"); !errors.Is(err, ErrMalformed) {
+		t.Errorf("err %v, want ErrMalformed", err)
+	}
+}

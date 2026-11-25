@@ -40,9 +40,9 @@ Non-goals:
 Issuance
 
 - R1. `artex-cc identity issue --data <dir> --name <name> [--ttl <dur>] [--format token|header|claude-json]` prints one token to stdout and nothing else on stdout. It runs offline: it needs only the data dir, not a server or database.
-- R2. Names match `^[a-z0-9][a-z0-9._/-]{0,63}$`. The prefixes `chat/` and `eval/` are used by the built-in issuers; the CLI refuses them without `--allow-reserved`.
+- R2. Names match `^[a-z0-9][a-z0-9._/-]{0,63}$`. The prefixes `chat/` and `eval/` are used by the built-in issuers, which mint in process; the CLI always refuses them.
 - R3. Default TTL is 7 days for the CLI, settable with `--ttl` up to a maximum of 30 days, conversation lifetime plus a margin for chat (see R14), and the run timeout plus the lease for eval. `--ttl 0` is rejected; every token expires.
-- R4. `--format claude-json --url <mcp url> [--bearer-env VAR]` prints an `mcpServers.artex` block with both headers, ready for `claude --mcp-config` or `.mcp.json`.
+- R4. `--format claude-json [--url <mcp url>] [--bearer-env VAR]` prints an `mcpServers.artex` block, ready for `claude --mcp-config` or `.mcp.json`. `--url` defaults to `http://localhost:9400/mcp`. With `--bearer-env VAR` the block also sends `Authorization: Bearer ${VAR}`, which Claude Code expands from the environment; without it no `Authorization` header is written, for a tokenless loopback listener.
 - R5. Revocation is by rotation: `artex-cc identity rotate --data <dir>` replaces the key, which invalidates every token from that directory, including chat and eval ones. Running servers pick up the new key without restart (R9). Per-token revocation is an open question (Q2).
 
 Verification
@@ -50,7 +50,7 @@ Verification
 - R6. An `/mcp` request with `X-Artex-Identity` that fails to parse, fails the MAC, names an unknown key ID, or is expired gets HTTP 401 with a short reason, before mcp-go sees it. Failing closed means a client misconfigured with a stale token notices at once instead of silently claiming anonymously.
 - R7. Verification is constant time on the MAC and allocates no state per token. It runs after bearer auth, so an unauthenticated request learns nothing about identity validity.
 - R8. Identity verification is mounted on every HTTP `/mcp` path: `--web` and plain `--listen`.
-- R9. Servers reread the key file when its mtime changes (checked at most once per second). `rotate --grace <dur>` keeps the old key as `identity.key.prev` with a deadline, and servers accept tokens under it until then; plain `rotate` has no grace.
+- R9. Servers reread the key file when its inode, mtime or size changes (checked at most once per second). `rotate` writes a temp file and renames it into place, so the change is atomic and always visible. There is no grace period: per Q2, rotation is the revocation tool and every old token stops verifying at once. A `--grace` option keeping the old key as `identity.key.prev` can be added if a deployment needs zero-downtime rotation; nothing in the token format prevents it.
 
 Composition
 
@@ -93,7 +93,7 @@ mac     = base64url(HMAC-SHA256(identity.key, "artex-identity-v1\x00" + payload)
 
 - The `ai1` prefix versions the format and makes the value recognizable to log redaction.
 - The domain string separates it from any other MAC the key might ever sign.
-- `k` selects the current or grace key (R9) and gives a precise error for cross-data-dir use.
+- `k` names the signing key and gives a precise error for rotated keys and cross-data-dir use.
 - No engagement binding by default: claims are per node, nodes are global in the database, and `switch_engagement` changes engagement mid-session. See Q4.
 - No nonce or replay cache: the token is a bearer credential scoped to a holder name, and the threat model is "copied a value", which expiry plus non-disclosure (R22) handles. A replayed token is the identity, by design.
 
@@ -149,7 +149,7 @@ Unit (`identity`, `tools`, `config`):
 - Forged: flipped payload byte, flipped MAC byte, MAC from another key, payload with `exp` edited, truncated token, wrong prefix (`ai0`), empty segments, oversized header (> 2 KiB). All rejected.
 - Expired: `exp` in the past beyond skew rejected; within skew accepted.
 - Cross-data-dir: token from dir A rejected by dir B with "unknown key ID".
-- Rotation: after `rotate`, old tokens rejected; with `--grace`, accepted until the grace end, then rejected; mtime reload picked up without restart.
+- Rotation: after `rotate`, old tokens rejected and new ones verify; the key file stays 0600 and gets a new inode; reload picked up without restart.
 - `ClaimOwner` table for every combination of identity, session, owner, including whitespace owners.
 - Labels: identity, identity plus owner, anonymous unchanged against a fixed key (golden values so a change to anonymous labels fails the test).
 - Key file created 0600, concurrent first creation yields one key (mirror the labelkey test).

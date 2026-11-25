@@ -12,6 +12,7 @@ ARTEX reads its PostgreSQL connection string from `--pg` or the `ARTEX_PG` envir
 | `artex-cc serve` | Start the MCP tool server (stdio or HTTP) |
 | `artex-cc init` | Create the schema and a new engagement, generate the proxy CA |
 | `artex-cc health` | Check PostgreSQL connectivity |
+| `artex-cc identity` | Issue, rotate or inspect `X-Artex-Identity` tokens for HTTP clients (see [MCP clients](/docs/mcp-clients/#separate-claim-holders)) |
 | `artex-cc completion` | Print a shell completion script (`bash`, `zsh`, `fish`) |
 | `artex-cc version` | Print the version (`--json` for build details) |
 

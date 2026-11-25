@@ -165,49 +165,70 @@ func (s *Signer) Issue(name string, ttl time.Duration) (string, error) {
 	return prefix + "." + p + "." + base64.RawURLEncoding.EncodeToString(sign(key, p)), nil
 }
 
-// Verify checks token and returns its claims. Errors wrap ErrMalformed,
-// ErrUnknownKey, ErrBadSignature or ErrExpired.
-func (s *Signer) Verify(token string) (Claims, error) {
+// KeyID returns the ID of the signer's current key.
+func (s *Signer) KeyID() (string, error) {
+	_, keyID, err := s.current()
+	return keyID, err
+}
+
+// Decode parses token without checking its signature or expiry. Its claims
+// are unauthenticated and only fit for display; use Verify to trust them.
+func Decode(token string) (Claims, error) {
+	c, _, _, err := parse(token)
+	return c, err
+}
+
+func parse(token string) (c Claims, signed string, mac []byte, err error) {
 	if len(token) > maxTokenLen {
-		return Claims{}, fmt.Errorf("%w: longer than %d bytes", ErrMalformed, maxTokenLen)
+		return Claims{}, "", nil, fmt.Errorf("%w: longer than %d bytes", ErrMalformed, maxTokenLen)
 	}
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 || parts[1] == "" || parts[2] == "" {
-		return Claims{}, fmt.Errorf("%w: want %s.<payload>.<mac>", ErrMalformed, prefix)
+		return Claims{}, "", nil, fmt.Errorf("%w: want %s.<payload>.<mac>", ErrMalformed, prefix)
 	}
 	if parts[0] != prefix {
-		return Claims{}, fmt.Errorf("%w: unsupported version %q", ErrMalformed, parts[0])
+		return Claims{}, "", nil, fmt.Errorf("%w: unsupported version %q", ErrMalformed, parts[0])
 	}
 	body, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return Claims{}, fmt.Errorf("%w: payload encoding", ErrMalformed)
+		return Claims{}, "", nil, fmt.Errorf("%w: payload encoding", ErrMalformed)
 	}
-	mac, err := base64.RawURLEncoding.DecodeString(parts[2])
+	mac, err = base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil || len(mac) != sha256.Size {
-		return Claims{}, fmt.Errorf("%w: mac encoding", ErrMalformed)
+		return Claims{}, "", nil, fmt.Errorf("%w: mac encoding", ErrMalformed)
 	}
 	var p payload
 	if err := json.Unmarshal(body, &p); err != nil {
-		return Claims{}, fmt.Errorf("%w: payload", ErrMalformed)
+		return Claims{}, "", nil, fmt.Errorf("%w: payload", ErrMalformed)
+	}
+	c = Claims{Name: p.Name, KeyID: p.KeyID, IssuedAt: time.Unix(p.IssuedAt, 0), ExpiresAt: time.Unix(p.Expires, 0)}
+	return c, parts[1], mac, nil
+}
+
+// Verify checks token and returns its claims. Errors wrap ErrMalformed,
+// ErrUnknownKey, ErrBadSignature or ErrExpired.
+func (s *Signer) Verify(token string) (Claims, error) {
+	c, signed, mac, err := parse(token)
+	if err != nil {
+		return Claims{}, err
 	}
 	key, keyID, err := s.current()
 	if err != nil {
 		return Claims{}, err
 	}
-	if p.KeyID != keyID {
+	if c.KeyID != keyID {
 		return Claims{}, ErrUnknownKey
 	}
-	if !hmac.Equal(mac, sign(key, parts[1])) {
+	if !hmac.Equal(mac, sign(key, signed)) {
 		return Claims{}, ErrBadSignature
 	}
-	if err := ValidateName(p.Name); err != nil {
+	if err := ValidateName(c.Name); err != nil {
 		return Claims{}, fmt.Errorf("%w: %w", ErrMalformed, err)
 	}
-	exp := time.Unix(p.Expires, 0)
-	if s.now().After(exp.Add(clockSkew)) {
+	if s.now().After(c.ExpiresAt.Add(clockSkew)) {
 		return Claims{}, ErrExpired
 	}
-	return Claims{Name: p.Name, KeyID: p.KeyID, IssuedAt: time.Unix(p.IssuedAt, 0), ExpiresAt: exp}, nil
+	return c, nil
 }
 
 func sign(key []byte, payload string) []byte {
