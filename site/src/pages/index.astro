@@ -1,0 +1,512 @@
+---
+import '../styles/landing.css';
+import { Image } from 'astro:assets';
+import { getEntry } from 'astro:content';
+import Command from '../components/Command.astro';
+import logo from '../../../docs/brand/logo-dark.svg';
+import architecture from '../../../docs/architecture.svg';
+import webDemo from '../../../docs/web-demo.gif';
+import graph from '../../../docs/screenshots/graph.png';
+import findingDetail from '../../../docs/screenshots/finding-detail.png';
+import traffic from '../../../docs/screenshots/traffic.png';
+import coverage from '../../../docs/screenshots/coverage.png';
+import assets from '../../../docs/screenshots/assets.png';
+import report from '../../../docs/screenshots/report.png';
+
+const repo = 'https://github.com/SREsAreHumanToo/ARTEX-CC';
+const title = 'ARTEX-CC: use your Claude subscription to run pentests';
+const description =
+  'An MCP server that gives Claude Code an asset graph, exploration tracking, findings, coverage, traffic capture and reporting. No API key needed.';
+const canonical = new URL('/', Astro.site).href;
+
+const changelog = await getEntry('repo', 'changelog');
+const version = changelog?.body?.match(/^## \[(\d+\.\d+\.\d+)\]/m)?.[1];
+
+const nav = [
+  { label: 'Docs', href: '/docs/getting-started/' },
+  { label: 'Tools', href: '/docs/tools/' },
+  { label: 'Evals', href: '/evals/' },
+  { label: 'Changelog', href: '/changelog/' },
+];
+
+const props = [
+  {
+    title: 'No API cost',
+    body: 'Your Claude subscription covers it. No API key, no token counting, no surprise bills. ARTEX has no LLM client of its own.',
+  },
+  {
+    title: "Claude's full reasoning",
+    body: 'Not a constrained agent loop: Claude Code drives the engagement with its whole context window, tool use and subagents.',
+  },
+  {
+    title: 'Your judgment in the loop',
+    body: 'Claude proposes, you approve. The exploration graph lets you review the plan, steer it with hints, and resume hours later.',
+  },
+];
+
+const session = [
+  { phase: 'orient', tool: 'graph_overview', arg: '' },
+  { phase: '', tool: 'set_goals', arg: '' },
+  { phase: 'recon', tool: 'insert_assets', arg: 'domain: example.com' },
+  { phase: '', tool: 'add_intent', arg: 'enumerate subdomains' },
+  { phase: '', tool: 'record_fact', arg: 'found: api.example.com' },
+  { phase: '', tool: 'insert_assets', arg: 'subdomain: api.example.com, service: https/443' },
+  { phase: 'plan', tool: 'add_intent', arg: 'test api.example.com for auth bypass' },
+  { phase: 'test', tool: 'traffic_hosts', arg: '' },
+  { phase: '', tool: 'traffic_search', arg: 'host: api.example.com' },
+  { phase: '', tool: 'traffic_get', arg: 'inspect the auth request' },
+  { phase: '', tool: 'traffic_replay', arg: 'replay with modified auth header' },
+  { phase: 'record', tool: 'record_coverage', arg: 'api /admin, idor, no_issue_found' },
+  { phase: '', tool: 'report_finding', arg: 'severity: high, broken access control on /api/v2/users' },
+  { phase: 'prove', tool: 'prove_goal', arg: 'evidence: finding #1' },
+  { phase: '', tool: 'generate_report', arg: '' },
+];
+
+const forest = [
+  { phase: 'Recon', body: 'nmap found a Windows Server 2016 DC for htb.local. An RPC null session leaked the full user list.' },
+  { phase: 'Foothold', body: 'svc-alfresco had Kerberos pre-auth disabled. AS-REP roast, cracked with hashcat, WinRM in, user.txt.' },
+  { phase: 'Domain Admin', body: 'Account Operators to a new user in Exchange Windows Permissions, WriteDACL, DCSync, pass-the-hash, root.txt.' },
+  { phase: 'Cleanup', body: 'Restored the domain DACL, deleted the created user, removed uploaded scripts.' },
+];
+
+const shots = [
+  { src: graph, label: 'Exploration graph', alt: 'Exploration graph of goals, intents, facts and findings' },
+  { src: findingDetail, label: 'Findings with bound traffic', alt: 'Finding detail with the captured request and response bound as evidence' },
+  { src: traffic, label: 'Recording proxy', alt: 'Captured traffic list from the recording proxy' },
+  { src: coverage, label: 'Coverage matrix', alt: 'Coverage matrix of surfaces against risk areas' },
+  { src: assets, label: 'Assets', alt: 'Asset inventory of domains, IPs and services' },
+  { src: report, label: 'Engagement report', alt: 'Printable engagement report' },
+];
+
+const install = [
+  {
+    id: 'brew',
+    label: 'Homebrew',
+    note: 'macOS and Linux.',
+    command: 'brew install SREsAreHumanToo/tap/artex',
+  },
+  {
+    id: 'docker',
+    label: 'Docker',
+    note: 'PostgreSQL and ARTEX together, web UI on :9400, recording proxy on :8788.',
+    command: `git clone ${repo}.git\ncd ARTEX-CC\ndocker compose up`,
+  },
+  {
+    id: 'binaries',
+    label: 'Binaries',
+    note: 'Linux, macOS and Windows archives with checksums, on every release.',
+    link: { href: `${repo}/releases/latest`, label: 'Download the latest release' },
+  },
+  {
+    id: 'source',
+    label: 'Source',
+    note: 'Requires Go 1.26 or later.',
+    command: 'go install github.com/SREsAreHumanToo/ARTEX-CC/cmd/artex-cc@latest',
+  },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ARTEX-CC" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={new URL('/social-preview.png', Astro.site).href} />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="640" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:bg-sky-400 focus:px-3 focus:py-2 focus:text-neutral-950"
+      >Skip to content</a
+    >
+
+    <header class="sticky top-0 z-40 border-b border-line bg-ink/80 backdrop-blur">
+      <div class="mx-auto flex h-14 max-w-6xl items-center justify-between gap-6 px-4 sm:px-6">
+        <a href="/" class="shrink-0" aria-label="ARTEX-CC home">
+          <img src={logo.src} alt="ARTEX-CC" width="134" height="28" class="h-7 w-auto" />
+        </a>
+        <nav class="flex items-center gap-1 text-sm" aria-label="Main">
+          {
+            nav.map((item, i) => (
+              <a
+                href={item.href}
+                class:list={[
+                  'rounded-md px-3 py-1.5 text-neutral-400 transition hover:text-neutral-100',
+                  i > 0 && 'hidden sm:inline-block',
+                ]}
+              >
+                {item.label}
+              </a>
+            ))
+          }
+          <a
+            href={repo}
+            class="ml-1 inline-flex items-center gap-2 rounded-md border border-line px-3 py-1.5 text-neutral-300 transition hover:border-neutral-500 hover:text-white"
+          >
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"
+              ><path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+              ></path></svg
+            >
+            <span class="hidden sm:inline">GitHub</span>
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="relative overflow-hidden border-b border-line">
+        <div class="grid-bg pointer-events-none absolute inset-0" aria-hidden="true"></div>
+        <div class="relative mx-auto max-w-6xl px-4 pt-16 pb-16 sm:px-6 sm:pt-24">
+          <p class="font-mono text-xs tracking-wide text-neutral-500 uppercase">
+            MCP server for Claude Code{version && <span> &middot; <span class="normal-case">v{version}</span></span>} &middot; AGPL-3.0
+          </p>
+          <h1 class="mt-5 max-w-4xl text-4xl font-semibold tracking-tight text-balance text-white sm:text-6xl">
+            Use your Claude subscription to run pentests.{' '}
+            <span class="block text-neutral-500">No API key needed.</span>
+          </h1>
+          <p class="mt-6 max-w-2xl text-lg leading-relaxed text-neutral-400">
+            ARTEX-CC gives Claude Code an asset graph, exploration tracking, findings, coverage, traffic capture and
+            reporting as 62 MCP tools. Claude decides what to test. ARTEX keeps the record of what was tested, what
+            was found, and what is left.
+          </p>
+
+          <Command command="brew install SREsAreHumanToo/tap/artex" class="mt-8 max-w-xl" />
+
+          <div class="mt-6 flex flex-wrap items-center gap-3">
+            <a
+              href="/demo/"
+              class="inline-flex items-center gap-2 rounded-lg bg-sky-400 px-5 py-2.5 text-sm font-semibold text-neutral-950 transition hover:bg-sky-300"
+            >
+              Try the live demo
+              <span aria-hidden="true">&rarr;</span>
+            </a>
+            <a
+              href="/docs/getting-started/"
+              class="inline-flex items-center rounded-lg border border-line px-5 py-2.5 text-sm font-medium text-neutral-200 transition hover:border-neutral-500"
+            >
+              Get started
+            </a>
+            <a
+              href={repo}
+              class="inline-flex items-center rounded-lg px-3 py-2.5 text-sm font-medium text-neutral-400 transition hover:text-neutral-100"
+            >
+              View on GitHub
+            </a>
+          </div>
+
+          <figure class="mt-14 overflow-hidden rounded-xl border border-line bg-panel shadow-2xl shadow-black/50">
+            <div class="flex items-center gap-3 border-b border-line px-4 py-2.5">
+              <span class="size-2 rounded-full bg-neutral-700"></span>
+              <span class="font-mono text-xs text-neutral-500">artex-cc serve --web</span>
+            </div>
+            <img
+              src={webDemo.src}
+              width={webDemo.width}
+              height={webDemo.height}
+              alt="ARTEX-CC web UI walkthrough: dashboard, exploration graph, findings, traffic, coverage and report"
+              class="block h-auto w-full"
+              decoding="async"
+              fetchpriority="low"
+            />
+          </figure>
+        </div>
+      </section>
+
+      <section class="border-b border-line">
+        <div class="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          <h2 class="max-w-2xl text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            You bring the brain. ARTEX brings the hands.
+          </h2>
+          <p class="mt-4 max-w-2xl text-neutral-400">
+            Upstream ARTEX ships its own LLM agent loop, which needs an API key and a token budget. If you already pay
+            for Claude, that is a second brain doing the same job. ARTEX-CC removes the loop and exposes the data layer
+            as MCP tools, so Claude Code becomes the agent.
+          </p>
+          <div class="mt-10 rounded-xl border border-line bg-panel p-4 sm:p-8">
+            <Image
+              src={architecture}
+              alt="Claude Code, the brain, calls ARTEX-CC over MCP. ARTEX exposes 62 tools in 10 categories, stores state in PostgreSQL and captures traffic through its recording proxy."
+              class="mx-auto h-auto w-full max-w-4xl"
+              loading="lazy"
+            />
+          </div>
+          <ol class="mt-10 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-3">
+            {
+              props.map((p, i) => (
+                <li class="bg-ink p-6">
+                  <span class="font-mono text-xs text-sky-400">0{i + 1}</span>
+                  <h3 class="mt-3 font-semibold text-white">{p.title}</h3>
+                  <p class="mt-2 text-sm leading-relaxed text-neutral-400">{p.body}</p>
+                </li>
+              ))
+            }
+          </ol>
+        </div>
+      </section>
+
+      <section class="border-b border-line">
+        <div class="mx-auto grid max-w-6xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-5">
+          <div class="lg:col-span-2">
+            <h2 class="text-3xl font-semibold tracking-tight text-white">What a session looks like</h2>
+            <p class="mt-4 text-neutral-400">
+              You ask for a pentest. Claude picks the tools. Every call lands in the exploration graph, so Claude
+              always knows where it has been, what it found, and what it planned next.
+            </p>
+            <p class="mt-4 text-neutral-400">
+              Stop for the night and the graph is still there. The next session starts with
+              <code class="font-mono text-sm text-neutral-200">graph_overview</code> and picks up where the last one
+              left off.
+            </p>
+            <a href="/docs/walkthrough/" class="mt-6 inline-block text-sm font-medium text-sky-400 hover:text-sky-300"
+              >Read the full walkthrough <span aria-hidden="true">&rarr;</span></a
+            >
+          </div>
+          <div class="overflow-hidden rounded-xl border border-line bg-black/40 font-mono text-[13px] lg:col-span-3">
+            <div class="border-b border-line px-4 py-3 text-neutral-400">
+              <span class="text-sky-400">&gt;</span> Pentest example.com, starting with reconnaissance.
+            </div>
+            <ol class="overflow-x-auto px-4 py-3">
+              {
+                session.map((s) => (
+                  <li class="grid grid-cols-[4.5rem_1fr] gap-x-3 py-0.5 leading-6 whitespace-nowrap">
+                    <span class="text-neutral-600">{s.phase}</span>
+                    <span>
+                      <span class="text-sky-300">{s.tool}</span>
+                      {s.arg && <span class="text-neutral-500"> ({s.arg})</span>}
+                    </span>
+                  </li>
+                ))
+              }
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <section class="border-b border-line">
+        <div class="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          <p class="font-mono text-xs tracking-wide text-neutral-500 uppercase">Eval</p>
+          <h2 class="mt-3 text-3xl font-semibold tracking-tight text-white">HTB Forest, fully blind</h2>
+          <p class="mt-4 max-w-2xl text-neutral-400">
+            ARTEX and Claude Opus 5.5 against Forest, a classic Active Directory box. No web searches, no writeups, no
+            hints. The agent also worked around two tooling failures on its own: PowerView under non-interactive WinRM
+            and the OpenSSL 3 MD4 deprecation.
+          </p>
+          <dl class="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-4">
+            <div class="bg-ink p-5">
+              <dt class="text-xs text-neutral-500">Flags</dt>
+              <dd class="mt-1 font-mono text-2xl text-white">2 / 2</dd>
+            </div>
+            <div class="bg-ink p-5">
+              <dt class="text-xs text-neutral-500">Wall clock</dt>
+              <dd class="mt-1 font-mono text-2xl text-white">~8 min</dd>
+            </div>
+            <div class="bg-ink p-5">
+              <dt class="text-xs text-neutral-500">Web lookups</dt>
+              <dd class="mt-1 font-mono text-2xl text-white">0</dd>
+            </div>
+            <div class="bg-ink p-5">
+              <dt class="text-xs text-neutral-500">Target</dt>
+              <dd class="mt-1 font-mono text-2xl text-white">AD DC</dd>
+            </div>
+          </dl>
+          <ol class="mt-8 divide-y divide-line border-y border-line">
+            {
+              forest.map((f) => (
+                <li class="grid gap-1 py-4 sm:grid-cols-[10rem_1fr] sm:gap-6">
+                  <span class="font-mono text-sm text-sky-400">{f.phase}</span>
+                  <span class="text-sm text-neutral-300">{f.body}</span>
+                </li>
+              ))
+            }
+          </ol>
+          <a href="/evals/htb-forest/" class="mt-6 inline-block text-sm font-medium text-sky-400 hover:text-sky-300"
+            >Read the eval <span aria-hidden="true">&rarr;</span></a
+          >
+        </div>
+      </section>
+
+      <section class="border-b border-line">
+        <div class="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          <div class="flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <h2 class="text-3xl font-semibold tracking-tight text-white">Watch it work</h2>
+              <p class="mt-4 max-w-2xl text-neutral-400">
+                <code class="font-mono text-sm text-neutral-200">serve --web</code> adds a dashboard on the MCP port.
+                Everything Claude records shows up live.
+              </p>
+            </div>
+            <a
+              href="/demo/"
+              class="inline-flex items-center gap-2 rounded-lg border border-sky-400/40 px-4 py-2 text-sm font-medium text-sky-300 transition hover:border-sky-400 hover:text-sky-200"
+            >
+              Open the live demo <span aria-hidden="true">&rarr;</span>
+            </a>
+          </div>
+          <ul class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {
+              shots.map((s) => (
+                <li>
+                  <figure>
+                    <Image
+                      src={s.src}
+                      alt={s.alt}
+                      widths={[480, 960]}
+                      sizes="(min-width: 64rem) 22rem, (min-width: 40rem) 50vw, 100vw"
+                      class="h-auto w-full rounded-lg border border-line"
+                      loading="lazy"
+                    />
+                    <figcaption class="mt-2 text-sm text-neutral-500">{s.label}</figcaption>
+                  </figure>
+                </li>
+              ))
+            }
+          </ul>
+          <p class="mt-6 text-xs text-neutral-600">
+            Screenshots use a seeded demo engagement against reserved *.example names and documentation IP ranges.
+          </p>
+        </div>
+      </section>
+
+      <section id="install" class="border-b border-line">
+        <div class="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          <h2 class="text-3xl font-semibold tracking-tight text-white">Install</h2>
+          <div class="mt-8 max-w-3xl" data-tabs>
+            <div role="tablist" aria-label="Install method" class="flex flex-wrap gap-1 border-b border-line">
+              {
+                install.map((m, i) => (
+                  <button
+                    type="button"
+                    role="tab"
+                    id={`tab-${m.id}`}
+                    aria-controls={`panel-${m.id}`}
+                    aria-selected={i === 0 ? 'true' : 'false'}
+                    tabindex={i === 0 ? 0 : -1}
+                    class="-mb-px cursor-pointer border-b-2 border-transparent px-4 py-2 text-sm text-neutral-400 transition hover:text-neutral-100 aria-selected:border-sky-400 aria-selected:text-white"
+                  >
+                    {m.label}
+                  </button>
+                ))
+              }
+            </div>
+            {
+              install.map((m, i) => (
+                <div role="tabpanel" id={`panel-${m.id}`} aria-labelledby={`tab-${m.id}`} hidden={i !== 0} class="pt-5">
+                  <p class="mb-4 text-sm text-neutral-400">{m.note}</p>
+                  {m.command && <Command command={m.command} />}
+                  {m.link && (
+                    <a
+                      href={m.link.href}
+                      class="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm text-neutral-200 transition hover:border-neutral-500"
+                    >
+                      {m.link.label} <span aria-hidden="true">&rarr;</span>
+                    </a>
+                  )}
+                </div>
+              ))
+            }
+          </div>
+          <p class="mt-10 max-w-3xl text-neutral-400">
+            Then create an engagement, add the printed MCP config to Claude Code, and ask it to start.
+          </p>
+          <Command
+            command={'createdb ccartex\nartex init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"'}
+            class="mt-4 max-w-3xl"
+          />
+          <a
+            href="/docs/getting-started/"
+            class="mt-6 inline-block text-sm font-medium text-sky-400 hover:text-sky-300"
+            >Getting started guide <span aria-hidden="true">&rarr;</span></a
+          >
+        </div>
+      </section>
+    </main>
+
+    <footer class="text-sm">
+      <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+        <div class="rounded-lg border border-amber-400/20 bg-amber-400/5 px-4 py-3 text-amber-100/80">
+          <strong class="font-semibold text-amber-200">Authorized use only.</strong>
+          ARTEX-CC is an offensive security tool for penetration testing, red teaming, CTFs and lab work. Use it only against
+          systems you own or have explicit permission to test.
+        </div>
+        <div class="mt-10 grid gap-8 sm:grid-cols-[1fr_auto]">
+          <div class="max-w-xl space-y-3 text-neutral-500">
+            <p>
+              ARTEX-CC is licensed under the
+              <a href={`${repo}/blob/main/LICENSE`} class="text-neutral-300 hover:text-white">GNU AGPL-3.0</a>.
+            </p>
+            <p>
+              Parts of it are derived from
+              <a href="https://github.com/BaaRai/ARTEX" class="text-neutral-300 hover:text-white">ARTEX</a> by
+              Autumn-27, BaaRai and the ARTEX contributors, also AGPL-3.0. See
+              <a href={`${repo}/blob/main/NOTICE`} class="text-neutral-300 hover:text-white">NOTICE</a>.
+            </p>
+          </div>
+          <nav aria-label="Footer" class="grid grid-cols-2 gap-x-10 gap-y-2">
+            <a href="/docs/getting-started/" class="text-neutral-400 hover:text-white">Docs</a>
+            <a href={repo} class="text-neutral-400 hover:text-white">GitHub</a>
+            <a href="/docs/tools/" class="text-neutral-400 hover:text-white">Tool reference</a>
+            <a href={`${repo}/releases`} class="text-neutral-400 hover:text-white">Releases</a>
+            <a href="/evals/" class="text-neutral-400 hover:text-white">Evals</a>
+            <a href={`${repo}/discussions`} class="text-neutral-400 hover:text-white">Discussions</a>
+            <a href="/changelog/" class="text-neutral-400 hover:text-white">Changelog</a>
+            <a href="/roadmap/" class="text-neutral-400 hover:text-white">Roadmap</a>
+            <a href="/security/" class="text-neutral-400 hover:text-white">Security</a>
+            <a href="/demo/" class="text-neutral-400 hover:text-white">Live demo</a>
+          </nav>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      document.addEventListener('click', async (event) => {
+        const button = (event.target as Element).closest<HTMLButtonElement>('button[data-copy]');
+        if (!button) return;
+        try {
+          await navigator.clipboard.writeText(button.dataset.copy ?? '');
+          button.textContent = 'Copied';
+        } catch {
+          button.textContent = 'Failed';
+        }
+        setTimeout(() => (button.textContent = 'Copy'), 1500);
+      });
+
+      for (const root of document.querySelectorAll<HTMLElement>('[data-tabs]')) {
+        const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+        const select = (tab: HTMLButtonElement) => {
+          for (const t of tabs) {
+            const on = t === tab;
+            t.setAttribute('aria-selected', String(on));
+            t.tabIndex = on ? 0 : -1;
+            document.getElementById(t.getAttribute('aria-controls')!)!.hidden = !on;
+          }
+          tab.focus();
+        };
+        root.addEventListener('click', (e) => {
+          const tab = (e.target as Element).closest<HTMLButtonElement>('[role="tab"]');
+          if (tab) select(tab);
+        });
+        root.addEventListener('keydown', (e) => {
+          const i = tabs.indexOf(document.activeElement as HTMLButtonElement);
+          if (i < 0) return;
+          if (e.key === 'ArrowRight') select(tabs[(i + 1) % tabs.length]);
+          if (e.key === 'ArrowLeft') select(tabs[(i - 1 + tabs.length) % tabs.length]);
+        });
+      }
+    </script>
+  </body>
+</html>
