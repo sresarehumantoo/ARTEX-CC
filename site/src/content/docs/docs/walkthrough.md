@@ -103,7 +103,11 @@ Claude calls set_goals({
 ```
 
 ```json
-{"ids": [2, 3, 4]}
+{"created": [
+  {"id": 2, "text": "Identify authentication bypass or broken access control", "state": "open"},
+  {"id": 3, "text": "Find sensitive data exposure in API responses", "state": "open"},
+  {"id": 4, "text": "Test for injection vulnerabilities in user-facing inputs", "state": "open"}
+]}
 ```
 
 Three goals, each independently provable. Claude also sets constraints to stay

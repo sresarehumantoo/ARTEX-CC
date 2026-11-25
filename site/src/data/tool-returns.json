@@ -45,7 +45,7 @@
   "report_finding": "`{finding_id, node_id, possible_duplicates?}`. Pass `node_id` as `evidence_id` to `prove_goal`.",
   "save_evidence": "`{id, sha256, size, path}`.",
   "set_constraints": "Single mode: `\"constraint created: <id>\"`. Batch mode: `{ids: [...], errors: {...}}`.",
-  "set_goals": "Single mode: `\"goal created: <id>\"`. Batch mode: `{ids: [...], errors: {...}}`.",
+  "set_goals": "`{created: [{id, text, state}], skipped?: [{text, reason, existing_id?}], existing_goals?: [{id, text, state}], note?, errors?}`. `reason` is `duplicate` (same text as `existing_id`, ignoring case and whitespace) or `goals_already_set`: the engagement already had goals and `append` was not true, so nothing was added and `existing_goals` lists them.",
   "start_intent": "`\"intent <id> is now running; claimed by <label> until <time>\"` (`renewed` when the caller already held the claim). `<label>` is a hash of the holder, never its session ID or `owner`. Errors with the holder label and expiry if another session has a live claim, or asks for `owner` when the connection has no MCP session.",
   "switch_engagement": "`\"switched to engagement <id> (exploration <id>): <goal>\"`.",
   "traffic_blob": "`{total, offset, length, data}`.",

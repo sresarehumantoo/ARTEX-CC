@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"strings"
 	"time"
 )
 
@@ -38,6 +39,7 @@ type Store interface {
 	CountFinishedIntents(ctx context.Context, explorationID int64) (int, error)
 	CountOpenIntents(ctx context.Context, explorationID int64) (int, error)
 	OriginFactID(ctx context.Context, explorationID int64) (int64, error)
+	AddGoals(ctx context.Context, explorationID int64, goals []GoalInput, appendGoals bool) (*GoalsResult, error)
 	Edges(ctx context.Context, explorationID int64, limit int) ([]Edge, error)
 	ListChanges(ctx context.Context, explorationID, taskID int64, after ChangeCursor, limit int) ([]Change, error)
 	ListClaims(ctx context.Context, explorationID int64, owner string) ([]HeldClaim, error)
@@ -258,6 +260,42 @@ type Edge struct {
 }
 
 // Constraint is an operator-imposed restriction on exploration behavior.
+type GoalInput struct {
+	Text      string
+	VulnClass string
+}
+
+type GoalRef struct {
+	ID    int64  `json:"id"`
+	Text  string `json:"text"`
+	State string `json:"state,omitempty"`
+}
+
+type SkippedGoal struct {
+	Text       string `json:"text"`
+	Reason     string `json:"reason"`
+	ExistingID int64  `json:"existing_id,omitempty"`
+}
+
+// GoalsResult reports what AddGoals did. Existing is set only when goals
+// already existed and appendGoals was false, so nothing was added.
+type GoalsResult struct {
+	Created  []GoalRef     `json:"created"`
+	Skipped  []SkippedGoal `json:"skipped,omitempty"`
+	Existing []GoalRef     `json:"existing_goals,omitempty"`
+}
+
+const (
+	GoalSkipDuplicate  = "duplicate"
+	GoalSkipAlreadySet = "goals_already_set"
+)
+
+// NormalizeGoalText is the key goals are deduplicated on: case, surrounding
+// whitespace, internal whitespace runs and trailing periods are ignored.
+func NormalizeGoalText(s string) string {
+	return strings.TrimRight(strings.Join(strings.Fields(strings.ToLower(s)), " "), ".")
+}
+
 type Constraint struct {
 	ID   int64  `json:"id"`
 	Kind string `json:"kind"`

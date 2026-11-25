@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -344,13 +345,17 @@ func makeSetGoals(store Store, explorationID int64) Tool {
 	return Tool{
 		Name:     "set_goals",
 		Category: CategoryExploration,
-		Description: "Add exploration goals to this task. A goal = a final deliverable/verifiable result, not an attack step.\n" +
+		Description: "Set the exploration goals of this task. A goal = a final deliverable/verifiable result, not an attack step.\n" +
 			"Batch preferred: put multiple goals in the goals array. For a single goal, pass the top-level text.\n" +
-			"vulnclass is optional: the corresponding vulnerability class.",
+			"vulnclass is optional: the corresponding vulnerability class.\n" +
+			"Goals are set once per engagement. If the engagement already has goals (another agent may have set them), nothing is added and " +
+			"existing_goals lists them: work toward those. Pass append: true only to add goals to an engagement that already has some. " +
+			"A goal whose text matches an existing goal (ignoring case and whitespace) is always skipped.",
 		Schema: obj(map[string]any{
 			"goals":     arr(map[string]any{"type": "object"}, "[Prefer this] array of goals to add"),
 			"text":      str("[single] one independently verifiable final goal"),
 			"vulnclass": str("corresponding vulnerability class (optional)"),
+			"append":    map[string]any{"type": "boolean", "description": "add these goals even though the engagement already has goals"},
 		}),
 		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
 			type goalItem struct {
@@ -358,7 +363,8 @@ func makeSetGoals(store Store, explorationID int64) Tool {
 				VulnClass string `json:"vulnclass"`
 			}
 			var a struct {
-				Goals []goalItem `json:"goals"`
+				Goals  []goalItem `json:"goals"`
+				Append bool       `json:"append"`
 				goalItem
 			}
 			if err := json.Unmarshal(in, &a); err != nil {
@@ -369,27 +375,42 @@ func makeSetGoals(store Store, explorationID int64) Tool {
 				return errResult(fmt.Sprintf("goals array too large (%d items, max %d)", len(items), maxBatchLen)), nil
 			}
 
-			addOne := func(it goalItem) (int64, error) {
+			errs := map[string]string{}
+			var goals []GoalInput
+			for i, it := range items {
 				text := strings.TrimSpace(it.Text)
 				if text == "" {
-					return 0, fmt.Errorf("text must not be empty")
+					errs[strconv.Itoa(i)] = "text must not be empty"
+					continue
 				}
-				payload := map[string]any{"text": text}
-				if vc := strings.TrimSpace(it.VulnClass); vc != "" {
-					payload["vulnclass"] = vc
+				goals = append(goals, GoalInput{Text: text, VulnClass: strings.TrimSpace(it.VulnClass)})
+			}
+			if len(goals) == 0 {
+				if !isBatch {
+					return errResult("text must not be empty"), nil
 				}
-				id, err := store.AddNode(ctx, explorationID, KindGoal, payload, 0, "open", "system", nil)
-				if err != nil {
-					return 0, err
-				}
-				if of, _ := store.OriginFactID(ctx, explorationID); of > 0 && id > 0 {
-					_ = store.AddEdge(ctx, of, RelSpawns, id)
-				}
-				return id, nil
+				return jsonResult(map[string]any{"created": []GoalRef{}, "errors": errs})
 			}
 
-			ids, errs := runBatch(items, addOne)
-			return singleOrBatchReturn(ids, errs, isBatch, "goal")
+			res, err := store.AddGoals(ctx, explorationID, goals, a.Append)
+			if err != nil {
+				return errResult(err.Error()), nil
+			}
+			out := map[string]any{"created": res.Created}
+			if len(res.Skipped) > 0 {
+				out["skipped"] = res.Skipped
+			}
+			if len(res.Existing) > 0 {
+				out["existing_goals"] = res.Existing
+				out["note"] = "This engagement already has goals, possibly set by another agent, so none were added. " +
+					"Work toward existing_goals. To add goals anyway, call set_goals again with append: true."
+			} else if len(res.Skipped) > 0 {
+				out["note"] = "Skipped goals match an existing goal (existing_id) ignoring case and whitespace."
+			}
+			if len(errs) > 0 {
+				out["errors"] = errs
+			}
+			return jsonResult(out)
 		},
 	}
 }
