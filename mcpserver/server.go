@@ -254,7 +254,19 @@ same engagement, coordinate through the graph:
 - Claims last 30 minutes. On long work, call start_intent on the same intent
   again to renew it.
 - Finish with complete_intent, or cancel_intent if it is no longer worth
-  doing, so the claim is released.
+  doing, so the claim is released. Both are refused on an intent another
+  session holds; leave it to its owner.
+- Claims belong to your MCP session. If start_intent says the connection has
+  no session (HTTP clients on protocol 2026-07-28), pick an owner once, a
+  random hex string, and pass it as owner on every start_intent,
+  complete_intent, cancel_intent and list_changes call. With a session, owner
+  is optional and makes a separate holder inside it, so subagents of one
+  process can each pass their own; keep passing the same value.
+- claimed_by, the session field of list_changes and claim errors show a
+  hashed holder label, not the session ID or owner. Compare claimed_by with
+  your own session label to recognize your claims.
+- Intents left running from before claims existed have no lease and can be
+  started by any session right away.
 - Between rounds, poll list_changes with the cursor from your last call (the
   first cursor is changes_cursor in graph_overview) instead of re-reading
   graph_overview. It returns new facts, findings, intents with their claim
@@ -263,7 +275,8 @@ same engagement, coordinate through the graph:
   intents whose claims lapse reopen without showing up as changes.
 
 Subagents inside one Claude Code process share its MCP session, so their
-claims are yours; assign them distinct intents yourself.
+claims are yours unless each passes its own owner; assign them distinct
+intents yourself.
 
 ## Recovery from context exhaustion
 

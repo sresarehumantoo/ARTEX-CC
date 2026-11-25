@@ -40,6 +40,12 @@ You can also point several Claude Code instances (or other MCP clients) at the s
 
 Subagents inside one Claude Code process share its MCP session, so claims separate instances, not the subagents of one instance.
 
+Claims belong to the MCP session: each stdio process and each HTTP client on the older session-based protocol gets its own without doing anything. HTTP clients on MCP protocol 2026-07-28 have no session, so `start_intent` asks for an `owner` argument instead. The agent picks a random hex string once and passes it as `owner` on every `start_intent`, `complete_intent`, `cancel_intent` and `list_changes` call. An agent that has a session can pass `owner` too, which makes it a separate holder within that session (useful for giving subagents their own claims), as long as it keeps passing the same value.
+
+Holders are shown as hashed labels (`claimed_by`, the `session` field of `list_changes`, and claim errors), never as raw session IDs or owner strings, so one client cannot copy another's identity to renew or cancel its claims. `complete_intent` and `cancel_intent` are both refused on an intent another holder has a live claim on.
+
+Intents that were already running before claims were introduced have no lease, so any session can start, complete or cancel them right away.
+
 ## Stopping
 
 Interrupt the loop in Claude Code. Nothing is lost: facts, findings and credentials are persisted the moment they are recorded. When you are done, `goal_met` marks the engagement complete and `generate_report` writes the report.
