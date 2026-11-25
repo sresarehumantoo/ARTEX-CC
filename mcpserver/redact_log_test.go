@@ -97,3 +97,18 @@ func TestSessionRedactingLoggerPassesThrough(t *testing.T) {
 		t.Fatalf("info logged below the default handler's level: %s", buf)
 	}
 }
+
+func TestSessionRedactingLoggerRedactsIdentityTokens(t *testing.T) {
+	token := "ai1.eyJuIjoiYWxpY2UifQ.c2lnbmF0dXJlLWJ5dGVzLWhlcmU"
+	buf := captureDefaultLog(t)
+	l := newSessionRedactingLogger()
+	l.Info("header X-Artex-Identity: "+token, "value", token, "err", fmt.Errorf("bad %s", token))
+	l.With("h", "Bearer x "+token).WithGroup("g").Info("event", slog.Group("inner", "id", token))
+	out := buf.String()
+	if strings.Contains(out, "eyJuIjoiYWxpY2UifQ") || strings.Contains(out, "c2lnbmF0dXJl") {
+		t.Fatalf("identity token in log: %s", out)
+	}
+	if strings.Count(out, redactedIdentityToken) != 5 {
+		t.Fatalf("want 5 redactions in: %s", out)
+	}
+}
