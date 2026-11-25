@@ -42,6 +42,7 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 - **Intercept rules:** Tool-call interception with allow/deny/ask actions and timeout policy.
 - **Web UI:** `serve --web` serves a dashboard on the MCP port: exploration graph, findings with bound traffic, assets, coverage, credentials, traffic explorer, report, plus chat with a Claude subprocess runner, agents and presets, intercept approvals, and password auth.
 - **Multi-client MCP:** Per-client session state over the HTTP transport, with the `list_sessions` tool.
+- **Multi-agent coordination:** Renewable intent claims per session, cross-process change notifications, and `list_changes` for polling what other agents recorded.
 - **Plugins:** Exec-based plugin system. Executables in the plugin directory describe their tools with `--manifest` and are registered as MCP tools.
 - **Traffic analysis:** `traffic_patterns` for temporal analysis, `traffic_stats` with request size statistics, `traffic_clear` to delete captured traffic by host.
 - **MCP resource:** `artex://engagement` resource serves the orchestration guide with live engagement context.
@@ -190,14 +191,9 @@ Done. Exec-based plugins register MCP tools (0.4.0) and can return `assets`, `fa
 
 Done. `serve --web` serves the web UI alongside the HTTP transport: exploration graph, asset inventory, findings, coverage, traffic and report views, and it grew beyond read-only with chat, agents and intercept approvals. See [Web UI](/docs/web-ui/).
 
-### 6.3 Collaborative multi-agent support
+### ✅ 6.3 Collaborative multi-agent support
 
-**Status:** Intent claiming is done: `start_intent` takes a renewable 30-minute lease for the calling session, other sessions are refused until it expires, and `graph_overview` shows who holds each running intent. Cross-process notifications are done too: every process publishes successful mutating tool calls on the `artex_changes` PostgreSQL channel, and `serve --web` listens on a dedicated connection so its live view picks up changes made by other processes on the same engagement.
-
-**What:** Multiple Claude Code instances (or other MCP clients) working the same engagement simultaneously, with locking on intents to prevent duplicate work and a notification mechanism when new findings are reported.
-**Effort:** L
-**Dependencies:** Multi-engagement switching (3.4, done), intent lifecycle (3.5, done), multi-client MCP support (6.8, done).
-**Rationale:** Large engagements benefit from multiple agents working in parallel. PostgreSQL's advisory locks and LISTEN/NOTIFY provide the primitives; the challenge is the MCP-level coordination protocol.
+Done. `start_intent` takes a renewable 30-minute lease for the calling session and refuses other sessions until it lapses; `graph_overview` shows who holds each running intent. Every process publishes successful mutating tool calls on the `artex_changes` PostgreSQL channel, so `serve --web` sees changes made by other processes. Agents poll `list_changes` with a cursor for new or updated findings, facts, intents, goals, hints and assets, and see the claims they hold. The orchestration guide tells parallel sessions to claim before working, skip claimed intents, renew long claims and poll for changes.
 
 ### ✅ 6.4 Scope enforcement
 
