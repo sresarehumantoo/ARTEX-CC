@@ -28,7 +28,7 @@ const bashCompletion = `_artex_cc() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    commands="serve init health tools version completion help"
+    commands="serve init health tools identity version completion help"
 
     if [[ ${COMP_CWORD} -eq 1 ]]; then
         COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
@@ -48,6 +48,23 @@ const bashCompletion = `_artex_cc() {
         tools)
             COMPREPLY=( $(compgen -W "--json" -- "${cur}") )
             ;;
+        identity)
+            if [[ ${COMP_CWORD} -eq 2 ]]; then
+                COMPREPLY=( $(compgen -W "issue rotate show" -- "${cur}") )
+                return 0
+            fi
+            case "${COMP_WORDS[2]}" in
+                issue)
+                    COMPREPLY=( $(compgen -W "--data --name --ttl --format --url --bearer-env" -- "${cur}") )
+                    ;;
+                rotate)
+                    COMPREPLY=( $(compgen -W "--data" -- "${cur}") )
+                    ;;
+                show)
+                    COMPREPLY=( $(compgen -W "--data --format" -- "${cur}") )
+                    ;;
+            esac
+            ;;
         completion)
             COMPREPLY=( $(compgen -W "bash zsh fish" -- "${cur}") )
             ;;
@@ -66,6 +83,7 @@ _artex_cc() {
         'init:Initialize a new engagement'
         'health:Check PostgreSQL connectivity'
         'tools:List the MCP tool catalog'
+        'identity:Issue, rotate or inspect client identity tokens'
         'version:Print version'
         'completion:Generate shell completion script'
         'help:Show usage information'
@@ -109,6 +127,31 @@ _artex_cc() {
                 tools)
                     _arguments '--json[Print JSON]'
                     ;;
+                identity)
+                    _arguments -C \
+                        '1:identity command:((issue\:"Print a signed identity token" rotate\:"Replace identity.key, invalidating every token" show\:"Print the key ID or inspect a token"))' \
+                        '*::arg:->identity_args'
+                    case $words[1] in
+                        issue)
+                            _arguments \
+                                '--data[Data directory]:dir:_files -/' \
+                                '--name[Identity name]:name:' \
+                                '--ttl[Token lifetime, at most 30d]:duration:' \
+                                '--format[Output format]:format:(token header claude-json)' \
+                                '--url[MCP endpoint URL for claude-json]:url:' \
+                                '--bearer-env[Environment variable holding the bearer token]:var:'
+                            ;;
+                        rotate)
+                            _arguments '--data[Data directory]:dir:_files -/'
+                            ;;
+                        show)
+                            _arguments \
+                                '--data[Data directory]:dir:_files -/' \
+                                '--format[Output format]:format:(text json)' \
+                                '1:token (- reads stdin):'
+                            ;;
+                    esac
+                    ;;
                 completion)
                     _arguments '1:shell:(bash zsh fish)'
                     ;;
@@ -148,6 +191,18 @@ complete -c artex-cc -n '__fish_seen_subcommand_from init' -l version -d 'Print 
 complete -c artex-cc -n '__fish_seen_subcommand_from health' -l pg -d 'PostgreSQL connection string' -r
 complete -c artex-cc -n '__fish_seen_subcommand_from health' -l format -d 'Output format (text or json)' -r -a 'text json'
 complete -c artex-cc -n '__fish_seen_subcommand_from health' -l timeout -d 'Health check timeout' -r
+
+complete -c artex-cc -n '__fish_use_subcommand' -a identity -d 'Issue, rotate or inspect client identity tokens'
+complete -c artex-cc -n '__fish_seen_subcommand_from identity; and not __fish_seen_subcommand_from issue rotate show' -a issue -d 'Print a signed identity token'
+complete -c artex-cc -n '__fish_seen_subcommand_from identity; and not __fish_seen_subcommand_from issue rotate show' -a rotate -d 'Replace identity.key, invalidating every token'
+complete -c artex-cc -n '__fish_seen_subcommand_from identity; and not __fish_seen_subcommand_from issue rotate show' -a show -d 'Print the key ID or inspect a token'
+complete -c artex-cc -n '__fish_seen_subcommand_from identity; and __fish_seen_subcommand_from issue rotate show' -l data -d 'Data directory' -r -F
+complete -c artex-cc -n '__fish_seen_subcommand_from identity; and __fish_seen_subcommand_from issue' -l name -d 'Identity name' -r
+complete -c artex-cc -n '__fish_seen_subcommand_from identity; and __fish_seen_subcommand_from issue' -l ttl -d 'Token lifetime, at most 30d' -r
+complete -c artex-cc -n '__fish_seen_subcommand_from identity; and __fish_seen_subcommand_from issue' -l format -d 'Output format' -r -a 'token header claude-json'
+complete -c artex-cc -n '__fish_seen_subcommand_from identity; and __fish_seen_subcommand_from issue' -l url -d 'MCP endpoint URL for claude-json' -r
+complete -c artex-cc -n '__fish_seen_subcommand_from identity; and __fish_seen_subcommand_from issue' -l bearer-env -d 'Environment variable holding the bearer token' -r
+complete -c artex-cc -n '__fish_seen_subcommand_from identity; and __fish_seen_subcommand_from show' -l format -d 'Output format (text or json)' -r -a 'text json'
 
 complete -c artex-cc -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
 `

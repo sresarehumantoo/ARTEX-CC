@@ -51,6 +51,8 @@ func main() {
 		cmdHealth(os.Args[2:])
 	case "tools":
 		cmdTools(os.Args[2:])
+	case "identity":
+		cmdIdentity(os.Args[2:])
 	case "completion":
 		cmdCompletion(os.Args[2:])
 	case "version":
@@ -70,6 +72,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  init        Initialize a new engagement")
 	fmt.Fprintln(os.Stderr, "  health      Check PostgreSQL connectivity")
 	fmt.Fprintln(os.Stderr, "  tools       List the MCP tool catalog (--json for machine output)")
+	fmt.Fprintln(os.Stderr, "  identity    Issue, rotate or inspect client identity tokens")
 	fmt.Fprintln(os.Stderr, "  completion  Generate shell completion script")
 	fmt.Fprintln(os.Stderr, "  version     Print version")
 	os.Exit(1)
