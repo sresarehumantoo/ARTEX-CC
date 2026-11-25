@@ -133,7 +133,7 @@ func (s *Store) changedNodes(ctx context.Context, ids []int64) (map[int64]map[st
 		m["state"] = n.State
 		if n.Kind == KindIntent && n.State == "running" {
 			if n.claimLive(now) {
-				m["claimed_by"] = n.Owner
+				m["claimed_by"] = tools.OwnerLabel(n.Owner)
 				m["claim_expires_at"] = n.ClaimExpires.Time.UTC().Format(time.RFC3339)
 			} else {
 				m["claim_expired"] = true

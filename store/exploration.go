@@ -339,14 +339,14 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 				ov.OpenIntents = append(ov.OpenIntents, m)
 			case "running":
 				if n.claimLive(now) {
-					m["claimed_by"] = n.Owner
+					m["claimed_by"] = tools.OwnerLabel(n.Owner)
 					m["claim_expires_at"] = n.ClaimExpires.Time.UTC().Format(time.RFC3339)
 					ov.RunningIntents = append(ov.RunningIntents, m)
 					break
 				}
 				m["claim_expired"] = true
 				if n.Owner != "" {
-					m["previous_owner"] = n.Owner
+					m["previous_owner"] = tools.OwnerLabel(n.Owner)
 				}
 				ov.OpenIntents = append(ov.OpenIntents, m)
 			case "done", "exhausted", "stopped":

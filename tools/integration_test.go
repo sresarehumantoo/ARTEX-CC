@@ -225,7 +225,7 @@ func iRunToolOK(t *testing.T, reg *Registry, name, input string) Result {
 	if !ok {
 		t.Fatalf("tool %q not registered", name)
 	}
-	r, err := tool.Run(context.Background(), json.RawMessage(input))
+	r, err := tool.Run(WithSessionID(context.Background(), "sess-test"), json.RawMessage(input))
 	if err != nil {
 		t.Fatalf("%s: unexpected Go error: %v", name, err)
 	}
@@ -241,7 +241,7 @@ func iRunToolAny(t *testing.T, reg *Registry, name, input string) Result {
 	if !ok {
 		t.Fatalf("tool %q not registered", name)
 	}
-	r, err := tool.Run(context.Background(), json.RawMessage(input))
+	r, err := tool.Run(WithSessionID(context.Background(), "sess-test"), json.RawMessage(input))
 	if err != nil {
 		t.Fatalf("%s: unexpected Go error: %v", name, err)
 	}

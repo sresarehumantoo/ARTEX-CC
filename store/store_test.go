@@ -510,8 +510,8 @@ func TestClaimIntentLeaseExpiry(t *testing.T) {
 	if ov.FrontierOpen != 0 || len(ov.RunningIntents) != 1 {
 		t.Fatalf("FrontierOpen = %d, RunningIntents = %v; want 0 and the claimed intent", ov.FrontierOpen, ov.RunningIntents)
 	}
-	if got := ov.RunningIntents[0]["claimed_by"]; got != "sess-a" {
-		t.Errorf("claimed_by = %v, want sess-a", got)
+	if got := ov.RunningIntents[0]["claimed_by"]; got != tools.OwnerLabel("sess-a") {
+		t.Errorf("claimed_by = %v, want label of sess-a", got)
 	}
 	if _, ok := ov.RunningIntents[0]["claim_expires_at"]; !ok {
 		t.Error("claim_expires_at missing from running intent")
@@ -533,7 +533,7 @@ func TestClaimIntentLeaseExpiry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GraphOverview: %v", err)
 	}
-	if ov.FrontierOpen != 1 || ov.OpenIntents[0]["previous_owner"] != "sess-a" {
+	if ov.FrontierOpen != 1 || ov.OpenIntents[0]["previous_owner"] != tools.OwnerLabel("sess-a") {
 		t.Errorf("OpenIntents = %v, want expired intent with previous_owner sess-a", ov.OpenIntents)
 	}
 

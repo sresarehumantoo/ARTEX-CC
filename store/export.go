@@ -119,7 +119,7 @@ func (s *Store) exportNodes(ctx context.Context, explorationID int64) ([]map[str
 			m["origin"] = origin
 		}
 		if owner != "" {
-			m["owner"] = owner
+			m["owner"] = tools.OwnerLabel(owner)
 		}
 		var anchors []int64
 		if anchorsJSON != "" && anchorsJSON != "[]" {

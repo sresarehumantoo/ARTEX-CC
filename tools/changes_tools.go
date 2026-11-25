@@ -80,17 +80,20 @@ func makeListChanges(store Store, taskID, explorationID int64) Tool {
 		Category: CategoryExploration,
 		Description: "What changed since you last looked: new or updated findings, facts, intents (with state and claim holder), goals, hints and assets, oldest first. " +
 			"Pass since as the changes_cursor from graph_overview, the cursor from your previous list_changes call, or an RFC 3339 timestamp. " +
-			"Also returns this session's ID and my_claims, the intents this session holds with their expiry; renew one by calling start_intent again. " +
+			"Also returns session, your own holder label as it appears in claimed_by, and my_claims, the intents you hold with their expiry; renew one by calling start_intent again. " +
+			"Pass the same owner you pass to start_intent, if any; without a session or owner, session and my_claims are replaced by claims_error. " +
 			"When several agents share an engagement, poll this instead of re-reading graph_overview.",
 		ReadOnly: true,
 		Schema: obj(map[string]any{
 			"since": str("cursor from graph_overview (changes_cursor) or a previous list_changes call, or an RFC 3339 timestamp"),
 			"limit": intp(fmt.Sprintf("max changes to return, default %d, max %d", defaultChangesLimit, maxChangesLimit)),
+			"owner": str(ownerArgDesc),
 		}, "since"),
 		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
 			var a struct {
 				Since string `json:"since"`
 				Limit int    `json:"limit"`
+				Owner string `json:"owner"`
 			}
 			if err := json.Unmarshal(in, &a); err != nil {
 				return errResult("invalid input: " + err.Error()), nil
@@ -117,10 +120,12 @@ func makeListChanges(store Store, taskID, explorationID int64) Tool {
 				changes = changes[:limit]
 			}
 
-			session := SessionID(ctx)
-			claims, err := store.ListClaims(ctx, explorationID, session)
-			if err != nil {
-				return errResult(err.Error()), nil
+			var claims []HeldClaim
+			owner, ownerErr := ClaimOwner(ctx, a.Owner)
+			if ownerErr == nil {
+				if claims, err = store.ListClaims(ctx, explorationID, owner); err != nil {
+					return errResult(err.Error()), nil
+				}
 			}
 
 			cursor := after
@@ -131,11 +136,15 @@ func makeListChanges(store Store, taskID, explorationID int64) Tool {
 			}
 
 			out := map[string]any{
-				"session":   session,
 				"cursor":    cursor.String(),
 				"count":     len(changes),
 				"truncated": truncated,
-				"my_claims": claims,
+			}
+			if ownerErr != nil {
+				out["claims_error"] = ownerErr.Error()
+			} else {
+				out["session"] = OwnerLabel(owner)
+				out["my_claims"] = claims
 			}
 			for k, v := range grouped {
 				out[k] = v

@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -66,6 +67,8 @@ func (m *intentMockStore) UpdateNodeFields(_ context.Context, id int64, state st
 	return nil
 }
 
+var testSessionCtx = WithSessionID(context.Background(), "sess-test")
+
 func TestStartIntentClaimConflictAndRenewal(t *testing.T) {
 	t.Parallel()
 	ms := newIntentMockStore()
@@ -83,7 +86,7 @@ func TestStartIntentClaimConflictAndRenewal(t *testing.T) {
 	if r.IsError {
 		t.Fatalf("session A claim failed: %s", r.Content)
 	}
-	if !strings.Contains(r.Content, "claimed by session sess-a") {
+	if !strings.Contains(r.Content, "claimed by "+OwnerLabel("sess-a")) {
 		t.Errorf("expected claim by sess-a, got: %s", r.Content)
 	}
 
@@ -91,7 +94,7 @@ func TestStartIntentClaimConflictAndRenewal(t *testing.T) {
 	if !r.IsError {
 		t.Fatal("expected session B to be refused")
 	}
-	if !strings.Contains(r.Content, "claimed by session sess-a until") {
+	if !strings.Contains(r.Content, "claimed by "+OwnerLabel("sess-a")+" until") {
 		t.Errorf("expected error naming holder and expiry, got: %s", r.Content)
 	}
 
@@ -99,7 +102,7 @@ func TestStartIntentClaimConflictAndRenewal(t *testing.T) {
 	if r.IsError {
 		t.Fatalf("session A renewal failed: %s", r.Content)
 	}
-	if !strings.Contains(r.Content, "renewed by session sess-a") {
+	if !strings.Contains(r.Content, "renewed by "+OwnerLabel("sess-a")) {
 		t.Errorf("expected renewal, got: %s", r.Content)
 	}
 }
@@ -133,10 +136,11 @@ func TestCompleteAndCancelReleaseClaim(t *testing.T) {
 		start, _ := reg.Lookup("start_intent")
 		finish, _ := reg.Lookup(tool)
 
-		if r, _ := start.Run(context.Background(), json.RawMessage(`{"node_id": 10}`)); r.IsError {
+		ctx := WithSessionID(context.Background(), "sess-a")
+		if r, _ := start.Run(ctx, json.RawMessage(`{"node_id": 10}`)); r.IsError {
 			t.Fatalf("start failed: %s", r.Content)
 		}
-		if r, _ := finish.Run(context.Background(), json.RawMessage(`{"node_id": 10}`)); r.IsError {
+		if r, _ := finish.Run(ctx, json.RawMessage(`{"node_id": 10}`)); r.IsError {
 			t.Fatalf("%s failed: %s", tool, r.Content)
 		}
 		if _, held := ms.claims[10]; held {
@@ -145,13 +149,100 @@ func TestCompleteAndCancelReleaseClaim(t *testing.T) {
 	}
 }
 
-func TestSessionIDDefaultsToLocal(t *testing.T) {
+func TestClaimOwner(t *testing.T) {
 	t.Parallel()
-	if got := SessionID(context.Background()); got != LocalSessionID {
-		t.Errorf("SessionID = %q, want %q", got, LocalSessionID)
+	bare := context.Background()
+	sess := WithSessionID(bare, "stdio-ab12")
+	cases := []struct {
+		ctx   context.Context
+		owner string
+		want  string
+	}{
+		{sess, "", "stdio-ab12"},
+		{sess, " sub1 ", "stdio-ab12/owner:sub1"},
+		{bare, "f00d", "owner:f00d"},
+		{WithSessionID(bare, ""), "f00d", "owner:f00d"},
 	}
-	if got := SessionID(WithSessionID(context.Background(), "abc")); got != "abc" {
-		t.Errorf("SessionID = %q, want abc", got)
+	for _, c := range cases {
+		got, err := ClaimOwner(c.ctx, c.owner)
+		if err != nil || got != c.want {
+			t.Errorf("ClaimOwner(%q, %q) = %q, %v; want %q", SessionID(c.ctx), c.owner, got, err, c.want)
+		}
+	}
+	if _, err := ClaimOwner(bare, "  "); !errors.Is(err, ErrNoClaimOwner) {
+		t.Errorf("ClaimOwner with neither = %v, want ErrNoClaimOwner", err)
+	}
+}
+
+func TestOwnerLabel(t *testing.T) {
+	t.Parallel()
+	a, b := OwnerLabel("mcp-session-1"), OwnerLabel("mcp-session-2")
+	if a == b || !strings.HasPrefix(a, "h-") || len(a) != len("h-")+12 {
+		t.Errorf("labels %q, %q", a, b)
+	}
+	if strings.Contains(a, "session") || OwnerLabel("mcp-session-1") != a {
+		t.Errorf("label %q must be a stable hash of the owner", a)
+	}
+	if OwnerLabel("") != "" {
+		t.Error("empty owner must have an empty label")
+	}
+	err := &ClaimConflictError{NodeID: 1, Owner: "mcp-session-1", ExpiresAt: time.Now().Add(time.Minute)}
+	if strings.Contains(err.Error(), "mcp-session-1") || !strings.Contains(err.Error(), a) {
+		t.Errorf("conflict error %q must show the label, not the owner", err)
+	}
+}
+
+func TestClaimToolsRequireOwnerWithoutSession(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "open"}
+	ms.nodes[11] = &Node{ID: 11, Kind: KindIntent, State: "running"}
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+
+	for _, c := range []struct {
+		tool string
+		id   int
+	}{{"start_intent", 10}, {"complete_intent", 11}, {"cancel_intent", 11}} {
+		tool, _ := reg.Lookup(c.tool)
+		r, _ := tool.Run(context.Background(), json.RawMessage(fmt.Sprintf(`{"node_id": %d}`, c.id)))
+		if !r.IsError || !strings.Contains(r.Content, "pass owner") {
+			t.Errorf("%s without session or owner = %q, want refusal", c.tool, r.Content)
+		}
+	}
+	if ms.nodes[10].State != "open" || ms.nodes[11].State != "running" {
+		t.Errorf("refused calls changed state: %s, %s", ms.nodes[10].State, ms.nodes[11].State)
+	}
+
+	start, _ := reg.Lookup("start_intent")
+	if r, _ := start.Run(context.Background(), json.RawMessage(`{"node_id": 10, "owner": "f00d"}`)); r.IsError {
+		t.Fatalf("start with owner: %s", r.Content)
+	}
+	if ms.claims[10].Owner != "owner:f00d" {
+		t.Errorf("owner = %q", ms.claims[10].Owner)
+	}
+}
+
+func TestCompleteIntentClaimedByOtherSession(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "running"}
+	ms.claims[10] = IntentClaim{NodeID: 10, Owner: "other", ExpiresAt: time.Now().Add(time.Hour)}
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+	tool, _ := reg.Lookup("complete_intent")
+
+	r, _ := tool.Run(WithSessionID(context.Background(), "me"), json.RawMessage(`{"node_id": 10, "result": "x"}`))
+	if !r.IsError || !strings.Contains(r.Content, "claimed by "+OwnerLabel("other")) {
+		t.Fatalf("expected claim conflict, got: %s", r.Content)
+	}
+	if ms.nodes[10].State != "running" {
+		t.Errorf("state = %s, want running", ms.nodes[10].State)
+	}
+
+	r, _ = tool.Run(WithSessionID(context.Background(), "other"), json.RawMessage(`{"node_id": 10}`))
+	if r.IsError || ms.nodes[10].State != "done" {
+		t.Fatalf("holder complete = %q, state %s", r.Content, ms.nodes[10].State)
 	}
 }
 
@@ -168,7 +259,7 @@ func TestStartIntentHappyPath(t *testing.T) {
 		t.Fatal("start_intent not found")
 	}
 
-	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -192,7 +283,7 @@ func TestStartIntentWrongState(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	tool, _ := reg.Lookup("start_intent")
-	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -213,7 +304,7 @@ func TestStartIntentWrongKind(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	tool, _ := reg.Lookup("start_intent")
-	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -232,7 +323,7 @@ func TestStartIntentMissingNodeID(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	tool, _ := reg.Lookup("start_intent")
-	r, err := tool.Run(context.Background(), json.RawMessage(`{}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -248,7 +339,7 @@ func TestStartIntentNotFound(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	tool, _ := reg.Lookup("start_intent")
-	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 999}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{"node_id": 999}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -269,7 +360,7 @@ func TestCompleteIntentFromRunning(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	tool, _ := reg.Lookup("complete_intent")
-	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10, "result": "found XSS"}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{"node_id": 10, "result": "found XSS"}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -290,7 +381,7 @@ func TestCompleteIntentFromOpen(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	tool, _ := reg.Lookup("complete_intent")
-	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -308,7 +399,7 @@ func TestCompleteIntentFromDone(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	tool, _ := reg.Lookup("complete_intent")
-	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -326,7 +417,7 @@ func TestCancelIntentFromOpen(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	tool, _ := reg.Lookup("cancel_intent")
-	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10, "reason": "no longer needed"}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{"node_id": 10, "reason": "no longer needed"}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -347,7 +438,7 @@ func TestCancelIntentFromRunning(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	tool, _ := reg.Lookup("cancel_intent")
-	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -371,7 +462,7 @@ func TestCancelIntentClaimedByOtherSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !r.IsError || !strings.Contains(r.Content, "claimed by session other") {
+	if !r.IsError || !strings.Contains(r.Content, "claimed by "+OwnerLabel("other")) {
 		t.Fatalf("expected claim conflict, got: %s", r.Content)
 	}
 	if ms.nodes[10].State != "running" {
@@ -411,7 +502,7 @@ func TestCancelIntentAlreadyDone(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	tool, _ := reg.Lookup("cancel_intent")
-	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -433,14 +524,14 @@ func TestStartIntentAlreadyRunning(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	tool, _ := reg.Lookup("start_intent")
-	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !r.IsError {
 		t.Fatal("expected error for starting an intent claimed by another session")
 	}
-	if !strings.Contains(r.Content, "claimed by session other") {
+	if !strings.Contains(r.Content, "claimed by "+OwnerLabel("other")) {
 		t.Errorf("expected holder in error, got: %s", r.Content)
 	}
 }
@@ -454,7 +545,7 @@ func TestStartIntentFromCancelled(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	tool, _ := reg.Lookup("start_intent")
-	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -475,7 +566,7 @@ func TestCompleteIntentFromStopped(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	tool, _ := reg.Lookup("complete_intent")
-	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -496,7 +587,7 @@ func TestCancelIntentAlreadyStopped(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	tool, _ := reg.Lookup("cancel_intent")
-	r, err := tool.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, err := tool.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -517,7 +608,7 @@ func TestIntentOpenToCancelledLifecycle(t *testing.T) {
 	RegisterIntentTools(reg, ms, 1)
 
 	cancel, _ := reg.Lookup("cancel_intent")
-	r, _ := cancel.Run(context.Background(), json.RawMessage(`{"node_id": 10, "reason": "obsolete"}`))
+	r, _ := cancel.Run(testSessionCtx, json.RawMessage(`{"node_id": 10, "reason": "obsolete"}`))
 	if r.IsError {
 		t.Fatalf("cancel from open failed: %s", r.Content)
 	}
@@ -526,7 +617,7 @@ func TestIntentOpenToCancelledLifecycle(t *testing.T) {
 	}
 
 	start, _ := reg.Lookup("start_intent")
-	r, _ = start.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, _ = start.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if !r.IsError {
 		t.Fatal("expected error for starting a cancelled intent")
 	}
@@ -544,12 +635,12 @@ func TestIntentRunningToCancelledLifecycle(t *testing.T) {
 	cancel, _ := reg.Lookup("cancel_intent")
 	complete, _ := reg.Lookup("complete_intent")
 
-	r, _ := start.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, _ := start.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if r.IsError {
 		t.Fatalf("start failed: %s", r.Content)
 	}
 
-	r, _ = cancel.Run(context.Background(), json.RawMessage(`{"node_id": 10, "reason": "pivoting"}`))
+	r, _ = cancel.Run(testSessionCtx, json.RawMessage(`{"node_id": 10, "reason": "pivoting"}`))
 	if r.IsError {
 		t.Fatalf("cancel from running failed: %s", r.Content)
 	}
@@ -557,7 +648,7 @@ func TestIntentRunningToCancelledLifecycle(t *testing.T) {
 		t.Fatalf("expected stopped, got %s", ms.nodes[10].State)
 	}
 
-	r, _ = complete.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, _ = complete.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if !r.IsError {
 		t.Fatal("expected error for completing a cancelled intent")
 	}
@@ -574,7 +665,7 @@ func TestIntentFullLifecycle(t *testing.T) {
 	start, _ := reg.Lookup("start_intent")
 	complete, _ := reg.Lookup("complete_intent")
 
-	r, _ := start.Run(context.Background(), json.RawMessage(`{"node_id": 10}`))
+	r, _ := start.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
 	if r.IsError {
 		t.Fatalf("start failed: %s", r.Content)
 	}
@@ -582,7 +673,7 @@ func TestIntentFullLifecycle(t *testing.T) {
 		t.Fatalf("expected running, got %s", ms.nodes[10].State)
 	}
 
-	r, _ = complete.Run(context.Background(), json.RawMessage(`{"node_id": 10, "result": "done"}`))
+	r, _ = complete.Run(testSessionCtx, json.RawMessage(`{"node_id": 10, "result": "done"}`))
 	if r.IsError {
 		t.Fatalf("complete failed: %s", r.Content)
 	}
