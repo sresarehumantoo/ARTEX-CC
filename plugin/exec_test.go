@@ -134,3 +134,23 @@ EOF
 		t.Fatalf("expected 2 content items, got %d", len(result.Content))
 	}
 }
+
+func TestExec_StructuredResults(t *testing.T) {
+	dir := t.TempDir()
+	bin := writePlugin(t, dir, "structured", `#!/bin/sh
+cat <<'EOF'
+{"content":[{"type":"text","text":"done"}],"assets":[{"type":"subdomain","domain":"a.example.com"}],"facts":[{"summary":"nginx 1.25"}],"findings":[{"vulnclass":"xss","severity":"low","summary":"reflected"}]}
+EOF
+`)
+
+	result, err := Exec(context.Background(), bin, Invocation{Tool: "x", Input: json.RawMessage(`{}`)}, 10*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Assets) != 1 || len(result.Facts) != 1 || len(result.Findings) != 1 {
+		t.Fatalf("got %d assets, %d facts, %d findings, want 1 each", len(result.Assets), len(result.Facts), len(result.Findings))
+	}
+	if string(result.Assets[0]) != `{"type":"subdomain","domain":"a.example.com"}` {
+		t.Errorf("asset = %s", result.Assets[0])
+	}
+}

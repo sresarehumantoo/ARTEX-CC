@@ -40,8 +40,10 @@ func (s *Server) switchEngagementTool() tools.Tool {
 				return tools.Result{Content: fmt.Sprintf("engagement %d not found", a.TaskID), IsError: true}, nil
 			}
 
+			s.engMu.Lock()
 			s.taskID = eng.ID
 			s.explorationID = eng.ExplorationID
+			s.engMu.Unlock()
 
 			reg := tools.NewRegistry()
 			tools.RegisterAll(reg, s.store, s.taskID, s.explorationID)

@@ -6,7 +6,37 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
+
+func TestListScopeRulesDB(t *testing.T) {
+	t.Parallel()
+	s, mock := newRegexpMockStore(t)
+
+	mock.ExpectQuery(`FROM task_scope ts(.|\n)*UNION ALL(.|\n)*FROM company_scope cs`).
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"kind", "value", "reason"}).
+			AddRow("root_domain", "example.com", "contract").
+			AddRow("cidr", "10.0.0.0/24", ""))
+
+	got, err := s.ListScopeRules(context.Background(), 7)
+	if err != nil {
+		t.Fatalf("ListScopeRules: %v", err)
+	}
+	want := []tools.ScopeRule{
+		{Kind: "root_domain", Value: "example.com", Reason: "contract"},
+		{Kind: "cidr", Value: "10.0.0.0/24"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d rules, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("rule %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
 
 func TestListTaskScopeDB(t *testing.T) {
 	t.Parallel()

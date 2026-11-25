@@ -182,14 +182,9 @@ Done. Docs, evals, changelog, blog, generated tool reference and a static live d
 
 ## 6. P4: Future vision
 
-### 6.1 Plugin system for external tools
+### ✅ 6.1 Plugin system for external tools
 
-**Status:** The exec-based plugin interface shipped in 0.4.0: plugins register MCP tools and return text results. Writing results directly into the asset graph and exploration state is still open.
-
-**What:** A plugin interface that lets users register custom MCP tools (e.g., nuclei scanner, sqlmap, ffuf) that write results directly into the asset graph and exploration state.
-**Effort:** L
-**Dependencies:** None directly, but benefits from stable tool/store interfaces.
-**Rationale:** ARTEX's value is the data model and orchestration, not any one scanner. A plugin system lets the community contribute tool integrations without modifying core.
+Done. Exec-based plugins register MCP tools (0.4.0) and can return `assets`, `facts` and `findings` alongside text. The server writes them into the graph through `insert_assets`, `record_fact` and `report_finding`, with scope enforcement. Each invocation carries the active engagement, its scope, the data directory and the recording proxy address.
 
 ### ✅ 6.2 Web dashboard
 

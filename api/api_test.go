@@ -112,6 +112,9 @@ func (m *mockStore) AddTaskScope(context.Context, int64, string, string, string,
 	return nil
 }
 func (m *mockStore) ListTaskScope(context.Context, int64) ([]int64, error) { return nil, nil }
+func (m *mockStore) ListScopeRules(context.Context, int64) ([]tools.ScopeRule, error) {
+	return nil, nil
+}
 func (m *mockStore) IsInScope(context.Context, int64, string) (bool, string, string, error) {
 	return false, "", "", nil
 }
