@@ -281,9 +281,26 @@ func cmdServe(args []string) {
 		runner = api.NewRunner(*claudeBin, mcpConfig, *dataDir, 0)
 		apiOpts = append(apiOpts, api.WithRunner(runner))
 		restAPI = api.New(s, t, engCfg.TaskID, engCfg.ExplorationID, apiOpts...)
-		srvOpts = append(srvOpts, mcpserver.WithNotifier(restAPI.NotifyChange))
 	}
+	changeOrigin := store.NewChangeOrigin()
+	srvOpts = append(srvOpts, mcpserver.WithNotifier(func(name string, args json.RawMessage) {
+		if restAPI != nil {
+			restAPI.NotifyChange(name)
+		}
+		taskID, expID := srv.ActiveEngagement()
+		pubCtx, pubCancel := context.WithTimeout(ctx, 2*time.Second)
+		defer pubCancel()
+		if err := s.PublishChange(pubCtx, store.NewChange(changeOrigin, name, taskID, expID, args)); err != nil {
+			slog.Warn("publishing change failed", "tool", name, "err", err)
+		}
+	}))
 	srv = mcpserver.New(reg, srvOpts...)
+	if restAPI != nil {
+		webExploration := func() int64 { return engCfg.ExplorationID }
+		go store.ListenChanges(ctx, dsn, changeOrigin, webExploration, func(c store.Change) {
+			restAPI.NotifyChange(c.Tool)
+		})
+	}
 	if *stdio {
 		slog.Info("serving", "transport", "stdio")
 		if err := srv.ServeStdio(ctx); err != nil && ctx.Err() == nil {
