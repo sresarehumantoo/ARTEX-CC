@@ -94,7 +94,7 @@ func runHealthChecks(pgFlag, dataDir string, timeout time.Duration) healthResult
 	}
 	if !hasSchema {
 		result.Status = "fail"
-		result.Checks["schema"] = hcEntry{Status: "fail", Detail: "not initialized (run artex init)"}
+		result.Checks["schema"] = hcEntry{Status: "fail", Detail: "not initialized (run artex-cc init)"}
 		return result
 	}
 
