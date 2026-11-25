@@ -9,24 +9,24 @@ ARTEX reads its PostgreSQL connection string from `--pg` or the `ARTEX_PG` envir
 
 | Command | What it does |
 |---------|--------------|
-| `artex serve` | Start the MCP tool server (stdio or HTTP) |
-| `artex init` | Create the schema and a new engagement, generate the proxy CA |
-| `artex health` | Check PostgreSQL connectivity |
-| `artex completion` | Print a shell completion script (`bash`, `zsh`, `fish`) |
-| `artex version` | Print the version (`--json` for build details) |
+| `artex-cc serve` | Start the MCP tool server (stdio or HTTP) |
+| `artex-cc init` | Create the schema and a new engagement, generate the proxy CA |
+| `artex-cc health` | Check PostgreSQL connectivity |
+| `artex-cc completion` | Print a shell completion script (`bash`, `zsh`, `fish`) |
+| `artex-cc version` | Print the version (`--json` for build details) |
 
 ```sh
 # Serve over stdio (Claude Code)
-artex serve --stdio --pg "postgres://localhost/ccartex"
+artex-cc serve --stdio --pg "postgres://localhost/ccartex"
 
 # Serve with the recording proxy
-artex serve --stdio --pg "postgres://localhost/ccartex" --proxy :8788
+artex-cc serve --stdio --pg "postgres://localhost/ccartex" --proxy :8788
 
 # Serve over HTTP (other clients), with the web UI
-artex serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --web
+artex-cc serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --web
 
 # Start a new engagement
-artex init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.example.com"
+artex-cc init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.example.com"
 ```
 
 ## `serve` flags
@@ -99,7 +99,7 @@ When `--proxy` is set, ARTEX starts a recording MITM proxy on the given address.
 
 ## Proxy CA trust
 
-`artex init` generates a CA certificate at `traffic/_ca/mitmproxy-ca-cert.pem` (under the data directory) and prints OS-specific trust instructions. Until the CA is trusted, HTTPS through the proxy fails with certificate errors.
+`artex-cc init` generates a CA certificate at `traffic/_ca/mitmproxy-ca-cert.pem` (under the data directory) and prints OS-specific trust instructions. Until the CA is trusted, HTTPS through the proxy fails with certificate errors.
 
 For a single tool, passing the CA explicitly is often simpler than trusting it system-wide:
 
@@ -110,5 +110,5 @@ curl --proxy http://localhost:8788 --cacert traffic/_ca/mitmproxy-ca-cert.pem ht
 ## Shell completion
 
 ```sh
-eval "$(artex completion zsh)"    # or bash, fish
+eval "$(artex-cc completion zsh)"    # or bash, fish
 ```

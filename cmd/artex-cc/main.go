@@ -63,7 +63,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: artex <command>")
+	fmt.Fprintln(os.Stderr, "usage: artex-cc <command>")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "  serve       Start the MCP tool server")
 	fmt.Fprintln(os.Stderr, "  init        Initialize a new engagement")
@@ -142,7 +142,7 @@ func cmdServe(args []string) {
 	fs.Parse(args)
 
 	if *showVersion {
-		fmt.Println("artex " + version)
+		fmt.Println("artex-cc " + version)
 		return
 	}
 
@@ -165,7 +165,7 @@ func cmdServe(args []string) {
 		fmt.Fprintln(os.Stderr, "error: PostgreSQL connection string is required")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "  Option 1: pass --pg flag")
-		fmt.Fprintln(os.Stderr, "    artex serve --pg 'postgres://user:pass@localhost/ccartex'")
+		fmt.Fprintln(os.Stderr, "    artex-cc serve --pg 'postgres://user:pass@localhost/ccartex'")
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, "  Option 2: set ARTEX_PG environment variable")
 		fmt.Fprintln(os.Stderr, "    export ARTEX_PG='postgres://user:pass@localhost/ccartex'")
@@ -343,7 +343,7 @@ func cmdInit(args []string) {
 	fs.Parse(args)
 
 	if *showVersion {
-		fmt.Println("artex " + version)
+		fmt.Println("artex-cc " + version)
 		return
 	}
 
@@ -435,7 +435,7 @@ func cmdInit(args []string) {
 	fmt.Printf(`  {
     "mcpServers": {
       "artex": {
-        "command": "artex",
+        "command": "artex-cc",
         "args": ["serve", "--stdio", "--pg", %q]
       }
     }
@@ -447,7 +447,7 @@ func cmdInit(args []string) {
 	fmt.Printf(`  {
     "mcpServers": {
       "artex": {
-        "command": "artex",
+        "command": "artex-cc",
         "args": [
           "serve", "--stdio",
           "--pg", %q,
@@ -534,6 +534,6 @@ func cmdVersion(args []string) {
 		enc.SetIndent("", "  ")
 		enc.Encode(info)
 	} else {
-		fmt.Println("artex " + version)
+		fmt.Println("artex-cc " + version)
 	}
 }

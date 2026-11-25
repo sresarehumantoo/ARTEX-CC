@@ -63,7 +63,7 @@ You need PostgreSQL running locally (or anywhere reachable).
 
    ```sh
    createdb ccartex
-   artex init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
+   artex-cc init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
    ```
 
    `init` creates the schema, sets up the engagement, generates a CA certificate for HTTPS interception, and prints trust instructions for your OS. See [Proxy CA trust](/docs/configuration/#proxy-ca-trust).
@@ -74,7 +74,7 @@ You need PostgreSQL running locally (or anywhere reachable).
    {
      "mcpServers": {
        "artex": {
-         "command": "artex",
+         "command": "artex-cc",
          "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
        }
      }

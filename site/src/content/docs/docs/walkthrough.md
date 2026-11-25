@@ -20,7 +20,7 @@ MCP server.
 
 ```
 createdb ccartex
-artex init --pg "postgres://localhost/ccartex" --goal "Bug bounty: app.example.com"
+artex-cc init --pg "postgres://localhost/ccartex" --goal "Bug bounty: app.example.com"
 ```
 
 The init command prints MCP config and CA trust instructions. Add the config to
@@ -30,7 +30,7 @@ The init command prints MCP config and CA trust instructions. Add the config to
 {
   "mcpServers": {
     "artex": {
-      "command": "artex",
+      "command": "artex-cc",
       "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
     }
   }

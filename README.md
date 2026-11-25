@@ -96,7 +96,7 @@ With PostgreSQL running:
 
 ```sh
 createdb ccartex
-artex init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
+artex-cc init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
 ```
 
 Add the server to Claude Code (`~/.claude.json` or a project `.mcp.json`):
@@ -105,7 +105,7 @@ Add the server to Claude Code (`~/.claude.json` or a project `.mcp.json`):
 {
   "mcpServers": {
     "artex": {
-      "command": "artex",
+      "command": "artex-cc",
       "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
     }
   }

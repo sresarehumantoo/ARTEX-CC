@@ -75,7 +75,7 @@ func TestCmdVersionPlain(t *testing.T) {
 	buf.ReadFrom(r)
 	out := buf.String()
 
-	if !strings.HasPrefix(out, "artex ") {
+	if !strings.HasPrefix(out, "artex-cc ") {
 		t.Fatalf("unexpected output: %q", out)
 	}
 	if !strings.Contains(out, version) {
@@ -137,8 +137,8 @@ func TestCmdCompletionBash(t *testing.T) {
 	if !strings.Contains(out, "complete -F") {
 		t.Fatal("bash completion missing complete -F")
 	}
-	if !strings.Contains(out, "artex") {
-		t.Fatal("bash completion missing artex")
+	if !strings.Contains(out, "complete -F _artex_cc artex-cc") {
+		t.Fatal("bash completion missing artex-cc registration")
 	}
 }
 
@@ -156,8 +156,8 @@ func TestCmdCompletionZsh(t *testing.T) {
 	buf.ReadFrom(r)
 	out := buf.String()
 
-	if !strings.Contains(out, "#compdef") {
-		t.Fatal("zsh completion missing #compdef")
+	if !strings.Contains(out, "#compdef artex-cc\n") {
+		t.Fatal("zsh completion missing #compdef artex-cc")
 	}
 }
 
@@ -175,8 +175,8 @@ func TestCmdCompletionFish(t *testing.T) {
 	buf.ReadFrom(r)
 	out := buf.String()
 
-	if !strings.Contains(out, "__fish_use_subcommand") {
-		t.Fatal("fish completion missing __fish_use_subcommand")
+	if !strings.Contains(out, "complete -c artex-cc -n '__fish_use_subcommand'") {
+		t.Fatal("fish completion missing artex-cc registration")
 	}
 }
 
@@ -332,7 +332,7 @@ func TestWriteHealthText_SchemaFail(t *testing.T) {
 		Status: "fail",
 		Checks: map[string]hcEntry{
 			"pg":     {Status: "ok", LatencyMS: 5},
-			"schema": {Status: "fail", Detail: "not initialized (run artex init)"},
+			"schema": {Status: "fail", Detail: "not initialized (run artex-cc init)"},
 		},
 	}
 	var buf bytes.Buffer

@@ -154,8 +154,8 @@ func TestCmdServe_VersionFlag(t *testing.T) {
 	out := captureStdout(t, func() {
 		cmdServe([]string{"--version"})
 	})
-	if !strings.Contains(out, "artex") {
-		t.Errorf("expected 'artex' in output: %q", out)
+	if !strings.Contains(out, "artex-cc ") {
+		t.Errorf("expected 'artex-cc' in output: %q", out)
 	}
 	if !strings.Contains(out, version) {
 		t.Errorf("expected version %q in output: %q", version, out)
@@ -168,8 +168,8 @@ func TestCmdInit_VersionFlag(t *testing.T) {
 	out := captureStdout(t, func() {
 		cmdInit([]string{"--version"})
 	})
-	if !strings.Contains(out, "artex") {
-		t.Errorf("expected 'artex' in output: %q", out)
+	if !strings.Contains(out, "artex-cc ") {
+		t.Errorf("expected 'artex-cc' in output: %q", out)
 	}
 	if !strings.Contains(out, version) {
 		t.Errorf("expected version %q in output: %q", version, out)

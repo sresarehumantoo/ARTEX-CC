@@ -13,7 +13,7 @@ import coverage from '../../../../../docs/screenshots/coverage.png';
 import assets from '../../../../../docs/screenshots/assets.png';
 import report from '../../../../../docs/screenshots/report.png';
 
-`artex serve --web` adds a dashboard on the same port as the MCP endpoint. Everything Claude records through the tools shows up here live: the exploration graph, findings with their bound traffic, coverage, credentials, and a printable report.
+`artex-cc serve --web` adds a dashboard on the same port as the MCP endpoint. Everything Claude records through the tools shows up here live: the exploration graph, findings with their bound traffic, coverage, credentials, and a printable report.
 
 <LinkButton href="/demo/" icon="right-arrow">Try the live demo</LinkButton>
 
@@ -22,7 +22,7 @@ import report from '../../../../../docs/screenshots/report.png';
 ## Running it
 
 ```sh
-artex serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --proxy :8788 --web
+artex-cc serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --proxy :8788 --web
 ```
 
 Open `http://localhost:9400`. The Docker image runs with `--web` already.
