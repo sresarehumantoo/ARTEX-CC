@@ -16,8 +16,12 @@ const ownerLabelKeyFile = "owner-label.key"
 // in dataDir so every process sharing the data directory shows the same
 // labels. The first call creates it.
 func OwnerLabelKey(dataDir string) ([]byte, error) {
-	path := filepath.Join(dataDir, ownerLabelKeyFile)
-	key, err := readOwnerLabelKey(path)
+	return loadOrCreateKey(dataDir, ownerLabelKeyFile)
+}
+
+func loadOrCreateKey(dataDir, name string) ([]byte, error) {
+	path := filepath.Join(dataDir, name)
+	key, err := readKey(path)
 	if err == nil || !errors.Is(err, os.ErrNotExist) {
 		return key, err
 	}
@@ -26,7 +30,7 @@ func OwnerLabelKey(dataDir string) ([]byte, error) {
 	}
 	key = make([]byte, 32)
 	_, _ = rand.Read(key)
-	tmp, err := os.CreateTemp(dataDir, ownerLabelKeyFile+".*")
+	tmp, err := os.CreateTemp(dataDir, name+".*")
 	if err != nil {
 		return nil, err
 	}
@@ -42,14 +46,14 @@ func OwnerLabelKey(dataDir string) ([]byte, error) {
 	// start that lost the race reads the winner's key instead.
 	if err := os.Link(tmp.Name(), path); err != nil {
 		if errors.Is(err, os.ErrExist) {
-			return readOwnerLabelKey(path)
+			return readKey(path)
 		}
 		return nil, err
 	}
 	return key, nil
 }
 
-func readOwnerLabelKey(path string) ([]byte, error) {
+func readKey(path string) ([]byte, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
