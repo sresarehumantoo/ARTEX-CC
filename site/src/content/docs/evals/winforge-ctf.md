@@ -1,4 +1,9 @@
-# Winforge CTF evaluation
+---
+title: Winforge CTF
+description: "End-to-end run against a custom Windows Server 2025 CTF, plus a web dashboard smoke test."
+sidebar:
+  order: 2
+---
 
 End-to-end validation of ARTEX against a custom CTF scenario on a homelab
 Windows Server 2025 Core target, plus a full web dashboard smoke test. Run

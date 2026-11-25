@@ -1,4 +1,9 @@
-# HTB Forest: blind pentest evaluation
+---
+title: HTB Forest (blind)
+description: "ARTEX and Claude against HTB Forest, fully blind: both flags in about eight minutes."
+sidebar:
+  order: 1
+---
 
 ARTEX autonomous pentest against HTB Forest, a retired Easy-rated Windows
 Active Directory Domain Controller. The agent ran fully blind with no web

@@ -1,8 +1,11 @@
-# MCP Client Configuration
+---
+title: MCP clients
+description: "Configure Claude Code, Cursor, Cline, Windsurf, Zed or any other MCP client to launch ARTEX."
+---
 
 ARTEX is a standard MCP server, so any MCP client can use it. Every client below launches the same command; only the config file location and wrapper keys differ.
 
-Run `artex init --pg "<dsn>" --goal "<goal>"` once first (see the [README](../README.md#quick-start)). Replace `postgres://localhost/ccartex` with your DSN in each example. Drop `"--proxy", ":8788"` if you do not need traffic capture; without it the traffic tools are not registered.
+Run `artex init --pg "<dsn>" --goal "<goal>"` once first (see [Getting started](/docs/getting-started/)). Replace `postgres://localhost/ccartex` with your DSN in each example. Drop `"--proxy", ":8788"` if you do not need traffic capture; without it the traffic tools are not registered.
 
 Client config formats change between releases. If a path or key below does not match your version, check the client's MCP documentation; the command and args stay the same.
 

@@ -1,4 +1,9 @@
-# HTB harness evaluation
+---
+title: HTB harness assessment
+description: "Whether ARTEX should automate Hack The Box runs: compliance, architecture and risk."
+sidebar:
+  order: 3
+---
 
 Should ARTEX include a test harness that automates spawning HTB boxes, running
 ARTEX against them, and validating results? This document evaluates compliance,
