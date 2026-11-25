@@ -8,9 +8,10 @@ import (
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
-func (s *Server) registerSwitchEngagement() {
-	t := tools.Tool{
-		Name: "switch_engagement",
+func (s *Server) switchEngagementTool() tools.Tool {
+	return tools.Tool{
+		Name:     "switch_engagement",
+		Category: tools.CategoryEngagement,
 		Description: "Switch to a different engagement without restarting the server. " +
 			"All tools will be re-registered to operate on the new engagement.",
 		Schema: map[string]any{
@@ -52,11 +53,10 @@ func (s *Server) registerSwitchEngagement() {
 			}
 			s.registry = reg
 			for _, t := range reg.Tools() {
-				s.mcp.AddTool(convertTool(t), makeHandlerWithNotifier(t, s.notifier))
+				s.addTool(t)
 			}
 
 			return tools.Result{Content: fmt.Sprintf("switched to engagement %d (exploration %d): %s", s.taskID, s.explorationID, eng.Goal)}, nil
 		},
 	}
-	s.mcp.AddTool(convertTool(t), makeHandlerWithNotifier(t, s.notifier))
 }

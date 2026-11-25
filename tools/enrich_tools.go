@@ -22,7 +22,8 @@ func RegisterEnrichTools(reg *Registry, store Store, taskID int64) {
 
 func makeEnrichDomain(store Store, taskID int64) Tool {
 	return Tool{
-		Name: "enrich_domain",
+		Name:     "enrich_domain",
+		Category: CategoryEnrichment,
 		Description: "Run DNS enrichment on a domain: resolves A/AAAA/CNAME/MX/NS/TXT records and performs reverse DNS on discovered IPs. " +
 			"Returns discovered facts and any new assets (IPs, subdomains from CNAMEs).",
 		ReadOnly: true,
@@ -64,6 +65,7 @@ func makeEnrichDomain(store Store, taskID int64) Tool {
 func makeEnrichIP(store Store, taskID int64) Tool {
 	return Tool{
 		Name:        "enrich_ip",
+		Category:    CategoryEnrichment,
 		Description: "Run reverse DNS on an IP address. Returns PTR records and any discovered hostnames as new assets.",
 		ReadOnly:    true,
 		Schema: obj(map[string]any{
@@ -107,7 +109,8 @@ func makeEnrichIP(store Store, taskID int64) Tool {
 
 func makeEnrichService(store Store, taskID int64) Tool {
 	return Tool{
-		Name: "enrich_service",
+		Name:     "enrich_service",
+		Category: CategoryEnrichment,
 		Description: "Probe an HTTP(S) service for status code, redirect chain, server headers, page title, " +
 			"TLS certificate info (CN, SAN, issuer, expiry), and technology fingerprinting from headers and HTML meta tags. " +
 			"Scheme defaults to https for ports 443/8443, http otherwise.",

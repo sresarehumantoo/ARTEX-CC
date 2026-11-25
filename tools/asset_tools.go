@@ -18,7 +18,8 @@ func RegisterAssetTools(reg *Registry, store Store, taskID int64) {
 
 func makeInsertAssets(store Store, taskID int64) Tool {
 	return Tool{
-		Name: "insert_assets",
+		Name:     "insert_assets",
+		Category: CategoryAssets,
 		Description: "Register newly discovered assets in bulk; multiple types can be mixed in one call (see the type enum).\n" +
 			"Required fields per type: root_domain->domain; ip->ip (must be IPv4/IPv6, not a hostname); subdomain->domain; app->app_name; service(HTTP)->url; service(non-HTTP)->service_name+port (at least one of ip/domain); endpoint->url+method. See each field's own description for the rest.\n" +
 			"auth/technologies/params are append-merged, not overwritten.\n" +
@@ -128,7 +129,8 @@ func makeInsertAssets(store Store, taskID int64) Tool {
 
 func makeListAssets(store Store, taskID int64) Tool {
 	return Tool{
-		Name: "list_assets",
+		Name:     "list_assets",
+		Category: CategoryAssets,
 		Description: "Query the asset library: search by DSL expression, or fetch directly by id/ids; supports pagination.\n" +
 			"DSL: field=value fuzzy (ILIKE) | field==value exact | field!=value exclusion | numeric fields support > >= < <= | a bare word = full-text fuzzy; combine with AND/OR (AND binds tighter), parentheses for grouping.\n" +
 			"When neither id nor ids is passed, dsl must be non-empty.\n" +
@@ -184,7 +186,8 @@ func makeListAssets(store Store, taskID int64) Tool {
 
 func makeListCompanies(store Store) Tool {
 	return Tool{
-		Name: "list_companies",
+		Name:     "list_companies",
+		Category: CategoryAssets,
 		Description: "List the companies in the asset library with their asset scopes and attributed asset counts. " +
 			"The optional search fuzzy-filters by company name (case-insensitive); empty returns all.",
 		ReadOnly: true,
@@ -219,7 +222,8 @@ func makeListCompanies(store Store) Tool {
 
 func makeAddCompanyScope(store Store) Tool {
 	return Tool{
-		Name: "add_company_scope",
+		Name:     "add_company_scope",
+		Category: CategoryAssets,
 		Description: "Add domains/IPs/CIDRs/ICP registrations/company keywords to a company's asset scope. " +
 			"Company names are unique: if the company doesn't exist it is created; if it exists it is reused.\n" +
 			"scope is one entry per line; the system auto-recognizes: root domain / URL / single IP / CIDR range / ICP registration / company keyword.\n" +
@@ -268,7 +272,8 @@ func makeAddCompanyScope(store Store) Tool {
 
 func makeAddTaskScope(store Store, taskID int64) Tool {
 	return Tool{
-		Name: "add_task_scope",
+		Name:     "add_task_scope",
+		Category: CategoryAssets,
 		Description: "Add test scope to this task (coverage scope, not enforced): it is the denominator of asset test coverage.\n" +
 			"Supported kinds: company / root_domain / subdomain / ip / cidr / icp / keyword.\n" +
 			"Use the entries array for multiple entries.",
@@ -323,7 +328,8 @@ func makeAddTaskScope(store Store, taskID int64) Tool {
 
 func makeListUntestedAssets(store Store, taskID int64) Tool {
 	return Tool{
-		Name: "list_untested_assets",
+		Name:     "list_untested_assets",
+		Category: CategoryAssets,
 		Description: "Query the assets inside the scope of this task that haven't been covered by fact anchors yet.\n" +
 			"Optional filter by asset type: root_domain/subdomain/service/app/endpoint/ip.\n" +
 			"Pagination: page starts at 1, page_size defaults to 10. Returns {assets, total, page, page_size}.",

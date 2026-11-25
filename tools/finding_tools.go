@@ -16,7 +16,8 @@ func RegisterFindingTools(reg *Registry, store Store, taskID, explorationID int6
 
 func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 	return Tool{
-		Name: "report_finding",
+		Name:     "report_finding",
+		Category: CategoryFindings,
 		Description: "Record a confirmed finding, with evidence providing verifiable proof such as command output and logs. " +
 			"Pass the current intent_id when in a task context. " +
 			"After reporting, the coordinator sees this in graph_overview and can use it as evidence for prove_goal.",
@@ -94,6 +95,7 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 func makeListFindings(store Store, explorationID int64) Tool {
 	return Tool{
 		Name:        "list_findings",
+		Category:    CategoryFindings,
 		Description: "List the confirmed findings of this task (compact: id+vulnclass+severity+summary+state+status+traffic_count).",
 		ReadOnly:    true,
 		Schema:      obj(map[string]any{}),
@@ -139,7 +141,8 @@ func makeListFindings(store Store, explorationID int64) Tool {
 
 func makeBindFindingTraffic(store Store, snapshotExists func(id string) (bool, error)) Tool {
 	return Tool{
-		Name: "bind_finding_traffic",
+		Name:     "bind_finding_traffic",
+		Category: CategoryFindings,
 		Description: "Link a traffic exchange (snapshot) to a finding as evidence. " +
 			"Use traffic_search to find the snapshot_id, then bind it here with a role describing how it supports the finding.",
 		Schema: obj(map[string]any{
@@ -198,7 +201,8 @@ func makeBindFindingTraffic(store Store, snapshotExists func(id string) (bool, e
 
 func makeMergeFindings(store Store) Tool {
 	return Tool{
-		Name: "merge_findings",
+		Name:     "merge_findings",
+		Category: CategoryFindings,
 		Description: "Merge two or more findings into a single primary finding. " +
 			"Evidence and assets from secondary findings are folded into the primary. " +
 			"Secondary findings are marked as duplicates with a pointer to the primary.",
@@ -249,7 +253,8 @@ func makeMergeFindings(store Store) Tool {
 
 func makeDismissFinding(store Store) Tool {
 	return Tool{
-		Name: "dismiss_finding",
+		Name:     "dismiss_finding",
+		Category: CategoryFindings,
 		Description: "Mark a finding as dismissed (false positive). " +
 			"Dismissed findings are excluded from generate_report output.",
 		Schema: obj(map[string]any{

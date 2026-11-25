@@ -15,7 +15,8 @@ func RegisterActivityTools(reg *Registry, store Store, explorationID int64) {
 
 func makeListActivity(store Store, explorationID int64) Tool {
 	return Tool{
-		Name: "list_activity",
+		Name:     "list_activity",
+		Category: CategoryActivity,
 		Description: "List recent activity log entries for this engagement: intents started/completed, facts recorded, findings reported, tool calls. " +
 			"Optionally filter by node_id, kind, or since (time). Returns newest first.",
 		ReadOnly: true,
@@ -69,7 +70,8 @@ func makeListActivity(store Store, explorationID int64) Tool {
 
 func makeLogActivity(store Store, explorationID int64) Tool {
 	return Tool{
-		Name: "log_activity",
+		Name:     "log_activity",
+		Category: CategoryActivity,
 		Description: "Record an activity log entry for this engagement. Use this to log significant actions, " +
 			"decisions, or observations that should be visible in the activity timeline.",
 		Schema: obj(map[string]any{

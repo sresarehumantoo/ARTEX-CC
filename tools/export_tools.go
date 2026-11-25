@@ -18,7 +18,8 @@ func RegisterExportTools(reg *Registry, store Store, taskID, explorationID int64
 
 func makeExportEngagement(store Store, defaultTaskID int64) Tool {
 	return Tool{
-		Name: "export_engagement",
+		Name:     "export_engagement",
+		Category: CategoryReporting,
 		Description: "Export the current engagement (or a specific one). " +
 			"Includes assets, exploration graph, findings, credentials, coverage, and scope. " +
 			"Format: json (default) returns the full export object; csv returns per-entity CSV tables (assets, findings, nodes).",
@@ -67,7 +68,8 @@ func makeExportEngagement(store Store, defaultTaskID int64) Tool {
 
 func makeImportEngagement(store Store) Tool {
 	return Tool{
-		Name: "import_engagement",
+		Name:     "import_engagement",
+		Category: CategoryReporting,
 		Description: "Import a previously exported engagement from JSON. " +
 			"Creates a new engagement with all the imported data (assets, graph, findings, credentials, coverage, scope). " +
 			"Returns the new task_id and exploration_id.",
