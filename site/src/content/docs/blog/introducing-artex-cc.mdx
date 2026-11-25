@@ -2,6 +2,7 @@
 title: 'Autonomous pentesting with Claude Code: an exploration graph that keeps the agent on track'
 description: ARTEX-CC is an MCP server that gives Claude Code a persistent record of a pentest. No API key, no agent loop of its own, and an exploration graph that survives restarts.
 date: 2026-11-24
+lastUpdated: 2026-11-25
 authors: artex
 tags:
   - launch
@@ -22,6 +23,7 @@ import webDemoMp4 from '../../../../../docs/web-demo.mp4?url';
 import webDemoPoster from '../../../../../docs/web-demo-poster.png';
 import graph from '../../../../../docs/screenshots/graph.png';
 import findingDetail from '../../../../../docs/screenshots/finding-detail.png';
+import toolStats from '../../../data/tool-stats.json';
 
 If you have let an LLM agent drive a pentest for more than an hour, you have seen it lose its place. It runs nmap, works through a few hosts, and then the context window fills up or the session ends. The next session runs nmap again. It does not remember which endpoints it already tested, which credentials it found, or what it planned to try next. The findings it does produce sit in a chat transcript, with no link back to the request that proved them.
 
@@ -35,11 +37,11 @@ ARTEX-CC is an offensive security tool for penetration testing, red teaming, CTF
 
 ## What ARTEX-CC is
 
-ARTEX-CC is an [MCP](https://modelcontextprotocol.io/) server written in Go. It exposes 62 tools in ten categories: exploration graph, assets and scope, findings, credentials, evidence, enrichment and ingestion, engagement management, activity, reporting, and traffic capture. All state lives in PostgreSQL.
+ARTEX-CC is an [MCP](https://modelcontextprotocol.io/) server written in Go. It exposes {toolStats.tools} tools in {toolStats.categories} categories: exploration graph, assets and scope, findings, credentials, evidence, enrichment and ingestion, engagement management, activity, reporting, and traffic capture. All state lives in PostgreSQL. `artex-cc tools --json` prints the full catalog without a database, and the [tool reference](/docs/tools/) on this site is generated from it.
 
 It has no agent loop and no LLM client of its own. Claude Code decides what to test, which tools to call and in what order. ARTEX executes the calls and keeps the state. That means it never needs an API key: your existing Claude subscription is the entire AI side of the setup, with no token budget to manage.
 
-<Image src={architecture} alt="Claude Code calls ARTEX-CC over MCP. ARTEX exposes 62 tools in 10 categories, stores state in PostgreSQL and captures traffic through its recording proxy." />
+<Image src={architecture} alt={`Claude Code calls ARTEX-CC over MCP. ARTEX exposes ${toolStats.tools} tools in ${toolStats.categories} categories, stores state in PostgreSQL and captures traffic through its recording proxy.`} />
 
 The project is derived from [ARTEX](https://github.com/BaaRai/ARTEX), which ships its own LLM agent loop. If you already pay for Claude, that loop is a second brain doing the same job, so ARTEX-CC removes it and keeps the data model: the same asset graph, exploration tracking and findings, exposed as tools. It is licensed AGPL-3.0, like upstream.
 
@@ -73,7 +75,7 @@ Every five minutes Claude reads the board, dispatches subagents for open intents
 
 ## A real session: HTB Forest
 
-The first published eval ran Claude Opus 5.5 against [Forest](/evals/htb-forest/), a retired Easy-rated Hack The Box machine: a Windows Active Directory domain controller. The run was fully blind. The prompt banned web searches, writeup lookups and prior knowledge of the box, and the session log confirmed that no web tools were called. Claude Code talked to a Docker ARTEX instance over HTTP MCP. Both flags were captured in about eight minutes.
+One of the published evals ran Claude Opus 5.5 against [Forest](/evals/htb-forest/), a retired Easy-rated Hack The Box machine: a Windows Active Directory domain controller. The run was fully blind. The prompt banned web searches, writeup lookups and prior knowledge of the box, and the session log confirmed that no web tools were called. Claude Code talked to a Docker ARTEX instance over HTTP MCP. Both flags were captured in about eight minutes.
 
 | Phase | What the agent did |
 |-------|-------------------|
@@ -143,7 +145,7 @@ There are other MCP servers for offensive security, and several of them wrap a l
 - **Scanner ingestion.** Output from nmap, nuclei, httpx, ffuf and masscan feeds straight into the asset graph.
 - **Credential encryption.** Set `ARTEX_CREDENTIAL_KEY` and stored passwords are encrypted with AES-256-GCM.
 
-The traffic tools are only registered when the proxy is running (`--proxy`), so without it ARTEX is a pure data server with 50 tools.
+The traffic tools are only registered when the proxy is running (`--proxy`), so without it ARTEX is a pure data server with {toolStats.tools - toolStats.proxyOnly} tools.
 
 ## Getting started
 
@@ -155,18 +157,18 @@ cd ARTEX-CC
 docker compose up
 ```
 
-That starts PostgreSQL and ARTEX together, with the MCP endpoint and web UI on `localhost:9400` and the recording proxy on `localhost:8788`. The container writes a ready-made MCP config, bearer token included, to `/app/data/mcp-config.json`.
+That starts PostgreSQL and ARTEX together, with the MCP endpoint and web UI on `localhost:9400` and the recording proxy on `localhost:8788`. The container writes a ready-made MCP config, bearer token included, to `/app/data/mcp-config.json`. The image also ships a pentest tooling layer (nmap, Impacket, evil-winrm, nuclei, ffuf and more); build with `--build-arg PENTEST_TOOLS=0` to leave it out.
 
-To run it natively, grab a binary from the [releases page](https://github.com/SREsAreHumanToo/ARTEX-CC/releases) or build it with Go 1.26 or later:
-
-```sh
-go install github.com/SREsAreHumanToo/ARTEX-CC/cmd/artex-cc@latest
-```
-
-From the next release onward, Homebrew on macOS or Linux works too:
+To run it natively on macOS or Linux, install it with Homebrew (7.0.11 or later):
 
 ```sh
 brew install --cask sresarehumantoo/tap/artex-cc
+```
+
+Or grab a binary from the [releases page](https://github.com/SREsAreHumanToo/ARTEX-CC/releases), or build it with Go 1.26 or later:
+
+```sh
+go install github.com/SREsAreHumanToo/ARTEX-CC/cmd/artex-cc@latest
 ```
 
 Then, with PostgreSQL running, create an engagement:
@@ -190,6 +192,6 @@ The [roadmap](/roadmap/) is public. The largest open item is collaborative multi
 
 Release 0.4.0 added an exec-based plugin system for registering external tools. The goal on the roadmap is for integrations such as nuclei, sqlmap and ffuf to write results directly into the asset graph and exploration state, contributed without changes to the core.
 
-More evals will follow, reported the same way as Forest: what the agent did, what ARTEX captured, and what went wrong.
+More evals will follow, reported the same way as Forest and the [Winforge CTF](/evals/winforge-ctf/): what the agent did, what ARTEX captured, and what went wrong. The eval runner in the repository now takes `--target`, `--model` and `--mcp-config`, so a scenario can be pointed at a different target or model, or at an MCP config you already have.
 
 The code is on [GitHub](https://github.com/SREsAreHumanToo/ARTEX-CC). Bug reports go to [Issues](https://github.com/SREsAreHumanToo/ARTEX-CC/issues), and questions and ideas to [Discussions](https://github.com/SREsAreHumanToo/ARTEX-CC/discussions). If you run it against your own lab, we would like to hear what broke.
