@@ -148,10 +148,9 @@ func loadIdentitySigner(dataDir string) *identity.Signer {
 	return signer
 }
 
-// webMCPHandler is /mcp under --web: bearer auth, then identity, then the
-// web chat conversation header.
-func webMCPHandler(srv *mcpserver.Server, token string, signer *identity.Signer, conversations *mcpserver.ConversationSigner) http.Handler {
-	return bearerAuth(token, srv.IdentityMiddleware(signer)(conversations.Middleware(srv.StreamableHTTP())))
+// webMCPHandler is /mcp under --web: bearer auth, then identity.
+func webMCPHandler(srv *mcpserver.Server, token string, signer *identity.Signer) http.Handler {
+	return bearerAuth(token, srv.IdentityMiddleware(signer)(srv.StreamableHTTP()))
 }
 
 // listenMiddleware is the ServeHTTP middleware for plain --listen. ServeHTTP
@@ -327,7 +326,7 @@ func cmdServe(args []string) {
 	var restAPI *api.API
 	var runner *api.Runner
 	var mcpToken string
-	var conversations *mcpserver.ConversationSigner
+	var webIdentity *identity.Signer
 	if *webUI {
 		authRequired := *authFlag || envEnabled("ARTEX_AUTH") || !isLoopbackAddr(*listen)
 		apiOpts := []api.Option{api.WithDataDir(*dataDir), api.WithAuthRequired(authRequired), api.WithToolList(reg.Tools())}
@@ -345,13 +344,9 @@ func cmdServe(args []string) {
 			slog.Error("writing mcp config failed", "err", err)
 			os.Exit(1)
 		}
-		conversations, err = mcpserver.NewConversationSigner()
-		if err != nil {
-			slog.Error("generating conversation key failed", "err", err)
-			os.Exit(1)
-		}
+		webIdentity = loadIdentitySigner(*dataDir)
 		runner = api.NewRunner(*claudeBin, mcpConfig, *dataDir, 0)
-		runner.SetConversationSigner(conversations)
+		runner.SetIdentitySigner(webIdentity)
 		apiOpts = append(apiOpts, api.WithRunner(runner))
 		restAPI = api.New(s, t, engCfg.TaskID, engCfg.ExplorationID, apiOpts...)
 	}
@@ -383,7 +378,7 @@ func cmdServe(args []string) {
 	} else if *webUI {
 		mux := http.NewServeMux()
 
-		mux.Handle("/mcp", webMCPHandler(srv, mcpToken, loadIdentitySigner(*dataDir), conversations))
+		mux.Handle("/mcp", webMCPHandler(srv, mcpToken, webIdentity))
 
 		mux.Handle("/api/", restAPI.Handler())
 

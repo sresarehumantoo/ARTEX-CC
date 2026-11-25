@@ -41,9 +41,8 @@ func holderRegistry() *tools.Registry {
 }
 
 type mountPath struct {
-	name          string
-	url           string
-	conversations *mcpserver.ConversationSigner
+	name string
+	url  string
 }
 
 // mountPaths serves the holder tool on both /mcp stacks cmdServe builds,
@@ -54,16 +53,12 @@ func mountPaths(t *testing.T, dataDir string) []mountPath {
 	if err != nil {
 		t.Fatal(err)
 	}
-	conversations, err := mcpserver.NewConversationSigner()
-	if err != nil {
-		t.Fatal(err)
-	}
 	web := mcpserver.New(holderRegistry())
-	ts := httptest.NewServer(webMCPHandler(web, mountToken, signer, conversations))
+	ts := httptest.NewServer(webMCPHandler(web, mountToken, signer))
 	t.Cleanup(ts.Close)
 	addr := serveListen(t, mcpserver.New(holderRegistry()), signer, mountToken)
 	return []mountPath{
-		{name: "web", url: ts.URL + "/mcp", conversations: conversations},
+		{name: "web", url: ts.URL + "/mcp"},
 		{name: "listen", url: "http://" + addr + "/mcp"},
 	}
 }
@@ -217,16 +212,16 @@ func TestIdentityMountedOnBothHTTPPaths(t *testing.T) {
 				t.Errorf("bearer rejection differs by identity: %q", bodies)
 			}
 
-			if p.conversations == nil {
-				return
-			}
-			conv := authed(mcpserver.ConversationHeader, p.conversations.Token("conv-1"))
-			if got := holderText(t, modernHolder(t, p.url, conv, "")); got != "conversation:conv-1" {
-				t.Errorf("conversation only = %q, want conversation:conv-1", got)
-			}
-			conv.Set(mcpserver.IdentityHeader, alice)
-			if got := holderText(t, modernHolder(t, p.url, conv, "")); got != "id:alice" {
-				t.Errorf("conversation and identity = %q, want identity to win", got)
+			for name, h := range map[string]http.Header{
+				"conversation only":         authed("X-Artex-Conversation", "conv-1.deadbeef"),
+				"conversation and identity": authed("X-Artex-Conversation", "conv-1.deadbeef", mcpserver.IdentityHeader, alice),
+			} {
+				resp := modernHolder(t, p.url, h, "")
+				raw, _ := io.ReadAll(resp.Body)
+				resp.Body.Close()
+				if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(raw), "start a new web chat conversation") {
+					t.Errorf("%s: HTTP %d %s, want 400 telling the caller to start a new conversation", name, resp.StatusCode, raw)
+				}
 			}
 		})
 	}

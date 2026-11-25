@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/SREsAreHumanToo/ARTEX-CC/identity"
 	"github.com/SREsAreHumanToo/ARTEX-CC/mcpserver"
 )
 
@@ -45,7 +46,7 @@ type Runner struct {
 	dataDir   string
 	maxConvs  int
 	settings  func() LLMSettings
-	signer    *mcpserver.ConversationSigner
+	signer    *identity.Signer
 	store     *ChatStore
 	hub       *Hub
 	mu        sync.Mutex
@@ -143,9 +144,13 @@ func WriteMCPConfig(dataDir, listenAddr, token string) (string, error) {
 }
 
 // conversationMCPConfig writes a copy of the runner's MCP config whose artex
-// server also sends the conversation's signed identity, so its claims stay
-// its own on transports that have no MCP session.
+// server also sends a freshly minted chat/<id> identity, so the conversation
+// holds its own claims and keeps them when it resumes after a server restart.
 func (r *Runner) conversationMCPConfig(id string) (string, error) {
+	token, err := r.signer.Issue("chat/"+id, identity.DefaultTTL)
+	if err != nil {
+		return "", err
+	}
 	var cfg mcpConfigFile
 	data, err := os.ReadFile(r.mcpConfig)
 	if err != nil {
@@ -158,7 +163,7 @@ func (r *Runner) conversationMCPConfig(id string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("%s has no %s server", r.mcpConfig, builtinMCPName)
 	}
-	headers := map[string]string{mcpserver.ConversationHeader: r.signer.Token(id)}
+	headers := map[string]string{mcpserver.IdentityHeader: token}
 	for k, v := range srv.Headers {
 		headers[k] = v
 	}
@@ -184,9 +189,9 @@ func (r *Runner) SetSettings(fn func() LLMSettings) {
 	r.settings = fn
 }
 
-// SetConversationSigner gives each conversation's claude process its own
-// signed identity on the artex MCP server.
-func (r *Runner) SetConversationSigner(s *mcpserver.ConversationSigner) {
+// SetIdentitySigner gives each conversation's claude process its own
+// chat/<conversation id> identity on the artex MCP server.
+func (r *Runner) SetIdentitySigner(s *identity.Signer) {
 	r.signer = s
 }
 
@@ -240,6 +245,12 @@ func (r *Runner) Start(ctx context.Context, id, model, agent, systemPrompt strin
 			return fmt.Errorf("write conversation mcp config: %w", err)
 		}
 	}
+	started := false
+	defer func() {
+		if !started && mcpConfig != r.mcpConfig {
+			os.Remove(mcpConfig)
+		}
+	}()
 
 	args := []string{
 		"-p",
@@ -315,6 +326,7 @@ func (r *Runner) Start(ctx context.Context, id, model, agent, systemPrompt strin
 		cancel()
 		return fmt.Errorf("start claude: %w", err)
 	}
+	started = true
 
 	rc := &runningConv{
 		cmd:       cmd,

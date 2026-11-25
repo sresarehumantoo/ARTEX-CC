@@ -302,8 +302,9 @@ same engagement, coordinate through the graph:
   doing, so the claim is released. Both are refused on an intent another
   session holds; leave it to its owner.
 - Claims belong to your identity when your client sends an X-Artex-Identity
-  header, otherwise to your MCP session, or to your conversation when you run
-  in the web UI chat. An identity keeps its claims across reconnects. If
+  header, otherwise to your MCP session. In the web UI chat your identity is
+  chat/<conversation id>, sent for you. An identity keeps its claims across
+  reconnects and server restarts. If
   start_intent says the connection has no session (HTTP clients on protocol
   2026-07-28 without an identity), pick an owner once, a random hex string,
   and pass it as owner on every start_intent, complete_intent, cancel_intent

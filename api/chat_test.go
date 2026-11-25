@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/SREsAreHumanToo/ARTEX-CC/config"
+	"github.com/SREsAreHumanToo/ARTEX-CC/identity"
 	"github.com/SREsAreHumanToo/ARTEX-CC/mcpserver"
 )
 
@@ -761,7 +764,7 @@ func TestFlattenContent_RawFallback(t *testing.T) {
 	}
 }
 
-func TestRunnerGivesEachConversationASignedIdentity(t *testing.T) {
+func TestRunnerGivesEachConversationAChatIdentity(t *testing.T) {
 	dataDir := t.TempDir()
 	base, err := WriteMCPConfig(dataDir, "localhost:9400", "tok")
 	if err != nil {
@@ -769,26 +772,31 @@ func TestRunnerGivesEachConversationASignedIdentity(t *testing.T) {
 	}
 	out := t.TempDir()
 	bin := writeFakeClaude(t, `while [ $# -gt 0 ]; do
-  if [ "$1" = --mcp-config ]; then echo "$2" > `+out+`/path; cp "$2" `+out+`/"$(basename "$2")"; fi
+  if [ "$1" = --mcp-config ]; then
+    echo "$2" > `+out+`/path
+    cp "$2" `+out+`/config.json
+    ls -ln "$2" | cut -c1-10 > `+out+`/mode
+  fi
   shift
 done
 `)
-	signer, err := mcpserver.NewConversationSigner()
-	if err != nil {
-		t.Fatal(err)
-	}
 	store := newTestChatStore(t)
-	r := NewRunner(bin, base, dataDir, 2)
-	r.SetConversationSigner(signer)
-	r.Bind(store, NewHub())
-
-	tokens := map[string]bool{}
-	for range 2 {
-		conv, _ := store.Create(CreateConversationRequest{})
-		if err := r.Start(context.Background(), conv.ID, "", "", ""); err != nil {
+	newRunner := func() *Runner {
+		signer, err := identity.NewSigner(dataDir)
+		if err != nil {
 			t.Fatal(err)
 		}
-		waitFor(t, func() bool { return !r.Running(conv.ID) })
+		r := NewRunner(bin, base, dataDir, 2)
+		r.SetIdentitySigner(signer)
+		r.Bind(store, NewHub())
+		return r
+	}
+	start := func(r *Runner, id string) string {
+		t.Helper()
+		if err := r.Start(context.Background(), id, "", "", ""); err != nil {
+			t.Fatal(err)
+		}
+		waitFor(t, func() bool { return !r.Running(id) })
 		used, err := os.ReadFile(filepath.Join(out, "path"))
 		if err != nil {
 			t.Fatal(err)
@@ -796,7 +804,10 @@ done
 		if _, err := os.Stat(strings.TrimSpace(string(used))); !os.IsNotExist(err) {
 			t.Errorf("conversation config left behind: %v", err)
 		}
-		data, err := os.ReadFile(filepath.Join(out, conv.ID+".json"))
+		if mode, _ := os.ReadFile(filepath.Join(out, "mode")); strings.TrimSpace(string(mode)) != "-rw-------" {
+			t.Errorf("conversation config mode = %q, want -rw-------", mode)
+		}
+		data, err := os.ReadFile(filepath.Join(out, "config.json"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -808,12 +819,54 @@ done
 		if h["Authorization"] != "Bearer tok" {
 			t.Errorf("Authorization = %q", h["Authorization"])
 		}
-		if got := h[mcpserver.ConversationHeader]; got != signer.Token(conv.ID) {
-			t.Errorf("%s = %q, want token for %s", mcpserver.ConversationHeader, got, conv.ID)
+		if _, ok := h["X-Artex-Conversation"]; ok {
+			t.Error("config still sends X-Artex-Conversation")
 		}
-		tokens[h[mcpserver.ConversationHeader]] = true
+		return h[mcpserver.IdentityHeader]
 	}
-	if len(tokens) != 2 {
-		t.Fatalf("conversations share a token: %v", tokens)
+	// A fresh signer on the same data directory stands in for a restarted server.
+	verify := func(token string) (identity.Claims, error) {
+		s, err := identity.NewSigner(dataDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s.Verify(token)
+	}
+
+	r := newRunner()
+	a, _ := store.Create(CreateConversationRequest{})
+	b, _ := store.Create(CreateConversationRequest{})
+	tokens := map[string]string{a.ID: start(r, a.ID), b.ID: start(r, b.ID)}
+	for id, token := range tokens {
+		c, err := verify(token)
+		if err != nil {
+			t.Fatalf("token for %s: %v", id, err)
+		}
+		if c.Name != "chat/"+id {
+			t.Errorf("token name = %q, want chat/%s", c.Name, id)
+		}
+		if ttl := c.ExpiresAt.Sub(c.IssuedAt); ttl != identity.DefaultTTL {
+			t.Errorf("token TTL = %s, want %s", ttl, identity.DefaultTTL)
+		}
+	}
+
+	resumed := start(newRunner(), a.ID)
+	if c, err := verify(resumed); err != nil || c.Name != "chat/"+a.ID {
+		t.Fatalf("token after restart = %+v, %v, want chat/%s", c, err, a.ID)
+	}
+	if _, err := verify(tokens[a.ID]); err != nil {
+		t.Fatalf("token from before the restart: %v", err)
+	}
+
+	if _, _, err := config.RotateIdentityKey(dataDir); err != nil {
+		t.Fatal(err)
+	}
+	for _, token := range []string{tokens[a.ID], tokens[b.ID], resumed} {
+		if _, err := verify(token); !errors.Is(err, identity.ErrUnknownKey) {
+			t.Errorf("chat token after rotation: %v, want ErrUnknownKey", err)
+		}
+	}
+	if _, err := verify(start(newRunner(), b.ID)); err != nil {
+		t.Fatalf("token minted after rotation: %v", err)
 	}
 }
