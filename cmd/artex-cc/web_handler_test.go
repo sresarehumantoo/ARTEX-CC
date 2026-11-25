@@ -66,3 +66,29 @@ func TestWebHandler(t *testing.T) {
 		}
 	}
 }
+
+func TestLoopbackHostOnly(t *testing.T) {
+	h := loopbackHostOnly(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	for host, allowed := range map[string]bool{
+		"localhost:9400":    true,
+		"LOCALHOST":         true,
+		"127.0.0.1:9400":    true,
+		"127.0.0.2":         true,
+		"[::1]:9400":        true,
+		"[::1]":             true,
+		"evil.example:9400": false,
+		"evil.example":      false,
+		"192.168.1.20:9400": false,
+		"":                  false,
+	} {
+		r := httptest.NewRequest("GET", "/api/findings", nil)
+		r.Host = host
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if got := w.Code == http.StatusNoContent; got != allowed {
+			t.Errorf("Host %q: status %d, want allowed=%v", host, w.Code, allowed)
+		}
+	}
+}

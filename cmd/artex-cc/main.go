@@ -182,6 +182,23 @@ func listenMiddleware(srv *mcpserver.Server, signer *identity.Signer, token stri
 	return middleware
 }
 
+// loopbackHostOnly refuses requests whose Host is not a loopback name, so a
+// DNS-rebound page cannot reach an unauthenticated loopback listener as if it
+// were same-origin.
+func loopbackHostOnly(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host := r.Host
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
+		}
+		if !isLoopbackAddr(strings.Trim(host, "[]")) {
+			http.Error(w, "host not allowed", http.StatusMisdirectedRequest)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func webHandler(mcp, restAPI http.Handler) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", mcp)
@@ -415,7 +432,11 @@ func cmdServe(args []string) {
 		}
 	} else if *webUI {
 		mcpHandler := webMCPHandler(srv, mcpToken, webIdentity)
-		httpServer := &http.Server{Addr: *listen, Handler: webHandler(mcpHandler, restAPI.Handler())}
+		handler := webHandler(mcpHandler, restAPI.Handler())
+		if isLoopbackAddr(*listen) {
+			handler = loopbackHostOnly(handler)
+		}
+		httpServer := &http.Server{Addr: *listen, Handler: handler}
 		errCh := make(chan error, 1)
 		go func() { errCh <- httpServer.ListenAndServe() }()
 
@@ -433,7 +454,11 @@ func cmdServe(args []string) {
 			runner.StopAll()
 		}
 	} else {
-		middleware := append(listenMiddleware(srv, loadIdentitySigner(*dataDir), listenToken), api.SecurityHeaders)
+		middleware := listenMiddleware(srv, loadIdentitySigner(*dataDir), listenToken)
+		if isLoopbackAddr(*listen) {
+			middleware = append(middleware, loopbackHostOnly)
+		}
+		middleware = append(middleware, api.SecurityHeaders)
 		slog.Info("serving", "addr", *listen, "mcp_auth", listenToken != "")
 		if err := srv.ServeHTTP(ctx, *listen, middleware...); err != nil && ctx.Err() == nil {
 			slog.Error("http server failed", "err", err)
