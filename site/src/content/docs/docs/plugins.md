@@ -153,6 +153,7 @@ When `isError` is `true`, ARTEX shows `content` and persists nothing.
 | Stdout | 8 MiB | The process is killed and the call fails with an error naming the limit. |
 | Structured items | 500 per result (`assets`, `facts` and `findings` combined) | Nothing is persisted. `content` is still shown, followed by `persisted nothing: result has N structured items, max 500`. The result is rejected whole rather than truncated, so the graph never holds an arbitrary part of it. |
 | Persistence time | 1 minute, separate from the run time | Items not yet written are dropped and the summary line ends with `stopped (context deadline exceeded) with N items not attempted`. Items already written stay. |
+| Error text | 4 KiB | When a plugin fails, at most 4 KiB of its stderr (or of unparseable stdout) is quoted in the error, followed by `... (N more bytes)`. The rest of stderr is read and discarded, so a noisy plugin never blocks. |
 | Problem lines | 20 | Further skipped or failed items are summarized as `... and N more problems`. The counts on the summary line stay exact. |
 | `--manifest` | 10 seconds | The plugin is skipped with a warning. |
 

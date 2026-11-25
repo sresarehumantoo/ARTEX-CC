@@ -37,6 +37,37 @@ exec cat /dev/zero
 	}
 }
 
+func TestExec_StderrQuoteCapped(t *testing.T) {
+	dir := t.TempDir()
+	bin := writePlugin(t, dir, "noisy", `#!/bin/sh
+head -c 1048576 /dev/zero | tr '\0' e >&2
+exit 3
+`)
+
+	_, err := Exec(context.Background(), bin, Invocation{Tool: "x", Input: json.RawMessage(`{}`)}, 10*time.Second)
+	if err == nil || !strings.Contains(err.Error(), "more bytes)") {
+		t.Fatalf("err = %v, want truncated stderr", err)
+	}
+	if len(err.Error()) > 2*MaxErrorTextBytes {
+		t.Errorf("error is %d bytes, want it capped near %d", len(err.Error()), MaxErrorTextBytes)
+	}
+}
+
+func TestExec_BadJSONQuoteCapped(t *testing.T) {
+	dir := t.TempDir()
+	bin := writePlugin(t, dir, "garbage", `#!/bin/sh
+head -c 1048576 /dev/zero | tr '\0' x
+`)
+
+	_, err := Exec(context.Background(), bin, Invocation{Tool: "x", Input: json.RawMessage(`{}`)}, 10*time.Second)
+	if err == nil || !strings.Contains(err.Error(), "parsing plugin output") || !strings.Contains(err.Error(), "more bytes)") {
+		t.Fatalf("err = %v, want truncated parse error", err)
+	}
+	if len(err.Error()) > 2*MaxErrorTextBytes {
+		t.Errorf("error is %d bytes, want it capped near %d", len(err.Error()), MaxErrorTextBytes)
+	}
+}
+
 func TestExec_Success(t *testing.T) {
 	dir := t.TempDir()
 	bin := writePlugin(t, dir, "echo-plugin", `#!/bin/sh

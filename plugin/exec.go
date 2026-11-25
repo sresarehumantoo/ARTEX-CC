@@ -18,6 +18,44 @@ const DefaultTimeout = 5 * time.Minute
 // exceeds it is killed and the call fails.
 const MaxOutputBytes = 8 << 20
 
+// MaxErrorTextBytes caps how much plugin stderr or unparseable stdout is
+// quoted in an error. Excess stderr is drained and discarded so the plugin
+// never blocks on a full pipe.
+const MaxErrorTextBytes = 4 << 10
+
+type cappedBuffer struct {
+	buf     bytes.Buffer
+	dropped int
+}
+
+func (c *cappedBuffer) Write(p []byte) (int, error) {
+	room := MaxErrorTextBytes - c.buf.Len()
+	if room > len(p) {
+		room = len(p)
+	}
+	c.buf.Write(p[:room])
+	c.dropped += len(p) - room
+	return len(p), nil
+}
+
+func (c *cappedBuffer) String() string {
+	return truncateNote(strings.TrimSpace(c.buf.String()), c.dropped)
+}
+
+func truncateNote(s string, dropped int) string {
+	if dropped > 0 {
+		return fmt.Sprintf("%s ... (%d more bytes)", s, dropped)
+	}
+	return s
+}
+
+func quoteOutput(b []byte) string {
+	if len(b) <= MaxErrorTextBytes {
+		return string(b)
+	}
+	return truncateNote(string(b[:MaxErrorTextBytes]), len(b)-MaxErrorTextBytes)
+}
+
 // Exec calls the plugin binary at path, sending inv as JSON on stdin and
 // parsing the JSON result from stdout. The timeout caps the total wall time.
 func Exec(ctx context.Context, path string, inv Invocation, timeout time.Duration) (Result, error) {
@@ -31,7 +69,7 @@ func Exec(ctx context.Context, path string, inv Invocation, timeout time.Duratio
 
 	cmd := exec.CommandContext(ctx, path)
 	cmd.Stdin = bytes.NewReader(payload)
-	var stderr bytes.Buffer
+	var stderr cappedBuffer
 	cmd.Stderr = &stderr
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
@@ -51,8 +89,7 @@ func Exec(ctx context.Context, path string, inv Invocation, timeout time.Duratio
 		err = readErr
 	}
 	if err != nil {
-		stderrText := strings.TrimSpace(stderr.String())
-		if stderrText != "" {
+		if stderrText := stderr.String(); stderrText != "" {
 			return Result{}, fmt.Errorf("plugin %s failed: %w\nstderr: %s", path, err, stderrText)
 		}
 		return Result{}, fmt.Errorf("plugin %s failed: %w", path, err)
@@ -60,7 +97,7 @@ func Exec(ctx context.Context, path string, inv Invocation, timeout time.Duratio
 
 	var result Result
 	if err := json.Unmarshal(stdout, &result); err != nil {
-		return Result{}, fmt.Errorf("parsing plugin output from %s: %w\nraw: %s", path, err, stdout)
+		return Result{}, fmt.Errorf("parsing plugin output from %s: %w\nraw: %s", path, err, quoteOutput(stdout))
 	}
 	return result, nil
 }
