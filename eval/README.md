@@ -40,7 +40,9 @@ docker compose down -v
 ```
 
 The runner calls `claude` (Claude Code CLI) in `--print --dangerously-skip-permissions`
-mode with an auto-generated MCP config pointing ARTEX at the eval Postgres. Each
+mode with an auto-generated MCP config pointing ARTEX at the eval Postgres. It also passes
+`--strict-mcp-config`, so instances load only that config: none of your own MCP servers or
+claude.ai connectors (mail, calendar, docs, DNS) are reachable from an unattended run. Each
 instance runs with `--output-format stream-json --verbose`, and its transcript is
 saved as `transcripts-<scenario>-<timestamp>/instance-<i>.jsonl` next to the
 scorecard, so every tool call, argument and result is on record.
