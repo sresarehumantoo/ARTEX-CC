@@ -53,7 +53,7 @@ func makeHandlerWithNotifier(t tools.Tool, notifier ToolNotifier) server.ToolHan
 			return mcp.NewToolResultError(result.Content), nil
 		}
 		if notifier != nil && !t.ReadOnly {
-			notifier(t.Name)
+			notifier(t.Name, raw)
 		}
 		return mcp.NewToolResultText(result.Content), nil
 	}

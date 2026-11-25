@@ -192,7 +192,7 @@ Done. `serve --web` serves the web UI alongside the HTTP transport: exploration 
 
 ### 6.3 Collaborative multi-agent support
 
-**Status:** Intent claiming is done: `start_intent` takes a renewable 30-minute lease for the calling session, other sessions are refused until it expires, and `graph_overview` shows who holds each running intent. Cross-process notifications (LISTEN/NOTIFY) are still open.
+**Status:** Intent claiming is done: `start_intent` takes a renewable 30-minute lease for the calling session, other sessions are refused until it expires, and `graph_overview` shows who holds each running intent. Cross-process notifications are done too: every process publishes successful mutating tool calls on the `artex_changes` PostgreSQL channel, and `serve --web` listens on a dedicated connection so its live view picks up changes made by other processes on the same engagement.
 
 **What:** Multiple Claude Code instances (or other MCP clients) working the same engagement simultaneously, with locking on intents to prevent duplicate work and a notification mechanism when new findings are reported.
 **Effort:** L

@@ -15,8 +15,9 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// ToolNotifier is called after a mutating tool completes successfully.
-type ToolNotifier func(toolName string)
+// ToolNotifier is called after a mutating tool completes successfully, with
+// the arguments it was called with.
+type ToolNotifier func(toolName string, args json.RawMessage)
 
 // Server is an MCP protocol server wrapping the tool registry.
 type Server struct {
