@@ -90,10 +90,17 @@ func buildPrompt(sc Scenario, instance, instances int, askOwner bool) string {
 	return prompt
 }
 
-func serveEnv(lease string) []string {
+// serveEnv is the environment for the servers the runner starts, directly
+// or through claude's stdio config. Their anonymous modes (stdio, and HTTP
+// with --identity=false) cannot satisfy ARTEX_REQUIRE_IDENTITY, so an
+// inherited value is cleared there; with identities it passes through.
+func serveEnv(rc runConfig) []string {
 	env := os.Environ()
-	if lease != "" {
-		env = append(env, "ARTEX_INTENT_LEASE="+lease)
+	if rc.lease != "" {
+		env = append(env, "ARTEX_INTENT_LEASE="+rc.lease)
+	}
+	if rc.mcpConfig == "" && !rc.identity {
+		env = append(env, "ARTEX_REQUIRE_IDENTITY=")
 	}
 	return env
 }
@@ -245,7 +252,7 @@ func runInstance(ctx context.Context, rc runConfig, sc Scenario, mcpConfigPath s
 	cmd.Stdout = out
 	cmd.Stderr = os.Stderr
 	cmd.Dir = rc.dataDir
-	cmd.Env = serveEnv(rc.lease)
+	cmd.Env = serveEnv(rc)
 	setProcessGroup(cmd)
 	cmd.Cancel = func() error { return killProcessGroup(cmd) }
 	cmd.WaitDelay = 10 * time.Second
@@ -308,7 +315,7 @@ func startHTTPServer(rc runConfig) (string, func(), error) {
 	cmd.Stderr = logFile
 	// The listener is loopback and the generated MCP config sends no
 	// Authorization header, so an inherited ARTEX_MCP_TOKEN must not apply.
-	cmd.Env = append(serveEnv(rc.lease), "ARTEX_MCP_TOKEN=")
+	cmd.Env = append(serveEnv(rc), "ARTEX_MCP_TOKEN=")
 	setProcessGroup(cmd)
 	if err := cmd.Start(); err != nil {
 		logFile.Close()
