@@ -70,11 +70,19 @@ nfpms:
         dst: /usr/share/doc/artex-cc/NOTICE
 
 homebrew_casks:
-  - repository:
+  - name: artex-cc
+    directory: Casks
+    repository:
       owner: SREsAreHumanToo
       name: homebrew-tap
-    skip_upload: true
-    homepage: https://github.com/SREsAreHumanToo/ARTEX-CC
-    description: Autonomous penetration testing platform powered by Claude Code.
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://artex-cc.com
+    description: Autonomous penetration testing platform powered by Claude Code
     binaries:
       - artex-cc
+    hooks:
+      post:
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/artex-cc"]
+          end
