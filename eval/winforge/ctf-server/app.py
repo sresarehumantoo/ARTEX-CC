@@ -221,7 +221,15 @@ class MonitorHandler(BaseHTTPRequestHandler):
 
         # Intentionally vulnerable to directory traversal
         base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports")
-        file_path = os.path.join(base_dir, name)
+        file_path = os.path.realpath(os.path.join(base_dir, name))
+
+        # The traversal may reach the app source, but never files outside the
+        # app directory: the service runs as SYSTEM and the other CTF tracks
+        # keep their flags in SYSTEM-readable places.
+        app_dir = os.path.dirname(os.path.realpath(__file__))
+        if os.path.commonpath([app_dir.lower(), file_path.lower()]) != app_dir.lower():
+            self.send_json(403, {"error": "access denied"})
+            return
 
         try:
             with open(file_path, "r") as f:
