@@ -5,6 +5,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Exec plugins can return `assets`, `facts` and `findings`, persisted through `insert_assets`, `record_fact` and `report_finding` with scope enforcement, and each invocation receives the active engagement, its scope, the data directory and the recording proxy address.
+- Example plugin `examples/plugins/httpprobe.py` and a [Plugins](https://artex-cc.com/docs/plugins/) docs page.
+- Intent claiming: `start_intent` takes a renewable 30-minute lease for the calling session or `owner`, other holders are refused until it expires, and `graph_overview` shows hashed holder labels. `cancel_intent` and `complete_intent` respect live claims.
+- `list_changes` tool for polling new and updated findings, facts, intents, goals, hints and assets since a cursor, plus the caller's held claims; `graph_overview` returns a starting `changes_cursor`.
+- Cross-process change notifications over PostgreSQL LISTEN/NOTIFY, so `serve --web` shows changes made by other artex-cc processes on the same database.
+- Orchestration guide and hands-free docs cover running several agents on one engagement.
+
+### Changed
+- Plugin limits: 8 MiB stdout, 500 structured items per result, 1 minute to persist results, 4 KiB of error text.
+- Web UI refreshes the views each mutating tool affects (including intent and plugin tools) and coalesces bursts of changes into one refresh per event type. The "Data refreshed" toast is gone.
+- Migrations add `exploration_nodes.claim_expires_at` and `findings.updated_at`. Intents already running before the upgrade have no lease and are immediately claimable.
+
+### Fixed
+- Data races on the MCP server's active engagement during `switch_engagement`.
+- Plugin results after `switch_engagement` were written into the startup engagement.
+- The example plugin probed `file://` and `ftp://` URLs on in-scope hosts.
+
+### Removed
+- Retired Go Report Card badge from the README.
+
 ## [0.4.1] - 2026-11-24
 
 ### Added
