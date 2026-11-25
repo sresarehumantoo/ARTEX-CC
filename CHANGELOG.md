@@ -10,7 +10,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - `artex-cc tools [--json]` prints the MCP tool catalog (name, category, description, input schema, read-only and proxy-only flags) without a database.
 - Project site at https://artex-cc.com: docs, evals, changelog, a blog, a tool reference generated from `artex-cc tools --json`, and a static live demo of the web UI at `/demo/`.
-- Homebrew cask: releases publish `artex-cc` to `SREsAreHumanToo/homebrew-tap`. Install with `brew install --cask sresarehumantoo/tap/artex-cc` on macOS or Linux (Homebrew 4.5 or later).
+- Homebrew cask: releases publish `artex-cc` to `SREsAreHumanToo/homebrew-tap`. Install with `brew install --cask sresarehumantoo/tap/artex-cc` on macOS or Linux (Homebrew 7.0.11 or later).
 - Docker image ships a pentest tooling layer (nmap, impacket, evil-winrm, nuclei, ffuf and more); opt out with `--build-arg PENTEST_TOOLS=0`.
 - Eval runner: `--target`, `--model`, `--mcp-config` and `--skip-health` flags, and TCP health checks for non-HTTP targets.
 
