@@ -19,7 +19,6 @@ import { Aside } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
 import architecture from '../../../../../docs/architecture.svg';
 import webDemoMp4 from '../../../../../docs/web-demo.mp4?url';
-import webDemoWebm from '../../../../../docs/web-demo.webm?url';
 import webDemoPoster from '../../../../../docs/web-demo-poster.png';
 import graph from '../../../../../docs/screenshots/graph.png';
 import findingDetail from '../../../../../docs/screenshots/finding-detail.png';
@@ -115,7 +114,6 @@ That is the evidence chain in practice. The finding points at the intent that pr
   playsinline
   preload="metadata"
 >
-  <source src={webDemoWebm} type="video/webm" />
   <source src={webDemoMp4} type="video/mp4" />
 </video>
 

@@ -33,8 +33,6 @@ ffmpeg -v error -y -ss 1.2 -i "$webm" -i "$video/palette.png" \
 
 ffmpeg -v error -y -ss 1.2 -i "$webm" -vf "$filters" -movflags +faststart -pix_fmt yuv420p \
   -c:v libx264 -crf 26 -preset slow -an "$repo/docs/web-demo.mp4"
-ffmpeg -v error -y -ss 1.2 -i "$webm" -vf "$filters" -c:v libvpx-vp9 -crf 36 -b:v 0 -row-mt 1 -an \
-  "$repo/docs/web-demo.webm"
 ffmpeg -v error -y -ss 1.2 -i "$webm" -vf "$filters" -frames:v 1 "$repo/docs/web-demo-poster.png"
 
-echo "wrote docs/screenshots/*.png and docs/web-demo.{gif,mp4,webm} plus poster"
+echo "wrote docs/screenshots/*.png and docs/web-demo.{gif,mp4} plus poster"
