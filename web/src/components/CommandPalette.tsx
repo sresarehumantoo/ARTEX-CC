@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GitBranch, Search, Server, ShieldAlert } from 'lucide-react'
 import { useSearch, type SearchResult } from '../hooks/useSearch'
@@ -48,18 +48,13 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     }
   }, [open])
 
-  useEffect(() => {
-    if (!open) return
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        e.stopPropagation()
-        onClose()
-      }
+  const handleDialogKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      onClose()
     }
-    document.addEventListener('keydown', handleKey, true)
-    return () => document.removeEventListener('keydown', handleKey, true)
-  }, [open, onClose])
+  }, [onClose])
 
   if (!open) return null
 
@@ -75,6 +70,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       role="dialog"
       aria-label="Command palette"
       className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh] bg-black/50 backdrop-blur-sm"
+      onKeyDownCapture={handleDialogKeyDown}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="mx-4 w-full max-w-lg overflow-hidden rounded-xl border border-border bg-popover shadow-2xl">

@@ -50,7 +50,7 @@ describe('useDocumentTitle', () => {
   it('falls back to "ARTEX-CC" for unknown paths', () => {
     mockPathname = '/unknown'
     renderHook(() => useDocumentTitle())
-    expect(document.title).toBe('ARTEX-CC · ARTEX-CC')
+    expect(document.title).toBe('ARTEX-CC')
   })
 
   it('includes findings count when > 0', () => {
@@ -98,6 +98,17 @@ describe('useDocumentTitle', () => {
       '/coverage': 'Coverage',
       '/credentials': 'Credentials',
       '/report': 'Report',
+      '/tasks': 'Tasks',
+      '/chat': 'Chat',
+      '/agents': 'Agents',
+      '/mcp-servers': 'MCP Servers',
+      '/tools': 'Tools',
+      '/intercept': 'Intercept',
+      '/commands': 'Commands',
+      '/usage': 'Usage',
+      '/workspace': 'Workspace',
+      '/logs': 'Logs',
+      '/search': 'Search',
       '/settings': 'Settings',
     }
 

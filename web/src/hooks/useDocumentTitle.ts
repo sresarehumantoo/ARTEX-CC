@@ -13,11 +13,26 @@ const PAGE_TITLES: Record<string, string> = {
   '/coverage': 'Coverage',
   '/credentials': 'Credentials',
   '/report': 'Report',
+  '/tasks': 'Tasks',
+  '/chat': 'Chat',
+  '/agents': 'Agents',
+  '/mcp-servers': 'MCP Servers',
+  '/tools': 'Tools',
+  '/intercept': 'Intercept',
+  '/commands': 'Commands',
+  '/usage': 'Usage',
+  '/workspace': 'Workspace',
+  '/logs': 'Logs',
+  '/search': 'Search',
   '/settings': 'Settings',
 }
 
 function setTitle(pathname: string, findingsCount: number) {
-  const pageTitle = PAGE_TITLES[pathname] ?? 'ARTEX-CC'
+  const pageTitle = PAGE_TITLES[pathname]
+  if (!pageTitle) {
+    document.title = findingsCount > 0 ? `(${findingsCount}) ARTEX-CC` : 'ARTEX-CC'
+    return
+  }
   document.title =
     findingsCount > 0
       ? `(${findingsCount}) ${pageTitle} · ARTEX-CC`
