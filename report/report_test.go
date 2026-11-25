@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 func TestMarkdownReport(t *testing.T) {
@@ -295,6 +296,30 @@ func TestFindingFilename(t *testing.T) {
 		if got != c.want {
 			t.Errorf("FindingFilename(%+v) = %q, want %q", c.f, got, c.want)
 		}
+	}
+}
+
+func TestFindingFilenameLongTitleKeepsID(t *testing.T) {
+	t.Parallel()
+	long := strings.Repeat("Stored XSS in profile field ", 10)
+	a := FindingFilename(&ExportFinding{ID: 41, Severity: "high", Name: long + "bio"})
+	b := FindingFilename(&ExportFinding{ID: 42, Severity: "high", Name: long + "nickname"})
+	if !strings.HasSuffix(a, "__41.md") || !strings.HasSuffix(b, "__42.md") {
+		t.Errorf("ID suffix lost: %q, %q", a, b)
+	}
+	if a == b {
+		t.Errorf("filenames collide: %q", a)
+	}
+	if n := len(strings.TrimSuffix(a, ".md")); n > 120 {
+		t.Errorf("name length = %d, want <= 120", n)
+	}
+
+	multi := FindingFilename(&ExportFinding{ID: 7, Severity: "low", Name: strings.Repeat("漏洞", 40)})
+	if !utf8.ValidString(multi) {
+		t.Errorf("invalid UTF-8: %q", multi)
+	}
+	if !strings.HasSuffix(multi, "__7.md") {
+		t.Errorf("ID suffix lost: %q", multi)
 	}
 }
 

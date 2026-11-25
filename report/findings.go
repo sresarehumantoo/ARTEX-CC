@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
-	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -105,17 +104,16 @@ var unsafeFilenameChars = regexp.MustCompile(`[^\p{Han}\p{L}\p{N}._-]+`)
 func FindingFilename(f *ExportFinding) string {
 	sev := nz(f.Severity, "info")
 	title := exportFindingTitle(f)
-	name := fmt.Sprintf("%s_%s_#%d", sev, title, f.ID)
-	name = unsafeFilenameChars.ReplaceAllString(name, "_")
-	name = strings.Trim(name, "._")
+	name := unsafeFilenameChars.ReplaceAllString(sev+"_"+title, "_")
+	name = strings.TrimLeft(name, "._")
 	if name == "" {
-		name = fmt.Sprintf("finding_%d", f.ID)
+		name = "finding"
 	}
-	name = path.Base(name)
-	if len(name) > 120 {
-		name = strings.ToValidUTF8(name[:120], "")
+	suffix := fmt.Sprintf("__%d", f.ID)
+	if limit := 120 - len(suffix); len(name) > limit {
+		name = strings.ToValidUTF8(name[:limit], "")
 	}
-	return name + ".md"
+	return name + suffix + ".md"
 }
 
 func FindingsCSV(fs []*ExportFinding) []byte {

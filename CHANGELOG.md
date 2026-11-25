@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Exported finding filenames for long titles were cut at 120 bytes after the finding ID was appended, dropping the ID so similar findings collided in the export zip. The title is now shortened instead, on a UTF-8 boundary, and the ID suffix is always kept.
+
 ## [0.6.0] - 2026-11-25
 
 ### Added
