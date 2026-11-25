@@ -1,4 +1,5 @@
 ---
+import { analyticsBeacon } from '../analytics.mjs';
 import '../styles/landing.css';
 import { Image } from 'astro:assets';
 import { getEntry } from 'astro:content';
@@ -129,6 +130,7 @@ const install = [
     <meta property="og:image:width" content="1280" />
     <meta property="og:image:height" content="640" />
     <meta name="twitter:card" content="summary_large_image" />
+    <script is:inline {...analyticsBeacon}></script>
   </head>
   <body>
     <a

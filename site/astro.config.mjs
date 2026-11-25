@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import tailwindcss from '@tailwindcss/vite';
+import { analyticsBeacon } from './src/analytics.mjs';
 
 const repo = 'https://github.com/SREsAreHumanToo/ARTEX-CC';
 const site = 'https://artex-cc.com';
@@ -31,6 +32,7 @@ export default defineConfig({
         { tag: 'meta', attrs: { property: 'og:image:width', content: '1280' } },
         { tag: 'meta', attrs: { property: 'og:image:height', content: '640' } },
         { tag: 'meta', attrs: { name: 'twitter:image', content: `${site}/social-preview.png` } },
+        { tag: 'script', attrs: analyticsBeacon },
       ],
       sidebar: [
         {
