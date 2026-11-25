@@ -97,6 +97,26 @@ Additional data: total findings, total assets, coverage records, goals set,
 intents created/finished, wall-clock duration, timeout flag, and per instance
 the transcript path, duration, exit error and kill time.
 
+## Coordination scorecard
+
+After every run that started `claude`, the runner reads the transcripts and the
+final engagement and adds a `coordination` section to the scorecard. It also
+prints a readable summary to stderr and writes it to `coordination.txt` in the
+transcripts directory. Claim history is not stored in the database, so the
+transcripts are the source of truth for claims.
+
+| Metric | How it is computed |
+|--------|--------------------|
+| `double_claims` | Successful `start_intent` results replayed in time order (tool result timestamps); a claim by a second instance before the previous holder's expiry (from the result text, else `--lease` or 30m) and with no `complete_intent`/`cancel_intent` in between. Pass: 0 |
+| `conflicts_handled` | `start_intent` results saying the intent "is claimed by" another holder, counted as handled when one of the next 5 tool calls of that instance is `start_intent` on a different intent. Pass: 90% or more |
+| `refused_completions` | `complete_intent` or `cancel_intent` refused because another holder has a live claim |
+| `duplicate_findings` | Findings grouped by normalized vulnclass and asset (asset 0 when a finding has none) that were reported by more than one instance, which comes from the `report_finding` results. `raw` counts every extra finding; `after_merges` ignores merged and dismissed ones. Pass: 0 after merges |
+| `redundant_recon` | Bash commands, whitespace-normalized, run by more than one instance; `redundant_runs` counts the instances beyond the first per command |
+| `list_changes_calls` | Per instance |
+| `cross_instance_parents` | Graph edges whose parent node was created by a different instance than the child, by child kind. Node creators come from the `add_intent`, `record_fact` and `report_finding` results in the transcripts |
+| `takeovers` | With `--kill-after`: each intent the killed instance still held when it died, the survivor that started it next and when, whether that was after the lease lapsed, and how many of the killed instance's facts for it are still attached in the graph |
+| `usage`, `cost_usd` | Per instance and total, from the stream-json `result` message. A killed instance has no `result` message, so its token counts are summed from its assistant messages and its cost is 0 |
+
 ## Adding scenarios
 
 Create a YAML file in `scenarios/`:
