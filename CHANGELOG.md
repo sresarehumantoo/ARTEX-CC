@@ -14,6 +14,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Any MCP client could read other clients' session IDs from `list_sessions` and replay one as `Mcp-Session-Id` to complete or cancel intents claimed by that session.
 - A low-entropy `owner` could be recovered from its claim label by guessing, since the label was an unkeyed hash.
 - Session register and unregister debug logs, which reach `docker logs` and the web Logs page, carried raw session IDs; they now log the holder label.
+- The MCP HTTP transport's own logs (rejected GETs, expired session sweeps, sampling responses, stream resume and event purge failures, session termination failures) carried raw session IDs; they now log the holder label. With `--web` these logs also reach the web Logs page.
 
 ## [0.5.0] - 2026-11-25
 
