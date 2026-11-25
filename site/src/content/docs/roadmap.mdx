@@ -197,6 +197,8 @@ Done. `serve --web` serves the web UI alongside the HTTP transport: exploration 
 
 ### 6.3 Collaborative multi-agent support
 
+**Status:** Intent claiming is done: `start_intent` takes a renewable 30-minute lease for the calling session, other sessions are refused until it expires, and `graph_overview` shows who holds each running intent. Cross-process notifications (LISTEN/NOTIFY) are still open.
+
 **What:** Multiple Claude Code instances (or other MCP clients) working the same engagement simultaneously, with locking on intents to prevent duplicate work and a notification mechanism when new findings are reported.
 **Effort:** L
 **Dependencies:** Multi-engagement switching (3.4, done), intent lifecycle (3.5, done), multi-client MCP support (6.8, done).
