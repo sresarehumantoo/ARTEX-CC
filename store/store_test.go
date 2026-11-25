@@ -674,3 +674,43 @@ func TestInsertAssetRecordsURLCredential(t *testing.T) {
 		}
 	}
 }
+
+func TestImportRecordsURLCredential(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	host := fmt.Sprintf("import-creds-%d.example.com", os.Getpid())
+
+	taskID, _, err := s.ImportEngagementData(ctx, &tools.EngagementExport{
+		Version: 1,
+		Goal:    "import url credentials",
+		Assets: []map[string]any{
+			{"id": float64(1), "type": "endpoint", "url": "https://captured:fresh@" + host + "/", "method": "GET"},
+			{"id": float64(2), "type": "endpoint", "url": "https://known:fromurl@" + host + "/login", "method": "GET"},
+		},
+		Credentials: []map[string]any{
+			{"domain": host, "username": "known", "password": "exported", "source": "agent", "note": "kept"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("ImportEngagementData: %v", err)
+	}
+
+	creds, err := s.ListCredentials(ctx, taskID)
+	if err != nil {
+		t.Fatalf("ListCredentials: %v", err)
+	}
+	got := map[string]tools.Credential{}
+	for _, c := range creds {
+		got[c.Username] = c
+	}
+	if len(got) != 2 {
+		t.Fatalf("credentials = %+v, want 2 entries", creds)
+	}
+	if c := got["captured"]; c.Domain != host || c.Password != "fresh" || c.Source != "asset_url" {
+		t.Errorf("captured = %+v, want password fresh, source asset_url", c)
+	}
+	if c := got["known"]; c.Password != "exported" || c.Source != "agent" || c.Note != "kept" {
+		t.Errorf("known = %+v, want exported row unchanged", c)
+	}
+}
