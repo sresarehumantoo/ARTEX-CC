@@ -41,7 +41,7 @@ Issuance
 
 - R1. `artex-cc identity issue --data <dir> --name <name> [--ttl <dur>] [--format token|header|claude-json]` prints one token to stdout and nothing else on stdout. It runs offline: it needs only the data dir, not a server or database.
 - R2. Names match `^[a-z0-9][a-z0-9._/-]{0,63}$`. The prefixes `chat/` and `eval/` are used by the built-in issuers; the CLI refuses them without `--allow-reserved`.
-- R3. Default TTL is 30 days for the CLI, conversation lifetime plus a margin for chat (see R14), and the run timeout plus the lease for eval. `--ttl 0` is rejected; every token expires.
+- R3. Default TTL is 7 days for the CLI, settable with `--ttl` up to a maximum of 30 days, conversation lifetime plus a margin for chat (see R14), and the run timeout plus the lease for eval. `--ttl 0` is rejected; every token expires.
 - R4. `--format claude-json --url <mcp url> [--bearer-env VAR]` prints an `mcpServers.artex` block with both headers, ready for `claude --mcp-config` or `.mcp.json`.
 - R5. Revocation is by rotation: `artex-cc identity rotate --data <dir>` replaces the key, which invalidates every token from that directory, including chat and eval ones. Running servers pick up the new key without restart (R9). Per-token revocation is an open question (Q2).
 
@@ -79,7 +79,7 @@ Presentation
 
 - R20. The label for `id:<name>` is `<name>`; for `id:<name>/owner:<x>` it is `<name>/h-<6 bytes>` with the HMAC over the owner part only. Anonymous holders keep `h-` labels. The name is not secret, because knowing it does not let anyone forge the token.
 - R21. `list_sessions` adds an `identities` array of identities seen by this process in the last lease period (`name`, `last_active`, `self`). The existing `sessions` array is unchanged.
-- R22. Tokens are never written to logs, tool results, change rows or exports. The redacting logger (pending PR) adds `X-Artex-Identity` and `X-Artex-Conversation` to its header deny list.
+- R22. Tokens are never written to logs, tool results, change rows or exports. The redacting logger from #218 is extended to redact anything matching the `ai1.` token format, as defense in depth.
 
 ## 3. Design
 
@@ -135,7 +135,7 @@ Identity is not authentication and never substitutes for the bearer token. On a 
 
 - Anonymous holders keep their format, so no live claim is orphaned by the upgrade for stdio, legacy HTTP, or `owner`-only clients. This removes most of the "orphan live claims" cost noted for Option C, which assumed the session would be part of every holder.
 - Web chat holders change from `conversation:<id>` to `id:chat/<id>`. Today every conversation token dies with the server process and the runner stops all conversations on shutdown (`cmd/artex-cc/main.go:380`), so their claims are already orphaned by any restart. The upgrade costs nothing extra; claims lapse at lease expiry as today.
-- `X-Artex-Conversation` is removed rather than kept as an alias, since only the runner sends it and the runner ships in the same binary. Requests still carrying it are ignored (no 401) for one release.
+- `X-Artex-Conversation` is removed rather than kept as an alias, since only the runner sends it and the runner ships in the same binary. Requests still carrying it are rejected with a clear error telling the caller to start a new conversation. In practice none should arrive: the old signer's key lived only in server memory and the chat `claude` processes are children of the server, so neither survives the upgrade restart.
 - Exports and change rows keep showing labels only. Identity labels become readable names; anonymous labels are unchanged because `owner-label.key` is untouched.
 - No schema migration.
 - `mcp-clients.md` gains a "Separate claim holders" section after the bearer token section (line 21-42): when to use it, `identity issue --format claude-json`, one name per running agent, rotation, and that the header is not a credential for anything except claims.
@@ -185,12 +185,14 @@ Acceptance: all of the above pass in CI with `ARTEX_TEST_PG`; `go vet` clean; an
 
 PR 2 depends on the other agent's work in `transport_http.go` and `main.go` landing first; it should rebase on it rather than conflict.
 
-## Open questions
+## Decisions
 
-- Q1. Holder composition: this plan drops the session from identity holders (R10) so claims survive reconnects. Option C kept `identity/session`. Keeping the session lets one identity run several concurrent agents safely, at the cost of losing claims on every reconnect. Recommendation: drop it; issue one name per agent.
-- Q2. Per-token revocation: rotation is all or nothing. Add a `jti` plus a `identity-revoked` list in the data dir, or accept rotation plus short TTLs? Recommendation: rotation only until someone asks.
-- Q3. Should a server be able to require identity for claims (`--require-identity` or `ARTEX_REQUIRE_IDENTITY`), rejecting `owner`-only and session-only holders? Useful for shared team servers; it breaks clients that cannot set headers. Recommendation: add in phase 6, default off.
-- Q4. Bind tokens to an engagement (task ID) as well as the data dir? It would stop a token for engagement A from claiming in B on a shared database, but `switch_engagement` makes that awkward. Recommendation: no.
-- Q5. Default CLI TTL: 30 days proposed. Shorter (24 h) is safer for team servers but annoying for long engagements.
-- Q6. Should the CLI also accept issuing from a running server (`POST /api/identity`, web admin only) so remote operators need no shell access to the data dir? Recommendation: defer; it needs the web auth story.
-- Q7. Keep `X-Artex-Conversation` as an ignored header for one release, or reject it with 400 so stale runner configs fail loudly? Recommendation: ignore for one release.
+Recorded 2026-11-25 by the maintainer.
+
+- Q1. Holder composition: drop the session from identity holders (R10). Issue one name per agent.
+- Q2. Revocation: rotation plus short TTLs only. No per-token revocation list until someone needs it.
+- Q3. `--require-identity`: add later in phase 6, off by default.
+- Q4. Engagement binding: no. Tokens bind to the data dir only.
+- Q5. Default CLI TTL: 7 days, with `--ttl` allowing up to 30 days. Short-lived users such as the eval runner issue their own per-run tokens instead of relying on the default.
+- Q6. Issuing endpoint: deferred until the web auth story supports it.
+- Q7. `X-Artex-Conversation`: rejected with a clear error, not ignored, so a stale header fails loudly instead of silently moving claims to a different holder.
