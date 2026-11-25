@@ -117,6 +117,6 @@ func (a *API) handleDismissFinding(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	a.Broadcast("store_changed", map[string]any{"action": "dismiss", "finding_id": id})
+	a.Broadcast(eventFindingsChanged, map[string]any{"action": "dismiss", "finding_id": id})
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }

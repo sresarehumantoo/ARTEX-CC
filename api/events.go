@@ -1,10 +1,10 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
-	"strings"
+	"sort"
+	"sync"
 	"time"
 )
 
@@ -23,26 +23,104 @@ func (a *API) Broadcast(eventType string, data any) {
 	a.hub.Publish(globalTopic, payload)
 }
 
+const (
+	eventFindingAdded    = "finding_added"
+	eventFindingsChanged = "findings_changed"
+	eventAssetAdded      = "asset_added"
+	eventGraphChanged    = "graph_changed"
+	eventTrafficChanged  = "traffic_changed"
+	eventStoreChanged    = "store_changed"
+	eventRefresh         = "refresh"
+)
+
+// changeEvents maps each mutating tool to the SSE event naming what it
+// changed. Tools not listed here, such as plugin tools, get eventRefresh.
+var changeEvents = map[string]string{
+	"report_finding":       eventFindingAdded,
+	"merge_findings":       eventFindingsChanged,
+	"dismiss_finding":      eventFindingsChanged,
+	"bind_finding_traffic": eventFindingsChanged,
+
+	"insert_assets": eventAssetAdded,
+
+	"add_intent":      eventGraphChanged,
+	"record_fact":     eventGraphChanged,
+	"add_hint":        eventGraphChanged,
+	"set_goals":       eventGraphChanged,
+	"set_constraints": eventGraphChanged,
+	"prove_goal":      eventGraphChanged,
+	"start_intent":    eventGraphChanged,
+	"complete_intent": eventGraphChanged,
+	"cancel_intent":   eventGraphChanged,
+
+	"traffic_replay": eventTrafficChanged,
+	"traffic_clear":  eventTrafficChanged,
+
+	"add_company_scope":      eventStoreChanged,
+	"add_task_scope":         eventStoreChanged,
+	"save_task_credential":   eventStoreChanged,
+	"record_coverage":        eventStoreChanged,
+	"log_activity":           eventStoreChanged,
+	"save_evidence":          eventStoreChanged,
+	"capture_command_output": eventStoreChanged,
+	"goal_met":               eventStoreChanged,
+	"update_engagement":      eventStoreChanged,
+}
+
+func changeEvent(toolName string) string {
+	if ev, ok := changeEvents[toolName]; ok {
+		return ev
+	}
+	return eventRefresh
+}
+
+// changeWindow is how long NotifyChange collects changes before broadcasting,
+// so a burst of tool calls (local or from other processes via LISTEN) becomes
+// one event per kind rather than one per call.
+const changeWindow = 250 * time.Millisecond
+
+type changeBatcher struct {
+	mu      sync.Mutex
+	window  time.Duration
+	pending map[string]int
+	timer   *time.Timer
+}
+
+// NotifyChange records that toolName changed the store. It never blocks on
+// I/O: events are coalesced and broadcast without payload after a short
+// window, and clients refetch what each event invalidates.
 func (a *API) NotifyChange(toolName string) {
-	ctx := context.Background()
-	switch {
-	case strings.HasPrefix(toolName, "insert_node"),
-		strings.HasPrefix(toolName, "add_hint"),
-		strings.HasPrefix(toolName, "add_intent"),
-		strings.HasPrefix(toolName, "record_fact"),
-		strings.HasPrefix(toolName, "prove_goal"),
-		strings.HasPrefix(toolName, "update_intent"):
-		nodes, _ := a.store.ListNodes(ctx, a.explorationID, "", 0)
-		edges, _ := a.store.Edges(ctx, a.explorationID, 0)
-		a.Broadcast("full_refresh", map[string]any{"nodes": nodes, "edges": edges})
-	case strings.HasPrefix(toolName, "add_finding"),
-		strings.HasPrefix(toolName, "confirm_finding"),
-		strings.HasPrefix(toolName, "report_finding"):
-		a.Broadcast("finding_added", nil)
-	case strings.HasPrefix(toolName, "insert_asset"):
-		a.Broadcast("asset_added", nil)
-	default:
-		a.Broadcast("store_changed", nil)
+	b := &a.changes
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.pending == nil {
+		b.pending = make(map[string]int)
+	}
+	b.pending[changeEvent(toolName)]++
+	if b.timer == nil {
+		window := b.window
+		if window == 0 {
+			window = changeWindow
+		}
+		b.timer = time.AfterFunc(window, a.flushChanges)
+	}
+}
+
+func (a *API) flushChanges() {
+	b := &a.changes
+	b.mu.Lock()
+	pending := b.pending
+	b.pending = nil
+	b.timer = nil
+	b.mu.Unlock()
+
+	events := make([]string, 0, len(pending))
+	for ev := range pending {
+		events = append(events, ev)
+	}
+	sort.Strings(events)
+	for _, ev := range events {
+		a.Broadcast(ev, map[string]any{"count": pending[ev]})
 	}
 }
 
