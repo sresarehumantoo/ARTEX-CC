@@ -1,0 +1,147 @@
+---
+title: Getting started
+description: Install ARTEX, create an engagement, connect Claude Code and start a pentest.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+ARTEX is an MCP server. Claude Code (or any other MCP client) launches it, discovers its 62 tools, and drives the engagement through them. All state lives in PostgreSQL, so you can stop and resume at any point.
+
+<Aside type="caution" title="Authorized use only">
+ARTEX is an offensive security tool for penetration testing, red teaming, CTFs and lab work. Use it only against systems you own or have explicit permission to test.
+</Aside>
+
+## Install
+
+<Tabs syncKey="install">
+<TabItem label="Homebrew">
+
+macOS and Linux:
+
+```sh
+brew install SREsAreHumanToo/tap/artex
+```
+
+</TabItem>
+<TabItem label="Docker">
+
+Starts PostgreSQL and ARTEX together. See [Docker](#docker) below for the MCP config.
+
+```sh
+git clone https://github.com/SREsAreHumanToo/ARTEX-CC.git
+cd ARTEX-CC
+docker compose up
+```
+
+</TabItem>
+<TabItem label="Binaries">
+
+Download an archive for your platform from the [Releases](https://github.com/SREsAreHumanToo/ARTEX-CC/releases) page. Each release includes checksums.
+
+</TabItem>
+<TabItem label="Source">
+
+Requires Go 1.26 or later.
+
+```sh
+go install github.com/SREsAreHumanToo/ARTEX-CC/cmd/artex-cc@latest
+```
+
+</TabItem>
+</Tabs>
+
+## Quick start
+
+You need PostgreSQL running locally (or anywhere reachable).
+
+<Steps>
+
+1. Create the database and initialize an engagement:
+
+   ```sh
+   createdb ccartex
+   artex init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
+   ```
+
+   `init` creates the schema, sets up the engagement, generates a CA certificate for HTTPS interception, and prints trust instructions for your OS. See [Proxy CA trust](/docs/configuration/#proxy-ca-trust).
+
+2. Add the MCP server to Claude Code, in `~/.claude.json` or a project `.mcp.json`:
+
+   ```json
+   {
+     "mcpServers": {
+       "artex": {
+         "command": "artex",
+         "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
+       }
+     }
+   }
+   ```
+
+   `--proxy` starts a recording MITM proxy alongside the MCP server. Point your tools at `http://localhost:8788` to capture traffic. Without it, the traffic tools are not registered and ARTEX runs as a pure data server.
+
+3. Start Claude Code and ask:
+
+   ```
+   Pentest example.com, starting with reconnaissance.
+   ```
+
+   Claude calls `graph_overview` to orient, then inserts assets, plans intents, tests surfaces, records findings and tracks coverage. If you stop and come back later, `graph_overview` brings it back up to speed.
+
+</Steps>
+
+For Cursor, Cline, Windsurf, Zed and other clients, see [MCP clients](/docs/mcp-clients/). To let Claude run on its own, see [Hands-free mode](/docs/hands-free/).
+
+## Docker
+
+`docker compose up` starts PostgreSQL and ARTEX together. On first run it creates the database schema and a default engagement. The MCP server listens on `localhost:9400` and the recording proxy on `localhost:8788`.
+
+To set the engagement goal:
+
+```sh
+ARTEX_GOAL="Pentest example.com" docker compose up
+```
+
+Connect Claude Code over HTTP:
+
+```json
+{
+  "mcpServers": {
+    "artex": {
+      "type": "http",
+      "url": "http://localhost:9400/mcp",
+      "headers": { "Authorization": "Bearer <token>" }
+    }
+  }
+}
+```
+
+The container generates a new bearer token every time it starts and writes a ready-made config containing it to `/app/data/mcp-config.json`. Read it with `docker compose exec artex cat /app/data/mcp-config.json` and update the header after each restart.
+
+Or use the stdio transport through Docker:
+
+```json
+{
+  "mcpServers": {
+    "artex": {
+      "command": "docker",
+      "args": [
+        "compose", "exec", "-T", "artex",
+        "/app/artex-cc", "serve", "--stdio",
+        "--pg", "postgres://ccartex:ccartex@postgres:5432/ccartex?sslmode=disable",
+        "--data", "/app/data", "--proxy", "127.0.0.1:0"
+      ]
+    }
+  }
+}
+```
+
+The container's main process already runs the recording proxy on `:8788`, so this second process takes a throwaway port (`127.0.0.1:0`) only to enable the traffic tools. Both read the same captured traffic.
+
+The Docker image also enables the [web UI](/docs/web-ui/) at `http://localhost:9400`.
+
+## Next steps
+
+- [Configuration](/docs/configuration/): flags, environment variables, credential encryption.
+- [Example walkthrough](/docs/walkthrough/): a full engagement, phase by phase.
+- [Tool reference](/docs/tools/): every tool and its parameters.
