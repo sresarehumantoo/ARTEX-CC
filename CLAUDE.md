@@ -32,7 +32,7 @@ Add to `~/.claude.json` (or project `.mcp.json`):
 
 Without `--proxy`, traffic capture tools are not registered.
 
-**Docker (all-in-one):** `docker compose up` starts PostgreSQL and ARTEX together. Use `http://localhost:9400/mcp` (type `http`) as the MCP endpoint with the bearer token from `/app/data/mcp-config.json` in the container (regenerated on every start), or the Docker stdio config from README.md.
+**Docker (all-in-one):** `docker compose up` starts PostgreSQL and ARTEX together. Use `http://localhost:9400/mcp` (type `http`) as the MCP endpoint with the bearer token from `/app/data/mcp-config.json` in the container (regenerated on every start), or the Docker stdio config from the [getting started](https://artex-cc.com/docs/getting-started/#docker) page.
 
 ## Start a pentest
 
