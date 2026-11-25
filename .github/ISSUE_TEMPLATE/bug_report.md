@@ -16,7 +16,7 @@ labels: bug
 <!-- What should have happened? -->
 
 ## Environment
-- artex version:
+- artex-cc version:
 - Go version:
 - OS:
 - MCP client (Claude Code, Cline, etc.):

@@ -8,7 +8,7 @@ docker compose up -d postgres          # Docker
 createdb ccartex                       # or use an existing PostgreSQL
 
 # 2. Initialize an engagement
-artex init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
+artex-cc init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
 
 # 3. Add MCP config (the init command prints this too)
 ```
@@ -19,7 +19,7 @@ Add to `~/.claude.json` (or project `.mcp.json`):
 {
   "mcpServers": {
     "artex": {
-      "command": "artex",
+      "command": "artex-cc",
       "args": [
         "serve", "--stdio",
         "--pg", "postgres://localhost/ccartex",
@@ -70,18 +70,18 @@ The `init` command generates a CA certificate at `traffic/_ca/mitmproxy-ca-cert.
 
 ## Common issues
 
-**PostgreSQL not running:** `artex serve` exits with "failed to open store". Start PostgreSQL or run `docker compose up -d postgres`.
+**PostgreSQL not running:** `artex-cc serve` exits with "failed to open store". Start PostgreSQL or run `docker compose up -d postgres`.
 
-**No engagement config:** "failed to load engagement config" means `.artex.json` is missing from the data directory. Run `artex init` first, or point `--data` at the directory where you ran init.
+**No engagement config:** "failed to load engagement config" means `.artex.json` is missing from the data directory. Run `artex-cc init` first, or point `--data` at the directory where you ran init.
 
 **Credential key invalid:** "invalid credential key" means `ARTEX_CREDENTIAL_KEY` is set but not valid hex or not 32 bytes. Unset it to skip encryption, or generate a valid key: `openssl rand -hex 32`.
 
-**Proxy CA not trusted:** HTTPS traffic through the proxy fails with certificate errors. Trust the CA cert (see `artex init` output for the command).
+**Proxy CA not trusted:** HTTPS traffic through the proxy fails with certificate errors. Trust the CA cert (see `artex-cc init` output for the command).
 
 **Traffic tools missing:** The eleven `traffic_*` tools and `bind_finding_traffic` only appear when `--proxy` is set on `serve`.
 
 ## Shell completion
 
 ```sh
-eval "$(artex completion zsh)"    # or bash/fish
+eval "$(artex-cc completion zsh)"    # or bash/fish
 ```

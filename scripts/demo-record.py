@@ -161,7 +161,7 @@ RESPONSES = {
           {
             "mcpServers": {
               "artex": {
-                "command": "artex",
+                "command": "artex-cc",
                 "args": ["serve", "--stdio", "--pg", "$ARTEX_PG"]
               }
             }
@@ -255,7 +255,7 @@ RESPONSES = {
 def write_mock_helper(tmpdir):
     """Write a Python mock helper and a JSON data file into tmpdir.
 
-    The helper handles both ``artex init`` (via alias) and
+    The helper handles both ``artex-cc init`` (via alias) and
     ``artex-call <tool>`` for simulated MCP tool invocations.
     """
     data_path = os.path.join(tmpdir, "responses.json")
@@ -293,7 +293,7 @@ helper = write_mock_helper(tmpdir)
 
 r = Recorder()
 
-aliases = (f"alias artex='{helper} --init #'; "
+aliases = (f"alias artex-cc='{helper} --init #'; "
            f"alias artex-call='{helper}'")
 r.setup(extra_cmds=aliases)
 r.beat(0.6)
@@ -302,7 +302,7 @@ r.beat(0.6)
 r.type("# create a new pentest engagement")
 r.key("Enter", 0.3)
 r.type(
-    'artex init --goal "Pentest $ARTEX_DOMAIN ($ARTEX_TARGET)" '
+    'artex-cc init --goal "Pentest $ARTEX_DOMAIN ($ARTEX_TARGET)" '
     '--description "External pentest" --pg "$ARTEX_PG"'
 )
 r.key("Enter", 0.2)

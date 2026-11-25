@@ -5,15 +5,15 @@ description: Fixes for the errors people hit most often when setting up ARTEX.
 
 ## `failed to open store`
 
-`artex serve` cannot reach PostgreSQL with the DSN you gave. Start PostgreSQL, or run `docker compose up -d postgres`, and check the DSN with:
+`artex-cc serve` cannot reach PostgreSQL with the DSN you gave. Start PostgreSQL, or run `docker compose up -d postgres`, and check the DSN with:
 
 ```sh
-artex health --pg "postgres://localhost/ccartex"
+artex-cc health --pg "postgres://localhost/ccartex"
 ```
 
 ## `failed to load engagement config`
 
-`.artex.json` is missing from the data directory. Run `artex init` first, or point `--data` at the directory where you ran it.
+`.artex.json` is missing from the data directory. Run `artex-cc init` first, or point `--data` at the directory where you ran it.
 
 ## `invalid credential key`
 
@@ -21,7 +21,7 @@ artex health --pg "postgres://localhost/ccartex"
 
 ## HTTPS through the proxy fails with certificate errors
 
-The proxy CA is not trusted. Trust `traffic/_ca/mitmproxy-ca-cert.pem` using the instructions `artex init` printed, or pass it to the tool directly (for example `curl --cacert`). See [Proxy CA trust](/docs/configuration/#proxy-ca-trust).
+The proxy CA is not trusted. Trust `traffic/_ca/mitmproxy-ca-cert.pem` using the instructions `artex-cc init` printed, or pass it to the tool directly (for example `curl --cacert`). See [Proxy CA trust](/docs/configuration/#proxy-ca-trust).
 
 ## Traffic tools are missing
 
