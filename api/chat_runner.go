@@ -419,12 +419,6 @@ func (r *Runner) pump(id string, rc *runningConv, stdout io.Reader) {
 		os.Remove(rc.mcpConfig)
 	}
 
-	r.mu.Lock()
-	if r.processes[id] == rc {
-		delete(r.processes, id)
-	}
-	r.mu.Unlock()
-
 	if err != nil && !rc.stopping.Load() {
 		msg := rc.stderr.String()
 		if msg == "" {
@@ -433,6 +427,14 @@ func (r *Runner) pump(id string, rc *runningConv, stdout io.Reader) {
 		r.emit(id, ChatEvent{Kind: ChatKindError, Text: msg, IsError: true})
 	}
 	r.setStatus(id, ChatStatusIdle)
+
+	// Deregister only after the store writes above, so a new Start for this
+	// conversation cannot have its status overwritten by this exiting pump.
+	r.mu.Lock()
+	if r.processes[id] == rc {
+		delete(r.processes, id)
+	}
+	r.mu.Unlock()
 	r.publishStatus(id, "stopped")
 	close(rc.done)
 }
