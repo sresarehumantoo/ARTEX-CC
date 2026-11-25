@@ -3,6 +3,8 @@ title: Roadmap
 description: "What is done, what is next, and the longer-term plans for ARTEX-CC."
 ---
 
+import toolStats from '../../data/tool-stats.json';
+
 ## 1. Current state summary
 
 ARTEX is a working MCP tool server for penetration testing. It exposes ARTEX's
@@ -10,7 +12,7 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 
 **Lines of code:** ~31,000 Go.
 
-**Tool count:** 62 registered tools (core + traffic + evidence + enrich + ingest + scope + intent + activity + triage + coverage).
+**Tool count:** {toolStats.tools} registered tools (core + traffic + evidence + enrich + ingest + scope + intent + activity + triage + coverage).
 
 **Test count:** 910+ test runs across all packages.
 
