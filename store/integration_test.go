@@ -673,7 +673,8 @@ func TestIsInScopeEmptyTarget(t *testing.T) {
 
 func TestCredentialsEncrypted(t *testing.T) {
 	t.Parallel()
-	s := testDB(t)
+	// A private Store so the key never leaks onto the shared one used by parallel tests.
+	s := &Store{DB: testDB(t).DB}
 	ctx := context.Background()
 	taskID, _ := testEngagement(t, s, "creds-encrypted")
 
@@ -682,7 +683,6 @@ func TestCredentialsEncrypted(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.SetCredentialKey(key)
-	defer s.SetCredentialKey(nil)
 
 	_, err := s.SaveCredential(ctx, taskID, tools.CredentialInput{
 		Domain:   fmt.Sprintf("enc-test-%d.com", os.Getpid()),
