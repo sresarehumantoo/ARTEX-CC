@@ -41,6 +41,8 @@ With `--web` (which the Docker image uses), `/mcp` requires `Authorization: Bear
 docker compose exec artex cat /app/data/mcp-config.json
 ```
 
+A rejected `X-Artex-Identity` header gets `400` with the reason in the body, not `401`. See [When a token is rejected](/docs/mcp-clients/#when-a-token-is-rejected).
+
 ## Claude repeats work or forgets what it did
 
 Make sure it calls `graph_overview` at the start of each planning cycle. Clients that do not read MCP resources (Zed, for example) never receive the `artex://engagement` workflow guide, so start the conversation with "call `graph_overview`".

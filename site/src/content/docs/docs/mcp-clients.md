@@ -84,7 +84,27 @@ Claude Code expands `${ARTEX_MCP_TOKEN}` from its environment. Leave out `--bear
 - `artex-cc identity show --data ./pentest -` reads a token from stdin and prints its name, key ID, issue and expiry times, and whether it verifies, without printing the token. With no token it prints the current key ID.
 - `artex-cc identity rotate --data ./pentest` replaces the key, which revokes every token issued from that directory, including those of running web UI chat conversations (resume them to get a new one). Running servers pick up the new key without a restart. There is no per-token revocation; keep TTLs short instead.
 
-A server that verifies identities rejects a request whose `X-Artex-Identity` is malformed, expired or signed by another key with HTTP 401, so a stale token fails loudly. Requests without the header behave as before. A server older than the identity release ignores the header, and claims fall back to the MCP session or the `owner` argument.
+A server that verifies identities rejects a request whose `X-Artex-Identity` is malformed, expired or signed by another key with HTTP 400 and the reason in the body, so a stale token fails loudly, and logs a warning. Requests without the header behave as before. A server older than the identity release ignores the header, and claims fall back to the MCP session or the `owner` argument.
+
+### When a token is rejected
+
+A rejected token stops the client from connecting at all, not just from claiming. Claude Code 2.1 reports it as `Connection failed (400): Error POSTing to endpoint: invalid X-Artex-Identity: identity token expired` (or another reason). ARTEX 0.6.0 answered a rejected identity with HTTP 401, which Claude Code treats as an OAuth challenge, so it reported an error such as `Dynamic Client Registration rejected (HTTP 404): 404 page not found` instead of the reason. If you see that against an ARTEX 0.6.0 server, check the identity token before anything OAuth related. In `claude --print` a server that fails to connect is not fatal, so the run can exit 0 without ARTEX tools.
+
+On the server, each rejection logs one warning with the reason, the claimed name and the key ID:
+
+```
+level=WARN msg="identity rejected" reason=unknown_key name=recon-1 key_id=121e164b remote=192.0.2.10:51234
+```
+
+`reason` is `malformed`, `bad_signature`, `expired`, `unknown_key` (signed under a rotated key or another data directory) or `header` (empty or repeated header). The name and key ID come from the unverified token and are left empty when they do not look like a name or key ID that `identity issue` produces. The token itself is never logged.
+
+Check the token against the server's data directory:
+
+```sh
+artex-cc identity show --data ./pentest - < recon-1.token
+```
+
+`Valid: no (...)` gives the reason. `Token key` differing from `Key ID` means the key was rotated, or the token came from another data directory. `Expires` in the past means it expired. Issue a new token from the data directory the server uses (`artex-cc identity issue --data ./pentest --name recon-1 ...`) and replace the header value in the client config; reusing the same name keeps that identity's claims.
 
 ### Requiring an identity
 
@@ -199,4 +219,5 @@ Notes:
 
 - `failed to open store`: PostgreSQL is not reachable with the DSN you gave. Start it or run `docker compose up -d postgres`.
 - Server never appears: run the exact command and args from a terminal to see the error, and confirm `artex-cc` is on the client's `PATH`.
+- HTTP client fails to connect with `invalid X-Artex-Identity`, or (against ARTEX 0.6.0) an OAuth or `Dynamic Client Registration` error: the `X-Artex-Identity` token is probably invalid, expired or from before a key rotation. See [When a token is rejected](#when-a-token-is-rejected).
 - Use `ARTEX_PG` in the client's `env` block instead of `--pg` if you prefer to keep the DSN out of the args.

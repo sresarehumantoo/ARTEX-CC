@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"sort"
 	"sync"
 	"time"
@@ -19,19 +20,27 @@ const IdentityHeader = "X-Artex-Identity"
 // were signed with a per-process key, so none can still be valid.
 const retiredConversationHeader = "X-Artex-Conversation"
 
-var identityRejections = []error{
-	identity.ErrMalformed,
-	identity.ErrUnknownKey,
-	identity.ErrBadSignature,
-	identity.ErrExpired,
+var identityRejections = []struct {
+	err    error
+	reason string
+}{
+	{identity.ErrMalformed, "malformed"},
+	{identity.ErrUnknownKey, "unknown_key"},
+	{identity.ErrBadSignature, "bad_signature"},
+	{identity.ErrExpired, "expired"},
 }
+
+var keyIDPattern = regexp.MustCompile(`^[0-9a-f]{8}$`)
 
 // IdentityMiddleware verifies IdentityHeader and puts the verified name on
 // the request context, where mcp-go passes it on to tool handlers in both
 // protocol eras. Requests without the header pass through unchanged. A
 // header that is present but does not verify, including an empty or repeated
-// one, gets 401 so a misconfigured client fails loudly instead of claiming
-// anonymously. A request carrying the retired X-Artex-Conversation header
+// one, gets 400 so a misconfigured client fails loudly instead of claiming
+// anonymously, and the rejection is logged. Not 401 or 403: Claude Code reads
+// a 401 as an OAuth challenge and caches a 403 as "needs authentication",
+// and both hide the reason. A request carrying the retired
+// X-Artex-Conversation header
 // gets 400, so a stale web chat process stops instead of moving its claims
 // to another holder. Mount it after bearer auth.
 func (s *Server) IdentityMiddleware(signer *identity.Signer) func(http.Handler) http.Handler {
@@ -47,14 +56,17 @@ func (s *Server) IdentityMiddleware(signer *identity.Signer) func(http.Handler) 
 				return
 			}
 			if len(values) != 1 || values[0] == "" {
-				http.Error(w, "invalid "+IdentityHeader+": want exactly one non-empty token", http.StatusUnauthorized)
+				slog.Warn("identity rejected", "reason", "header", "headers", len(values), "remote", r.RemoteAddr)
+				http.Error(w, "invalid "+IdentityHeader+": want exactly one non-empty token", http.StatusBadRequest)
 				return
 			}
 			claims, err := signer.Verify(values[0])
 			if err != nil {
 				for _, reject := range identityRejections {
-					if errors.Is(err, reject) {
-						http.Error(w, "invalid "+IdentityHeader+": "+err.Error(), http.StatusUnauthorized)
+					if errors.Is(err, reject.err) {
+						name, keyID := claimedIdentity(values[0])
+						slog.Warn("identity rejected", "reason", reject.reason, "name", name, "key_id", keyID, "remote", r.RemoteAddr)
+						http.Error(w, "invalid "+IdentityHeader+": "+err.Error(), http.StatusBadRequest)
 						return
 					}
 				}
@@ -66,6 +78,23 @@ func (s *Server) IdentityMiddleware(signer *identity.Signer) func(http.Handler) 
 			next.ServeHTTP(w, r.WithContext(tools.WithIdentity(r.Context(), claims.Name)))
 		})
 	}
+}
+
+// claimedIdentity returns the unverified name and key ID of token for
+// logging, each empty unless it has the shape a signer would issue, so a
+// crafted payload cannot put arbitrary text in the log.
+func claimedIdentity(token string) (name, keyID string) {
+	c, err := identity.Decode(token)
+	if err != nil {
+		return "", ""
+	}
+	if identity.ValidateName(c.Name) == nil {
+		name = c.Name
+	}
+	if keyIDPattern.MatchString(c.KeyID) {
+		keyID = c.KeyID
+	}
+	return name, keyID
 }
 
 // identitySeen records when each verified identity last made a request, for

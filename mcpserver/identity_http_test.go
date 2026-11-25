@@ -285,8 +285,8 @@ func TestChatIdentitiesHoldClaimsAcrossRestart(t *testing.T) {
 		resp := postModern(t, rotated, h, "start_intent", map[string]any{"node_id": 10})
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		if resp.StatusCode != http.StatusUnauthorized || !strings.Contains(string(body), "unknown key ID") {
-			t.Errorf("%s after rotation: HTTP %d %s, want 401 unknown key ID", name, resp.StatusCode, body)
+		if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(body), "unknown key ID") {
+			t.Errorf("%s after rotation: HTTP %d %s, want 400 unknown key ID", name, resp.StatusCode, body)
 		}
 	}
 }
@@ -375,8 +375,8 @@ func TestIdentityRejectsBadTokens(t *testing.T) {
 			t.Helper()
 			defer resp.Body.Close()
 			body, _ := io.ReadAll(resp.Body)
-			if resp.StatusCode != http.StatusUnauthorized {
-				t.Errorf("%s on %s: HTTP %d %s, want 401", name, era, resp.StatusCode, body)
+			if resp.StatusCode != http.StatusBadRequest {
+				t.Errorf("%s on %s: HTTP %d %s, want 400", name, era, resp.StatusCode, body)
 			}
 			if !strings.Contains(string(body), mcpserver.IdentityHeader) {
 				t.Errorf("%s on %s: body %q does not name the header", name, era, body)
@@ -396,8 +396,8 @@ func TestIdentityRejectsBadTokens(t *testing.T) {
 	} {
 		resp := postModern(t, url, h, "complete_intent", map[string]any{"node_id": 10})
 		resp.Body.Close()
-		if resp.StatusCode != http.StatusUnauthorized {
-			t.Errorf("%s header: HTTP %d, want 401", name, resp.StatusCode)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("%s header: HTTP %d, want 400", name, resp.StatusCode)
 		}
 	}
 	if got := st.owner(10); got != "id:alice" || st.nodes[10].State != "running" {
@@ -420,8 +420,8 @@ func TestIdentityRejectsTokensAfterRotation(t *testing.T) {
 	resp := postModern(t, url, identityHeader(old), "start_intent", map[string]any{"node_id": 10})
 	body, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusUnauthorized || !strings.Contains(string(body), "unknown key ID") {
-		t.Fatalf("pre-rotation token: HTTP %d %s, want 401 unknown key ID", resp.StatusCode, body)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(body), "unknown key ID") {
+		t.Fatalf("pre-rotation token: HTTP %d %s, want 400 unknown key ID", resp.StatusCode, body)
 	}
 	if out, isErr := modernTool(t, url, identityHeader(issue(t, dir, "alice")), "start_intent", map[string]any{"node_id": 10}); isErr {
 		t.Fatalf("post-rotation token = %q", out)
