@@ -16,6 +16,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - Claims held by an identity are labeled with the identity name in `claimed_by`, `list_changes`, claim errors and exports (`<name>/h-...` when `owner` subdivides it). Anonymous holders keep their hashed labels.
 - The MCP HTTP transport's logs redact anything shaped like an identity token.
+- Web UI chat conversations hold claims as the identity `chat/<conversation id>`, minted from `identity.key` each time a conversation starts or resumes, so labels show that name and a resumed conversation keeps its claims across a server restart. This replaces the in-memory `X-Artex-Conversation` signer; a request still sending `X-Artex-Conversation` gets HTTP 400 telling the caller to start a new conversation.
 
 ## [0.5.1] - 2026-11-25
 

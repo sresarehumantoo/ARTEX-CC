@@ -82,7 +82,7 @@ Claude Code expands `${ARTEX_MCP_TOKEN}` from its environment. Leave out `--bear
 - The token is a credential for claims only. It grants no access without the bearer token, and the bearer token alone still reaches every tool.
 - The signing key is `identity.key` in the data directory. Every server process serving that directory accepts the same tokens; a server with a different `--data` rejects them.
 - `artex-cc identity show --data ./pentest -` reads a token from stdin and prints its name, key ID, issue and expiry times, and whether it verifies, without printing the token. With no token it prints the current key ID.
-- `artex-cc identity rotate --data ./pentest` replaces the key, which revokes every token issued from that directory. Running servers pick up the new key without a restart. There is no per-token revocation; keep TTLs short instead.
+- `artex-cc identity rotate --data ./pentest` replaces the key, which revokes every token issued from that directory, including those of running web UI chat conversations (resume them to get a new one). Running servers pick up the new key without a restart. There is no per-token revocation; keep TTLs short instead.
 
 A server that verifies identities rejects a request whose `X-Artex-Identity` is malformed, expired or signed by another key with HTTP 401, so a stale token fails loudly. Requests without the header behave as before. A server older than the identity release ignores the header, and claims fall back to the MCP session or the `owner` argument.
 
