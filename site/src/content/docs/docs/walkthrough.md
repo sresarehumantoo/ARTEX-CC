@@ -1,4 +1,7 @@
-# Example engagement walkthrough
+---
+title: Example walkthrough
+description: "A complete bug bounty engagement against a fictional target, from first contact to final report."
+---
 
 This document walks through a complete bug bounty engagement against a
 hypothetical target, `app.example.com`, using ARTEX and Claude Code. It

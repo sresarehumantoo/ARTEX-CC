@@ -34,7 +34,7 @@ Add to `.mcp.json` in the working directory (or `~/.claude.json` globally):
       "args": [
         "serve", "--stdio",
         "--pg", "postgres://localhost/ccartex_htb",
-        "--data", "/home/owen/htb/management",
+        "--data", "/path/to/htb/management",
         "--proxy", ":8788"
       ]
     }

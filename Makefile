@@ -1,4 +1,4 @@
-.PHONY: all build web install dev test lint golangci-lint fmt fmt-check vet ci pre-commit hooks clean coverage help
+.PHONY: all build web site site-dev install dev test lint golangci-lint fmt fmt-check vet ci pre-commit hooks clean coverage help
 
 all: build
 
@@ -8,6 +8,8 @@ help:
 	@echo "  build       Build frontend then Go binary"
 	@echo "  install     Install artex-cc to GOPATH/bin"
 	@echo "  web         Build frontend to web/dist/"
+	@echo "  site        Build the docs site to site/dist/"
+	@echo "  site-dev    Run the docs site dev server"
 	@echo "  dev         Print instructions for local development"
 	@echo "  test        Run Go tests"
 	@echo "  lint        Type-check frontend"
@@ -27,6 +29,16 @@ web: web/node_modules
 web/node_modules: web/package.json web/package-lock.json
 	cd web && npm ci
 	@touch $@
+
+site/node_modules: site/package.json site/package-lock.json
+	cd site && npm ci
+	@touch $@
+
+site: site/node_modules
+	cd site && npm run build
+
+site-dev: site/node_modules
+	cd site && npm run dev
 
 build: web
 	go build -o artex-cc ./cmd/artex-cc
@@ -72,4 +84,4 @@ coverage:
 	@echo "Coverage report written to coverage.html"
 
 clean:
-	rm -rf web/dist artex-cc
+	rm -rf web/dist site/dist artex-cc

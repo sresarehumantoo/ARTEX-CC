@@ -1,0 +1,20 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { getEntry, render } from 'astro:content';
+
+interface Props {
+  id: string;
+  title: string;
+  description: string;
+}
+
+const { id, title, description } = Astro.props;
+const entry = await getEntry('repo', id);
+if (!entry) throw new Error(`${id} not found in the repo collection`);
+const { Content, headings } = await render(entry);
+const editUrl = `https://github.com/SREsAreHumanToo/ARTEX-CC/edit/main/${entry.data.file}`;
+---
+
+<StarlightPage frontmatter={{ title, description, editUrl }} headings={headings}>
+  <Content />
+</StarlightPage>

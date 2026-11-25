@@ -1,0 +1,30 @@
+---
+interface Props {
+  command: string;
+  class?: string;
+}
+
+const { command, class: className } = Astro.props;
+const lines = command.split('\n');
+---
+
+<div
+  class:list={[
+    'flex items-start gap-3 rounded-lg border border-line bg-black/40 py-2 pr-2 pl-4 font-mono text-sm',
+    className,
+  ]}
+>
+  <pre class="min-w-0 flex-1 overflow-x-auto py-1 leading-6"><code>{
+    lines.map((line) => (
+      <span class="block whitespace-pre"><span class="text-sky-400 select-none" aria-hidden="true">$ </span><span class="text-neutral-100">{line}</span></span>
+    ))
+  }</code></pre>
+  <button
+    type="button"
+    data-copy={command}
+    aria-label={`Copy: ${command}`}
+    class="shrink-0 cursor-pointer rounded-md border border-line px-2.5 py-1 text-xs text-neutral-400 transition hover:border-neutral-500 hover:text-neutral-100"
+  >
+    Copy
+  </button>
+</div>

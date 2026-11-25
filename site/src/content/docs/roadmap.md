@@ -1,4 +1,7 @@
-# ARTEX Roadmap
+---
+title: Roadmap
+description: "What is done, what is next, and the longer-term plans for ARTEX-CC."
+---
 
 ## 1. Current state summary
 
@@ -39,7 +42,7 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 - **Structured logging:** slog-based JSON logging across all packages.
 - **CI:** GitHub Actions with fmt-check, `go build`, `go vet`, `go test`, Codecov coverage reporting, and store tests against a real PostgreSQL instance.
 - **Distribution:** v0.1.1 released with cross-platform binaries (goreleaser), .deb packaging, Dockerfile, Homebrew formula auto-generated.
-- **Documentation:** Tool reference (docs/TOOLS.md), MCP client configs (docs/MCP_CLIENTS.md), AGENTS.md contributor guide, demo GIF.
+- **Documentation:** [Tool reference](/docs/tools/), [MCP client configs](/docs/mcp-clients/), AGENTS.md contributor guide, demo GIF.
 - **Community files:** AGPL-3.0 license, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, example engagement walkthrough, godoc comments on all exported types. Zero open issues, 76+ PRs merged.
 
 

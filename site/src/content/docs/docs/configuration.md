@@ -1,0 +1,114 @@
+---
+title: Configuration
+description: Commands, flags, environment variables, credential encryption and proxy CA trust.
+---
+
+ARTEX reads its PostgreSQL connection string from `--pg` or the `ARTEX_PG` environment variable. The engagement state lives in `.artex.json` in the data directory (`--data`, defaults to `.`). Config files can be JSON or TOML; the file extension picks the parser.
+
+## Commands
+
+| Command | What it does |
+|---------|--------------|
+| `artex serve` | Start the MCP tool server (stdio or HTTP) |
+| `artex init` | Create the schema and a new engagement, generate the proxy CA |
+| `artex health` | Check PostgreSQL connectivity |
+| `artex completion` | Print a shell completion script (`bash`, `zsh`, `fish`) |
+| `artex version` | Print the version (`--json` for build details) |
+
+```sh
+# Serve over stdio (Claude Code)
+artex serve --stdio --pg "postgres://localhost/ccartex"
+
+# Serve with the recording proxy
+artex serve --stdio --pg "postgres://localhost/ccartex" --proxy :8788
+
+# Serve over HTTP (other clients), with the web UI
+artex serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --web
+
+# Start a new engagement
+artex init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.example.com"
+```
+
+## `serve` flags
+
+| Flag | Purpose | Default |
+|------|---------|---------|
+| `--pg DSN` | PostgreSQL connection string (or `ARTEX_PG`) | none, required |
+| `--stdio` | Use the stdio transport instead of HTTP | off |
+| `--listen ADDR` | HTTP listen address (or `ARTEX_LISTEN`) | `localhost:9400` |
+| `--web` | Enable the [web UI](/docs/web-ui/) and REST API | off |
+| `--auth` | Require password login for the web UI on a loopback listener (or `ARTEX_AUTH`) | off |
+| `--proxy ADDR` | Start the recording MITM proxy on `ADDR`, for example `:8788` | off |
+| `--data DIR` | Directory for traffic, evidence and the engagement config | `.` |
+| `--claude-bin PATH` | `claude` CLI used by the web UI chat (or `ARTEX_CLAUDE_BIN`) | `claude` |
+| `--plugin-dir DIR` | Plugin directory (or `ARTEX_PLUGIN_DIR`) | `~/.artex/plugins` |
+| `--no-plugins` | Disable plugin loading | off |
+| `--timeout N` | Graceful shutdown timeout in seconds | `30` |
+| `--debug` | Debug-level logging | off |
+
+Without `--proxy`, the eleven `traffic_*` tools and `bind_finding_traffic` are not registered.
+
+## `init` flags
+
+| Flag | Purpose | Default |
+|------|---------|---------|
+| `--pg DSN` | PostgreSQL connection string (or `ARTEX_PG`) | none, required |
+| `--goal TEXT` | Engagement goal | |
+| `--description TEXT` | Target description | |
+| `--data DIR` | Where to write `.artex.json` and the proxy CA | `.` |
+| `--dry-run` | Show what would be created without creating it | off |
+| `--format FMT` | Output format, `text` or `json` | `text` |
+
+## Environment variables
+
+Each variable is a fallback for the matching flag; a flag on the command line wins.
+
+| Variable | Flag | Purpose | Default |
+|----------|------|---------|---------|
+| `ARTEX_PG` | `--pg` | PostgreSQL connection string | none, required |
+| `ARTEX_LISTEN` | `--listen` | HTTP listen address for `serve` | `localhost:9400` |
+| `ARTEX_AUTH` | `--auth` | Require password login for the web UI on a loopback listener (`1`/`true`). Non-loopback listeners always require it. | off |
+| `ARTEX_CREDENTIAL_KEY` | | Hex-encoded 32-byte AES-256-GCM key for encrypting stored credentials | none (plaintext) |
+| `ARTEX_CLAUDE_BIN` | `--claude-bin` | Path to the `claude` CLI used by the web UI chat | `claude` |
+| `ARTEX_PLUGIN_DIR` | `--plugin-dir` | Plugin directory | `~/.artex/plugins` |
+| `ARTEX_NOISE_PROFILE` | | Egress pacing profile: `off`, `quiet`, `balanced` or `aggressive` | `off` |
+| `ARTEX_TARGET_USER_AGENT` | | User-Agent for outbound requests when the noise profile is not `off` | original header kept |
+
+The Docker image also reads these on startup:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `ARTEX_GOAL` | Goal for the engagement created on first run | `Pentest engagement` |
+| `ARTEX_PROXY` | Recording proxy listen address | `:8788` |
+
+## Credential encryption
+
+Set `ARTEX_CREDENTIAL_KEY` to a hex-encoded 32-byte key to encrypt stored credential passwords with AES-256-GCM:
+
+```sh
+export ARTEX_CREDENTIAL_KEY=$(openssl rand -hex 32)
+```
+
+Without it, credentials are stored in plaintext and the server logs a warning at startup. Keep the key somewhere durable: credentials encrypted with a lost key cannot be recovered.
+
+If the server exits with `invalid credential key`, the variable is set but is not valid hex or not 32 bytes. Unset it to skip encryption, or generate a new one with the command above.
+
+## Recording proxy
+
+When `--proxy` is set, ARTEX starts a recording MITM proxy on the given address. Configure your HTTP client, browser or scanner to use it, and the proxy captures every request and response for the [traffic tools](/docs/tools/traffic/): search, inspection, replay, HAR export and binding to findings.
+
+## Proxy CA trust
+
+`artex init` generates a CA certificate at `traffic/_ca/mitmproxy-ca-cert.pem` (under the data directory) and prints OS-specific trust instructions. Until the CA is trusted, HTTPS through the proxy fails with certificate errors.
+
+For a single tool, passing the CA explicitly is often simpler than trusting it system-wide:
+
+```sh
+curl --proxy http://localhost:8788 --cacert traffic/_ca/mitmproxy-ca-cert.pem https://app.example.com/
+```
+
+## Shell completion
+
+```sh
+eval "$(artex completion zsh)"    # or bash, fish
+```

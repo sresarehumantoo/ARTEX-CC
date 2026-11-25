@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Rebuild the README screenshots (docs/screenshots/) and web walkthrough GIF
-# (docs/web-demo.gif) from a throwaway, demo-seeded stack.
+# Rebuild the README screenshots (docs/screenshots/) and web walkthrough GIF and
+# videos (docs/web-demo.*) from a throwaway, demo-seeded stack.
 #
 # Needs: docker compose, python3, ffmpeg, and `npm ci` in web/ (for Playwright,
 # plus `npx playwright install chromium` once). Set KEEP=1 to leave the stack up.
@@ -31,4 +31,10 @@ ffmpeg -v error -y -ss 1.2 -i "$webm" -i "$video/palette.png" \
   -lavfi "$filters [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" \
   "$repo/docs/web-demo.gif"
 
-echo "wrote docs/screenshots/*.png and docs/web-demo.gif"
+ffmpeg -v error -y -ss 1.2 -i "$webm" -vf "$filters" -movflags +faststart -pix_fmt yuv420p \
+  -c:v libx264 -crf 26 -preset slow -an "$repo/docs/web-demo.mp4"
+ffmpeg -v error -y -ss 1.2 -i "$webm" -vf "$filters" -c:v libvpx-vp9 -crf 36 -b:v 0 -row-mt 1 -an \
+  "$repo/docs/web-demo.webm"
+ffmpeg -v error -y -ss 1.2 -i "$webm" -vf "$filters" -frames:v 1 "$repo/docs/web-demo-poster.png"
+
+echo "wrote docs/screenshots/*.png and docs/web-demo.{gif,mp4,webm} plus poster"
