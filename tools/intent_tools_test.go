@@ -356,6 +356,52 @@ func TestCancelIntentFromRunning(t *testing.T) {
 	}
 }
 
+func TestCancelIntentClaimedByOtherSession(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "running"}
+	ms.claims[10] = IntentClaim{NodeID: 10, Owner: "other", ExpiresAt: time.Now().Add(time.Hour)}
+
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+
+	tool, _ := reg.Lookup("cancel_intent")
+	ctx := WithSessionID(context.Background(), "me")
+	r, err := tool.Run(ctx, json.RawMessage(`{"node_id": 10}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !r.IsError || !strings.Contains(r.Content, "claimed by session other") {
+		t.Fatalf("expected claim conflict, got: %s", r.Content)
+	}
+	if ms.nodes[10].State != "running" {
+		t.Errorf("expected state running, got %s", ms.nodes[10].State)
+	}
+}
+
+func TestCancelIntentExpiredClaim(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "running"}
+	ms.claims[10] = IntentClaim{NodeID: 10, Owner: "other", ExpiresAt: time.Now().Add(-time.Minute)}
+
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+
+	tool, _ := reg.Lookup("cancel_intent")
+	ctx := WithSessionID(context.Background(), "me")
+	r, err := tool.Run(ctx, json.RawMessage(`{"node_id": 10}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if r.IsError {
+		t.Fatalf("expected success, got error: %s", r.Content)
+	}
+	if ms.nodes[10].State != "stopped" {
+		t.Errorf("expected state stopped, got %s", ms.nodes[10].State)
+	}
+}
+
 func TestCancelIntentAlreadyDone(t *testing.T) {
 	t.Parallel()
 	ms := newIntentMockStore()

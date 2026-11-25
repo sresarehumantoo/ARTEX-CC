@@ -119,7 +119,8 @@ func makeCancelIntent(store Store) Tool {
 		Name:     "cancel_intent",
 		Category: CategoryExploration,
 		Description: "Cancel an intent that is no longer needed. " +
-			"Use this when an intent is redundant, no longer applicable, or was created in error.",
+			"Use this when an intent is redundant, no longer applicable, or was created in error. " +
+			"Refused while another session holds a live claim on the intent.",
 		Schema: obj(map[string]any{
 			"node_id": intp("intent node id"),
 			"reason":  str("why this intent is being cancelled"),
@@ -150,6 +151,13 @@ func makeCancelIntent(store Store) Tool {
 			terminalStates := map[string]bool{"done": true, "stopped": true, "deleted": true}
 			if terminalStates[node.State] {
 				return errResult(fmt.Sprintf("intent %d is already %q", id, node.State)), nil
+			}
+			// Taking the claim first makes the ownership check atomic: it fails
+			// only while another session holds a live lease.
+			if node.State == "running" {
+				if _, err := store.ClaimIntent(ctx, id, SessionID(ctx), IntentLease); err != nil {
+					return errResult(err.Error()), nil
+				}
 			}
 
 			var merge map[string]any
