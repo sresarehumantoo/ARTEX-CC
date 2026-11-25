@@ -71,12 +71,12 @@ func New(registry *tools.Registry, opts ...Option) *Server {
 
 	hooks := &server.Hooks{}
 	hooks.AddOnRegisterSession(func(_ context.Context, cs server.ClientSession) {
-		s.sessions.GetOrCreate(cs.SessionID())
-		slog.Debug("session registered", "id", cs.SessionID())
+		s.sessions.GetOrCreate(sessionKey(cs))
+		slog.Debug("session registered", "id", sessionKey(cs))
 	})
 	hooks.AddOnUnregisterSession(func(_ context.Context, cs server.ClientSession) {
-		s.sessions.Remove(cs.SessionID())
-		slog.Debug("session unregistered", "id", cs.SessionID())
+		s.sessions.Remove(sessionKey(cs))
+		slog.Debug("session unregistered", "id", sessionKey(cs))
 	})
 
 	s.mcp = server.NewMCPServer(
@@ -139,7 +139,7 @@ func (s *Server) SessionFromContext(ctx context.Context) *Session {
 	if cs == nil {
 		return nil
 	}
-	return s.sessions.Get(cs.SessionID())
+	return s.sessions.Get(sessionKey(cs))
 }
 
 const engagementURI = "artex://engagement"

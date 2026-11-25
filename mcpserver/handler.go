@@ -21,15 +21,19 @@ func convertTool(t tools.Tool) mcp.Tool {
 // separate stdio server processes sharing one database hold distinct claims.
 var stdioSessionID = "stdio-" + randomID()[:8]
 
+func sessionKey(cs server.ClientSession) string {
+	if id := cs.SessionID(); id != "stdio" {
+		return id
+	}
+	return stdioSessionID
+}
+
 func callerSessionID(ctx context.Context) string {
 	cs := server.ClientSessionFromContext(ctx)
 	if cs == nil {
 		return ""
 	}
-	if id := cs.SessionID(); id != "stdio" {
-		return id
-	}
-	return stdioSessionID
+	return sessionKey(cs)
 }
 
 func makeHandlerWithNotifier(t tools.Tool, notifier ToolNotifier) server.ToolHandlerFunc {
