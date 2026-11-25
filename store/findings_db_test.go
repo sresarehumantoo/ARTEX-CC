@@ -315,12 +315,17 @@ func TestDismissFindingMock(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		s, mock := newRegexpMockStore(t)
+		mock.ExpectBegin()
 		mock.ExpectExec(`UPDATE findings SET dismissed = true`).
 			WithArgs("false positive", FindingStatusFalsePositive, int64(1)).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectExec(`UPDATE exploration_nodes SET state = 'dismissed'`).
 			WithArgs(int64(1)).
 			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec(`WITH revoked AS`).
+			WithArgs(int64(1), RelProves, KindGoal).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectCommit()
 
 		err := s.DismissFinding(context.Background(), 1, "false positive")
 		if err != nil {
@@ -333,9 +338,11 @@ func TestDismissFindingMock(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		s, mock := newRegexpMockStore(t)
+		mock.ExpectBegin()
 		mock.ExpectExec(`UPDATE findings SET dismissed = true`).
 			WithArgs("reason", FindingStatusFalsePositive, int64(999)).
 			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectRollback()
 
 		err := s.DismissFinding(context.Background(), 999, "reason")
 		if err == nil {
@@ -433,6 +440,9 @@ func TestMergeFindingsMock(t *testing.T) {
 	mock.ExpectExec(`UPDATE exploration_nodes SET state = 'dismissed'`).
 		WithArgs(int64(20)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`WITH revoked AS`).
+		WithArgs(int64(20), RelProves, KindGoal).
+		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	mock.ExpectExec(`UPDATE findings SET asset_ids`).
 		WithArgs("[1,2]", "primary evidence\n\n[merged from #20]\nsecondary evidence", int64(10)).

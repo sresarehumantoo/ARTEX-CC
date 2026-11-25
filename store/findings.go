@@ -284,6 +284,8 @@ func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs
 		return nil, fmt.Errorf("primary finding %d: %w", primaryID, err)
 	}
 
+	primaryLive := primary.NodeID != nil && !primary.Dismissed && primary.MergedInto == nil
+
 	var primaryAssets []int64
 	_ = json.Unmarshal(primary.AssetIDs, &primaryAssets)
 	assetSet := map[int64]bool{}
@@ -335,6 +337,14 @@ func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs
 		if err != nil {
 			return nil, fmt.Errorf("dismiss secondary %d node: %w", secID, err)
 		}
+		if primaryLive {
+			if err := moveGoalProofsTx(ctx, tx, secID, *primary.NodeID); err != nil {
+				return nil, err
+			}
+		}
+		if err := revokeGoalProofsTx(ctx, tx, secID); err != nil {
+			return nil, err
+		}
 	}
 
 	mergedAssetJSON, _ := json.Marshal(primaryAssets)
@@ -363,7 +373,13 @@ func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs
 }
 
 func (s *Store) DismissFinding(ctx context.Context, findingID int64, reason string) error {
-	res, err := s.ExecContext(ctx,
+	tx, err := s.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	res, err := tx.ExecContext(ctx,
 		"UPDATE findings SET dismissed = true, dismiss_reason = $1, status = $2 WHERE id = $3",
 		reason, FindingStatusFalsePositive, findingID)
 	if err != nil {
@@ -373,8 +389,52 @@ func (s *Store) DismissFinding(ctx context.Context, findingID int64, reason stri
 	if n == 0 {
 		return fmt.Errorf("finding %d not found", findingID)
 	}
-	_, err = s.ExecContext(ctx,
+	if _, err := tx.ExecContext(ctx,
 		`UPDATE exploration_nodes SET state = 'dismissed'
-		 WHERE id = (SELECT node_id FROM findings WHERE id = $1) AND kind = 'finding'`, findingID)
-	return err
+		 WHERE id = (SELECT node_id FROM findings WHERE id = $1) AND kind = 'finding'`, findingID); err != nil {
+		return err
+	}
+	if err := revokeGoalProofsTx(ctx, tx, findingID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// moveGoalProofsTx copies the proves edges of a finding's node onto toNode.
+func moveGoalProofsTx(ctx context.Context, tx *sql.Tx, findingID, toNode int64) error {
+	_, err := tx.ExecContext(ctx, `
+		INSERT INTO exploration_edges (exploration_id, src_id, rel, dst_id)
+		SELECT e.exploration_id, $2, e.rel, e.dst_id
+		FROM exploration_edges e JOIN findings f ON f.node_id = e.src_id
+		WHERE f.id = $1 AND e.rel = $3 AND e.dst_id <> $2
+		ON CONFLICT (exploration_id, src_id, rel, dst_id) DO NOTHING`,
+		findingID, toNode, RelProves)
+	if err != nil {
+		return fmt.Errorf("move goal proofs of finding %d: %w", findingID, err)
+	}
+	return nil
+}
+
+// revokeGoalProofsTx removes the proves edges of a finding's node and reopens
+// each met goal it proved that has no other proof from a live node.
+func revokeGoalProofsTx(ctx context.Context, tx *sql.Tx, findingID int64) error {
+	_, err := tx.ExecContext(ctx, `
+		WITH revoked AS (
+			DELETE FROM exploration_edges e USING findings f
+			WHERE f.id = $1 AND e.src_id = f.node_id AND e.rel = $2
+			RETURNING e.src_id, e.dst_id
+		)
+		UPDATE exploration_nodes g SET state = 'open'
+		FROM revoked r
+		WHERE g.id = r.dst_id AND g.kind = $3 AND g.state = 'met'
+		  AND NOT EXISTS (
+			SELECT 1 FROM exploration_edges pe
+			JOIN exploration_nodes src ON src.id = pe.src_id
+			WHERE pe.dst_id = g.id AND pe.rel = $2
+			  AND pe.src_id <> r.src_id AND src.state <> 'dismissed')`,
+		findingID, RelProves, KindGoal)
+	if err != nil {
+		return fmt.Errorf("revoke goal proofs of finding %d: %w", findingID, err)
+	}
+	return nil
 }
