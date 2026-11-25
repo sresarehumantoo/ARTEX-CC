@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -26,6 +27,7 @@ type Scenario struct {
 	Name        string   `yaml:"name"`
 	Description string   `yaml:"description"`
 	Target      string   `yaml:"target"`
+	Model       string   `yaml:"model"`
 	Goal        string   `yaml:"goal"`
 	Scope       []string `yaml:"scope"`
 	Credentials struct {
@@ -86,6 +88,10 @@ func main() {
 	claudeBin := flag.String("claude", "claude", "path to claude CLI binary")
 	outputDir := flag.String("output", ".", "directory for scorecard output")
 	skipClaude := flag.Bool("dry-run", false, "set up engagement but skip the Claude run (useful for testing the harness)")
+	targetOverride := flag.String("target", "", "override scenario target (URL or IP)")
+	modelOverride := flag.String("model", "", "override scenario model for Claude CLI")
+	mcpConfigFlag := flag.String("mcp-config", "", "path to existing MCP config file (skip generating one)")
+	skipHealth := flag.Bool("skip-health", false, "skip the target health check")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -106,15 +112,26 @@ func main() {
 		log.Fatalf("load scenario: %v", err)
 	}
 
-	slog.Info("loaded scenario", "name", scenario.Name, "target", scenario.Target, "timeout", timeout)
+	if *targetOverride != "" {
+		scenario.Target = *targetOverride
+	}
+	if *modelOverride != "" {
+		scenario.Model = *modelOverride
+	}
+
+	slog.Info("loaded scenario", "name", scenario.Name, "target", scenario.Target, "model", scenario.Model, "timeout", timeout)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	if err := waitForTarget(ctx, scenario.Target, 60*time.Second); err != nil {
-		log.Fatalf("target not reachable: %v", err)
+	if !*skipHealth {
+		if err := waitForTarget(ctx, scenario.Target, 60*time.Second); err != nil {
+			log.Fatalf("target not reachable: %v", err)
+		}
+		slog.Info("target is reachable", "target", scenario.Target)
+	} else {
+		slog.Info("skipping health check", "target", scenario.Target)
 	}
-	slog.Info("target is reachable", "url", scenario.Target)
 
 	s, err := store.Open(ctx, dsn)
 	if err != nil {
@@ -147,7 +164,7 @@ func main() {
 	startedAt := time.Now()
 
 	if !*skipClaude {
-		if err := runClaude(ctx, *claudeBin, *artexBin, dsn, dataDir, scenario, timeout); err != nil {
+		if err := runClaude(ctx, *claudeBin, *artexBin, dsn, dataDir, *mcpConfigFlag, scenario, timeout); err != nil {
 			slog.Warn("claude run ended", "err", err)
 		}
 	} else {
@@ -195,6 +212,13 @@ func loadScenario(path string) (Scenario, time.Duration, error) {
 }
 
 func waitForTarget(ctx context.Context, target string, maxWait time.Duration) error {
+	if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") {
+		return waitForHTTP(ctx, target, maxWait)
+	}
+	return waitForTCP(ctx, target, maxWait)
+}
+
+func waitForHTTP(ctx context.Context, target string, maxWait time.Duration) error {
 	deadline := time.Now().Add(maxWait)
 	healthURL := strings.TrimRight(target, "/")
 	for time.Now().Before(deadline) {
@@ -215,6 +239,28 @@ func waitForTarget(ctx context.Context, target string, maxWait time.Duration) er
 	return fmt.Errorf("target %s not reachable after %s", target, maxWait)
 }
 
+func waitForTCP(ctx context.Context, host string, maxWait time.Duration) error {
+	ports := []string{"22", "445", "88", "80", "443"}
+	deadline := time.Now().Add(maxWait)
+	for time.Now().Before(deadline) {
+		for _, port := range ports {
+			addr := net.JoinHostPort(host, port)
+			conn, err := net.DialTimeout("tcp", addr, 3*time.Second)
+			if err == nil {
+				conn.Close()
+				slog.Info("TCP port open", "addr", addr)
+				return nil
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(2 * time.Second):
+		}
+	}
+	return fmt.Errorf("target %s not reachable on any common port after %s", host, maxWait)
+}
+
 func writeEngagementConfig(dir string, taskID, explorationID int64, sc Scenario) error {
 	cfg := map[string]any{
 		"task_id":        taskID,
@@ -229,7 +275,7 @@ func writeEngagementConfig(dir string, taskID, explorationID int64, sc Scenario)
 	return os.WriteFile(filepath.Join(dir, ".artex.json"), data, 0644)
 }
 
-func runClaude(ctx context.Context, claudeBin, artexBin, dsn, dataDir string, sc Scenario, timeout time.Duration) error {
+func runClaude(ctx context.Context, claudeBin, artexBin, dsn, dataDir, mcpConfigOverride string, sc Scenario, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -245,12 +291,14 @@ func runClaude(ctx context.Context, claudeBin, artexBin, dsn, dataDir string, sc
 		prompt += fmt.Sprintf(" Known credentials: %s / %s.", sc.Credentials.Username, sc.Credentials.Password)
 	}
 
-	mcpConfig := fmt.Sprintf(`{"mcpServers":{"artex":{"command":"%s","args":["serve","--stdio","--pg","%s","--data","%s"]}}}`,
-		artexBin, dsn, dataDir)
-
-	mcpConfigPath := filepath.Join(dataDir, "mcp.json")
-	if err := os.WriteFile(mcpConfigPath, []byte(mcpConfig), 0644); err != nil {
-		return fmt.Errorf("write mcp config: %w", err)
+	mcpConfigPath := mcpConfigOverride
+	if mcpConfigPath == "" {
+		mcpConfig := fmt.Sprintf(`{"mcpServers":{"artex":{"command":"%s","args":["serve","--stdio","--pg","%s","--data","%s"]}}}`,
+			artexBin, dsn, dataDir)
+		mcpConfigPath = filepath.Join(dataDir, "mcp.json")
+		if err := os.WriteFile(mcpConfigPath, []byte(mcpConfig), 0644); err != nil {
+			return fmt.Errorf("write mcp config: %w", err)
+		}
 	}
 
 	args := []string{
@@ -258,15 +306,18 @@ func runClaude(ctx context.Context, claudeBin, artexBin, dsn, dataDir string, sc
 		"--dangerously-skip-permissions",
 		"--mcp-config", mcpConfigPath,
 		"--verbose",
-		"-p", prompt,
 	}
+	if sc.Model != "" {
+		args = append(args, "--model", sc.Model)
+	}
+	args = append(args, "-p", prompt)
 
 	cmd := exec.CommandContext(ctx, claudeBin, args...)
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	cmd.Dir = dataDir
 
-	slog.Info("starting Claude", "bin", claudeBin, "timeout", timeout)
+	slog.Info("starting Claude", "bin", claudeBin, "model", sc.Model, "timeout", timeout)
 	return cmd.Run()
 }
 
