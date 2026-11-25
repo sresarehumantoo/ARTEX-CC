@@ -114,9 +114,12 @@ The rule is scoped to that exact command prefix.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--pg` | `ARTEX_PG` or localhost eval DB | PostgreSQL connection string |
-| `--artex` | `artex` | Path to artex binary |
+| `--artex` | `artex-cc` | Path to the `artex-cc` binary |
 | `--claude` | `claude` | Path to Claude Code CLI binary |
 | `--model` | (scenario or CLI default) | Claude model override |
+| `--target` | (scenario value) | Target URL or IP override |
+| `--mcp-config` | (generated) | Existing MCP config file to use instead of generating one |
+| `--skip-health` | false | Skip the target health check |
 | `--output` | `.` | Directory for scorecard JSON files |
 | `--dry-run` | false | Set up engagement but skip Claude execution |
 

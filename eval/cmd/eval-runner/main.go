@@ -84,7 +84,7 @@ type ScorecardDetail struct {
 
 func main() {
 	pgDSN := flag.String("pg", "", "PostgreSQL connection string (or ARTEX_PG env)")
-	artexBin := flag.String("artex", "artex", "path to artex binary")
+	artexBin := flag.String("artex", "artex-cc", "path to artex-cc binary")
 	claudeBin := flag.String("claude", "claude", "path to claude CLI binary")
 	outputDir := flag.String("output", ".", "directory for scorecard output")
 	skipClaude := flag.Bool("dry-run", false, "set up engagement but skip the Claude run (useful for testing the harness)")
