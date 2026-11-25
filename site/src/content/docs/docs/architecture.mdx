@@ -70,3 +70,20 @@ ARTEX-CC is derived from [ARTEX](https://github.com/BaaRai/ARTEX). Upstream ship
 | Findings | Yes | Same model |
 | Human oversight | Watch the agent run | You steer Claude directly |
 | License | AGPL-3.0 | AGPL-3.0, with ARTEX-derived code credited in NOTICE |
+
+## Compared with other tools
+
+| | ARTEX-CC | PentestGPT | HexStrike AI | Pentest-AI |
+|---|---|---|---|---|
+| **State management** | Exploration graph (persistent, resumable) | Stateless / limited context | None | None |
+| **MCP native** | Yes ({toolStats.tools} tools) | No (agent framework) | Yes (150+ tools) | Yes (205 tools) |
+| **Evidence chains** | Yes (findings linked to assets, coverage, traffic) | No | No | No |
+| **Traffic capture** | Built-in recording proxy with replay | No | No | No |
+| **Multi-client support** | Any MCP client (Claude Code, Cline, Cursor) | Own interface | Claude Code | Claude Code |
+| **License** | AGPL-3.0 | Research | Unknown | Unknown |
+
+The differentiator is not tool count. It is the exploration graph and evidence chain model.
+
+## Compared with manual pentesting
+
+A pentest has a lot of bookkeeping: what you have tested, what you found, what is left, which credentials go where. That bookkeeping is what ARTEX handles. Claude does the reasoning and tool selection, you make the judgment calls, and ARTEX keeps the graph, the findings and the coverage ledger so nothing falls through the cracks.
