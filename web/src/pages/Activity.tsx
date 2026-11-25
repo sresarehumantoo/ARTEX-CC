@@ -18,8 +18,8 @@ function exportActivityCSV(items: ActivityType[]) {
   const rows = items.map(a => [
     a.created_at ? new Date(a.created_at).toISOString() : '',
     a.kind,
-    a.tool,
-    a.summary,
+    a.tool ?? '',
+    a.summary ?? '',
     a.detail ?? '',
     a.node_id != null ? String(a.node_id) : '',
     a.worker ?? '',
@@ -207,9 +207,9 @@ export default function Activity() {
       const q = searchText.toLowerCase()
       items = items.filter(
         a =>
-          a.summary.toLowerCase().includes(q) ||
-          a.tool.toLowerCase().includes(q) ||
-          a.worker.toLowerCase().includes(q),
+          (a.summary ?? '').toLowerCase().includes(q) ||
+          (a.tool ?? '').toLowerCase().includes(q) ||
+          (a.worker ?? '').toLowerCase().includes(q),
       )
     }
     return items

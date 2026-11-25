@@ -209,7 +209,7 @@ export function generateFullReport(
   md += `## 5. Activity Summary\n\n`
 
   const significant = activity.filter(
-    a => a.kind !== 'noop' && a.summary.trim().length > 0,
+    a => a.kind !== 'noop' && (a.summary ?? '').trim().length > 0,
   )
 
   if (significant.length === 0) {
@@ -219,7 +219,7 @@ export function generateFullReport(
     md += `|------|------|------|---------|\n`
     for (const a of significant.slice(0, 50)) {
       const ts = a.created_at ? a.created_at.split('T')[0] : ''
-      const summary = a.summary.replace(/\|/g, '\\|').replace(/\n/g, ' ')
+      const summary = (a.summary ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ')
       md += `| ${ts} | ${a.tool} | ${a.kind}${a.is_error ? ' (error)' : ''} | ${summary} |\n`
     }
     md += `\n`

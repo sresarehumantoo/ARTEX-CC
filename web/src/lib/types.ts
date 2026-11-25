@@ -98,13 +98,13 @@ export interface TrafficExchange {
 export interface Activity {
   id: number
   exploration_id: number
-  node_id: number
-  worker: string
+  node_id?: number
+  worker?: string
   kind: string
-  tool: string
-  is_error: boolean
-  summary: string
-  detail: string
+  tool?: string
+  is_error?: boolean
+  summary?: string
+  detail?: string
   created_at?: string
 }
 
