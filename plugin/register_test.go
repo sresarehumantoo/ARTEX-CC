@@ -1,7 +1,9 @@
 package plugin
 
 import (
+	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,7 +25,7 @@ printf '{"content":[{"type":"text","text":"ran %s"}]}' "$TOOL"
 `)
 
 	reg := tools.NewRegistry()
-	if err := DiscoverAndRegister(reg, dir, 10*time.Second); err != nil {
+	if err := DiscoverAndRegister(reg, dir, 10*time.Second, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -62,7 +64,7 @@ printf '{"content":[{"type":"text","text":"hi %s"}]}' "$WHO"
 `)
 
 	reg := tools.NewRegistry()
-	if err := DiscoverAndRegister(reg, dir, 10*time.Second); err != nil {
+	if err := DiscoverAndRegister(reg, dir, 10*time.Second, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -85,7 +87,7 @@ printf '{"content":[{"type":"text","text":"hi %s"}]}' "$WHO"
 
 func TestDiscoverAndRegister_MissingDir(t *testing.T) {
 	reg := tools.NewRegistry()
-	if err := DiscoverAndRegister(reg, "/nonexistent/dir/xyz", 10*time.Second); err != nil {
+	if err := DiscoverAndRegister(reg, "/nonexistent/dir/xyz", 10*time.Second, nil); err != nil {
 		t.Fatal(err)
 	}
 	if len(reg.Tools()) != 0 {
@@ -100,7 +102,7 @@ echo '{"name":"bs","version":"1.0.0","tools":[{"name":"ok","description":"ok","s
 `)
 
 	reg := tools.NewRegistry()
-	if err := DiscoverAndRegister(reg, dir, 10*time.Second); err != nil {
+	if err := DiscoverAndRegister(reg, dir, 10*time.Second, nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := reg.Lookup("bs_ok"); !ok {
@@ -118,7 +120,7 @@ echo '{"name":"ns","version":"1.0.0","tools":[{"name":"bare","description":"no s
 `)
 
 	reg := tools.NewRegistry()
-	if err := DiscoverAndRegister(reg, dir, 10*time.Second); err != nil {
+	if err := DiscoverAndRegister(reg, dir, 10*time.Second, nil); err != nil {
 		t.Fatal(err)
 	}
 	tool, ok := reg.Lookup("ns_bare")
@@ -146,7 +148,7 @@ EOF
 `)
 
 	reg := tools.NewRegistry()
-	if err := DiscoverAndRegister(reg, dir, 10*time.Second); err != nil {
+	if err := DiscoverAndRegister(reg, dir, 10*time.Second, nil); err != nil {
 		t.Fatal(err)
 	}
 	tool, _ := reg.Lookup("multi_lines")
@@ -156,5 +158,144 @@ EOF
 	}
 	if result.Content != "line 1\nline 2" {
 		t.Errorf("content = %q, want %q", result.Content, "line 1\nline 2")
+	}
+}
+
+// graphStore implements only the Store methods the persistence path reaches;
+// any other call panics on the nil embedded interface.
+type graphStore struct {
+	tools.Store
+	outOfScope string
+	assets     []tools.AssetInput
+	facts      []map[string]any
+	findings   []tools.FindingInput
+}
+
+func (s *graphStore) IsInScope(_ context.Context, _ int64, target string) (bool, string, string, error) {
+	if target == s.outOfScope {
+		return false, "no matching rule", "", nil
+	}
+	return true, "matched", "*.example.com", nil
+}
+
+func (s *graphStore) InsertAsset(_ context.Context, _ int64, item tools.AssetInput) (int64, error) {
+	s.assets = append(s.assets, item)
+	return int64(len(s.assets)), nil
+}
+
+func (s *graphStore) AddNode(_ context.Context, _ int64, kind string, payload map[string]any, _ int, _, _ string, _ []int64) (int64, error) {
+	if kind == tools.KindFact {
+		s.facts = append(s.facts, payload)
+	}
+	return 100, nil
+}
+
+func (s *graphStore) FindPotentialDuplicates(context.Context, string, []int64) ([]int64, error) {
+	return nil, nil
+}
+
+func (s *graphStore) AddFinding(_ context.Context, f tools.FindingInput) (int64, int64, error) {
+	s.findings = append(s.findings, f)
+	return int64(len(s.findings)), 200, nil
+}
+
+func registerWithStore(t *testing.T, store tools.Store, name, output string) tools.Tool {
+	t.Helper()
+	dir := t.TempDir()
+	writePlugin(t, dir, name, `#!/bin/sh
+if [ "$1" = "--manifest" ]; then
+  echo '{"name":"`+name+`","version":"1.0.0","tools":[{"name":"run","description":"run","schema":{"type":"object"}}]}'
+  exit 0
+fi
+cat <<'EOF'
+`+output+`
+EOF
+`)
+	reg := tools.NewRegistry()
+	tools.RegisterAll(reg, store, 1, 1)
+	if err := DiscoverAndRegister(reg, dir, 10*time.Second, nil); err != nil {
+		t.Fatal(err)
+	}
+	tool, ok := reg.Lookup(name + "_run")
+	if !ok {
+		t.Fatalf("tool %s_run not found", name)
+	}
+	return tool
+}
+
+func TestDiscoverAndRegister_StructuredResults(t *testing.T) {
+	store := &graphStore{outOfScope: "evil.test"}
+	tool := registerWithStore(t, store, "recon", `{"content":[{"type":"text","text":"scan complete"}],
+"assets":[{"type":"subdomain","domain":"a.example.com"},{"type":"ip","ip":"10.0.0.5"},{"type":"root_domain","domain":"evil.test"}],
+"facts":[{"summary":"nginx 1.25 on a.example.com","source":"tool_output"}],
+"findings":[{"vulnclass":"xss","severity":"low","summary":"reflected q param","evidence":"<script>"}]}`)
+
+	result, err := tool.Run(t.Context(), json.RawMessage(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %s", result.Content)
+	}
+	want := "scan complete\n" +
+		"inserted 2 assets, 1 fact, 1 finding; skipped 1 out of scope\n" +
+		"skipped asset 2: out of scope (evil.test): no matching rule"
+	if result.Content != want {
+		t.Errorf("content =\n%s\nwant\n%s", result.Content, want)
+	}
+	if len(store.assets) != 2 || store.assets[0].Domain != "a.example.com" || store.assets[1].IP != "10.0.0.5" {
+		t.Errorf("assets = %+v", store.assets)
+	}
+	if len(store.facts) != 1 || store.facts[0]["summary"] != "nginx 1.25 on a.example.com" || store.facts[0]["source"] != "tool_output" {
+		t.Errorf("facts = %+v", store.facts)
+	}
+	if len(store.findings) != 1 || store.findings[0].VulnClass != "xss" || store.findings[0].TaskID != 1 || store.findings[0].ExplorationID != 1 {
+		t.Errorf("findings = %+v", store.findings)
+	}
+}
+
+func TestDiscoverAndRegister_InvalidItemsReported(t *testing.T) {
+	store := &graphStore{}
+	tool := registerWithStore(t, store, "sloppy", `{"content":[{"type":"text","text":"ok"}],
+"assets":[{"domain":"no-type.example.com"}],
+"facts":[{"summary":""}],
+"findings":[{"vulnclass":"sqli","severity":"urgent","summary":"x"},{"vulnclass":"sqli","severity":"high","summary":"blind"}]}`)
+
+	result, err := tool.Run(t.Context(), json.RawMessage(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.IsError {
+		t.Fatalf("invalid items must not fail the call: %s", result.Content)
+	}
+	for _, s := range []string{
+		"inserted 0 assets, 0 facts, 1 finding",
+		"failed asset 0: type is required",
+		"failed fact 0: summary must not be empty",
+		`failed finding 0: severity "urgent" is not valid`,
+	} {
+		if !strings.Contains(result.Content, s) {
+			t.Errorf("content missing %q:\n%s", s, result.Content)
+		}
+	}
+	if len(store.assets) != 0 || len(store.facts) != 0 || len(store.findings) != 1 {
+		t.Errorf("persisted %d assets, %d facts, %d findings", len(store.assets), len(store.facts), len(store.findings))
+	}
+}
+
+func TestDiscoverAndRegister_ErrorResultNotPersisted(t *testing.T) {
+	store := &graphStore{}
+	tool := registerWithStore(t, store, "broken", `{"content":[{"type":"text","text":"target unreachable"}],"isError":true,
+"assets":[{"type":"subdomain","domain":"a.example.com"}]}`)
+
+	result, err := tool.Run(t.Context(), json.RawMessage(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.IsError || result.Content != "target unreachable" {
+		t.Errorf("result = %+v", result)
+	}
+	if len(store.assets) != 0 {
+		t.Errorf("error result persisted %d assets", len(store.assets))
 	}
 }

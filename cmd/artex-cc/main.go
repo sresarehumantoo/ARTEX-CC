@@ -204,23 +204,6 @@ func cmdServe(args []string) {
 	evStore := evidence.NewStore(*dataDir)
 	tools.RegisterEvidenceTools(reg, evStore, s, engCfg.TaskID)
 
-	if !*noPlugins {
-		pdir := *pluginDir
-		if pdir == "" {
-			pdir = os.Getenv("ARTEX_PLUGIN_DIR")
-		}
-		if pdir == "" {
-			if home, err := os.UserHomeDir(); err == nil {
-				pdir = filepath.Join(home, ".artex", "plugins")
-			}
-		}
-		if pdir != "" {
-			if err := plugin.DiscoverAndRegister(reg, pdir, plugin.DefaultTimeout); err != nil {
-				slog.Warn("plugin loading failed", "dir", pdir, "err", err)
-			}
-		}
-	}
-
 	var t *traffic.Traffic
 	if *proxyAddr != "" {
 		trafficDir := filepath.Join(*dataDir, "traffic")
@@ -236,6 +219,37 @@ func cmdServe(args []string) {
 		}()
 		tools.RegisterTrafficTools(reg, t, s, engCfg.TaskID)
 		slog.Info("recording proxy started", "addr", *proxyAddr, "ca_cert", t.CACertPath())
+	}
+
+	// srv is assigned below; plugin handlers only read it once serving starts.
+	var srv *mcpserver.Server
+	if !*noPlugins {
+		pdir := *pluginDir
+		if pdir == "" {
+			pdir = os.Getenv("ARTEX_PLUGIN_DIR")
+		}
+		if pdir == "" {
+			if home, err := os.UserHomeDir(); err == nil {
+				pdir = filepath.Join(home, ".artex", "plugins")
+			}
+		}
+		if pdir != "" {
+			absPath := func(p string) string {
+				if a, err := filepath.Abs(p); err == nil {
+					return a
+				}
+				return p
+			}
+			var proxy *plugin.Proxy
+			if t != nil {
+				proxy = &plugin.Proxy{URL: t.ProxyAddr(), CACert: absPath(t.CACertPath())}
+			}
+			active := func() (int64, int64) { return srv.ActiveEngagement() }
+			pctx := plugin.EngagementContext(s, active, absPath(*dataDir), proxy)
+			if err := plugin.DiscoverAndRegister(reg, pdir, plugin.DefaultTimeout, pctx); err != nil {
+				slog.Warn("plugin loading failed", "dir", pdir, "err", err)
+			}
+		}
 	}
 
 	var srvOpts []mcpserver.Option
@@ -269,7 +283,7 @@ func cmdServe(args []string) {
 		restAPI = api.New(s, t, engCfg.TaskID, engCfg.ExplorationID, apiOpts...)
 		srvOpts = append(srvOpts, mcpserver.WithNotifier(restAPI.NotifyChange))
 	}
-	srv := mcpserver.New(reg, srvOpts...)
+	srv = mcpserver.New(reg, srvOpts...)
 	if *stdio {
 		slog.Info("serving", "transport", "stdio")
 		if err := srv.ServeStdio(ctx); err != nil && ctx.Err() == nil {

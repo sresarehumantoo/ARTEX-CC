@@ -393,6 +393,25 @@ func TestSwitchEngagementSuccess(t *testing.T) {
 	}
 }
 
+func TestActiveEngagementFollowsSwitch(t *testing.T) {
+	t.Parallel()
+	store := &mockStore{
+		engagement: &tools.EngagementDetail{
+			EngagementSummary: tools.EngagementSummary{ID: 42, ExplorationID: 200},
+		},
+	}
+	srv := mcpserver.New(tools.NewRegistry(), mcpserver.WithEngagement(store, 1, 100))
+	if task, expl := srv.ActiveEngagement(); task != 1 || expl != 100 {
+		t.Fatalf("ActiveEngagement = (%d, %d), want (1, 100)", task, expl)
+	}
+
+	srv.MCPServer().HandleMessage(context.Background(), json.RawMessage(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"switch_engagement","arguments":{"task_id":42}}}`))
+	if task, expl := srv.ActiveEngagement(); task != 42 || expl != 200 {
+		t.Fatalf("ActiveEngagement after switch = (%d, %d), want (42, 200)", task, expl)
+	}
+}
+
 func TestSwitchEngagementWithEvidenceAndTraffic(t *testing.T) {
 	t.Parallel()
 	store := &mockStore{
