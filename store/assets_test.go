@@ -367,3 +367,29 @@ func int64SliceEqual(a, b []int64) bool {
 	}
 	return true
 }
+
+func TestNormalizeAssetURL(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		in, want string
+	}{
+		{"https://user:pass@Example.com/", "https://example.com/"},
+		{"HTTPS://EXAMPLE.COM:443/Path?Q=A", "https://example.com/Path?Q=A"},
+		{"http://Example.com:80/a", "http://example.com/a"},
+		{"http://example.com:443/a", "http://example.com:443/a"},
+		{"https://example.com:8443/a", "https://example.com:8443/a"},
+		{"http://admin@[2001:DB8::1]:80/x", "http://[2001:db8::1]/x"},
+		{"https://[::1]:8443/", "https://[::1]:8443/"},
+		{"https://example.com/p#Frag", "https://example.com/p#Frag"},
+		{"  https://example.com/a  ", "https://example.com/a"},
+		{"http://u:p@host/%zz", "http://host/%zz"},
+		{"http://u:p@exa mple.com/a", "http://exa mple.com/a"},
+		{"example.com/path", "example.com/path"},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		if got := NormalizeAssetURL(tt.in); got != tt.want {
+			t.Errorf("NormalizeAssetURL(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}

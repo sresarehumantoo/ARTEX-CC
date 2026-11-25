@@ -590,3 +590,35 @@ func TestClaimIntentNotAnIntent(t *testing.T) {
 		t.Errorf("err = %v, want 'not found'", err)
 	}
 }
+
+func TestInsertAssetNormalizesURL(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, _ := testEngagement(t, s, "url-normalize")
+	host := fmt.Sprintf("norm-%d.example.com", taskID)
+
+	first, err := s.InsertAsset(ctx, taskID, tools.AssetInput{Type: "service", URL: "https://admin:s3cret@" + host + "/Login?Next=A"})
+	if err != nil {
+		t.Fatalf("InsertAsset: %v", err)
+	}
+	second, err := s.InsertAsset(ctx, taskID, tools.AssetInput{Type: "service", URL: "HTTPS://" + strings.ToUpper(host) + ":443/Login?Next=A"})
+	if err != nil {
+		t.Fatalf("InsertAsset: %v", err)
+	}
+	if first != second {
+		t.Errorf("ids = %d, %d, want the same asset", first, second)
+	}
+
+	want := "https://" + host + "/Login?Next=A"
+	list, total, err := s.ListAssets(ctx, tools.AssetFilter{TaskID: taskID, DSL: `url=="https://user@` + strings.ToUpper(host) + `/Login?Next=A"`})
+	if err != nil {
+		t.Fatalf("ListAssets: %v", err)
+	}
+	if total != 1 || len(list) != 1 {
+		t.Fatalf("total = %d, len = %d, want 1", total, len(list))
+	}
+	if got := list[0].Data["url"]; got != want {
+		t.Errorf("url = %v, want %q", got, want)
+	}
+}
