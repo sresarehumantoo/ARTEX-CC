@@ -10,7 +10,7 @@ they exercise every tool at least once.
 
 ```
 createdb ccartex_htb
-artex init \
+artex-cc init \
   --pg "postgres://localhost/ccartex_htb" \
   --data ~/htb/management \
   --goal "HTB validation: Management (Easy, Linux)"
@@ -30,7 +30,7 @@ Add to `.mcp.json` in the working directory (or `~/.claude.json` globally):
 {
   "mcpServers": {
     "artex": {
-      "command": "artex",
+      "command": "artex-cc",
       "args": [
         "serve", "--stdio",
         "--pg", "postgres://localhost/ccartex_htb",
@@ -42,7 +42,7 @@ Add to `.mcp.json` in the working directory (or `~/.claude.json` globally):
 }
 ```
 
-Trust the CA cert (printed by `artex init`) so the recording proxy can
+Trust the CA cert (printed by `artex-cc init`) so the recording proxy can
 intercept HTTPS, then start Claude Code.
 
 ### Hands-free mode
@@ -144,7 +144,7 @@ htb-hosts add <SPAWN_IP> layover.htb portal.international.htb
 Initialize with given credentials:
 
 ```
-artex init \
+artex-cc init \
   --pg "postgres://localhost/ccartex_htb" \
   --data ~/htb/layover \
   --goal "HTB validation: Layover (Medium, Linux) - multi-host lateral movement"
@@ -191,7 +191,7 @@ service and asset tracking, `import_engagement` for credential continuity.
 Import Layover engagement data for credential continuity:
 
 ```
-artex init \
+artex-cc init \
   --pg "postgres://localhost/ccartex_htb" \
   --data ~/htb/touch \
   --goal "HTB validation: Touch (Easy, Windows) - cross-engagement credential reuse"
@@ -333,7 +333,7 @@ add a multi-company box or synthetic test if needed).
 
 ## Notes
 
-- Each box gets its own `artex init` and database (or at least a fresh
+- Each box gets its own `artex-cc init` and database (or at least a fresh
   engagement in the same database). Layover and Touch share credential data
   via `export_engagement`/`import_engagement`.
 - Run boxes in order. Management validates the basics; later boxes assume those

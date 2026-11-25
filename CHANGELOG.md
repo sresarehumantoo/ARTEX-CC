@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Shell completions now register for `artex-cc`, the actual binary name (they targeted `artex`), and CLI help, usage and init output name `artex-cc`.
+
 ## [0.4.0] - 2026-11-24
 
 ### Breaking

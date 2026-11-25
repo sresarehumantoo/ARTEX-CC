@@ -5,7 +5,7 @@ description: "Configure Claude Code, Cursor, Cline, Windsurf, Zed or any other M
 
 ARTEX is a standard MCP server, so any MCP client can use it. Every client below launches the same command; only the config file location and wrapper keys differ.
 
-Run `artex init --pg "<dsn>" --goal "<goal>"` once first (see [Getting started](/docs/getting-started/)). Replace `postgres://localhost/ccartex` with your DSN in each example. Drop `"--proxy", ":8788"` if you do not need traffic capture; without it the traffic tools are not registered.
+Run `artex-cc init --pg "<dsn>" --goal "<goal>"` once first (see [Getting started](/docs/getting-started/)). Replace `postgres://localhost/ccartex` with your DSN in each example. Drop `"--proxy", ":8788"` if you do not need traffic capture; without it the traffic tools are not registered.
 
 Client config formats change between releases. If a path or key below does not match your version, check the client's MCP documentation; the command and args stay the same.
 
@@ -13,12 +13,12 @@ Client config formats change between releases. If a path or key below does not m
 
 For any MCP client that can launch a stdio server:
 
-- Command: `artex`
+- Command: `artex-cc`
 - Args: `["serve", "--stdio", "--pg", "<dsn>"]`
 
-`artex` must be on the `PATH` of the client process. Editors launched from a desktop menu often do not inherit your shell `PATH`; use an absolute path for `command` if the server fails to start.
+`artex-cc` must be on the `PATH` of the client process. Editors launched from a desktop menu often do not inherit your shell `PATH`; use an absolute path for `command` if the server fails to start.
 
-For clients that support streamable HTTP, run `artex serve --listen localhost:9400 --pg "<dsn>"` and point the client at `http://localhost:9400/mcp`. With `--web` (which `docker compose up` uses), `/mcp` also requires an `Authorization: Bearer <token>` header; the token is regenerated on every start and written to `mcp-config.json` in the data directory.
+For clients that support streamable HTTP, run `artex-cc serve --listen localhost:9400 --pg "<dsn>"` and point the client at `http://localhost:9400/mcp`. With `--web` (which `docker compose up` uses), `/mcp` also requires an `Authorization: Bearer <token>` header; the token is regenerated on every start and written to `mcp-config.json` in the data directory.
 
 ## Claude Code
 
@@ -28,7 +28,7 @@ File: `~/.claude.json` (user-wide) or `.mcp.json` in the project root.
 {
   "mcpServers": {
     "artex": {
-      "command": "artex",
+      "command": "artex-cc",
       "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
     }
   }
@@ -45,7 +45,7 @@ File: `.cursor/mcp.json` in the project root, or `~/.cursor/mcp.json` for all pr
 {
   "mcpServers": {
     "artex": {
-      "command": "artex",
+      "command": "artex-cc",
       "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
     }
   }
@@ -65,7 +65,7 @@ Cline is a VS Code extension. Open the MCP Servers panel, choose Configure MCP S
 {
   "mcpServers": {
     "artex": {
-      "command": "artex",
+      "command": "artex-cc",
       "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"],
       "disabled": false
     }
@@ -86,7 +86,7 @@ File: `~/.codeium/windsurf/mcp_config.json`. You can also open it from the Casca
 {
   "mcpServers": {
     "artex": {
-      "command": "artex",
+      "command": "artex-cc",
       "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
     }
   }
@@ -107,7 +107,7 @@ Zed calls MCP servers "context servers" and configures them in `settings.json` (
   "context_servers": {
     "artex": {
       "source": "custom",
-      "command": "artex",
+      "command": "artex-cc",
       "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"],
       "env": {}
     }
@@ -124,5 +124,5 @@ Notes:
 ## Troubleshooting
 
 - `failed to open store`: PostgreSQL is not reachable with the DSN you gave. Start it or run `docker compose up -d postgres`.
-- Server never appears: run the exact command and args from a terminal to see the error, and confirm `artex` is on the client's `PATH`.
+- Server never appears: run the exact command and args from a terminal to see the error, and confirm `artex-cc` is on the client's `PATH`.
 - Use `ARTEX_PG` in the client's `env` block instead of `--pg` if you prefer to keep the DSN out of the args.

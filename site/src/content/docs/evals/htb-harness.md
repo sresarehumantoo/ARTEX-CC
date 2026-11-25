@@ -239,7 +239,7 @@ Follow `docs/HTB_TEST_PLAN.md` as written. The plan is already well-structured f
 manual execution:
 1. Spawn the box (`htb spawn`).
 2. Add hosts (`htb-hosts add`).
-3. Init the engagement (`artex init`).
+3. Init the engagement (`artex-cc init`).
 4. Start Claude Code with the MCP config.
 5. Use `/loop` for semi-autonomous execution.
 6. Review results manually.
