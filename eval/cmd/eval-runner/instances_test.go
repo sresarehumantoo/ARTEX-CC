@@ -38,3 +38,29 @@ func TestBuildPrompt(t *testing.T) {
 		t.Fatalf("http prompt: %s", http)
 	}
 }
+
+func TestClaudeArgsLoadOnlyTheEvalMCPConfig(t *testing.T) {
+	args := claudeArgs("/tmp/mcp.json", "claude-opus-5-5", "go")
+	has := func(flag string) bool {
+		for _, a := range args {
+			if a == flag {
+				return true
+			}
+		}
+		return false
+	}
+	for _, flag := range []string{"--strict-mcp-config", "--mcp-config", "--dangerously-skip-permissions", "--print"} {
+		if !has(flag) {
+			t.Errorf("claude args %v missing %s", args, flag)
+		}
+	}
+	if got := args[len(args)-2:]; got[0] != "-p" || got[1] != "go" {
+		t.Errorf("prompt not last: %v", got)
+	}
+	if !has("--model") || has("") {
+		t.Errorf("model handling wrong: %v", args)
+	}
+	if noModel := claudeArgs("/tmp/mcp.json", "", "go"); len(noModel) != len(args)-2 {
+		t.Errorf("empty model should omit --model: %v", noModel)
+	}
+}

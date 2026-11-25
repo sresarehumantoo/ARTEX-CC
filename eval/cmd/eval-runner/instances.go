@@ -152,6 +152,24 @@ func runInstances(ctx context.Context, rc runConfig, sc Scenario, timeout time.D
 	return runs, ctx.Err()
 }
 
+// claudeArgs builds the claude CLI arguments for one instance. Runs skip
+// permission prompts, so --strict-mcp-config keeps the user's own MCP servers
+// and connectors (mail, calendar, docs) out of the eval: only ARTEX is loaded.
+func claudeArgs(mcpConfigPath, model, prompt string) []string {
+	args := []string{
+		"--print",
+		"--dangerously-skip-permissions",
+		"--mcp-config", mcpConfigPath,
+		"--strict-mcp-config",
+		"--output-format", "stream-json",
+		"--verbose",
+	}
+	if model != "" {
+		args = append(args, "--model", model)
+	}
+	return append(args, "-p", prompt)
+}
+
 func runInstance(ctx context.Context, rc runConfig, sc Scenario, mcpConfigPath string, instance int, timeout time.Duration) InstanceRun {
 	transcript := filepath.Join(rc.transcriptsDir, fmt.Sprintf("instance-%d.jsonl", instance))
 	run := InstanceRun{Instance: instance, Transcript: transcript}
@@ -163,18 +181,7 @@ func runInstance(ctx context.Context, rc runConfig, sc Scenario, mcpConfigPath s
 	}
 	defer out.Close()
 
-	args := []string{
-		"--print",
-		"--dangerously-skip-permissions",
-		"--mcp-config", mcpConfigPath,
-		"--output-format", "stream-json",
-		"--verbose",
-	}
-	if sc.Model != "" {
-		args = append(args, "--model", sc.Model)
-	}
-	args = append(args, "-p", buildPrompt(sc, instance, rc.instances, rc.transport))
-
+	args := claudeArgs(mcpConfigPath, sc.Model, buildPrompt(sc, instance, rc.instances, rc.transport))
 	cmd := exec.CommandContext(ctx, rc.claudeBin, args...)
 	cmd.Stdout = out
 	cmd.Stderr = os.Stderr
