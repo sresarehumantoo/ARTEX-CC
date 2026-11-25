@@ -44,6 +44,7 @@ artex-cc init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.examp
 | `--claude-bin PATH` | `claude` CLI used by the web UI chat (or `ARTEX_CLAUDE_BIN`) | `claude` |
 | `--plugin-dir DIR` | Plugin directory (or `ARTEX_PLUGIN_DIR`) | `~/.artex/plugins` |
 | `--no-plugins` | Disable plugin loading | off |
+| `--require-identity` | Refuse intent claims from callers without a verified `X-Artex-Identity` (or `ARTEX_REQUIRE_IDENTITY`). HTTP only; `serve --stdio` refuses to start with it. See [Requiring an identity](/docs/mcp-clients/#requiring-an-identity) | off |
 | `--timeout N` | Graceful shutdown timeout in seconds | `30` |
 | `--debug` | Debug-level logging | off |
 
@@ -74,6 +75,7 @@ Each variable is a fallback for the matching flag; a flag on the command line wi
 | `ARTEX_AUTH` | `--auth` | Require password login for the web UI on a loopback listener (`1`/`true`). Non-loopback listeners always require it. | off |
 | `ARTEX_CREDENTIAL_KEY` | | Hex-encoded 32-byte AES-256-GCM key for encrypting stored credentials | none (plaintext) |
 | `ARTEX_INTENT_LEASE` | | How long a `start_intent` claim stays exclusive, in whole minutes (Go duration such as `2m`). Shorten it only for tests and evals | `30m` |
+| `ARTEX_REQUIRE_IDENTITY` | `--require-identity` | Refuse intent claims from callers without a verified identity (`1`/`true`). Any value that is not a boolean is a startup error. HTTP only | off |
 | `ARTEX_CLAUDE_BIN` | `--claude-bin` | Path to the `claude` CLI used by the web UI chat | `claude` |
 | `ARTEX_PLUGIN_DIR` | `--plugin-dir` | Plugin directory | `~/.artex/plugins` |
 | `ARTEX_NOISE_PROFILE` | | Egress pacing profile: `off`, `quiet`, `balanced` or `aggressive` | `off` |
