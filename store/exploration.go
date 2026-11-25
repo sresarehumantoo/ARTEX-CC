@@ -25,6 +25,11 @@ type Node struct {
 	Anchors       []int64         `json:"anchors,omitempty"`
 	CreatedAt     time.Time       `json:"created_at"`
 	UpdatedAt     time.Time       `json:"updated_at"`
+	ClaimExpires  sql.NullTime    `json:"-"`
+}
+
+func (n Node) claimLive(now time.Time) bool {
+	return n.State == "running" && n.ClaimExpires.Valid && n.ClaimExpires.Time.After(now)
 }
 
 type Edge struct {
@@ -109,16 +114,65 @@ func (s *Store) Link(explorationID, from int64, rel string, to int64) error {
 
 func (s *Store) UpdateNodeState(ctx context.Context, nodeID int64, state string) error {
 	_, err := s.ExecContext(ctx,
-		`UPDATE exploration_nodes SET state = $1, blocked_reason = NULL WHERE id = $2`,
+		`UPDATE exploration_nodes SET state = $1, blocked_reason = NULL, owner = NULL, claim_expires_at = NULL WHERE id = $2`,
 		state, nodeID,
 	)
 	return err
 }
 
+// ClaimIntent atomically marks an intent running and owned by owner. It
+// succeeds when the intent is open, when it is running with no live claim, or
+// when owner already holds the claim (a renewal).
+func (s *Store) ClaimIntent(ctx context.Context, nodeID int64, owner string, lease time.Duration) (*tools.IntentClaim, error) {
+	claim := &tools.IntentClaim{NodeID: nodeID, Owner: owner}
+	err := s.QueryRowContext(ctx,
+		`WITH prev AS (
+			SELECT id, state, owner, claim_expires_at
+			FROM exploration_nodes WHERE id = $1 AND kind = 'intent'
+			FOR UPDATE
+		)
+		UPDATE exploration_nodes n
+		SET state = 'running', owner = $2, claim_expires_at = now() + make_interval(secs => $3)
+		FROM prev
+		WHERE n.id = prev.id AND (
+			prev.state = 'open' OR (prev.state = 'running' AND (
+				prev.claim_expires_at IS NULL OR prev.claim_expires_at <= now() OR prev.owner = $2)))
+		RETURNING n.claim_expires_at,
+			prev.state = 'running' AND prev.owner IS NOT DISTINCT FROM $2
+				AND prev.claim_expires_at IS NOT NULL AND prev.claim_expires_at > now()`,
+		nodeID, owner, lease.Seconds(),
+	).Scan(&claim.ExpiresAt, &claim.Renewed)
+	if err == nil {
+		return claim, nil
+	}
+	if err != sql.ErrNoRows {
+		return nil, err
+	}
+
+	var kind, state, holder string
+	var expires sql.NullTime
+	err = s.QueryRowContext(ctx,
+		`SELECT kind, state, COALESCE(owner, ''), claim_expires_at FROM exploration_nodes WHERE id = $1`,
+		nodeID,
+	).Scan(&kind, &state, &holder, &expires)
+	switch {
+	case err == sql.ErrNoRows:
+		return nil, fmt.Errorf("node %d not found", nodeID)
+	case err != nil:
+		return nil, err
+	case kind != KindIntent:
+		return nil, fmt.Errorf("node %d is a %s, not an intent", nodeID, kind)
+	case state == "running" && expires.Valid:
+		return nil, &tools.ClaimConflictError{NodeID: nodeID, Owner: holder, ExpiresAt: expires.Time}
+	default:
+		return nil, fmt.Errorf("intent %d is %q, must be open to start", nodeID, state)
+	}
+}
+
 func (s *Store) UpdateNodeFields(ctx context.Context, nodeID int64, state string, payloadMerge map[string]any) error {
 	if state != "" {
 		if _, err := s.ExecContext(ctx,
-			`UPDATE exploration_nodes SET state = $1 WHERE id = $2`,
+			`UPDATE exploration_nodes SET state = $1, owner = NULL, claim_expires_at = NULL WHERE id = $2`,
 			state, nodeID); err != nil {
 			return err
 		}
@@ -152,7 +206,7 @@ const nodeSelectCols = `n.id, n.kind, n.payload, n.priority, n.state,
 	COALESCE(n.origin, ''), COALESCE(n.owner, ''),
 	COALESCE(n.blocked_reason, ''), COALESCE(n.delete_reason, ''),
 	COALESCE((SELECT json_agg(asset_id) FROM exploration_anchors WHERE node_id = n.id), '[]'::json),
-	n.created_at, n.updated_at`
+	n.created_at, n.updated_at, n.claim_expires_at`
 
 func (s *Store) ListNodes(ctx context.Context, explorationID int64, kind string, limit int) ([]tools.Node, error) {
 	query := `SELECT ` + nodeSelectCols + `
@@ -194,7 +248,7 @@ func scanNodes(rows *sql.Rows) ([]Node, error) {
 		if err := rows.Scan(
 			&n.ID, &n.Kind, &n.Payload, &n.Priority, &n.State,
 			&n.Origin, &n.Owner, &n.BlockedReason, &n.DeleteReason,
-			&anchorsJSON, &n.CreatedAt, &n.UpdatedAt,
+			&anchorsJSON, &n.CreatedAt, &n.UpdatedAt, &n.ClaimExpires,
 		); err != nil {
 			return nil, err
 		}
@@ -257,6 +311,7 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 		return nil, err
 	}
 
+	now := time.Now()
 	for _, n := range nodes {
 		payload := map[string]any{}
 		if len(n.Payload) > 0 {
@@ -277,10 +332,17 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 			case "open":
 				ov.OpenIntents = append(ov.OpenIntents, m)
 			case "running":
-				if time.Since(n.UpdatedAt) > 30*time.Minute {
-					m["possibly_stale"] = true
+				if n.claimLive(now) {
+					m["claimed_by"] = n.Owner
+					m["claim_expires_at"] = n.ClaimExpires.Time.UTC().Format(time.RFC3339)
+					ov.RunningIntents = append(ov.RunningIntents, m)
+					break
 				}
-				ov.RunningIntents = append(ov.RunningIntents, m)
+				m["claim_expired"] = true
+				if n.Owner != "" {
+					m["previous_owner"] = n.Owner
+				}
+				ov.OpenIntents = append(ov.OpenIntents, m)
 			case "done", "exhausted", "stopped":
 				ov.RecentDone = append(ov.RecentDone, m)
 			}
@@ -379,7 +441,7 @@ func (s *Store) NodeDetail(ctx context.Context, nodeID int64) (*tools.Node, erro
 	err := row.Scan(
 		&n.ID, &n.Kind, &n.Payload, &n.Priority, &n.State,
 		&n.Origin, &n.Owner, &n.BlockedReason, &n.DeleteReason,
-		&anchorsJSON, &n.CreatedAt, &n.UpdatedAt,
+		&anchorsJSON, &n.CreatedAt, &n.UpdatedAt, &n.ClaimExpires,
 	)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("node %d not found", nodeID)
@@ -394,7 +456,8 @@ func (s *Store) NodeDetail(ctx context.Context, nodeID int64) (*tools.Node, erro
 func (s *Store) Frontier(ctx context.Context, explorationID int64, limit int) ([]tools.Node, error) {
 	query := `SELECT ` + nodeSelectCols + `
 		FROM exploration_nodes n
-		WHERE n.exploration_id = $1 AND n.kind = 'intent' AND n.state = 'open'
+		WHERE n.exploration_id = $1 AND n.kind = 'intent'
+		  AND (n.state = 'open' OR (n.state = 'running' AND (n.claim_expires_at IS NULL OR n.claim_expires_at <= now())))
 		ORDER BY n.priority DESC, n.id`
 	args := []any{explorationID}
 	if limit > 0 {

@@ -1,6 +1,9 @@
 package tools
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // Store is the interface tools use to access the data layer.
 // Implemented by store.Store.
@@ -27,6 +30,7 @@ type Store interface {
 	GraphOverview(ctx context.Context, explorationID int64) (*Overview, error)
 	AddNode(ctx context.Context, explorationID int64, kind string, payload map[string]any, priority int, state, origin string, anchors []int64) (int64, error)
 	UpdateNodeState(ctx context.Context, nodeID int64, state string) error
+	ClaimIntent(ctx context.Context, nodeID int64, owner string, lease time.Duration) (*IntentClaim, error)
 	ListNodes(ctx context.Context, explorationID int64, kind string, limit int) ([]Node, error)
 	NodeDetail(ctx context.Context, nodeID int64) (*Node, error)
 	AddEdge(ctx context.Context, from int64, rel string, to int64) error

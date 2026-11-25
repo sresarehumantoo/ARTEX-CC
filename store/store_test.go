@@ -2,10 +2,14 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
@@ -366,17 +370,223 @@ func TestStaleIntentDetection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GraphOverview: %v", err)
 	}
-	if len(ov.RunningIntents) < 1 {
-		t.Fatal("RunningIntents is empty")
+	if len(ov.RunningIntents) != 0 {
+		t.Errorf("RunningIntents = %v, want none for an unclaimed running intent", ov.RunningIntents)
 	}
-	var staleFound bool
-	for _, ri := range ov.RunningIntents {
-		if stale, ok := ri["possibly_stale"].(bool); ok && stale {
-			staleFound = true
+	var reopened bool
+	for _, oi := range ov.OpenIntents {
+		if expired, ok := oi["claim_expired"].(bool); ok && expired {
+			reopened = true
 			break
 		}
 	}
-	if !staleFound {
-		t.Error("expected at least one running intent with possibly_stale=true")
+	if !reopened {
+		t.Error("expected the unclaimed running intent in OpenIntents with claim_expired=true")
+	}
+}
+
+func claimIntentNode(t *testing.T, s *Store, label string) (int64, int64) {
+	t.Helper()
+	_, expID := testEngagement(t, s, label)
+	id, err := s.AddNode(context.Background(), expID, KindIntent, map[string]any{"summary": label}, 5, "open", "planner", nil)
+	if err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+	return expID, id
+}
+
+func TestClaimIntentRace(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	_, id := claimIntentNode(t, s, "claim-race")
+
+	const sessions = 8
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	winners := make(chan string, sessions)
+	conflicts := make(chan error, sessions)
+	for i := range sessions {
+		owner := fmt.Sprintf("sess-%d", i)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			claim, err := s.ClaimIntent(ctx, id, owner, tools.IntentLease)
+			if err != nil {
+				conflicts <- err
+				return
+			}
+			winners <- claim.Owner
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(winners)
+	close(conflicts)
+
+	var won []string
+	for w := range winners {
+		won = append(won, w)
+	}
+	if len(won) != 1 {
+		t.Fatalf("winners = %v, want exactly one", won)
+	}
+	for err := range conflicts {
+		var ce *tools.ClaimConflictError
+		if !errors.As(err, &ce) {
+			t.Errorf("loser error = %v, want ClaimConflictError", err)
+			continue
+		}
+		if ce.Owner != won[0] {
+			t.Errorf("conflict names holder %q, want %q", ce.Owner, won[0])
+		}
+	}
+
+	n, err := s.NodeDetail(ctx, id)
+	if err != nil {
+		t.Fatalf("NodeDetail: %v", err)
+	}
+	if n.State != "running" {
+		t.Errorf("state = %q, want running", n.State)
+	}
+}
+
+func TestClaimIntentRenewal(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	_, id := claimIntentNode(t, s, "claim-renew")
+
+	first, err := s.ClaimIntent(ctx, id, "sess-a", time.Minute)
+	if err != nil {
+		t.Fatalf("first claim: %v", err)
+	}
+	if first.Renewed {
+		t.Error("first claim reported as renewal")
+	}
+	second, err := s.ClaimIntent(ctx, id, "sess-a", time.Hour)
+	if err != nil {
+		t.Fatalf("renewal: %v", err)
+	}
+	if !second.Renewed {
+		t.Error("second claim by same session not reported as renewal")
+	}
+	if !second.ExpiresAt.After(first.ExpiresAt) {
+		t.Errorf("renewal expiry %v not after first %v", second.ExpiresAt, first.ExpiresAt)
+	}
+
+	_, err = s.ClaimIntent(ctx, id, "sess-b", time.Minute)
+	var ce *tools.ClaimConflictError
+	if !errors.As(err, &ce) {
+		t.Fatalf("other session err = %v, want ClaimConflictError", err)
+	}
+	if ce.Owner != "sess-a" || !ce.ExpiresAt.Equal(second.ExpiresAt) {
+		t.Errorf("conflict = %+v, want owner sess-a until %v", ce, second.ExpiresAt)
+	}
+}
+
+func TestClaimIntentLeaseExpiry(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	expID, id := claimIntentNode(t, s, "claim-expiry")
+
+	if _, err := s.ClaimIntent(ctx, id, "sess-a", time.Hour); err != nil {
+		t.Fatalf("claim: %v", err)
+	}
+
+	frontier, err := s.Frontier(ctx, expID, 0)
+	if err != nil {
+		t.Fatalf("Frontier: %v", err)
+	}
+	if len(frontier) != 0 {
+		t.Errorf("Frontier = %v, want claimed intent hidden", frontier)
+	}
+	ov, err := s.GraphOverview(ctx, expID)
+	if err != nil {
+		t.Fatalf("GraphOverview: %v", err)
+	}
+	if ov.FrontierOpen != 0 || len(ov.RunningIntents) != 1 {
+		t.Fatalf("FrontierOpen = %d, RunningIntents = %v; want 0 and the claimed intent", ov.FrontierOpen, ov.RunningIntents)
+	}
+	if got := ov.RunningIntents[0]["claimed_by"]; got != "sess-a" {
+		t.Errorf("claimed_by = %v, want sess-a", got)
+	}
+	if _, ok := ov.RunningIntents[0]["claim_expires_at"]; !ok {
+		t.Error("claim_expires_at missing from running intent")
+	}
+
+	if _, err := s.ExecContext(ctx,
+		`UPDATE exploration_nodes SET claim_expires_at = now() - interval '1 second' WHERE id = $1`, id); err != nil {
+		t.Fatalf("expire claim: %v", err)
+	}
+
+	frontier, err = s.Frontier(ctx, expID, 0)
+	if err != nil {
+		t.Fatalf("Frontier: %v", err)
+	}
+	if len(frontier) != 1 || frontier[0].ID != id {
+		t.Errorf("Frontier = %v, want expired intent %d", frontier, id)
+	}
+	ov, err = s.GraphOverview(ctx, expID)
+	if err != nil {
+		t.Fatalf("GraphOverview: %v", err)
+	}
+	if ov.FrontierOpen != 1 || ov.OpenIntents[0]["previous_owner"] != "sess-a" {
+		t.Errorf("OpenIntents = %v, want expired intent with previous_owner sess-a", ov.OpenIntents)
+	}
+
+	claim, err := s.ClaimIntent(ctx, id, "sess-b", time.Minute)
+	if err != nil {
+		t.Fatalf("takeover of expired claim: %v", err)
+	}
+	if claim.Owner != "sess-b" || claim.Renewed {
+		t.Errorf("takeover = %+v, want fresh claim by sess-b", claim)
+	}
+}
+
+func TestClaimIntentReleasedOnCompletion(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	_, id := claimIntentNode(t, s, "claim-release")
+
+	if _, err := s.ClaimIntent(ctx, id, "sess-a", time.Hour); err != nil {
+		t.Fatalf("claim: %v", err)
+	}
+	if err := s.UpdateNodeFields(ctx, id, "done", map[string]any{"result": "ok"}); err != nil {
+		t.Fatalf("UpdateNodeFields: %v", err)
+	}
+	var owner sql.NullString
+	var expires sql.NullTime
+	if err := s.QueryRowContext(ctx,
+		`SELECT owner, claim_expires_at FROM exploration_nodes WHERE id = $1`, id).Scan(&owner, &expires); err != nil {
+		t.Fatalf("select claim: %v", err)
+	}
+	if owner.Valid || expires.Valid {
+		t.Errorf("claim not cleared: owner=%v expires=%v", owner, expires)
+	}
+
+	_, err := s.ClaimIntent(ctx, id, "sess-b", time.Minute)
+	if err == nil || !strings.Contains(err.Error(), "must be open") {
+		t.Errorf("claim of done intent err = %v, want 'must be open'", err)
+	}
+}
+
+func TestClaimIntentNotAnIntent(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	_, expID := testEngagement(t, s, "claim-kind")
+	factID, err := s.AddNode(ctx, expID, KindFact, map[string]any{"summary": "x"}, 0, "confirmed", "worker", nil)
+	if err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+	if _, err := s.ClaimIntent(ctx, factID, "sess-a", time.Minute); err == nil || !strings.Contains(err.Error(), "not an intent") {
+		t.Errorf("err = %v, want 'not an intent'", err)
+	}
+	if _, err := s.ClaimIntent(ctx, 1<<40, "sess-a", time.Minute); err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Errorf("err = %v, want 'not found'", err)
 	}
 }
