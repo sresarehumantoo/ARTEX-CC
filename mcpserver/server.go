@@ -236,9 +236,10 @@ graph is your task board. Every piece of state lives there, not in your context.
 1. ORIENT: Call graph_overview to see goals, open/running/done intents, facts,
    findings, coverage. This is the single source of truth.
 
-2. PLAN: Based on the overview, decide what needs doing next. Create intents
-   with add_intent for each direction to explore. Each intent is one sentence
-   describing what to test/verify/exploit.
+2. PLAN: Based on the overview, decide what needs doing next. If the overview
+   shows no goals, call set_goals once; to add a goal later, call set_goals with
+   append: true. Create intents with add_intent for each direction to explore.
+   Each intent is one sentence describing what to test/verify/exploit.
 
 3. EXECUTE: For each open intent, do the work: run tools, test the target,
    record what you find. Use record_fact for conclusions, insert_assets for

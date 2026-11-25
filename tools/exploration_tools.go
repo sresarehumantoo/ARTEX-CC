@@ -403,7 +403,7 @@ func makeSetGoals(store Store, explorationID int64) Tool {
 			if len(res.Existing) > 0 {
 				out["existing_goals"] = res.Existing
 				out["note"] = "This engagement already has goals, possibly set by another agent, so none were added. " +
-					"Work toward existing_goals. To add goals anyway, call set_goals again with append: true."
+					"If these duplicate existing_goals, work toward those. If you are adding a genuinely new objective, call set_goals again with append: true."
 			} else if len(res.Skipped) > 0 {
 				out["note"] = "Skipped goals match an existing goal (existing_id) ignoring case and whitespace."
 			}
