@@ -1,0 +1,94 @@
+name: Homebrew cask
+
+# Installs the published artex-cc cask from SREsAreHumanToo/homebrew-tap on
+# throwaway runners, the way users install it. Runs after each release (the
+# release itself is created with GITHUB_TOKEN, which starts no workflows, so
+# this hangs off the Release workflow instead) and on demand.
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/homebrew-cask.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: brew install --cask (${{ matrix.os }})
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-15-intel, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      CASK: sresarehumantoo/tap/artex-cc
+      HOMEBREW_NO_ANALYTICS: "1"
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      EXPECTED_TAG: ${{ github.event.workflow_run.head_branch }}
+    steps:
+      - name: Put Homebrew on PATH (Linux)
+        if: runner.os == 'Linux'
+        run: echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
+
+      - name: Update Homebrew and wait for the released version
+        run: |
+          brew update --quiet
+          brew --version | head -1
+          brew tap sresarehumantoo/tap
+          want="${EXPECTED_TAG#v}"
+          for _ in $(seq 1 20); do
+            have=$(sed -nE 's/^ *version "([^"]+)".*/\1/p' "$(brew --repo sresarehumantoo/tap)/Casks/artex-cc.rb")
+            echo "tap has $have${want:+, want $want}"
+            if [ -z "$want" ] || [ "$have" = "$want" ]; then exit 0; fi
+            sleep 15
+            brew update --quiet
+          done
+          echo "::error::tap never reached $want"
+          exit 1
+
+      - name: Install
+        run: brew install --cask "$CASK"
+
+      - name: Quarantine removed by the postflight step
+        if: runner.os == 'macOS'
+        run: |
+          download=$(brew --cache --cask "$CASK")
+          if xattr -p com.apple.quarantine "$download" >/dev/null 2>&1; then
+            echo "Homebrew quarantined the download, so the postflight step had work to do"
+          else
+            echo "::warning::the download carried no quarantine attribute"
+          fi
+          bin=$(readlink -f "$(command -v artex-cc)")
+          echo "installed binary: $bin"
+          xattr -l "$bin"
+          if xattr -p com.apple.quarantine "$bin" >/dev/null 2>&1; then
+            echo "::error::$bin still has com.apple.quarantine"
+            exit 1
+          fi
+          codesign -dv "$bin" 2>&1 | grep -E 'Signature|Identifier|Format' || true
+
+      - name: Run it
+        run: |
+          artex-cc version
+          artex-cc tools | tail -1
+          artex-cc completion zsh | head -1
+
+      - name: Uninstall leaves nothing behind
+        run: |
+          brew uninstall --cask artex-cc
+          hash -r
+          if command -v artex-cc; then
+            echo "::error::artex-cc still on PATH after uninstall"
+            exit 1
+          fi
+          if [ -e "$(brew --caskroom)/artex-cc" ]; then
+            echo "::error::Caskroom entry left behind"
+            exit 1
+          fi
