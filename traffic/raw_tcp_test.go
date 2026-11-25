@@ -29,7 +29,7 @@ func TestWriteBlobAtomic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm()&0o644 != 0o644 {
+	if info.Mode().Perm() != 0o600 {
 		t.Fatalf("permissions = %o", info.Mode().Perm())
 	}
 }

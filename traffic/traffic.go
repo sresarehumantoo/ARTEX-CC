@@ -318,10 +318,16 @@ type Traffic struct {
 
 // Open initializes the traffic tree, blob store and SQLite index under dir.
 func Open(dir, addr string) (*Traffic, error) {
-	for _, d := range []string{dir, filepath.Join(dir, "_index"), filepath.Join(dir, "_blobs"), filepath.Join(dir, "_ca")} {
+	for _, d := range []string{dir, filepath.Join(dir, "_ca")} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
 			return nil, err
 		}
+	}
+	for _, d := range []string{filepath.Join(dir, "_index"), filepath.Join(dir, "_blobs")} {
+		if err := os.MkdirAll(d, 0o700); err != nil {
+			return nil, err
+		}
+		tightenPerms(d)
 	}
 	// busy_timeout is a per-connection setting, so it belongs in the DSN rather
 	// than in a one-off Exec: the pool opens connections on demand, and an Exec
@@ -871,6 +877,32 @@ type storedBody struct {
 	index  string
 }
 
+// tightenPerms restricts a tree written by earlier versions (0755 directories,
+// 0644 files) to the owner, since captured bodies can hold credentials.
+func tightenPerms(root string) {
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.Type()&fs.ModeSymlink != 0 {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		want := fs.FileMode(0o600)
+		if d.IsDir() {
+			want = 0o700
+		} else if !info.Mode().IsRegular() {
+			return nil
+		}
+		if info.Mode().Perm() != want {
+			if err := os.Chmod(path, want); err != nil {
+				slog.Warn("failed to restrict traffic file permissions", "path", path, "err", err)
+			}
+		}
+		return nil
+	})
+}
+
 // spill decides where one body lives. Small bodies stay inline. Large ones are
 // written to the content-addressed store and keep a readable preview inline so a
 // reader can identify them without fetching the blob. Either way, text bodies
@@ -902,13 +934,13 @@ func (t *Traffic) spillAt(body []byte, contentType string, maxInline int) stored
 	// One bucket level (256 buckets) is enough to keep any single directory small;
 	// the store only ever holds bodies above maxInlineBody, deduplicated by hash.
 	blobDir := filepath.Join(t.dir, "_blobs", "sha256", h[:2])
-	if err := os.MkdirAll(blobDir, 0o755); err != nil {
+	if err := os.MkdirAll(blobDir, 0o700); err != nil {
 		slog.Error("failed to create blob directory", "err", err)
 		return storedBody{inline: clipBytes(body, blobPreview), index: indexText()}
 	}
 	blobPath := filepath.Join(blobDir, h+".bin")
 	if _, err := os.Stat(blobPath); os.IsNotExist(err) {
-		if err := os.WriteFile(blobPath, body, 0o644); err != nil {
+		if err := os.WriteFile(blobPath, body, 0o600); err != nil {
 			slog.Error("failed to write blob", "hash", h, "err", err)
 			return storedBody{inline: clipBytes(body, blobPreview), index: indexText()}
 		}
