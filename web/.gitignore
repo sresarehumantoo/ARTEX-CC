@@ -13,6 +13,7 @@ node_modules
 dist/*
 !dist/index.html
 dist-ssr
+dist-demo
 *.local
 
 # Editor directories and files
