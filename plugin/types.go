@@ -53,9 +53,15 @@ type Proxy struct {
 }
 
 // Result is the JSON a plugin writes to stdout after handling an invocation.
+// Assets, Facts and Findings are persisted after a successful run. Each
+// element has the same shape as one item accepted by insert_assets
+// (assets[i]), record_fact (facts[i]) and report_finding respectively.
 type Result struct {
-	Content []ResultContent `json:"content"`
-	IsError bool            `json:"isError,omitempty"`
+	Content  []ResultContent   `json:"content"`
+	IsError  bool              `json:"isError,omitempty"`
+	Assets   []json.RawMessage `json:"assets,omitempty"`
+	Facts    []json.RawMessage `json:"facts,omitempty"`
+	Findings []json.RawMessage `json:"findings,omitempty"`
 }
 
 // ResultContent is one piece of output content from a plugin.

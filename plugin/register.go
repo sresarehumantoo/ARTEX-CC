@@ -45,13 +45,13 @@ func registerPlugin(registry *tools.Registry, p discovered, timeout time.Duratio
 			Name:        toolName,
 			Description: mt.Description,
 			Schema:      schema,
-			Run:         makeHandler(binPath, pluginToolName, timeout, contextFn),
+			Run:         makeHandler(registry, binPath, pluginToolName, timeout, contextFn),
 		})
 		slog.Debug("registered plugin tool", "tool", toolName, "plugin", p.Manifest.Name)
 	}
 }
 
-func makeHandler(binPath, toolName string, timeout time.Duration, contextFn ContextFunc) func(context.Context, json.RawMessage) (tools.Result, error) {
+func makeHandler(registry *tools.Registry, binPath, toolName string, timeout time.Duration, contextFn ContextFunc) func(context.Context, json.RawMessage) (tools.Result, error) {
 	return func(ctx context.Context, input json.RawMessage) (tools.Result, error) {
 		inv := Invocation{
 			Tool:  toolName,
@@ -73,11 +73,104 @@ func makeHandler(binPath, toolName string, timeout time.Duration, contextFn Cont
 		for _, c := range result.Content {
 			parts = append(parts, c.Text)
 		}
+		if !result.IsError {
+			if summary := persistResults(ctx, registry, result); summary != "" {
+				parts = append(parts, summary)
+			}
+		}
 		return tools.Result{
 			Content: strings.Join(parts, "\n"),
 			IsError: result.IsError,
 		}, nil
 	}
+}
+
+// persistResults writes a plugin's structured output through the same tools
+// the model would call, so scope checks and validation apply unchanged.
+// Items go one at a time so a bad item never blocks the rest.
+func persistResults(ctx context.Context, registry *tools.Registry, r Result) string {
+	if len(r.Assets)+len(r.Facts)+len(r.Findings) == 0 {
+		return ""
+	}
+
+	var assets, facts, findings, outOfScope int
+	var notes []string
+
+	for i, a := range r.Assets {
+		res, err := runTool(ctx, registry, "insert_assets", map[string]any{"assets": []json.RawMessage{a}})
+		if err != nil {
+			notes = append(notes, fmt.Sprintf("failed asset %d: %v", i, err))
+			continue
+		}
+		var out struct {
+			Results []json.RawMessage `json:"results"`
+			Errors  []struct {
+				Error string `json:"error"`
+			} `json:"errors"`
+		}
+		if res.IsError || json.Unmarshal([]byte(res.Content), &out) != nil {
+			notes = append(notes, fmt.Sprintf("failed asset %d: %s", i, res.Content))
+			continue
+		}
+		switch {
+		case len(out.Results) == 1:
+			assets++
+		case len(out.Errors) > 0 && strings.HasPrefix(out.Errors[0].Error, "out of scope"):
+			outOfScope++
+			notes = append(notes, fmt.Sprintf("skipped asset %d: %s", i, out.Errors[0].Error))
+		case len(out.Errors) > 0:
+			notes = append(notes, fmt.Sprintf("failed asset %d: %s", i, out.Errors[0].Error))
+		}
+	}
+
+	for i, f := range r.Facts {
+		res, err := runTool(ctx, registry, "record_fact", map[string]any{"facts": []json.RawMessage{f}})
+		switch {
+		case err != nil:
+			notes = append(notes, fmt.Sprintf("failed fact %d: %v", i, err))
+		case res.IsError:
+			notes = append(notes, fmt.Sprintf("failed fact %d: %s", i, res.Content))
+		default:
+			facts++
+		}
+	}
+
+	for i, f := range r.Findings {
+		res, err := runTool(ctx, registry, "report_finding", f)
+		switch {
+		case err != nil:
+			notes = append(notes, fmt.Sprintf("failed finding %d: %v", i, err))
+		case res.IsError:
+			notes = append(notes, fmt.Sprintf("failed finding %d: %s", i, res.Content))
+		default:
+			findings++
+		}
+	}
+
+	summary := fmt.Sprintf("inserted %s, %s, %s", plural(assets, "asset"), plural(facts, "fact"), plural(findings, "finding"))
+	if outOfScope > 0 {
+		summary += fmt.Sprintf("; skipped %d out of scope", outOfScope)
+	}
+	return strings.Join(append([]string{summary}, notes...), "\n")
+}
+
+func runTool(ctx context.Context, registry *tools.Registry, name string, input any) (tools.Result, error) {
+	t, ok := registry.Lookup(name)
+	if !ok {
+		return tools.Result{}, fmt.Errorf("%s is not registered", name)
+	}
+	b, err := json.Marshal(input)
+	if err != nil {
+		return tools.Result{}, err
+	}
+	return t.Run(ctx, b)
+}
+
+func plural(n int, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return fmt.Sprintf("%d %ss", n, noun)
 }
 
 func schemaToMap(raw json.RawMessage) (map[string]any, error) {
