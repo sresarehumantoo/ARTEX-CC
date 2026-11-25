@@ -28,7 +28,7 @@ const bashCompletion = `_artex() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    commands="serve init health version completion help"
+    commands="serve init health tools version completion help"
 
     if [[ ${COMP_CWORD} -eq 1 ]]; then
         COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
@@ -44,6 +44,9 @@ const bashCompletion = `_artex() {
             ;;
         health)
             COMPREPLY=( $(compgen -W "--pg --format --timeout" -- "${cur}") )
+            ;;
+        tools)
+            COMPREPLY=( $(compgen -W "--json" -- "${cur}") )
             ;;
         completion)
             COMPREPLY=( $(compgen -W "bash zsh fish" -- "${cur}") )
@@ -62,6 +65,7 @@ _artex() {
         'serve:Start the MCP tool server'
         'init:Initialize a new engagement'
         'health:Check PostgreSQL connectivity'
+        'tools:List the MCP tool catalog'
         'version:Print version'
         'completion:Generate shell completion script'
         'help:Show usage information'
@@ -102,6 +106,9 @@ _artex() {
                         '--format[Output format]:format:(text json)' \
                         '--timeout[Health check timeout]:duration:'
                     ;;
+                tools)
+                    _arguments '--json[Print JSON]'
+                    ;;
                 completion)
                     _arguments '1:shell:(bash zsh fish)'
                     ;;
@@ -117,6 +124,8 @@ const fishCompletion = `complete -c artex -e
 complete -c artex -n '__fish_use_subcommand' -a serve -d 'Start the MCP tool server'
 complete -c artex -n '__fish_use_subcommand' -a init -d 'Initialize a new engagement'
 complete -c artex -n '__fish_use_subcommand' -a health -d 'Check PostgreSQL connectivity'
+complete -c artex -n '__fish_use_subcommand' -a tools -d 'List the MCP tool catalog'
+complete -c artex -n '__fish_seen_subcommand_from tools' -l json -d 'Print JSON'
 complete -c artex -n '__fish_use_subcommand' -a version -d 'Print version'
 complete -c artex -n '__fish_use_subcommand' -a completion -d 'Generate shell completion script'
 complete -c artex -n '__fish_use_subcommand' -a help -d 'Show usage information'
