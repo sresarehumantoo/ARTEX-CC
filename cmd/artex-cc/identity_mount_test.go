@@ -189,27 +189,34 @@ func TestIdentityMountedOnBothHTTPPaths(t *testing.T) {
 				"legacy": func() *http.Response { r, _ := legacyHolder(t, p.url, bad, ""); return r }(),
 			} {
 				resp.Body.Close()
-				if resp.StatusCode != http.StatusUnauthorized {
-					t.Errorf("%s with foreign identity: HTTP %d, want 401", era, resp.StatusCode)
+				if resp.StatusCode != http.StatusForbidden {
+					t.Errorf("%s with foreign identity: HTTP %d, want 403", era, resp.StatusCode)
 				}
 			}
 
-			bodies := map[string]string{}
-			for name, token := range map[string]string{"none": "", "valid": alice, "foreign": foreign} {
-				h := http.Header{}
-				if token != "" {
-					h.Set(mcpserver.IdentityHeader, token)
+			for _, bearer := range []string{"", "Bearer wrong"} {
+				bodies := map[string]string{}
+				for name, token := range map[string]string{"none": "", "valid": alice, "foreign": foreign, "garbage": "not-a-token"} {
+					h := http.Header{}
+					if bearer != "" {
+						h.Set("Authorization", bearer)
+					}
+					if token != "" {
+						h.Set(mcpserver.IdentityHeader, token)
+					}
+					resp := modernHolder(t, p.url, h, "")
+					raw, _ := io.ReadAll(resp.Body)
+					resp.Body.Close()
+					if resp.StatusCode != http.StatusUnauthorized {
+						t.Errorf("bearer %q, %s identity: HTTP %d, want 401", bearer, name, resp.StatusCode)
+					}
+					bodies[name] = string(raw)
 				}
-				resp := modernHolder(t, p.url, h, "")
-				raw, _ := io.ReadAll(resp.Body)
-				resp.Body.Close()
-				if resp.StatusCode != http.StatusUnauthorized {
-					t.Errorf("no bearer, %s identity: HTTP %d, want 401", name, resp.StatusCode)
+				for name, body := range bodies {
+					if body != bodies["none"] {
+						t.Errorf("bearer %q rejection differs with %s identity: %q", bearer, name, bodies)
+					}
 				}
-				bodies[name] = string(raw)
-			}
-			if bodies["valid"] != bodies["none"] || bodies["foreign"] != bodies["none"] {
-				t.Errorf("bearer rejection differs by identity: %q", bodies)
 			}
 
 			for name, h := range map[string]http.Header{
