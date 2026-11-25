@@ -1,0 +1,138 @@
+[
+ {
+  "seq": 13,
+  "conversation_id": "a865b41d-d62c-594b-a326-47b095a8c1ea",
+  "conversation_title": "API authorization testing",
+  "tool_name": "mcp__artex__save_task_credential",
+  "input": {
+   "domain": "api.acme.example",
+   "username": "svc-backup@acme.example",
+   "note": "service role JWT, no MFA"
+  },
+  "output_preview": "credential saved: 1",
+  "is_error": false,
+  "time": "2026-11-25T00:20:07.130Z"
+ },
+ {
+  "seq": 11,
+  "conversation_id": "a865b41d-d62c-594b-a326-47b095a8c1ea",
+  "conversation_title": "API authorization testing",
+  "tool_name": "Bash",
+  "input": {
+   "command": "curl -s -X POST http://api.acme.example/api/v2/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"svc-backup@acme.example\",\"password\":\"Spring2026!\"}'",
+   "description": "Try a seasonal password"
+  },
+  "output_preview": "{\"token\": \"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIzIiwicm9sZSI6InNlcnZpY2UifQ.c2lnbmF0dXJl\", \"user\": {\"id\": 3, \"role\": \"service\"}}",
+  "is_error": false,
+  "time": "2026-11-25T00:14:38.006Z"
+ },
+ {
+  "seq": 9,
+  "conversation_id": "a865b41d-d62c-594b-a326-47b095a8c1ea",
+  "conversation_title": "API authorization testing",
+  "tool_name": "Bash",
+  "input": {
+   "command": "sqlmap -u http://api.acme.example/api/v2/search --data '{\"q\":\"x\"}' --batch"
+  },
+  "output_preview": "sh: sqlmap: command not found",
+  "is_error": true,
+  "time": "2026-11-25T00:09:08.882Z"
+ },
+ {
+  "seq": 7,
+  "conversation_id": "a865b41d-d62c-594b-a326-47b095a8c1ea",
+  "conversation_title": "API authorization testing",
+  "tool_name": "mcp__artex__report_finding",
+  "input": {
+   "name": "IDOR on /api/v2/users/{id} exposes all customer records",
+   "severity": "high",
+   "vulnclass": "idor"
+  },
+  "output_preview": "{\"finding_id\": 2}",
+  "is_error": false,
+  "time": "2026-11-25T00:03:39.758Z"
+ },
+ {
+  "seq": 4,
+  "conversation_id": "a865b41d-d62c-594b-a326-47b095a8c1ea",
+  "conversation_title": "API authorization testing",
+  "tool_name": "Bash",
+  "input": {
+   "command": "for i in 2 3; do curl -s http://api.acme.example/api/v2/users/$i; done",
+   "description": "Enumerate more ids"
+  },
+  "output_preview": "{\"id\": 2, \"email\": \"j.doe@acme.example\", \"role\": \"user\", \"mfa\": true}\n{\"id\": 3, \"email\": \"svc-backup@acme.example\", \"role\": \"service\", \"mfa\": false}",
+  "is_error": false,
+  "time": "2026-11-24T23:55:26.072Z"
+ },
+ {
+  "seq": 2,
+  "conversation_id": "a865b41d-d62c-594b-a326-47b095a8c1ea",
+  "conversation_title": "API authorization testing",
+  "tool_name": "Bash",
+  "input": {
+   "command": "curl -s http://api.acme.example/api/v2/users/1",
+   "description": "Fetch user 1 without auth"
+  },
+  "output_preview": "{\n  \"id\": 1,\n  \"email\": \"admin@acme.example\",\n  \"role\": \"admin\",\n  \"mfa\": false\n}",
+  "is_error": false,
+  "time": "2026-11-24T23:49:56.947Z"
+ },
+ {
+  "seq": 10,
+  "conversation_id": "eb812252-65c8-55be-893e-f09f57c7e84b",
+  "conversation_title": "Recon acme.example",
+  "tool_name": "mcp__artex__insert_assets",
+  "input": {
+   "assets": [
+    {
+     "type": "subdomain",
+     "domain": "portal.acme.example"
+    },
+    {
+     "type": "subdomain",
+     "domain": "api.acme.example"
+    }
+   ]
+  },
+  "output_preview": "{\"results\": [{\"index\": 0, \"id\": 2, \"type\": \"subdomain\"}, {\"index\": 1, \"id\": 3, \"type\": \"subdomain\"}], \"errors\": []}",
+  "is_error": false,
+  "time": "2026-11-24T23:34:06.499Z"
+ },
+ {
+  "seq": 8,
+  "conversation_id": "eb812252-65c8-55be-893e-f09f57c7e84b",
+  "conversation_title": "Recon acme.example",
+  "tool_name": "Bash",
+  "input": {
+   "command": "nmap -sT -p 22,25,80,443,587,993,1194,8443 203.0.113.10-25",
+   "description": "Port scan in-scope hosts"
+  },
+  "output_preview": "203.0.113.10: 80/tcp open http, 443/tcp open https\n203.0.113.11: 443/tcp open https, 8443/tcp open https-alt\n203.0.113.20: 443/tcp open https, 1194/tcp open openvpn\n203.0.113.25: 25/tcp open smtp\n",
+  "is_error": false,
+  "time": "2026-11-24T23:28:37.375Z"
+ },
+ {
+  "seq": 6,
+  "conversation_id": "eb812252-65c8-55be-893e-f09f57c7e84b",
+  "conversation_title": "Recon acme.example",
+  "tool_name": "Bash",
+  "input": {
+   "command": "subfinder -silent -d acme.example | dnsx -silent -a -resp",
+   "description": "Enumerate and resolve subdomains"
+  },
+  "output_preview": "portal.acme.example [203.0.113.10]\napi.acme.example [203.0.113.11]\nvpn.acme.example [203.0.113.20]\nmail.acme.example [203.0.113.25]\ngit.acme.example [acme.gitlab-host.example]\n",
+  "is_error": false,
+  "time": "2026-11-24T23:23:08.251Z"
+ },
+ {
+  "seq": 3,
+  "conversation_id": "eb812252-65c8-55be-893e-f09f57c7e84b",
+  "conversation_title": "Recon acme.example",
+  "tool_name": "mcp__artex__graph_overview",
+  "input": {},
+  "output_preview": "{\"goal\": \"Obtain domain admin on the ACME Corp external perimeter\", \"assets\": 0, \"open_intents\": 0}",
+  "is_error": false,
+  "time": "2026-11-24T23:14:54.565Z"
+ }
+]

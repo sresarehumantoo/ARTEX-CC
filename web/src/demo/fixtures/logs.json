@@ -1,0 +1,525 @@
+[
+ {
+  "seq": 1,
+  "level": "info",
+  "time": "2026-11-24T21:34:11.806Z",
+  "message": "serving",
+  "attrs": {
+   "addr": ":9400",
+   "web": true
+  }
+ },
+ {
+  "seq": 2,
+  "level": "info",
+  "time": "2026-11-24T22:36:11.319Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "add_task_scope"
+  }
+ },
+ {
+  "seq": 3,
+  "level": "info",
+  "time": "2026-11-24T22:40:08.823Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "set_constraints"
+  }
+ },
+ {
+  "seq": 4,
+  "level": "info",
+  "time": "2026-11-24T22:42:39.192Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "set_goals"
+  }
+ },
+ {
+  "seq": 5,
+  "level": "info",
+  "time": "2026-11-24T22:49:57.071Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "insert_assets"
+  }
+ },
+ {
+  "seq": 6,
+  "level": "info",
+  "time": "2026-11-24T23:16:47.331Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "add_hint"
+  }
+ },
+ {
+  "seq": 7,
+  "level": "info",
+  "time": "2026-11-24T23:20:16.037Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "add_intent"
+  }
+ },
+ {
+  "seq": 8,
+  "level": "info",
+  "time": "2026-11-24T23:24:01.713Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "start_intent"
+  }
+ },
+ {
+  "seq": 9,
+  "level": "info",
+  "time": "2026-11-24T23:26:19.163Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_fact"
+  }
+ },
+ {
+  "seq": 10,
+  "level": "info",
+  "time": "2026-11-24T23:31:01.922Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "complete_intent"
+  }
+ },
+ {
+  "seq": 11,
+  "level": "info",
+  "time": "2026-11-24T23:33:55.103Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "add_intent"
+  }
+ },
+ {
+  "seq": 12,
+  "level": "info",
+  "time": "2026-11-24T23:37:05.913Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "start_intent"
+  }
+ },
+ {
+  "seq": 13,
+  "level": "info",
+  "time": "2026-11-24T23:38:38.273Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_fact"
+  }
+ },
+ {
+  "seq": 14,
+  "level": "info",
+  "time": "2026-11-24T23:42:29.976Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "report_finding"
+  }
+ },
+ {
+  "seq": 15,
+  "level": "info",
+  "time": "2026-11-24T23:48:37.999Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "complete_intent"
+  }
+ },
+ {
+  "seq": 16,
+  "level": "info",
+  "time": "2026-11-24T23:51:01.600Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "add_intent"
+  }
+ },
+ {
+  "seq": 17,
+  "level": "info",
+  "time": "2026-11-24T23:54:34.996Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "start_intent"
+  }
+ },
+ {
+  "seq": 18,
+  "level": "info",
+  "time": "2026-11-24T23:56:16.839Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_fact"
+  }
+ },
+ {
+  "seq": 19,
+  "level": "info",
+  "time": "2026-11-24T23:58:46.467Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "report_finding"
+  }
+ },
+ {
+  "seq": 20,
+  "level": "info",
+  "time": "2026-11-25T00:00:30.100Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "complete_intent"
+  }
+ },
+ {
+  "seq": 21,
+  "level": "info",
+  "time": "2026-11-25T00:02:15.954Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "add_intent"
+  }
+ },
+ {
+  "seq": 22,
+  "level": "info",
+  "time": "2026-11-25T00:04:54.016Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "start_intent"
+  }
+ },
+ {
+  "seq": 23,
+  "level": "info",
+  "time": "2026-11-25T00:06:07.555Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_fact"
+  }
+ },
+ {
+  "seq": 24,
+  "level": "info",
+  "time": "2026-11-25T00:08:34.180Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "report_finding"
+  }
+ },
+ {
+  "seq": 25,
+  "level": "info",
+  "time": "2026-11-25T00:10:57.349Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "save_task_credential"
+  }
+ },
+ {
+  "seq": 26,
+  "level": "info",
+  "time": "2026-11-25T00:13:04.329Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "complete_intent"
+  }
+ },
+ {
+  "seq": 27,
+  "level": "info",
+  "time": "2026-11-25T00:15:32.352Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "add_intent"
+  }
+ },
+ {
+  "seq": 28,
+  "level": "info",
+  "time": "2026-11-25T00:18:54.517Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "start_intent"
+  }
+ },
+ {
+  "seq": 29,
+  "level": "info",
+  "time": "2026-11-25T00:20:30.683Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_fact"
+  }
+ },
+ {
+  "seq": 30,
+  "level": "info",
+  "time": "2026-11-25T00:26:16.571Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "report_finding"
+  }
+ },
+ {
+  "seq": 31,
+  "level": "info",
+  "time": "2026-11-25T00:30:33.802Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "add_intent"
+  }
+ },
+ {
+  "seq": 32,
+  "level": "info",
+  "time": "2026-11-25T00:34:22.194Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "start_intent"
+  }
+ },
+ {
+  "seq": 33,
+  "level": "info",
+  "time": "2026-11-25T00:35:58.812Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_fact"
+  }
+ },
+ {
+  "seq": 34,
+  "level": "info",
+  "time": "2026-11-25T00:39:25.256Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "report_finding"
+  }
+ },
+ {
+  "seq": 35,
+  "level": "info",
+  "time": "2026-11-25T00:42:05.971Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "complete_intent"
+  }
+ },
+ {
+  "seq": 36,
+  "level": "info",
+  "time": "2026-11-25T00:44:30.333Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "add_intent"
+  }
+ },
+ {
+  "seq": 37,
+  "level": "info",
+  "time": "2026-11-25T00:50:16.489Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "add_intent"
+  }
+ },
+ {
+  "seq": 38,
+  "level": "info",
+  "time": "2026-11-25T00:56:08.343Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "add_intent"
+  }
+ },
+ {
+  "seq": 39,
+  "level": "info",
+  "time": "2026-11-25T01:00:59.330Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "add_intent"
+  }
+ },
+ {
+  "seq": 40,
+  "level": "info",
+  "time": "2026-11-25T01:04:30.957Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "add_intent"
+  }
+ },
+ {
+  "seq": 41,
+  "level": "info",
+  "time": "2026-11-25T01:08:04.188Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "bind_finding_traffic"
+  }
+ },
+ {
+  "seq": 42,
+  "level": "info",
+  "time": "2026-11-25T01:10:45.048Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "bind_finding_traffic"
+  }
+ },
+ {
+  "seq": 43,
+  "level": "info",
+  "time": "2026-11-25T01:12:27.508Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "bind_finding_traffic"
+  }
+ },
+ {
+  "seq": 44,
+  "level": "info",
+  "time": "2026-11-25T01:14:05.155Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "bind_finding_traffic"
+  }
+ },
+ {
+  "seq": 45,
+  "level": "info",
+  "time": "2026-11-25T01:15:41.156Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "bind_finding_traffic"
+  }
+ },
+ {
+  "seq": 46,
+  "level": "info",
+  "time": "2026-11-25T01:17:16.685Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "bind_finding_traffic"
+  }
+ },
+ {
+  "seq": 47,
+  "level": "info",
+  "time": "2026-11-25T01:18:54.578Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "bind_finding_traffic"
+  }
+ },
+ {
+  "seq": 48,
+  "level": "info",
+  "time": "2026-11-25T01:20:21.652Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "bind_finding_traffic"
+  }
+ },
+ {
+  "seq": 49,
+  "level": "info",
+  "time": "2026-11-25T01:21:47.348Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_coverage"
+  }
+ },
+ {
+  "seq": 50,
+  "level": "info",
+  "time": "2026-11-25T01:25:26.853Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_coverage"
+  }
+ },
+ {
+  "seq": 51,
+  "level": "info",
+  "time": "2026-11-25T01:27:38.503Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_coverage"
+  }
+ },
+ {
+  "seq": 52,
+  "level": "info",
+  "time": "2026-11-25T01:29:53.629Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_coverage"
+  }
+ },
+ {
+  "seq": 53,
+  "level": "info",
+  "time": "2026-11-25T01:31:54.129Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_coverage"
+  }
+ },
+ {
+  "seq": 54,
+  "level": "info",
+  "time": "2026-11-25T01:34:03.043Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_coverage"
+  }
+ },
+ {
+  "seq": 55,
+  "level": "info",
+  "time": "2026-11-25T01:36:12.883Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_coverage"
+  }
+ },
+ {
+  "seq": 56,
+  "level": "info",
+  "time": "2026-11-25T01:38:05.608Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_coverage"
+  }
+ },
+ {
+  "seq": 57,
+  "level": "info",
+  "time": "2026-11-25T01:39:49.899Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "record_coverage"
+  }
+ },
+ {
+  "seq": 58,
+  "level": "info",
+  "time": "2026-11-25T01:41:32.174Z",
+  "message": "tool called",
+  "attrs": {
+   "tool": "prove_goal"
+  }
+ }
+]
