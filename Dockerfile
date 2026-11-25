@@ -33,6 +33,51 @@ LABEL org.opencontainers.image.licenses="AGPL-3.0-only" \
 RUN apk add --no-cache ca-certificates nodejs npm \
     && npm install -g @anthropic-ai/claude-code@latest \
     && npm cache clean --force
+# --------------------------------------------------------- pentest tools ---
+# nmap, ldapsearch, smbclient, rpcclient, curl, wget, john, netcat, socat,
+# ssh, dig, impacket, bloodhound-python, evil-winrm, nuclei, ffuf.
+# Set --build-arg PENTEST_TOOLS=0 to skip this layer.
+ARG PENTEST_TOOLS=1
+ARG NUCLEI_VERSION=3.3.7
+ARG FFUF_VERSION=2.1.0
+RUN set -eux; \
+    if [ "${PENTEST_TOOLS}" != "1" ]; then exit 0; fi; \
+    apk add --no-cache --virtual .pentest-build-deps \
+        gcc g++ musl-dev make \
+        python3-dev ruby-dev \
+        libffi-dev openssl-dev \
+        krb5-dev linux-headers \
+        readline-dev \
+        unzip \
+    && apk add --no-cache \
+        python3 py3-pip py3-cryptography \
+        ruby \
+        nmap nmap-scripts \
+        openldap-clients \
+        samba-client \
+        curl wget \
+        john \
+        netcat-openbsd socat \
+        openssh-client \
+        bind-tools \
+        libffi krb5-libs \
+    && pip install --break-system-packages --no-cache-dir \
+        impacket \
+        bloodhound \
+    && gem install --no-document evil-winrm \
+    && ARCH="$(apk --print-arch)" \
+    && case "$ARCH" in x86_64) DLARCH=amd64;; aarch64) DLARCH=arm64;; *) DLARCH="$ARCH";; esac \
+    && wget -qO /tmp/nuclei.zip \
+         "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_${DLARCH}.zip" \
+    && unzip -oq /tmp/nuclei.zip nuclei -d /usr/local/bin \
+    && chmod +x /usr/local/bin/nuclei \
+    && wget -qO- \
+         "https://github.com/ffuf/ffuf/releases/download/v${FFUF_VERSION}/ffuf_${FFUF_VERSION}_linux_${DLARCH}.tar.gz" \
+       | tar -xzf - -C /usr/local/bin ffuf \
+    && chmod +x /usr/local/bin/ffuf \
+    && apk del .pentest-build-deps \
+    && rm -rf /root/.cache /root/.cargo /tmp/*
+
 WORKDIR /app
 COPY --from=build /out/artex-cc /app/artex-cc
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
