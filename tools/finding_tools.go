@@ -213,7 +213,10 @@ func makeMergeFindings(store Store) Tool {
 		Category: CategoryFindings,
 		Description: "Merge two or more findings into a single primary finding. " +
 			"Evidence and assets from secondary findings are folded into the primary. " +
-			"Secondary findings are marked as duplicates with a pointer to the primary.",
+			"Secondary findings are marked as duplicates with a pointer to the primary. " +
+			"If primary_id was already merged, the merge goes to the live finding it now points to: " +
+			"the result's id is that finding and requested_primary_id is the one you passed. " +
+			"Secondaries that are already merged or dismissed are left alone and listed in skipped with a reason.",
 		Schema: obj(map[string]any{
 			"finding_ids": arr(map[string]any{"type": "integer"}, "all finding ids to merge (must include primary_id)"),
 			"primary_id":  intp("the finding to keep as the merged result"),
@@ -264,7 +267,8 @@ func makeDismissFinding(store Store) Tool {
 		Name:     "dismiss_finding",
 		Category: CategoryFindings,
 		Description: "Mark a finding as dismissed (false positive). " +
-			"Dismissed findings are excluded from generate_report output.",
+			"Dismissed findings are excluded from generate_report output, and goals they alone proved reopen. " +
+			"Do not dismiss a duplicate of another finding: use merge_findings so its evidence and goal proofs move to the kept finding.",
 		Schema: obj(map[string]any{
 			"finding_id": intp("the finding to dismiss"),
 			"reason":     str("why this finding is a false positive"),
