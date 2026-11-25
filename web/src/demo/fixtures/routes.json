@@ -108,8 +108,10 @@
      18
     ],
     "id": 25,
-    "state": "open",
-    "summary": "Exploit search SQLi to read the users table and password hashes"
+    "state": "running",
+    "summary": "Exploit search SQLi to read the users table and password hashes",
+    "claim_expired": true,
+    "previous_owner": "qa-alice"
    },
    {
     "asset_ids": [
@@ -253,7 +255,9 @@
     ],
     "id": 18,
     "state": "running",
-    "summary": "Fuzz /api/v2/search for injection"
+    "summary": "Fuzz /api/v2/search for injection",
+    "claimed_by": "chat/7ef7a2c1-4b9d-4e8a-9c3f-2d61b0e5a9f4",
+    "claim_expires_at": "2026-11-25T02:11:47.008Z"
    }
   ],
   "task": {
