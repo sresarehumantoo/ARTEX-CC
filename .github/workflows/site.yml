@@ -75,6 +75,7 @@ jobs:
             --root-dir ${{ github.workspace }}/site/dist
             --exclude '^https://artex-cc\.com'
             --exclude '^https://github\.com/SREsAreHumanToo/ARTEX-CC/edit/'
+            --exclude '^https://github\.com/SREsAreHumanToo/ARTEX-CC/compare/'
             --exclude '^https://app\.hackthebox\.com'
             --accept 200,206,429
             'site/dist/**/*.html'
