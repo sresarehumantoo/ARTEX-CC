@@ -397,6 +397,22 @@ func TestHandleGraph_OK(t *testing.T) {
 	}
 }
 
+func TestHandleGraph_EmptyListsAreArrays(t *testing.T) {
+	a := newTestAPI(&mockStore{})
+	h := a.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d", rec.Code)
+	}
+	if got := strings.TrimSpace(rec.Body.String()); got != `{"edges":[],"nodes":[]}` {
+		t.Fatalf("body: want empty arrays, got %s", got)
+	}
+}
+
 func TestHandleGraph_NodesError(t *testing.T) {
 	a := newTestAPI(&mockStore{listNodesErr: errors.New("fail")})
 	h := a.Handler()
