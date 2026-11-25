@@ -37,6 +37,8 @@ MANIFEST = {
     ],
 }
 
+MAX_TIMEOUT = 120
+
 TITLE_RE = re.compile(rb"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 
 
@@ -96,19 +98,35 @@ def fetch(opener, url, timeout):
         }
 
 
+def error(text):
+    return {"content": [{"type": "text", "text": text}], "isError": True}
+
+
 def probe(inv):
     args = inv.get("input") or {}
-    urls = args.get("urls") or []
-    if not urls:
-        return {"content": [{"type": "text", "text": "urls must be a non-empty array"}], "isError": True}
-    timeout = args.get("timeout") or 10
+    if not isinstance(args, dict):
+        return error("input must be an object")
+    urls = args.get("urls")
+    if not isinstance(urls, list) or not urls or not all(isinstance(u, str) for u in urls):
+        return error("urls must be a non-empty array of strings")
+    timeout = args.get("timeout", 10)
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not 0 < timeout <= MAX_TIMEOUT:
+        return error(f"timeout must be a number of seconds between 0 and {MAX_TIMEOUT}")
     config = inv.get("config") or {}
     rules = config.get("in_scope") or []
     opener = build_opener(config.get("proxy"))
 
     lines, assets, live = [], [], []
     for url in urls:
-        host = (urllib.parse.urlsplit(url).hostname or "").lower()
+        try:
+            parts = urllib.parse.urlsplit(url)
+            host = (parts.hostname or "").lower()
+        except ValueError:
+            lines.append(f"{url} skipped: not a valid URL")
+            continue
+        if parts.scheme.lower() not in ("http", "https"):
+            lines.append(f"{url} skipped: only http and https URLs are probed")
+            continue
         if not in_scope(host, rules):
             lines.append(f"{url} skipped: out of scope")
             continue

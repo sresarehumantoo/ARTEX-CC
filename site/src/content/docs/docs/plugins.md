@@ -72,7 +72,7 @@ When Claude calls a plugin tool, ARTEX starts the executable with no arguments a
 | `tool` | The tool name from the manifest, without the plugin prefix. One executable can serve several tools by switching on it. |
 | `input` | The arguments Claude passed, unchanged. |
 | `config.engagement` | The active engagement. `name` is the engagement goal. The config is built per call, so it follows `switch_engagement`. |
-| `config.in_scope` | The engagement's scope rules followed by its company's scope rules. Always an array, possibly empty. `kind` is one of `root_domain`, `subdomain`, `ip`, `cidr`, `company`, `icp` or `keyword`; IP rules are expressed as CIDRs. `reason` is omitted when empty. |
+| `config.in_scope` | The engagement's scope rules followed by its company's scope rules. Always an array, possibly empty. `kind` is one of `root_domain`, `subdomain`, `domain`, `ip`, `cidr`, `company`, `icp` or `keyword` (`domain` comes from company scope rows); IP rules are expressed as CIDRs. `reason` is omitted when empty. |
 | `config.data_dir` | Absolute path of the `--data` directory, a good place for raw scanner output. |
 | `config.proxy` | Present only when `serve` runs with `--proxy`. Send HTTP(S) through `url` and trust `ca_cert` (an absolute PEM path) so the traffic is recorded and shows up in the `traffic_*` tools. |
 
@@ -173,8 +173,9 @@ The parts worth reading:
 
 - **`--manifest`.** `main()` prints the `MANIFEST` dict and exits when called with `--manifest`. Otherwise it reads one invocation from stdin, dispatches on `tool`, and prints one result.
 - **Scope before traffic.** `in_scope()` applies the same rules as the server: `root_domain`, `subdomain` and `domain` rules match the host or any subdomain of it, `ip` and `cidr` rules match addresses. Other kinds (`company`, `icp`, `keyword`) cannot match a host and are ignored. Unlike the server, which treats an empty scope as "everything allowed", the example treats an empty scope as "nothing allowed", so it never probes a target nobody has put in scope. Skipped URLs show up in the output and cost no traffic.
+- **Schemes.** Only `http` and `https` URLs are probed. Anything else, such as `file://` or `ftp://`, is skipped with a reason in the output even when its host is in scope, because urllib would otherwise read local files or connect directly, bypassing the recording proxy.
 - **The proxy.** `build_opener()` routes both `http` and `https` through `config.proxy.url` when it is present and loads `config.proxy.ca_cert` into the TLS context, so HTTPS requests are intercepted and recorded instead of failing certificate checks. Without a proxy it disables any proxy from the environment and connects directly.
 - **Structured output.** Each URL that answers becomes a `service` asset with `url`, `status_code`, `content_length`, `page_title` and `technologies`. If any URL answered, one fact summarizes the run with `source: tool_output`, following `record_fact`'s guidance to consolidate one exploration into one fact. The plugin does not report findings; deciding that something is a vulnerability is left to Claude.
-- **Errors.** A missing `urls` array returns `isError: true`. A connection failure for one URL is a line in the output, not an error for the whole call.
+- **Errors.** Bad input (`urls` missing or not an array of strings, `timeout` not a number between 0 and 120) returns `isError: true` instead of crashing the plugin. A connection failure for one URL is a line in the output, not an error for the whole call.
 
 To write your own, keep the same shape: answer `--manifest`, read one invocation, check scope before touching a target, route traffic through the proxy, and return text for Claude plus structured items for the graph.

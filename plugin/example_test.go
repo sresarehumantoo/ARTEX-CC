@@ -105,6 +105,62 @@ func TestExamplePlugin_RoutesThroughProxy(t *testing.T) {
 	}
 }
 
+func TestExamplePlugin_SkipsNonHTTPSchemes(t *testing.T) {
+	hit := make(chan struct{}, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hit <- struct{}{}
+	}))
+	defer srv.Close()
+
+	cfg := PluginConfig{InScope: []tools.ScopeRule{{Kind: "ip", Value: "127.0.0.1/32"}}}
+	input := `{"urls":["file://127.0.0.1/etc/hostname","ftp://127.0.0.1:1/","FTP://` + strings.TrimPrefix(srv.URL, "http://") + `/"]}`
+	result, store := runExamplePlugin(t, cfg, input)
+	if result.IsError {
+		t.Fatalf("unexpected error result: %s", result.Content)
+	}
+	for _, s := range []string{
+		"file://127.0.0.1/etc/hostname skipped: only http and https URLs are probed",
+		"ftp://127.0.0.1:1/ skipped: only http and https URLs are probed",
+	} {
+		if !strings.Contains(result.Content, s) {
+			t.Errorf("content missing %q:\n%s", s, result.Content)
+		}
+	}
+	if strings.Contains(result.Content, "failed") {
+		t.Errorf("a skipped URL was attempted:\n%s", result.Content)
+	}
+	select {
+	case <-hit:
+		t.Error("server was contacted")
+	default:
+	}
+	if len(store.assets)+len(store.facts) != 0 {
+		t.Errorf("persisted %d assets, %d facts", len(store.assets), len(store.facts))
+	}
+}
+
+func TestExamplePlugin_BadInputIsErrorResult(t *testing.T) {
+	cfg := PluginConfig{InScope: []tools.ScopeRule{{Kind: "ip", Value: "127.0.0.1/32"}}}
+	for _, input := range []string{
+		`{"urls":["http://127.0.0.1:1/"],"timeout":"soon"}`,
+		`{"urls":["http://127.0.0.1:1/"],"timeout":0}`,
+		`{"urls":["http://127.0.0.1:1/"],"timeout":-5}`,
+		`{"urls":["http://127.0.0.1:1/"],"timeout":100000}`,
+		`{"urls":["http://127.0.0.1:1/"],"timeout":true}`,
+		`{"urls":"http://127.0.0.1:1/"}`,
+		`{"urls":[1,2]}`,
+		`{"urls":[]}`,
+	} {
+		result, store := runExamplePlugin(t, cfg, input)
+		if !result.IsError {
+			t.Errorf("%s: want error result, got %s", input, result.Content)
+		}
+		if len(store.assets)+len(store.facts) != 0 {
+			t.Errorf("%s: persisted data", input)
+		}
+	}
+}
+
 func TestExamplePlugin_EmptyScopeProbesNothing(t *testing.T) {
 	result, store := runExamplePlugin(t, PluginConfig{InScope: []tools.ScopeRule{}}, `{"urls":["http://127.0.0.1:1/"]}`)
 	if !strings.Contains(result.Content, "skipped: out of scope") {
