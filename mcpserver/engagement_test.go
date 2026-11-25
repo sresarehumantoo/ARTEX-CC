@@ -512,7 +512,7 @@ func TestNotifierCalledOnMutatingTool(t *testing.T) {
 	reg := tools.NewRegistry()
 	reg.Register(mutatingTool)
 	addr := startTestServerWithOpts(t, reg,
-		mcpserver.WithNotifier(func(name string) {
+		mcpserver.WithNotifier(func(name string, _ json.RawMessage) {
 			if name == "mutate" {
 				called.Add(1)
 			}
@@ -548,7 +548,7 @@ func TestNotifierNotCalledOnReadOnlyTool(t *testing.T) {
 	reg := tools.NewRegistry()
 	reg.Register(readOnlyTool)
 	addr := startTestServerWithOpts(t, reg,
-		mcpserver.WithNotifier(func(_ string) {
+		mcpserver.WithNotifier(func(_ string, _ json.RawMessage) {
 			called.Add(1)
 		}),
 	)
@@ -582,7 +582,7 @@ func TestNotifierNotCalledOnToolError(t *testing.T) {
 	reg := tools.NewRegistry()
 	reg.Register(errorTool)
 	addr := startTestServerWithOpts(t, reg,
-		mcpserver.WithNotifier(func(_ string) {
+		mcpserver.WithNotifier(func(_ string, _ json.RawMessage) {
 			called.Add(1)
 		}),
 	)
