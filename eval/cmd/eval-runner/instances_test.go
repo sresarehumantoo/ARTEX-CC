@@ -1,9 +1,15 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/SREsAreHumanToo/ARTEX-CC/identity"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 func TestParseKillAfter(t *testing.T) {
@@ -23,19 +29,98 @@ func TestParseKillAfter(t *testing.T) {
 
 func TestBuildPrompt(t *testing.T) {
 	sc := Scenario{Target: "http://localhost:8083", Goal: "find bugs"}
-	single := buildPrompt(sc, 1, 1, "stdio")
+	single := buildPrompt(sc, 1, 1, false)
 	if strings.Contains(single, "instance") || strings.Contains(single, "owner") {
 		t.Fatalf("single stdio prompt must stay unchanged: %s", single)
 	}
-	multi := buildPrompt(sc, 2, 3, "stdio")
+	multi := buildPrompt(sc, 2, 3, false)
 	if !strings.HasPrefix(multi, single) || !strings.Contains(multi, "You are instance 2 of 3;") {
 		t.Fatalf("multi prompt: %s", multi)
 	}
 	if strings.Contains(multi, "owner") {
-		t.Fatalf("stdio prompt should not ask for an owner: %s", multi)
+		t.Fatalf("stdio and identity prompts should not ask for an owner: %s", multi)
 	}
-	if http := buildPrompt(sc, 1, 3, "http"); !strings.Contains(http, "pass it as owner on every start_intent, complete_intent, cancel_intent and list_changes call") {
-		t.Fatalf("http prompt: %s", http)
+	if anon := buildPrompt(sc, 1, 3, true); !strings.Contains(anon, "pass it as owner on every start_intent, complete_intent, cancel_intent and list_changes call") {
+		t.Fatalf("anonymous http prompt: %s", anon)
+	}
+}
+
+func TestIdentityTTL(t *testing.T) {
+	if got := identityTTL(15*time.Minute, ""); got != 15*time.Minute+tools.DefaultIntentLease {
+		t.Errorf("default lease: %s", got)
+	}
+	if got := identityTTL(15*time.Minute, "2m"); got != 17*time.Minute {
+		t.Errorf("2m lease: %s", got)
+	}
+}
+
+func readMCPServer(t *testing.T, path string) map[string]any {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct {
+		MCPServers map[string]map[string]any `json:"mcpServers"`
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	return cfg.MCPServers["artex"]
+}
+
+func TestWriteIdentityConfigs(t *testing.T) {
+	rc := runConfig{dataDir: t.TempDir(), instances: 3, runID: "20261125-120000"}
+	ttl := identityTTL(15*time.Minute, "2m")
+	before := time.Now()
+	paths, err := writeIdentityConfigs(rc, "http://127.0.0.1:1234/mcp", ttl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer, err := identity.NewSigner(rc.dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(paths) != 3 {
+		t.Fatalf("paths: %v", paths)
+	}
+	tokens := map[string]bool{}
+	for i, p := range paths {
+		info, err := os.Stat(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != 0600 {
+			t.Errorf("%s mode %v, want 0600", p, info.Mode().Perm())
+		}
+		server := readMCPServer(t, p)
+		if server["type"] != "http" || server["url"] != "http://127.0.0.1:1234/mcp" {
+			t.Errorf("server %d: %v", i+1, server)
+		}
+		headers, _ := server["headers"].(map[string]any)
+		token, _ := headers["X-Artex-Identity"].(string)
+		if tokens[token] {
+			t.Fatalf("instance %d reuses a token", i+1)
+		}
+		tokens[token] = true
+		claims, err := signer.Verify(token)
+		if err != nil {
+			t.Fatalf("instance %d token does not verify: %v", i+1, err)
+		}
+		if want := fmt.Sprintf("eval/20261125-120000/i%d", i+1); claims.Name != want {
+			t.Errorf("name %q, want %q", claims.Name, want)
+		}
+		if !identity.Reserved(claims.Name) {
+			t.Errorf("%q should be under a reserved prefix", claims.Name)
+		}
+		lo := before.Add(ttl).Truncate(time.Second)
+		hi := time.Now().Add(ttl)
+		if claims.ExpiresAt.Before(lo) || claims.ExpiresAt.After(hi) {
+			t.Errorf("expiry %s outside [%s, %s]", claims.ExpiresAt, lo, hi)
+		}
+		if claims.ExpiresAt.Sub(claims.IssuedAt) > 17*time.Minute {
+			t.Errorf("ttl %s exceeds timeout plus lease", claims.ExpiresAt.Sub(claims.IssuedAt))
+		}
 	}
 }
 

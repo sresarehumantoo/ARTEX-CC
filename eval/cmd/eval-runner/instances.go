@@ -13,6 +13,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/SREsAreHumanToo/ARTEX-CC/identity"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 type runConfig struct {
@@ -24,6 +27,8 @@ type runConfig struct {
 	instances      int
 	transport      string
 	lease          string
+	identity       bool
+	runID          string
 	kill           *killSpec
 	transcriptsDir string
 }
@@ -62,7 +67,7 @@ func parseKillAfter(s string, instances int) (*killSpec, error) {
 	return &killSpec{Instance: i, After: d}, nil
 }
 
-func buildPrompt(sc Scenario, instance, instances int, transport string) string {
+func buildPrompt(sc Scenario, instance, instances int, askOwner bool) string {
 	prompt := fmt.Sprintf(
 		"You are a penetration tester. Your target is %s. Your goal: %s. "+
 			"Use the ARTEX MCP tools to track your work. "+
@@ -78,7 +83,7 @@ func buildPrompt(sc Scenario, instance, instances int, transport string) string 
 		prompt += fmt.Sprintf(" You are instance %d of %d; other agents are working this engagement at the same time. "+
 			"Coordinate through intent claims and list_changes as the engagement guide describes.", instance, instances)
 	}
-	if transport == "http" {
+	if askOwner {
 		prompt += " Choose a random hex owner label once, at the start, and pass it as owner on every " +
 			"start_intent, complete_intent, cancel_intent and list_changes call."
 	}
@@ -93,12 +98,49 @@ func serveEnv(lease string) []string {
 	return env
 }
 
-func writeMCPConfig(path string, server map[string]any) error {
+func writeMCPConfig(path string, server map[string]any, perm os.FileMode) error {
 	data, err := json.Marshal(map[string]any{"mcpServers": map[string]any{"artex": server}})
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0644)
+	return os.WriteFile(path, data, perm)
+}
+
+func identityName(runID string, instance int) string {
+	return fmt.Sprintf("eval/%s/i%d", runID, instance)
+}
+
+// identityTTL covers the whole run plus one lease, so a claim taken just
+// before the timeout can still be renewed or completed.
+func identityTTL(timeout time.Duration, lease string) time.Duration {
+	l := tools.DefaultIntentLease
+	if d, err := time.ParseDuration(lease); err == nil && d > 0 {
+		l = d
+	}
+	return timeout + l
+}
+
+// writeIdentityConfigs mints one identity per instance with the data
+// directory's key, which the runner's serve --listen verifies against, and
+// writes each into its own 0600 MCP config. Tokens never leave those files.
+func writeIdentityConfigs(rc runConfig, url string, ttl time.Duration) ([]string, error) {
+	signer, err := identity.NewSigner(rc.dataDir)
+	if err != nil {
+		return nil, fmt.Errorf("identity key: %w", err)
+	}
+	paths := make([]string, rc.instances)
+	for i := range rc.instances {
+		token, err := signer.Issue(identityName(rc.runID, i+1), ttl)
+		if err != nil {
+			return nil, fmt.Errorf("issue identity for instance %d: %w", i+1, err)
+		}
+		paths[i] = filepath.Join(rc.dataDir, fmt.Sprintf("mcp-i%d.json", i+1))
+		server := map[string]any{"type": "http", "url": url, "headers": map[string]string{"X-Artex-Identity": token}}
+		if err := writeMCPConfig(paths[i], server, 0600); err != nil {
+			return nil, fmt.Errorf("write mcp config: %w", err)
+		}
+	}
+	return paths, nil
 }
 
 // runInstances starts every claude instance, waits for all of them, and kills
@@ -111,9 +153,12 @@ func runInstances(ctx context.Context, rc runConfig, sc Scenario, timeout time.D
 		return nil, fmt.Errorf("create transcripts dir: %w", err)
 	}
 
-	mcpConfigPath := rc.mcpConfig
-	if mcpConfigPath == "" {
-		mcpConfigPath = filepath.Join(rc.dataDir, "mcp.json")
+	configs := make([]string, rc.instances)
+	if rc.mcpConfig != "" {
+		for i := range configs {
+			configs[i] = rc.mcpConfig
+		}
+	} else {
 		var server map[string]any
 		switch rc.transport {
 		case "http":
@@ -122,6 +167,14 @@ func runInstances(ctx context.Context, rc runConfig, sc Scenario, timeout time.D
 				return nil, err
 			}
 			defer stop()
+			if rc.identity {
+				paths, err := writeIdentityConfigs(rc, url, identityTTL(timeout, rc.lease))
+				if err != nil {
+					return nil, err
+				}
+				configs = paths
+				break
+			}
 			server = map[string]any{"type": "http", "url": url}
 		default:
 			// Each claude process launches its own serve --stdio from this
@@ -134,8 +187,14 @@ func runInstances(ctx context.Context, rc runConfig, sc Scenario, timeout time.D
 				server["env"] = map[string]string{"ARTEX_INTENT_LEASE": rc.lease}
 			}
 		}
-		if err := writeMCPConfig(mcpConfigPath, server); err != nil {
-			return nil, fmt.Errorf("write mcp config: %w", err)
+		if server != nil {
+			path := filepath.Join(rc.dataDir, "mcp.json")
+			if err := writeMCPConfig(path, server, 0644); err != nil {
+				return nil, fmt.Errorf("write mcp config: %w", err)
+			}
+			for i := range configs {
+				configs[i] = path
+			}
 		}
 	}
 
@@ -145,7 +204,7 @@ func runInstances(ctx context.Context, rc runConfig, sc Scenario, timeout time.D
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runs[i] = runInstance(ctx, rc, sc, mcpConfigPath, i+1, timeout)
+			runs[i] = runInstance(ctx, rc, sc, configs[i], i+1, timeout)
 		}()
 	}
 	wg.Wait()
@@ -181,7 +240,7 @@ func runInstance(ctx context.Context, rc runConfig, sc Scenario, mcpConfigPath s
 	}
 	defer out.Close()
 
-	args := claudeArgs(mcpConfigPath, sc.Model, buildPrompt(sc, instance, rc.instances, rc.transport))
+	args := claudeArgs(mcpConfigPath, sc.Model, buildPrompt(sc, instance, rc.instances, rc.transport == "http" && !rc.identity))
 	cmd := exec.CommandContext(ctx, rc.claudeBin, args...)
 	cmd.Stdout = out
 	cmd.Stderr = os.Stderr
