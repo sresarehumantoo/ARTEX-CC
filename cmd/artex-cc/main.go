@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -98,11 +99,22 @@ func isLoopbackAddr(addr string) bool {
 	if err != nil {
 		host = addr
 	}
-	if host == "localhost" {
+	if strings.EqualFold(host, "localhost") {
 		return true
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
+}
+
+// mcpListenToken returns the bearer token /mcp must require on a listener
+// without --web, or "" when none is needed. Only literal loopback addresses
+// may run without one; other hostnames are not resolved and count as exposed.
+func mcpListenToken(addr, token string) (string, error) {
+	token = strings.TrimSpace(token)
+	if token == "" && !isLoopbackAddr(addr) {
+		return "", fmt.Errorf("--listen %s is not a loopback address, so /mcp needs a bearer token: set ARTEX_MCP_TOKEN (for example ARTEX_MCP_TOKEN=$(openssl rand -hex 32)) and send it as \"Authorization: Bearer <token>\", or listen on localhost", addr)
+	}
+	return token, nil
 }
 
 func initLogging(debug bool) {
@@ -158,6 +170,16 @@ func cmdServe(args []string) {
 		}
 	}
 
+	var listenToken string
+	if !*stdio && !*webUI {
+		var err error
+		listenToken, err = mcpListenToken(*listen, os.Getenv("ARTEX_MCP_TOKEN"))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+	}
+
 	initLogging(*debug)
 
 	dsn := resolvePG(*pg)
@@ -206,6 +228,12 @@ func cmdServe(args []string) {
 		}
 		tools.IntentLease = lease
 		slog.Info("intent claim lease set", "lease", lease)
+	}
+
+	if key, err := config.OwnerLabelKey(*dataDir); err != nil {
+		slog.Warn("claim holder labels will differ between processes", "err", err)
+	} else {
+		tools.SetOwnerLabeler(tools.NewOwnerLabeler(key))
 	}
 
 	reg := tools.NewRegistry()
@@ -271,6 +299,7 @@ func cmdServe(args []string) {
 	var restAPI *api.API
 	var runner *api.Runner
 	var mcpToken string
+	var conversations *mcpserver.ConversationSigner
 	if *webUI {
 		authRequired := *authFlag || envEnabled("ARTEX_AUTH") || !isLoopbackAddr(*listen)
 		apiOpts := []api.Option{api.WithDataDir(*dataDir), api.WithAuthRequired(authRequired), api.WithToolList(reg.Tools())}
@@ -288,7 +317,13 @@ func cmdServe(args []string) {
 			slog.Error("writing mcp config failed", "err", err)
 			os.Exit(1)
 		}
+		conversations, err = mcpserver.NewConversationSigner()
+		if err != nil {
+			slog.Error("generating conversation key failed", "err", err)
+			os.Exit(1)
+		}
 		runner = api.NewRunner(*claudeBin, mcpConfig, *dataDir, 0)
+		runner.SetConversationSigner(conversations)
 		apiOpts = append(apiOpts, api.WithRunner(runner))
 		restAPI = api.New(s, t, engCfg.TaskID, engCfg.ExplorationID, apiOpts...)
 	}
@@ -321,7 +356,7 @@ func cmdServe(args []string) {
 		mux := http.NewServeMux()
 
 		mcpHandler := server.NewStreamableHTTPServer(srv.MCPServer())
-		mux.Handle("/mcp", bearerAuth(mcpToken, mcpHandler))
+		mux.Handle("/mcp", bearerAuth(mcpToken, conversations.Middleware(mcpHandler)))
 
 		mux.Handle("/api/", restAPI.Handler())
 
@@ -345,8 +380,12 @@ func cmdServe(args []string) {
 			runner.StopAll()
 		}
 	} else {
-		slog.Info("serving", "addr", *listen)
-		if err := srv.ServeHTTP(ctx, *listen); err != nil && ctx.Err() == nil {
+		var middleware []func(http.Handler) http.Handler
+		if listenToken != "" {
+			middleware = append(middleware, func(h http.Handler) http.Handler { return bearerAuth(listenToken, h) })
+		}
+		slog.Info("serving", "addr", *listen, "mcp_auth", listenToken != "")
+		if err := srv.ServeHTTP(ctx, *listen, middleware...); err != nil && ctx.Err() == nil {
 			slog.Error("http server failed", "err", err)
 			os.Exit(1)
 		}

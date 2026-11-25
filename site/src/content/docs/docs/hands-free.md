@@ -17,7 +17,7 @@ Each iteration starts from `graph_overview`, not from conversation memory. The e
 
 - **No repeated work.** Done intents and coverage records tell Claude what has already been tested.
 - **Context loss is harmless.** If the conversation is compacted or restarted, the next iteration rebuilds its picture from the graph.
-- **Stale work is visible.** `start_intent` claims an intent for 30 minutes. A claim that is not renewed lapses, and the intent shows up as open again for any session to pick up.
+- **Stale work is visible.** `start_intent` claims an intent for 30 minutes by default (`ARTEX_INTENT_LEASE` changes it). A claim that is not renewed lapses, and the intent shows up as open again for any session to pick up.
 
 ## Steering
 
@@ -46,7 +46,7 @@ A few rules keep several instances from stepping on each other:
 - **Check before reporting.** Before `report_finding`, an instance checks `list_findings` (or the findings in `list_changes`) for the same vulnclass on the same asset and adds to that finding instead of filing a new one. `report_finding` returns `possible_duplicates` for open findings with the same vulnclass, or the same severity on an overlapping asset. Vulnclass matching ignores case and punctuation and treats common long forms like "Insecure Direct Object Reference" as `idor`. The instance merges any that are the same issue with `merge_findings`. Reporting is never blocked; distinct issues stay separate.
 - **Don't wait on claims.** When every open intent is claimed by someone else, an instance polls `list_changes` once more and takes any new or reopened intent. If there is none, it adds intents for untested directions or finishes its own work (complete its intents, prove goals that have evidence) and stops, rather than sleeping until a claim frees up.
 
-Claims belong to the MCP session: each stdio process and each HTTP client on the older session-based protocol gets its own without doing anything. HTTP clients on MCP protocol 2026-07-28 have no session, so `start_intent` asks for an `owner` argument instead. The agent picks a random hex string once and passes it as `owner` on every `start_intent`, `complete_intent`, `cancel_intent` and `list_changes` call. An agent that has a session can pass `owner` too, which makes it a separate holder within that session (useful for giving subagents their own claims), as long as it keeps passing the same value.
+Claims belong to the MCP session: each stdio process and each HTTP client on the older session-based protocol gets its own without doing anything. Web UI chat conversations need nothing either: each conversation's `claude` process sends a per-conversation identity that the server signed with a key it keeps in memory, and that identity holds its claims. Other HTTP clients on MCP protocol 2026-07-28 have no session, so `start_intent` asks for an `owner` argument instead. The agent picks a random hex string once and passes it as `owner` on every `start_intent`, `complete_intent`, `cancel_intent` and `list_changes` call. An agent that has a session can pass `owner` too, which makes it a separate holder within that session (useful for giving subagents their own claims), as long as it keeps passing the same value.
 
 Holders are shown as hashed labels (`claimed_by`, the `session` field of `list_changes`, and claim errors), never as raw session IDs or owner strings, so one client cannot copy another's identity to renew or cancel its claims. `complete_intent` and `cancel_intent` are both refused on an intent another holder has a live claim on.
 

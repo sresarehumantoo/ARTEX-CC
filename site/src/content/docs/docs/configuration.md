@@ -35,7 +35,7 @@ artex-cc init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.examp
 |------|---------|---------|
 | `--pg DSN` | PostgreSQL connection string (or `ARTEX_PG`) | none, required |
 | `--stdio` | Use the stdio transport instead of HTTP | off |
-| `--listen ADDR` | HTTP listen address (or `ARTEX_LISTEN`) | `localhost:9400` |
+| `--listen ADDR` | HTTP listen address (or `ARTEX_LISTEN`). Without `--web`, a non-loopback address requires `ARTEX_MCP_TOKEN` | `localhost:9400` |
 | `--web` | Enable the [web UI](/docs/web-ui/) and REST API | off |
 | `--auth` | Require password login for the web UI on a loopback listener (or `ARTEX_AUTH`) | off |
 | `--proxy ADDR` | Start the recording MITM proxy on `ADDR`, for example `:8788` | off |
@@ -69,6 +69,7 @@ Each variable is a fallback for the matching flag; a flag on the command line wi
 |----------|------|---------|---------|
 | `ARTEX_PG` | `--pg` | PostgreSQL connection string | none, required |
 | `ARTEX_LISTEN` | `--listen` | HTTP listen address for `serve` | `localhost:9400` |
+| `ARTEX_MCP_TOKEN` | | Bearer token `/mcp` requires when serving HTTP without `--web`. Required for a non-loopback `--listen`; optional on loopback. Ignored with `--web`, which generates its own token. See [MCP clients](/docs/mcp-clients/#generic-stdio) | none |
 | `ARTEX_AUTH` | `--auth` | Require password login for the web UI on a loopback listener (`1`/`true`). Non-loopback listeners always require it. | off |
 | `ARTEX_CREDENTIAL_KEY` | | Hex-encoded 32-byte AES-256-GCM key for encrypting stored credentials | none (plaintext) |
 | `ARTEX_INTENT_LEASE` | | How long a `start_intent` claim stays exclusive, in whole minutes (Go duration such as `2m`). Shorten it only for tests and evals | `30m` |

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/SREsAreHumanToo/ARTEX-CC/evidence"
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
@@ -75,11 +76,11 @@ func New(registry *tools.Registry, opts ...Option) *Server {
 	hooks := &server.Hooks{}
 	hooks.AddOnRegisterSession(func(_ context.Context, cs server.ClientSession) {
 		s.sessions.GetOrCreate(sessionKey(cs))
-		slog.Debug("session registered", "id", sessionKey(cs))
+		slog.Debug("session registered", "session", tools.OwnerLabel(sessionKey(cs)))
 	})
 	hooks.AddOnUnregisterSession(func(_ context.Context, cs server.ClientSession) {
 		s.sessions.Remove(sessionKey(cs))
-		slog.Debug("session unregistered", "id", sessionKey(cs))
+		slog.Debug("session unregistered", "session", tools.OwnerLabel(sessionKey(cs)))
 	})
 
 	s.mcp = server.NewMCPServer(
@@ -131,19 +132,39 @@ func (s *Server) MCPServer() *server.MCPServer { return s.mcp }
 
 func (s *Server) listSessionsTool() tools.Tool {
 	return tools.Tool{
-		Name:        "list_sessions",
-		Description: "List all active MCP client sessions connected to this server.",
-		Category:    tools.CategoryEngagement,
-		ReadOnly:    true,
+		Name: "list_sessions",
+		Description: "List all active MCP client sessions connected to this server. " +
+			"Each session shows its holder label, the same label claimed_by shows for claims it takes without an owner argument, " +
+			"and self is true on your own session.",
+		Category: tools.CategoryEngagement,
+		ReadOnly: true,
 		Schema: map[string]any{
 			"type":       "object",
 			"properties": map[string]any{},
 		},
-		Run: func(_ context.Context, _ json.RawMessage) (tools.Result, error) {
+		Run: func(ctx context.Context, _ json.RawMessage) (tools.Result, error) {
+			caller := tools.SessionID(ctx)
+			type entry struct {
+				Label      string            `json:"label"`
+				Self       bool              `json:"self"`
+				CreatedAt  time.Time         `json:"created_at"`
+				LastActive time.Time         `json:"last_active"`
+				Context    map[string]string `json:"context"`
+			}
 			sessions := s.sessions.List()
+			entries := make([]entry, len(sessions))
+			for i, info := range sessions {
+				entries[i] = entry{
+					Label:      tools.OwnerLabel(info.ID),
+					Self:       caller != "" && info.ID == caller,
+					CreatedAt:  info.CreatedAt,
+					LastActive: info.LastActive,
+					Context:    info.Context,
+				}
+			}
 			out, _ := json.Marshal(map[string]any{
-				"count":    len(sessions),
-				"sessions": sessions,
+				"count":    len(entries),
+				"sessions": entries,
 			})
 			return tools.Result{Content: string(out)}, nil
 		},
@@ -259,15 +280,18 @@ same engagement, coordinate through the graph:
 - Finish with complete_intent, or cancel_intent if it is no longer worth
   doing, so the claim is released. Both are refused on an intent another
   session holds; leave it to its owner.
-- Claims belong to your MCP session. If start_intent says the connection has
-  no session (HTTP clients on protocol 2026-07-28), pick an owner once, a
-  random hex string, and pass it as owner on every start_intent,
-  complete_intent, cancel_intent and list_changes call. With a session, owner
+- Claims belong to your MCP session, or to your conversation when you run in
+  the web UI chat. If start_intent says the connection has no session (HTTP
+  clients on protocol 2026-07-28), pick an owner once, a random hex string,
+  and pass it as owner on every start_intent, complete_intent, cancel_intent
+  and list_changes call. With a session, owner
   is optional and makes a separate holder inside it, so subagents of one
   process can each pass their own; keep passing the same value.
 - claimed_by, the session field of list_changes and claim errors show a
   hashed holder label, not the session ID or owner. Compare claimed_by with
-  your own session label to recognize your claims.
+  your own session label to recognize your claims. list_sessions shows each
+  session's label (what its claims carry without an owner) and marks yours
+  with self.
 - Intents left running from before claims existed have no lease and can be
   started by any session right away.
 - Between rounds, poll list_changes with the cursor from your last call (the

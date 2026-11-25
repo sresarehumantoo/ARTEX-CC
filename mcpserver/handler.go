@@ -29,11 +29,12 @@ func sessionKey(cs server.ClientSession) string {
 }
 
 func callerSessionID(ctx context.Context) string {
-	cs := server.ClientSessionFromContext(ctx)
-	if cs == nil {
-		return ""
+	if cs := server.ClientSessionFromContext(ctx); cs != nil {
+		if id := sessionKey(cs); id != "" {
+			return id
+		}
 	}
-	return sessionKey(cs)
+	return conversationOwner(ctx)
 }
 
 func makeHandlerWithNotifier(t tools.Tool, notifier ToolNotifier) server.ToolHandlerFunc {

@@ -247,7 +247,9 @@ func startHTTPServer(rc runConfig) (string, func(), error) {
 	cmd := exec.Command(rc.artexBin, "serve", "--listen", addr, "--pg", rc.dsn, "--data", rc.dataDir)
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
-	cmd.Env = serveEnv(rc.lease)
+	// The listener is loopback and the generated MCP config sends no
+	// Authorization header, so an inherited ARTEX_MCP_TOKEN must not apply.
+	cmd.Env = append(serveEnv(rc.lease), "ARTEX_MCP_TOKEN=")
 	setProcessGroup(cmd)
 	if err := cmd.Start(); err != nil {
 		logFile.Close()

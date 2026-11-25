@@ -20,6 +20,27 @@ For any MCP client that can launch a stdio server:
 
 For clients that support streamable HTTP, run `artex-cc serve --listen localhost:9400 --pg "<dsn>"` and point the client at `http://localhost:9400/mcp`. With `--web` (which `docker compose up` uses), `/mcp` also requires an `Authorization: Bearer <token>` header; the token is regenerated on every start and written to `mcp-config.json` in the data directory.
 
+Without `--web`, a loopback listener (`localhost`, `127.0.0.0/8` or `[::1]`) serves `/mcp` without authentication. Any other address, including `:9400`, `0.0.0.0`, `[::]`, a LAN IP or a hostname, exposes every tool to the network, so `serve` refuses to start unless `ARTEX_MCP_TOKEN` is set. Clients then send that token as `Authorization: Bearer <token>`:
+
+```sh
+export ARTEX_MCP_TOKEN=$(openssl rand -hex 32)
+artex-cc serve --listen 0.0.0.0:9400 --pg "<dsn>"
+```
+
+```json
+{
+  "mcpServers": {
+    "artex": {
+      "type": "http",
+      "url": "http://artex-host:9400/mcp",
+      "headers": { "Authorization": "Bearer <token>" }
+    }
+  }
+}
+```
+
+If `ARTEX_MCP_TOKEN` is set on a loopback listener, it is required there too. The token travels in plain HTTP, so put a TLS proxy or an SSH tunnel in front of a listener that crosses an untrusted network.
+
 ## Claude Code
 
 File: `~/.claude.json` (user-wide) or `.mcp.json` in the project root.

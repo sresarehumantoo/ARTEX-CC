@@ -19,7 +19,7 @@ type Node struct {
 	Priority      int             `json:"priority"`
 	State         string          `json:"state"`
 	Origin        string          `json:"origin,omitempty"`
-	Owner         string          `json:"owner,omitempty"`
+	Owner         string          `json:"-"`
 	BlockedReason string          `json:"blocked_reason,omitempty"`
 	DeleteReason  string          `json:"delete_reason,omitempty"`
 	Anchors       []int64         `json:"anchors,omitempty"`

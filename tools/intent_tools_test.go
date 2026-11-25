@@ -1,7 +1,10 @@
 package tools
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -205,6 +208,24 @@ func TestOwnerLabel(t *testing.T) {
 	err := &ClaimConflictError{NodeID: 1, Owner: "mcp-session-1", ExpiresAt: time.Now().Add(time.Minute)}
 	if strings.Contains(err.Error(), "mcp-session-1") || !strings.Contains(err.Error(), a) {
 		t.Errorf("conflict error %q must show the label, not the owner", err)
+	}
+}
+
+func TestOwnerLabelerKeyed(t *testing.T) {
+	t.Parallel()
+	k1 := bytes.Repeat([]byte{1}, 32)
+	k2 := bytes.Repeat([]byte{2}, 32)
+	a1, a1again := NewOwnerLabeler(k1), NewOwnerLabeler(k1)
+	a2 := NewOwnerLabeler(k2)
+	if a1.Label("agent1") != a1again.Label("agent1") {
+		t.Error("labels must be stable for the same key")
+	}
+	if a1.Label("agent1") == a2.Label("agent1") {
+		t.Error("labels must differ between keys")
+	}
+	sum := sha256.Sum256([]byte("agent1"))
+	if a1.Label("agent1") == "h-"+hex.EncodeToString(sum[:6]) {
+		t.Error("label must not be the unkeyed hash of the owner")
 	}
 }
 

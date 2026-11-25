@@ -13,6 +13,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/SREsAreHumanToo/ARTEX-CC/mcpserver"
 )
 
 func newTestChatStore(t *testing.T) *ChatStore {
@@ -756,5 +758,62 @@ func TestFlattenContent_RawFallback(t *testing.T) {
 	got := flattenContent(raw)
 	if got != "12345" {
 		t.Fatalf("want '12345', got %q", got)
+	}
+}
+
+func TestRunnerGivesEachConversationASignedIdentity(t *testing.T) {
+	dataDir := t.TempDir()
+	base, err := WriteMCPConfig(dataDir, "localhost:9400", "tok")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := t.TempDir()
+	bin := writeFakeClaude(t, `while [ $# -gt 0 ]; do
+  if [ "$1" = --mcp-config ]; then echo "$2" > `+out+`/path; cp "$2" `+out+`/"$(basename "$2")"; fi
+  shift
+done
+`)
+	signer, err := mcpserver.NewConversationSigner()
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := newTestChatStore(t)
+	r := NewRunner(bin, base, dataDir, 2)
+	r.SetConversationSigner(signer)
+	r.Bind(store, NewHub())
+
+	tokens := map[string]bool{}
+	for range 2 {
+		conv, _ := store.Create(CreateConversationRequest{})
+		if err := r.Start(context.Background(), conv.ID, "", "", ""); err != nil {
+			t.Fatal(err)
+		}
+		waitFor(t, func() bool { return !r.Running(conv.ID) })
+		used, err := os.ReadFile(filepath.Join(out, "path"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(strings.TrimSpace(string(used))); !os.IsNotExist(err) {
+			t.Errorf("conversation config left behind: %v", err)
+		}
+		data, err := os.ReadFile(filepath.Join(out, conv.ID+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var cfg mcpConfigFile
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			t.Fatal(err)
+		}
+		h := cfg.MCPServers[builtinMCPName].Headers
+		if h["Authorization"] != "Bearer tok" {
+			t.Errorf("Authorization = %q", h["Authorization"])
+		}
+		if got := h[mcpserver.ConversationHeader]; got != signer.Token(conv.ID) {
+			t.Errorf("%s = %q, want token for %s", mcpserver.ConversationHeader, got, conv.ID)
+		}
+		tokens[h[mcpserver.ConversationHeader]] = true
+	}
+	if len(tokens) != 2 {
+		t.Fatalf("conversations share a token: %v", tokens)
 	}
 }
