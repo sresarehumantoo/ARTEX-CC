@@ -71,7 +71,7 @@ ARTEX + Claude Opus 5.5 against [Forest](https://app.hackthebox.com/machines/For
 | **Domain Admin** | Account Operators → created user → Exchange Windows Permissions (WriteDACL) → DCSync → Administrator NTLM hash → pass-the-hash → **root.txt** |
 | **Cleanup** | Restored domain DACL, deleted created user, removed uploaded scripts |
 
-The agent also solved two tooling issues inline (PowerView failing in non-interactive WinRM, OpenSSL 3 MD4 deprecation) without human intervention. Full walkthrough: [`docs/HTB_FOREST_EVAL.md`](docs/HTB_FOREST_EVAL.md).
+The agent also solved two tooling issues inline (PowerView failing in non-interactive WinRM, OpenSSL 3 MD4 deprecation) without human intervention. Full walkthrough: [artex-cc.com/evals/htb-forest](https://artex-cc.com/evals/htb-forest/).
 
 ## Web UI
 
@@ -156,7 +156,7 @@ The `--proxy` flag starts a recording MITM proxy alongside the MCP server. Point
 
 Then start Claude Code. The tools appear automatically. Ask Claude to "pentest example.com" and watch it work.
 
-For Cursor, Cline, Windsurf, Zed, and other MCP clients, see [MCP Client Configuration](docs/MCP_CLIENTS.md).
+For Cursor, Cline, Windsurf, Zed, and other MCP clients, see [MCP Client Configuration](https://artex-cc.com/docs/mcp-clients/).
 
 ## Docker quick start
 
@@ -213,7 +213,7 @@ The container's main process already runs the recording proxy on `:8788`, so thi
 ## Tool catalog
 
 62 MCP tools across ten categories. Claude calls these automatically based on what the engagement needs.
-For detailed parameter documentation, see [Tool Reference](docs/TOOLS.md).
+For detailed parameter documentation, see [Tool Reference](https://artex-cc.com/docs/tools/).
 
 <details open>
 <summary><strong>Exploration graph</strong></summary>
@@ -460,7 +460,7 @@ The Docker image also reads these on startup:
 
 ## Examples
 
-See [docs/EXAMPLE_WALKTHROUGH.md](docs/EXAMPLE_WALKTHROUGH.md) for a complete
+See the [example walkthrough](https://artex-cc.com/docs/walkthrough/) for a complete
 engagement walkthrough showing every phase of a pentest session: reconnaissance,
 service enumeration, vulnerability testing, and report generation.
 
