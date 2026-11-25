@@ -66,6 +66,10 @@ func (b *transcript) conflict(at time.Time, intent int64, holder string) *transc
 		fmt.Sprintf("intent %d is claimed by %s until %s (in 25m0s); pick another intent", intent, holder, at.Add(25*time.Minute).Format(time.RFC3339)), true)
 }
 
+func (b *transcript) start(at time.Time, intent int64) *transcript {
+	return b.call(at, "start_intent", map[string]any{"node_id": intent}, "temporary failure", true)
+}
+
 func (b *transcript) other(at time.Time) *transcript {
 	return b.call(at, "graph_overview", map[string]any{}, `{"goals":[]}`, false)
 }
@@ -190,7 +194,7 @@ func TestConflictHandling(t *testing.T) {
 	if c.Conflicts != 6 || c.ConflictsHandled != 3 || c.ConflictsHandledPc != 50 {
 		t.Fatalf("conflicts %d handled %d (%.0f%%)", c.Conflicts, c.ConflictsHandled, c.ConflictsHandledPc)
 	}
-	want := []ConflictRef{{Instance: 3, Call: 7, IntentID: 22}, {Instance: 3, Call: 9, IntentID: 30}, {Instance: 3, Call: 11, IntentID: 31}}
+	want := []ConflictRef{{Instance: 3, Call: 7, IntentID: 22, Holder: "h-aaa"}, {Instance: 3, Call: 9, IntentID: 30, Holder: "h-aaa"}, {Instance: 3, Call: 11, IntentID: 31, Holder: "h-aaa"}}
 	if len(c.UnhandledConflicts) != len(want) {
 		t.Fatalf("unhandled: %+v", c.UnhandledConflicts)
 	}
@@ -408,5 +412,80 @@ func TestConflictRetryAfterLeaseLapse(t *testing.T) {
 	}
 	if len(c.UnhandledConflicts) != 1 || c.UnhandledConflicts[0].Instance != 2 {
 		t.Fatalf("unhandled: %+v", c.UnhandledConflicts)
+	}
+}
+
+func TestHolderAttribution(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		holder func(instance int) string
+	}{
+		{"identity", func(i int) string { return fmt.Sprintf("eval/20261125-120000/i%d", i) }},
+		{"identity with owner", func(i int) string { return fmt.Sprintf("eval/20261125-120000/i%d/h-0a1b2c", i) }},
+		{"hashed", func(i int) string { return []string{"", "h-aaa", "h-bbb"}[i] }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			one := (&transcript{}).
+				claim(at(1), 10, tc.holder(1), 30*time.Minute).
+				conflict(at(2), 11, tc.holder(2)).
+				start(at(2), 11)
+			two := (&transcript{}).
+				claim(at(1), 11, tc.holder(2), 30*time.Minute).
+				conflict(at(2), 10, tc.holder(1)).
+				start(at(2), 10).
+				claim(at(3), 10, tc.holder(2), 30*time.Minute)
+
+			c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{one.parse(t, 1), two.parse(t, 2)}})
+			if c.Instances[0].ClaimsTaken != 1 || c.Instances[1].ClaimsTaken != 2 {
+				t.Fatalf("claims not parsed: %+v", c.Instances)
+			}
+			if c.Conflicts != 2 || len(c.UnhandledConflicts) != 2 {
+				t.Fatalf("conflicts %d, unhandled %+v", c.Conflicts, c.UnhandledConflicts)
+			}
+			for _, u := range c.UnhandledConflicts {
+				if want := 3 - u.Instance; u.HolderInstance != want || u.Holder != tc.holder(want) {
+					t.Errorf("conflict from instance %d attributed to %d (%s), want %d", u.Instance, u.HolderInstance, u.Holder, want)
+				}
+			}
+			if len(c.DoubleClaims) != 1 {
+				t.Fatalf("double claims: %+v", c.DoubleClaims)
+			}
+			d := c.DoubleClaims[0]
+			if d.FirstInstance != 1 || d.FirstHolder != tc.holder(1) || d.SecondInstance != 2 || d.SecondHolder != tc.holder(2) {
+				t.Errorf("double claim: %+v", d)
+			}
+			if got := c.Instances[1].Holders; len(got) != 1 || got[0] != tc.holder(2) {
+				t.Errorf("instance 2 holders: %v", got)
+			}
+			if c.HolderMismatches != 0 {
+				t.Errorf("holder mismatches: %d", c.HolderMismatches)
+			}
+			if s := c.Summary(); !strings.Contains(s, "held by "+tc.holder(1)+" (instance 1)") {
+				t.Errorf("summary lacks attributed conflict:\n%s", s)
+			}
+		})
+	}
+}
+
+func TestHolderMismatch(t *testing.T) {
+	b := (&transcript{}).claim(at(1), 10, "eval/r/i2", 30*time.Minute)
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{b.parse(t, 1)}})
+	if c.HolderMismatches != 1 || !strings.Contains(c.Summary(), "Claims under another instance's identity: 1") {
+		t.Fatalf("mismatch not reported: %+v", c)
+	}
+}
+
+func TestEvalHolderInstance(t *testing.T) {
+	for label, want := range map[string]int{
+		"eval/20261125-120000/i3":           3,
+		"eval/20261125-120000/i12/h-abcdef": 12,
+		"eval/r/i3x":                        0,
+		"h-abcdef":                          0,
+		"chat/i3":                           0,
+		"ops/eval/r/i3":                     0,
+	} {
+		if got := evalHolderInstance(label); got != want {
+			t.Errorf("evalHolderInstance(%q) = %d, want %d", label, got, want)
+		}
 	}
 }

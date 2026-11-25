@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -17,12 +18,15 @@ import (
 )
 
 // The patterns below match the result text of tools/intent_tools.go and
-// tools/claim.go (ClaimConflictError).
+// tools/claim.go (ClaimConflictError). A holder label is either a hashed
+// anonymous label (h-...) or an identity name, optionally followed by
+// /h-... when an owner subdivides it.
 var (
-	claimRe    = regexp.MustCompile(`intent (\d+) is now running; (claimed|renewed) by (h-[0-9a-f]+) until (\S+)`)
-	conflictRe = regexp.MustCompile(`intent (\d+) is claimed by (h-[0-9a-f]+) until (\S+)`)
-	doneRe     = regexp.MustCompile(`intent (\d+) (marked done|cancelled)`)
-	createdRe  = regexp.MustCompile(`^(intent|fact) created: (\d+)$`)
+	claimRe      = regexp.MustCompile(`intent (\d+) is now running; (claimed|renewed) by ([a-z0-9][a-z0-9._/-]*) until (\S+)`)
+	conflictRe   = regexp.MustCompile(`intent (\d+) is claimed by ([a-z0-9][a-z0-9._/-]*) until (\S+)`)
+	evalHolderRe = regexp.MustCompile(`^eval/[^/]+/i(\d+)(/|$)`)
+	doneRe       = regexp.MustCompile(`intent (\d+) (marked done|cancelled)`)
+	createdRe    = regexp.MustCompile(`^(intent|fact) created: (\d+)$`)
 )
 
 const conflictWindow = 5
@@ -224,6 +228,7 @@ type Coordination struct {
 	ConflictsHandledPc float64             `json:"conflicts_handled_pct"`
 	UnhandledConflicts []ConflictRef       `json:"unhandled_conflicts,omitempty"`
 	RefusedCompletions int                 `json:"refused_completions"`
+	HolderMismatches   int                 `json:"holder_mismatches"`
 	DuplicateFindings  DuplicateFindings   `json:"duplicate_findings"`
 	RedundantRecon     RedundantRecon      `json:"redundant_recon"`
 	CrossParents       CrossParents        `json:"cross_instance_parents"`
@@ -243,9 +248,11 @@ type DoubleClaim struct {
 }
 
 type ConflictRef struct {
-	Instance int   `json:"instance"`
-	Call     int   `json:"call"`
-	IntentID int64 `json:"intent_id"`
+	Instance       int    `json:"instance"`
+	Call           int    `json:"call"`
+	IntentID       int64  `json:"intent_id"`
+	Holder         string `json:"holder,omitempty"`
+	HolderInstance int    `json:"holder_instance,omitempty"`
 }
 
 type DuplicateFindings struct {
@@ -291,17 +298,18 @@ type Takeover struct {
 }
 
 type InstanceCoord struct {
-	Instance      int     `json:"instance"`
-	ToolCalls     int     `json:"tool_calls"`
-	BashCommands  int     `json:"bash_commands"`
-	ListChanges   int     `json:"list_changes_calls"`
-	ClaimsTaken   int     `json:"claims_taken"`
-	Conflicts     int     `json:"conflicts"`
-	NodesCreated  int     `json:"nodes_created"`
-	CrossParents  int     `json:"cross_instance_parents"`
-	Usage         Usage   `json:"usage"`
-	CostUSD       float64 `json:"cost_usd"`
-	ResultMessage bool    `json:"result_message"`
+	Instance      int      `json:"instance"`
+	ToolCalls     int      `json:"tool_calls"`
+	BashCommands  int      `json:"bash_commands"`
+	ListChanges   int      `json:"list_changes_calls"`
+	ClaimsTaken   int      `json:"claims_taken"`
+	Conflicts     int      `json:"conflicts"`
+	Holders       []string `json:"holders,omitempty"`
+	NodesCreated  int      `json:"nodes_created"`
+	CrossParents  int      `json:"cross_instance_parents"`
+	Usage         Usage    `json:"usage"`
+	CostUSD       float64  `json:"cost_usd"`
+	ResultMessage bool     `json:"result_message"`
 }
 
 type InstanceCoordTotals struct {
@@ -342,6 +350,7 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 	nodes := map[int64]nodeOrigin{}
 	findingOwner := map[int64]int{}
 	commands := map[string]map[int]int{}
+	holderInstance := map[string]int{}
 	perInstance := make([]InstanceCoord, len(in.Transcripts))
 
 	for ti, t := range in.Transcripts {
@@ -365,6 +374,15 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 					}
 					claims = append(claims, claimEvent{t.Instance, i, id, m[3], call.At, exp, m[2] == "renewed"})
 					ic.ClaimsTaken++
+					if _, seen := holderInstance[m[3]]; !seen {
+						holderInstance[m[3]] = t.Instance
+					}
+					if !slices.Contains(ic.Holders, m[3]) {
+						ic.Holders = append(ic.Holders, m[3])
+					}
+					if n := evalHolderInstance(m[3]); n > 0 && n != t.Instance {
+						c.HolderMismatches++
+					}
 				} else if m := conflictRe.FindStringSubmatch(call.Result); m != nil {
 					id, _ := strconv.ParseInt(m[1], 10, 64)
 					until, _ := time.Parse(time.RFC3339, m[3])
@@ -373,7 +391,7 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 					if conflictHandled(t.Calls, i, id, until) {
 						c.ConflictsHandled++
 					} else {
-						c.UnhandledConflicts = append(c.UnhandledConflicts, ConflictRef{t.Instance, i, id})
+						c.UnhandledConflicts = append(c.UnhandledConflicts, ConflictRef{Instance: t.Instance, Call: i, IntentID: id, Holder: m[2]})
 					}
 				}
 			case "complete_intent", "cancel_intent":
@@ -412,6 +430,9 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 		}
 	}
 
+	for k, u := range c.UnhandledConflicts {
+		c.UnhandledConflicts[k].HolderInstance = resolveHolder(u.Holder, holderInstance)
+	}
 	c.DoubleClaims = doubleClaims(claims, releases)
 	if c.Conflicts > 0 {
 		c.ConflictsHandledPc = 100 * float64(c.ConflictsHandled) / float64(c.Conflicts)
@@ -438,6 +459,28 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 		c.Takeovers = append(c.Takeovers, takeovers(inst, at, claims, releases, nodes, in.Edges)...)
 	}
 	return c
+}
+
+// evalHolderInstance returns the instance number in an eval runner identity
+// label (eval/<run>/i<n>, optionally /h-...), or 0 for any other label.
+func evalHolderInstance(label string) int {
+	m := evalHolderRe.FindStringSubmatch(label)
+	if m == nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(m[1])
+	return n
+}
+
+// resolveHolder names the instance behind a holder label: from the label
+// itself for eval identities, else from the instance whose own successful
+// claims carried that label. Anonymous labels never claimed in a transcript
+// resolve to 0.
+func resolveHolder(label string, claimedBy map[string]int) int {
+	if n := evalHolderInstance(label); n > 0 {
+		return n
+	}
+	return claimedBy[label]
 }
 
 // conflictHandled reports whether an agent left a claimed intent alone after
@@ -770,9 +813,16 @@ func (c *Coordination) Summary() string {
 		fmt.Fprintf(&b, "Conflict responses handled: no conflicts\n")
 	}
 	for _, u := range c.UnhandledConflicts {
-		fmt.Fprintf(&b, "  unhandled: instance %d call %d on intent %d\n", u.Instance, u.Call, u.IntentID)
+		fmt.Fprintf(&b, "  unhandled: instance %d call %d on intent %d held by %s", u.Instance, u.Call, u.IntentID, u.Holder)
+		if u.HolderInstance > 0 {
+			fmt.Fprintf(&b, " (instance %d)", u.HolderInstance)
+		}
+		b.WriteString("\n")
 	}
 	fmt.Fprintf(&b, "Refused completions: %d\n", c.RefusedCompletions)
+	if c.HolderMismatches > 0 {
+		fmt.Fprintf(&b, "Claims under another instance's identity: %d (FAIL)\n", c.HolderMismatches)
+	}
 	fmt.Fprintf(&b, "Duplicate findings: %d raw, %d after merges (%s)\n", c.DuplicateFindings.Raw,
 		c.DuplicateFindings.AfterMerges, pass(c.DuplicateFindings.AfterMerges == 0))
 	for _, g := range c.DuplicateFindings.Groups {

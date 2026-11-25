@@ -75,6 +75,7 @@ type Scorecard struct {
 	Instances       int             `json:"instances"`
 	Transport       string          `json:"transport"`
 	Lease           string          `json:"lease,omitempty"`
+	Identity        bool            `json:"identity,omitempty"`
 	TranscriptsDir  string          `json:"transcripts_dir,omitempty"`
 	Runs            []InstanceRun   `json:"runs,omitempty"`
 	Coordination    *Coordination   `json:"coordination,omitempty"`
@@ -101,6 +102,7 @@ func main() {
 	transport := flag.String("transport", "stdio", "MCP transport: stdio (one serve process per instance) or http (one shared serve --listen)")
 	killAfter := flag.String("kill-after", "", "kill one instance after a delay, as INSTANCE:DURATION (e.g. 2:3m)")
 	lease := flag.String("lease", "", "intent lease passed to every serve process as ARTEX_INTENT_LEASE (needs a server that supports it)")
+	identityFlag := flag.Bool("identity", true, "with --transport http, give each instance its own X-Artex-Identity instead of asking it to pick an owner (false keeps the anonymous owner path)")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -197,6 +199,8 @@ func main() {
 		instances:      *instances,
 		transport:      *transport,
 		lease:          *lease,
+		identity:       *identityFlag && *transport == "http" && *mcpConfigFlag == "",
+		runID:          startedAt.Format("20060102-150405"),
 		kill:           kill,
 		transcriptsDir: filepath.Join(*outputDir, "transcripts-"+stem),
 	}
@@ -221,6 +225,7 @@ func main() {
 	scorecard.Instances = *instances
 	scorecard.Transport = *transport
 	scorecard.Lease = *lease
+	scorecard.Identity = rc.identity
 	scorecard.Runs = runs
 	if len(runs) > 0 {
 		scorecard.TranscriptsDir = rc.transcriptsDir
