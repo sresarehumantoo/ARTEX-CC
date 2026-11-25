@@ -17,6 +17,7 @@ type API struct {
 	files     *FileStore
 	claudeBin string
 	hub       *Hub
+	changes   changeBatcher
 	logs      *LogBuffer
 	chat      *ChatStore
 	runner    ChatRunner

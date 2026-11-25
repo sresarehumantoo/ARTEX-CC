@@ -35,6 +35,6 @@ func (a *API) handleAddConstraint(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	a.Broadcast("store_changed", map[string]any{"action": "add_constraint", "id": id})
+	a.Broadcast(eventGraphChanged, map[string]any{"action": "add_constraint", "id": id})
 	writeJSON(w, http.StatusOK, map[string]any{"id": id})
 }
