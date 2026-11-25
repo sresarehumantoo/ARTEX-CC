@@ -169,14 +169,15 @@ func (s *Server) handleReadEngagement(ctx context.Context, _ mcp.ReadResourceReq
 	var b strings.Builder
 	b.WriteString(orchestrationGuide)
 
-	desc, goal, _ := s.store.Root(ctx, s.explorationID)
-	constraints, _ := s.store.ListConstraints(ctx, s.explorationID)
+	taskID, explorationID := s.ActiveEngagement()
+	desc, goal, _ := s.store.Root(ctx, explorationID)
+	constraints, _ := s.store.ListConstraints(ctx, explorationID)
 
 	b.WriteString("\n## Current engagement\n\n")
 	fmt.Fprintf(&b, "Goal: %s\n", goal)
 	fmt.Fprintf(&b, "Description: %s\n", desc)
-	fmt.Fprintf(&b, "Task ID: %d\n", s.taskID)
-	fmt.Fprintf(&b, "Exploration ID: %d\n", s.explorationID)
+	fmt.Fprintf(&b, "Task ID: %d\n", taskID)
+	fmt.Fprintf(&b, "Exploration ID: %d\n", explorationID)
 	b.WriteString("\nConstraints:\n")
 	if len(constraints) == 0 {
 		b.WriteString("None set.\n")

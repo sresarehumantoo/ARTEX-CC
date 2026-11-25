@@ -40,25 +40,27 @@ func (s *Server) switchEngagementTool() tools.Tool {
 				return tools.Result{Content: fmt.Sprintf("engagement %d not found", a.TaskID), IsError: true}, nil
 			}
 
+			reg := tools.NewRegistry()
+			tools.RegisterAll(reg, s.store, eng.ID, eng.ExplorationID)
+			if s.evidence != nil {
+				tools.RegisterEvidenceTools(reg, s.evidence, s.store, eng.ID)
+			}
+			if s.traffic != nil {
+				tools.RegisterTrafficTools(reg, s.traffic, s.store, eng.ID)
+			}
+
+			// Held across re-registration so concurrent switches cannot leave the
+			// active IDs pointing at one engagement and the tools at another.
 			s.engMu.Lock()
 			s.taskID = eng.ID
 			s.explorationID = eng.ExplorationID
-			s.engMu.Unlock()
-
-			reg := tools.NewRegistry()
-			tools.RegisterAll(reg, s.store, s.taskID, s.explorationID)
-			if s.evidence != nil {
-				tools.RegisterEvidenceTools(reg, s.evidence, s.store, s.taskID)
-			}
-			if s.traffic != nil {
-				tools.RegisterTrafficTools(reg, s.traffic, s.store, s.taskID)
-			}
 			s.registry = reg
 			for _, t := range reg.Tools() {
 				s.addTool(t)
 			}
+			s.engMu.Unlock()
 
-			return tools.Result{Content: fmt.Sprintf("switched to engagement %d (exploration %d): %s", s.taskID, s.explorationID, eng.Goal)}, nil
+			return tools.Result{Content: fmt.Sprintf("switched to engagement %d (exploration %d): %s", eng.ID, eng.ExplorationID, eng.Goal)}, nil
 		},
 	}
 }
