@@ -85,14 +85,14 @@ func (s *Store) Save(_ context.Context, engagementID, findingID int64, kind, fil
 	}
 
 	engDir := filepath.Join(s.dir, strconv.FormatInt(engagementID, 10))
-	if err := os.MkdirAll(engDir, 0o755); err != nil {
+	if err := os.MkdirAll(engDir, 0o700); err != nil {
 		return Evidence{}, fmt.Errorf("create evidence directory: %w", err)
 	}
 
 	baseName := id + "_" + filename
 	dataPath := filepath.Join(engDir, baseName)
 
-	f, err := os.Create(dataPath)
+	f, err := os.OpenFile(dataPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return Evidence{}, fmt.Errorf("create evidence file: %w", err)
 	}
@@ -125,7 +125,7 @@ func (s *Store) Save(_ context.Context, engagementID, findingID int64, kind, fil
 		os.Remove(dataPath)
 		return Evidence{}, fmt.Errorf("marshal metadata: %w", err)
 	}
-	if err := os.WriteFile(metaPath, metaData, 0o644); err != nil {
+	if err := os.WriteFile(metaPath, metaData, 0o600); err != nil {
 		os.Remove(dataPath)
 		return Evidence{}, fmt.Errorf("write metadata: %w", err)
 	}
