@@ -296,11 +296,8 @@ func cmdServe(args []string) {
 	}))
 	srv = mcpserver.New(reg, srvOpts...)
 	if restAPI != nil {
-		activeExploration := func() int64 {
-			_, expID := srv.ActiveEngagement()
-			return expID
-		}
-		go store.ListenChanges(ctx, dsn, changeOrigin, activeExploration, func(c store.Change) {
+		webExploration := func() int64 { return engCfg.ExplorationID }
+		go store.ListenChanges(ctx, dsn, changeOrigin, webExploration, func(c store.Change) {
 			restAPI.NotifyChange(c.Tool)
 		})
 	}
