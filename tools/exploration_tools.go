@@ -330,15 +330,18 @@ func makeAddHint(store Store, explorationID int64) Tool {
 				if strings.TrimSpace(it.Text) == "" {
 					return 0, fmt.Errorf("text must not be empty")
 				}
-				anchors := pidList(it.AssetIDs)
-				payload := map[string]any{"text": it.Text}
-				return store.AddNode(ctx, explorationID, KindHint, payload, 0, "active", "human", anchors)
+				return AddHint(ctx, store, explorationID, it.Text, "human", pidList(it.AssetIDs))
 			}
 
 			ids, errs := runBatch(items, addOne)
 			return singleOrBatchReturn(ids, errs, isBatch, "hint")
 		},
 	}
+}
+
+// AddHint records a hint node in the state the planner reads.
+func AddHint(ctx context.Context, store Store, explorationID int64, text, origin string, anchors []int64) (int64, error) {
+	return store.AddNode(ctx, explorationID, KindHint, map[string]any{"text": text}, 0, StateHintActive, origin, anchors)
 }
 
 func makeSetGoals(store Store, explorationID int64) Tool {
