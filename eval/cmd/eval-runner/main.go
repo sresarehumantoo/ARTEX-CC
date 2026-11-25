@@ -102,6 +102,8 @@ func main() {
 	transport := flag.String("transport", "stdio", "MCP transport: stdio (one serve process per instance) or http (one shared serve --listen)")
 	killAfter := flag.String("kill-after", "", "kill one instance after a delay, as INSTANCE:DURATION (e.g. 2:3m)")
 	lease := flag.String("lease", "", "intent lease passed to every serve process as ARTEX_INTENT_LEASE (needs a server that supports it)")
+	var extraEnv envFlag
+	flag.Var(&extraEnv, "env", "KEY=VALUE added to every claude instance's environment; repeatable (e.g. TELEPORT_HOME=/path/to/empty/dir)")
 	identityFlag := flag.Bool("identity", true, "with --transport http, give each instance its own X-Artex-Identity instead of asking it to pick an owner (false keeps the anonymous owner path)")
 	flag.Parse()
 
@@ -199,6 +201,7 @@ func main() {
 		instances:      *instances,
 		transport:      *transport,
 		lease:          *lease,
+		extraEnv:       extraEnv,
 		identity:       *identityFlag && *transport == "http" && *mcpConfigFlag == "",
 		runID:          startedAt.Format("20060102-150405"),
 		kill:           kill,
@@ -421,6 +424,20 @@ func score(ctx context.Context, s *store.Store, explorationID, taskID int64, sc 
 
 // coverageEntries reads the ledger row count from graph_overview's coverage
 // map: an int straight from the store, a float64 after a JSON round trip.
+// envFlag collects repeatable --env KEY=VALUE flags.
+type envFlag []string
+
+func (e *envFlag) String() string { return strings.Join(*e, ",") }
+
+func (e *envFlag) Set(v string) error {
+	k, _, ok := strings.Cut(v, "=")
+	if !ok || strings.TrimSpace(k) == "" {
+		return fmt.Errorf("want KEY=VALUE, got %q", v)
+	}
+	*e = append(*e, v)
+	return nil
+}
+
 // scopeKind picks the task scope kind for a scenario scope entry: a CIDR, an
 // IP (optionally with a port), or otherwise one exact host, which subdomain
 // scope matches (port stripped) without widening to a registrable domain.

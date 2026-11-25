@@ -95,6 +95,13 @@ for the recovery test. The kill time is recorded in the scorecard's `runs`.
 starts, so a takeover test does not wait the default 30 minutes. It needs an
 `artex-cc` built with lease override support; older servers ignore it.
 
+`--env KEY=VALUE` (repeatable) adds a variable to every `claude` instance's
+environment, for example `--env TELEPORT_HOME=/path/to/empty/dir` so `tsh` in the
+agents' shell cannot see your own Teleport profile, plus a variable naming a
+narrowly scoped identity file the scenario tells agents to use. That keeps your
+login out of accidental reach; it is not a sandbox, since the agents still run
+as your OS user.
+
 The scenario timeout covers the whole run: when it passes, every instance still
 running is killed. The runner waits for all instances before scoring.
 
