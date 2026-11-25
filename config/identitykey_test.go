@@ -80,3 +80,67 @@ func TestIdentityKeyRejectsCorruptFile(t *testing.T) {
 		t.Error("corrupt key file accepted")
 	}
 }
+
+func TestRotateIdentityKey(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, IdentityKeyFile)
+	old, err := IdentityKey(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prev, next, err := RotateIdentityKey(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(prev, old) {
+		t.Error("prev is not the old key")
+	}
+	if len(next) != 32 || bytes.Equal(next, old) {
+		t.Error("rotation did not produce a new 32-byte key")
+	}
+	after, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if os.SameFile(before, after) {
+		t.Error("rotation kept the inode, so running signers may miss it")
+	}
+	if perm := after.Mode().Perm(); perm != 0o600 {
+		t.Errorf("key file mode %o, want 600", perm)
+	}
+	loaded, err := IdentityKey(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(loaded, next) {
+		t.Error("loaded key is not the rotated key")
+	}
+	entries, _ := os.ReadDir(dir)
+	if len(entries) != 1 {
+		t.Errorf("data dir holds %d entries, want only the key file", len(entries))
+	}
+}
+
+func TestRotateIdentityKeyWithoutExistingKey(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	prev, next, err := RotateIdentityKey(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prev != nil {
+		t.Error("prev should be nil without an existing key")
+	}
+	loaded, err := IdentityKey(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(loaded, next) {
+		t.Error("loaded key is not the rotated key")
+	}
+}
