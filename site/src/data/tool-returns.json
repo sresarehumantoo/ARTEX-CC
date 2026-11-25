@@ -42,7 +42,7 @@
   "prove_goal": "`\"goal <id> marked met\"` (or `\"goal <id> marked met; all goals of this task are met\"`).",
   "record_coverage": "`\"recorded\"`.",
   "record_fact": "Single fact: `\"fact created: <id>\"`. Multiple facts: `{ids: [...], errors: {...}}`.",
-  "report_finding": "`{finding_id, node_id, possible_duplicates?}`. Pass `node_id` as `evidence_id` to `prove_goal`.",
+  "report_finding": "`{finding_id, node_id, possible_duplicates?: [{id, vulnclass, severity, summary}], duplicate_note?}`. `possible_duplicates` lists open findings in this engagement with the same vulnclass (ignoring case, punctuation and common long forms such as \"Insecure Direct Object Reference\" for `idor`) on an overlapping asset or where either names no asset, or with the same severity on an overlapping asset; merge any that are the same issue with `merge_findings`. Pass `node_id` as `evidence_id` to `prove_goal`.",
   "save_evidence": "`{id, sha256, size, path}`.",
   "set_constraints": "Single mode: `\"constraint created: <id>\"`. Batch mode: `{ids: [...], errors: {...}}`.",
   "set_goals": "`{created: [{id, text, state}], skipped?: [{text, reason, existing_id?}], existing_goals?: [{id, text, state}], note?, errors?}`. `reason` is `duplicate` (same text as `existing_id`, ignoring case and whitespace) or `goals_already_set`: the engagement already had goals and `append` was not true, so nothing was added and `existing_goals` lists them.",

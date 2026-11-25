@@ -191,7 +191,7 @@ func (s *graphStore) AddNode(_ context.Context, _ int64, kind string, payload ma
 	return 100, nil
 }
 
-func (s *graphStore) FindPotentialDuplicates(context.Context, string, []int64) ([]int64, error) {
+func (s *graphStore) FindPotentialDuplicates(context.Context, int64, string, string, []int64) ([]tools.Finding, error) {
 	return nil, nil
 }
 

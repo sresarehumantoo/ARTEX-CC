@@ -219,7 +219,7 @@ func (m *mockStore) ListActivity(_ context.Context, _ int64, _ ActivityFilter) (
 	return nil, nil
 }
 
-func (m *mockStore) FindPotentialDuplicates(_ context.Context, _ string, _ []int64) ([]int64, error) {
+func (m *mockStore) FindPotentialDuplicates(_ context.Context, _ int64, _, _ string, _ []int64) ([]Finding, error) {
 	return nil, nil
 }
 

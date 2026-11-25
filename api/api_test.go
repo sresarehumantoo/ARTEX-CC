@@ -69,7 +69,7 @@ func (m *mockStore) ListFindings(_ context.Context, _ int64) ([]tools.Finding, e
 	return m.listFindings, m.listFindingsErr
 }
 func (m *mockStore) FindingExists(context.Context, int64) (bool, error) { return false, nil }
-func (m *mockStore) FindPotentialDuplicates(context.Context, string, []int64) ([]int64, error) {
+func (m *mockStore) FindPotentialDuplicates(context.Context, int64, string, string, []int64) ([]tools.Finding, error) {
 	return nil, nil
 }
 func (m *mockStore) MergeFindings(context.Context, int64, []int64) (*tools.MergedFinding, error) {

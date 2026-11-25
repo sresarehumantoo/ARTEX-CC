@@ -21,7 +21,7 @@ type findingMockStore struct {
 	mergedFinding    *MergedFinding
 	mergeErr         error
 	dismissErr       error
-	dupes            []int64
+	dupes            []Finding
 	trafficCount     int
 	trafficCountFn   func(int64) (int, error)
 	boundSnapshot    string
@@ -59,7 +59,7 @@ func (m *findingMockStore) DismissFinding(_ context.Context, _ int64, _ string) 
 	return m.dismissErr
 }
 
-func (m *findingMockStore) FindPotentialDuplicates(_ context.Context, _ string, _ []int64) ([]int64, error) {
+func (m *findingMockStore) FindPotentialDuplicates(_ context.Context, _ int64, _, _ string, _ []int64) ([]Finding, error) {
 	return m.dupes, nil
 }
 
@@ -96,7 +96,7 @@ func TestReportFindingHappyPath(t *testing.T) {
 
 func TestReportFindingWithDuplicates(t *testing.T) {
 	t.Parallel()
-	ms := &findingMockStore{addFindingID: 8, dupes: []int64{3, 5}}
+	ms := &findingMockStore{addFindingID: 8, dupes: []Finding{{ID: 3, VulnClass: "SQLi", Severity: "high", Summary: "SQLi in login"}}}
 	reg := NewRegistry()
 	RegisterFindingTools(reg, ms, 1, 1)
 
@@ -113,8 +113,32 @@ func TestReportFindingWithDuplicates(t *testing.T) {
 	if r.IsError {
 		t.Fatalf("expected success, got error: %s", r.Content)
 	}
-	if !strings.Contains(r.Content, `"possible_duplicates"`) {
+	if !strings.Contains(r.Content, `"possible_duplicates":[{"id":3,"vulnclass":"SQLi","severity":"high","summary":"SQLi in login"}]`) {
 		t.Errorf("expected possible_duplicates, got: %s", r.Content)
+	}
+	if !strings.Contains(r.Content, "merge_findings") {
+		t.Errorf("expected a merge hint, got: %s", r.Content)
+	}
+}
+
+func TestNormalizeVulnClass(t *testing.T) {
+	t.Parallel()
+	cases := map[string]string{
+		"IDOR":                              "idor",
+		" idor ":                            "idor",
+		"Insecure Direct Object Reference":  "idor",
+		"insecure-direct-object-references": "idor",
+		"SQL Injection":                     "sqli",
+		"sql_injection":                     "sqli",
+		"Cross-Site Scripting (XSS)":        "xss",
+		"Insecure Direct Object Reference (IDOR)": "idor",
+		"Stored XSS":             "storedxss",
+		"information-disclosure": "informationdisclosure",
+	}
+	for in, want := range cases {
+		if got := NormalizeVulnClass(in); got != want {
+			t.Errorf("NormalizeVulnClass(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 

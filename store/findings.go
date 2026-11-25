@@ -216,38 +216,55 @@ func (s *Store) FindingTrafficCount(ctx context.Context, findingID int64) (int, 
 	return count, err
 }
 
-func (s *Store) FindPotentialDuplicates(ctx context.Context, severity string, assetIDs []int64) ([]int64, error) {
-	if len(assetIDs) == 0 {
-		return nil, nil
-	}
-	assetJSON, err := json.Marshal(assetIDs)
-	if err != nil {
-		return nil, err
-	}
+// FindPotentialDuplicates returns the live findings of an exploration that may
+// describe the same issue as a new finding. It is advisory, so it errs on the
+// side of listing a candidate rather than missing one.
+func (s *Store) FindPotentialDuplicates(ctx context.Context, explorationID int64, vulnclass, severity string, assetIDs []int64) ([]tools.Finding, error) {
 	rows, err := s.QueryContext(ctx, `
-		SELECT id FROM findings
-		WHERE severity = $1
-		  AND dismissed = false
-		  AND merged_into IS NULL
-		  AND asset_ids != '[]'::jsonb
-		  AND asset_ids ?| (
-			SELECT array_agg(elem::text)
-			FROM jsonb_array_elements($2::jsonb) AS elem
-		  )
-		ORDER BY created_at DESC`, severity, string(assetJSON))
+		SELECT f.id, f.vulnclass, f.severity, f.summary, f.asset_ids
+		FROM findings f
+		JOIN tasks t ON t.id = f.task_id
+		WHERE t.exploration_id = $1
+		  AND f.dismissed = false
+		  AND f.merged_into IS NULL
+		ORDER BY f.created_at DESC`, explorationID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var ids []int64
+	var out []tools.Finding
 	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
+		var f tools.Finding
+		var rawAssets []byte
+		if err := rows.Scan(&f.ID, &f.VulnClass, &f.Severity, &f.Summary, &rawAssets); err != nil {
 			return nil, err
 		}
-		ids = append(ids, id)
+		var assets []int64
+		_ = json.Unmarshal(rawAssets, &assets)
+		if possibleDuplicate(vulnclass, severity, assetIDs, f.VulnClass, f.Severity, assets) {
+			out = append(out, f)
+		}
 	}
-	return ids, rows.Err()
+	return out, rows.Err()
+}
+
+// possibleDuplicate matches on the normalized vulnclass when the assets
+// overlap or either side names none, and on severity alone only when the
+// assets overlap.
+func possibleDuplicate(vulnclass, severity string, assets []int64, otherClass, otherSeverity string, otherAssets []int64) bool {
+	overlap := false
+	for _, a := range assets {
+		for _, b := range otherAssets {
+			if a == b {
+				overlap = true
+			}
+		}
+	}
+	vc := tools.NormalizeVulnClass(vulnclass)
+	if vc != "" && vc == tools.NormalizeVulnClass(otherClass) {
+		return overlap || len(assets) == 0 || len(otherAssets) == 0
+	}
+	return overlap && severity == otherSeverity
 }
 
 func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs []int64) (*tools.MergedFinding, error) {
