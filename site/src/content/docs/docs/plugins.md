@@ -126,13 +126,13 @@ The plugin writes a single JSON object to stdout and exits 0:
 
 See the [tool reference](/docs/tools/) for every field these three tools accept.
 
-A non-zero exit, a timeout or output that is not valid JSON fails the tool call, and the error Claude sees includes stderr or the raw output.
+A non-zero exit, a timeout, more than 8 MiB on stdout or output that is not valid JSON fails the tool call, and the error Claude sees includes stderr or the raw output.
 
 ### How structured items are persisted
 
-After a successful run (`isError` not set), ARTEX writes each asset, fact and finding through the same `insert_assets`, `record_fact` and `report_finding` tools Claude would call, against the active engagement. Scope checks and validation apply exactly as they would to Claude. Items go in one at a time, so one bad item never blocks the others, and a bad item never fails the call.
+After a successful run (`isError` not set), ARTEX writes each asset, fact and finding through the same `insert_assets`, `record_fact` and `report_finding` tools Claude would call. They go to the engagement that was active when the call started, which is the same one the plugin received in `config.engagement` and whose scope it received in `config.in_scope`. If `switch_engagement` runs while the plugin is still working, its results still land in the engagement it was told about; the next call follows the switch. Scope checks and validation apply exactly as they would to Claude. Items go in one at a time, so one bad item never blocks the others, and a bad item never fails the call.
 
-A summary line and one line per problem are appended to the plugin's own text:
+A summary line and one line per problem (up to 20, then a count of the rest) are appended to the plugin's own text:
 
 ```
 https://app.example.com/ [200] [5120] [Sign in] [nginx/1.25.3]
@@ -145,9 +145,18 @@ Assets outside the engagement scope are counted as skipped rather than failed. N
 
 When `isError` is `true`, ARTEX shows `content` and persists nothing.
 
-## Timeout
+## Limits
 
-Each invocation has five minutes of wall time. When it runs out, the process is killed and the call fails. Plugins that wrap long scans should cap their own work (for example with a scanner's rate or time limit flags) and return partial results before then. The `--manifest` call has its own 10 second limit.
+| Limit | Value | What happens when it is hit |
+|-------|-------|-----------------------------|
+| Run time | 5 minutes | The process is killed and the call fails. |
+| Stdout | 8 MiB | The process is killed and the call fails with an error naming the limit. |
+| Structured items | 500 per result (`assets`, `facts` and `findings` combined) | Nothing is persisted. `content` is still shown, followed by `persisted nothing: result has N structured items, max 500`. The result is rejected whole rather than truncated, so the graph never holds an arbitrary part of it. |
+| Persistence time | 1 minute, separate from the run time | Items not yet written are dropped and the summary line ends with `stopped (context deadline exceeded) with N items not attempted`. Items already written stay. |
+| Problem lines | 20 | Further skipped or failed items are summarized as `... and N more problems`. The counts on the summary line stay exact. |
+| `--manifest` | 10 seconds | The plugin is skipped with a warning. |
+
+Plugins that wrap long scans should cap their own work (for example with a scanner's rate or time limit flags) and return partial results before the run time runs out. A plugin that can produce more than 500 items should return the most useful ones, or split the work across several calls.
 
 ## Example: an HTTP probe
 
