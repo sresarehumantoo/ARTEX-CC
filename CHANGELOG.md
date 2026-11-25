@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-25
+
 ### Added
 - Exec plugins can return `assets`, `facts` and `findings`, persisted through `insert_assets`, `record_fact` and `report_finding` with scope enforcement, and each invocation receives the active engagement, its scope, the data directory and the recording proxy address.
 - Example plugin `examples/plugins/httpprobe.py` and a [Plugins](https://artex-cc.com/docs/plugins/) docs page.
@@ -12,6 +14,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `list_changes` tool for polling new and updated findings, facts, intents, goals, hints and assets since a cursor, plus the caller's held claims; `graph_overview` returns a starting `changes_cursor`.
 - Cross-process change notifications over PostgreSQL LISTEN/NOTIFY, so `serve --web` shows changes made by other artex-cc processes on the same database.
 - Orchestration guide and hands-free docs cover running several agents on one engagement.
+- `ARTEX_INTENT_LEASE` sets the claim lease in whole minutes (default 30m), for tests and evals that need claims to lapse quickly.
 
 ### Changed
 - Plugin limits: 8 MiB stdout, 500 structured items per result, 1 minute to persist results, 4 KiB of error text.
@@ -22,6 +25,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Data races on the MCP server's active engagement during `switch_engagement`.
 - Plugin results after `switch_engagement` were written into the startup engagement.
 - The example plugin probed `file://` and `ftp://` URLs on in-scope hosts.
+- Web UI: the Dashboard's Assets card showed the fact count, and active intents showed `Intent #N` instead of their summary.
 
 ### Removed
 - Retired Go Report Card badge from the README.
@@ -164,7 +168,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dockerfile for container deployments
 - GitHub Actions CI with PostgreSQL service container
 
-[Unreleased]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.2.0...v0.3.0
