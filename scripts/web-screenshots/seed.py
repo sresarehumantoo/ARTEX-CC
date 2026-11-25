@@ -132,7 +132,8 @@ def seed(c, snap):
         {"text": "Gain authenticated admin access to the customer portal", "vulnclass": "auth_bypass"},
         {"text": "Demonstrate access to customer PII", "vulnclass": "idor"},
         {"text": "Obtain a foothold on the internal network", "vulnclass": "rce"},
-    ])["ids"]
+    ])
+    goals = [g["id"] for g in goals["created"]]
 
     def ports(*pairs):
         return [{"port": p, "service": s} for p, s in pairs]
