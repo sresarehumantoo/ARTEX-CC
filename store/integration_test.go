@@ -1112,6 +1112,26 @@ func TestAssetTypeVariants(t *testing.T) {
 	}
 }
 
+func TestInsertHTTPServiceTwiceWithoutTechnologies(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, _ := testEngagement(t, s, "http-service-twice")
+
+	svc := tools.AssetInput{Type: "service", URL: fmt.Sprintf("https://twice-%d.example/", os.Getpid())}
+	first, err := s.InsertAsset(ctx, taskID, svc)
+	if err != nil {
+		t.Fatalf("first InsertAsset: %v", err)
+	}
+	second, err := s.InsertAsset(ctx, taskID, svc)
+	if err != nil {
+		t.Fatalf("second InsertAsset: %v", err)
+	}
+	if second != first {
+		t.Errorf("second insert id = %d, want %d", second, first)
+	}
+}
+
 func TestInsertAssetUnknownType(t *testing.T) {
 	t.Parallel()
 	s := testDB(t)
