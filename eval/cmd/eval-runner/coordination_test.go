@@ -171,25 +171,35 @@ func TestDoubleClaimsUsesLeaseWhenExpiryUnparsable(t *testing.T) {
 }
 
 func TestConflictHandling(t *testing.T) {
-	handled := (&transcript{}).
+	movedOn := (&transcript{}).
 		conflict(at(1), 20, "h-aaa").
 		other(at(1)).
 		call(at(2), "start_intent", map[string]any{"node_id": "21"}, "intent 21 is not open", true)
-	unhandled := (&transcript{}).
+	mixed := (&transcript{}).
 		conflict(at(1), 20, "h-aaa").
 		other(at(1)).other(at(1)).other(at(1)).other(at(1)).other(at(1)).
 		claim(at(2), 21, "h-ccc", 30*time.Minute).
 		conflict(at(3), 22, "h-aaa").
-		conflict(at(3), 22, "h-aaa")
+		conflict(at(3), 22, "h-aaa").
+		conflict(at(4), 30, "h-aaa").
+		call(at(4), "complete_intent", map[string]any{"node_id": 30}, "intent 30 marked done", false).
+		conflict(at(5), 31, "h-aaa").
+		call(at(5), "report_finding", map[string]any{"intent_id": 31, "vulnclass": "sqli"}, `{"finding_id":1,"node_id":40}`, false)
 
-	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{handled.parse(t, 2), unhandled.parse(t, 3)}})
-	if c.Conflicts != 4 || c.ConflictsHandled != 1 || c.ConflictsHandledPc != 25 {
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{movedOn.parse(t, 2), mixed.parse(t, 3)}})
+	if c.Conflicts != 6 || c.ConflictsHandled != 3 || c.ConflictsHandledPc != 50 {
 		t.Fatalf("conflicts %d handled %d (%.0f%%)", c.Conflicts, c.ConflictsHandled, c.ConflictsHandledPc)
 	}
-	if len(c.UnhandledConflicts) != 3 || c.UnhandledConflicts[0] != (ConflictRef{Instance: 3, Call: 0, IntentID: 20}) {
+	want := []ConflictRef{{Instance: 3, Call: 7, IntentID: 22}, {Instance: 3, Call: 9, IntentID: 30}, {Instance: 3, Call: 11, IntentID: 31}}
+	if len(c.UnhandledConflicts) != len(want) {
 		t.Fatalf("unhandled: %+v", c.UnhandledConflicts)
 	}
-	if c.Instances[1].Conflicts != 3 {
+	for k, u := range want {
+		if c.UnhandledConflicts[k] != u {
+			t.Fatalf("unhandled[%d] = %+v, want %+v (all: %+v)", k, c.UnhandledConflicts[k], u, c.UnhandledConflicts)
+		}
+	}
+	if c.Instances[1].Conflicts != 5 {
 		t.Fatalf("per instance conflicts: %+v", c.Instances)
 	}
 }
@@ -366,7 +376,7 @@ func TestRealStreamJSON(t *testing.T) {
 	}
 
 	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{tr}})
-	if c.Instances[0].ClaimsTaken != 1 || c.Conflicts != 1 || c.ConflictsHandled != 0 || c.Instances[0].NodesCreated != 1 {
+	if c.Instances[0].ClaimsTaken != 1 || c.Conflicts != 1 || c.ConflictsHandled != 1 || c.Instances[0].NodesCreated != 1 {
 		t.Fatalf("scored: %+v", c)
 	}
 }

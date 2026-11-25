@@ -2,9 +2,9 @@
 
 ## 1. What is being tested
 
-Since v0.4.1, several Claude Code instances (or other MCP clients) can work one engagement at the same time:
+Since v0.5.0, several Claude Code instances (or other MCP clients) can work one engagement at the same time:
 
-- `start_intent` claims an intent for 30 minutes (`tools.IntentLease`). A claim held by another holder means "pick a different intent"; calling `start_intent` again renews it.
+- `start_intent` claims an intent for 30 minutes by default (`tools.IntentLease`, overridden by `ARTEX_INTENT_LEASE`). A claim held by another holder means "pick a different intent"; calling `start_intent` again renews it.
 - `complete_intent` and `cancel_intent` are refused on an intent another holder has a live claim on.
 - Claims belong to the MCP session. HTTP clients on MCP protocol 2026-07-28 have no session and pass an `owner` argument instead. Holders appear as hashed labels.
 - `list_changes` returns what other instances recorded since a cursor, plus the caller's live claims.
@@ -25,24 +25,25 @@ What has no coverage is the part that decides whether the feature works in pract
 
 ## 3. Prerequisites
 
-Three small changes make the runs measurable. Each is its own PR.
+Three small changes make the runs measurable. All three have landed on main.
 
 ### 3.1 Configurable lease
 
-`IntentLease` is a constant. A takeover test that waits 30 minutes per attempt is impractical, so add an override (for example `ARTEX_INTENT_LEASE=2m`, parsed with `time.ParseDuration`, defaulting to 30m) and print the effective lease in `start_intent`'s description, which already formats it. Tests cover the default and an invalid value.
+A takeover test that waits 30 minutes per attempt is impractical, so `serve` reads an override from `ARTEX_INTENT_LEASE` (for example `ARTEX_INTENT_LEASE=2m`, parsed with `time.ParseDuration`, whole minutes of at least 1m, defaulting to 30m) and `start_intent`'s description states the effective lease. Tests cover the default and an invalid value.
 
 ### 3.2 Eval runner: several instances on one engagement
 
-`eval/cmd/eval-runner` runs one `claude --print` process today. Add:
+`eval/cmd/eval-runner` used to run one `claude --print` process. It now has:
 
 - `--instances N` (default 1): start N `claude` processes concurrently against the same engagement, each with the same goal and a short instance-specific suffix ("you are instance 2 of 3; other agents are working this engagement").
 - `--transport stdio|http`: stdio gives each instance its own `artex-cc serve --stdio` process (its own MCP session, shared PostgreSQL). HTTP points every instance at one `artex-cc serve --listen` and tells each agent to pick an owner label once and pass it on claim calls.
 - `--kill-after INSTANCE:DURATION` for the recovery test: kill one instance after a delay, with its claims still live.
-- `--output-format stream-json` for every instance, saved as `transcripts/instance-N.jsonl`, so every tool call, argument and result is on record. Claim history is not persisted in the database (an intent only stores its current holder and `claim_expires_at`), so transcripts are the source of truth for coordination metrics.
+- `--lease DURATION`: passed to every `serve` process as `ARTEX_INTENT_LEASE`.
+- `--output-format stream-json` for every instance, saved as `transcripts-<scenario>-<timestamp>/instance-N.jsonl` under `--output`, so every tool call, argument and result is on record. Claim history is not persisted in the database (an intent only stores its current holder and `claim_expires_at`), so transcripts are the source of truth for coordination metrics.
 
 ### 3.3 Coordination scorecard
 
-A scorer that reads the transcripts and the final engagement and reports:
+The runner scores the transcripts and the final engagement after every run, adding a coordination section to the scorecard and writing `coordination.txt` next to the transcripts. The metrics:
 
 | Metric | Source | Pass |
 |---|---|---|
@@ -96,4 +97,4 @@ Phase 2 also checks the evidence side: commands run over SSH from the host, not 
 
 ## 7. Reporting
 
-Each phase gets a write-up in the same shape as the existing evals (what the agents did, what ARTEX recorded, what went wrong), with the coordination scorecard and the single-instance comparison. If the results hold up, that write-up becomes the follow-up post on the site blog, and the launch post's "What's rough" section (which still describes multi-agent coordination as unbuilt, correct for v0.4.1) gets updated after the release that ships it.
+Each phase gets a write-up in the same shape as the existing evals (what the agents did, what ARTEX recorded, what went wrong), with the coordination scorecard and the single-instance comparison. If the results hold up, that write-up becomes the follow-up post on the site blog, and the launch post's "What's rough" section (which described multi-agent coordination as unbuilt, correct for v0.4.1, and now carries a dated note that v0.5.0 shipped it) can link to it.
