@@ -89,7 +89,7 @@ func TestInvocation_EngagementContext(t *testing.T) {
 		},
 	}
 	taskID, explorationID := int64(1), int64(11)
-	active := func() (int64, int64) { return taskID, explorationID }
+	active := func() (int64, int64, *tools.Registry) { return taskID, explorationID, tools.NewRegistry() }
 	proxy := &Proxy{URL: "http://127.0.0.1:8788", CACert: "/data/traffic/_ca/mitmproxy-ca-cert.pem"}
 	tool, read := registerCapture(t, EngagementContext(store, active, "/data", proxy))
 
@@ -127,7 +127,7 @@ func TestInvocation_EngagementContext(t *testing.T) {
 }
 
 func TestInvocation_NoEngagementNoProxy(t *testing.T) {
-	active := func() (int64, int64) { return 0, 0 }
+	active := func() (int64, int64, *tools.Registry) { return 0, 0, tools.NewRegistry() }
 	tool, read := registerCapture(t, EngagementContext(&contextStore{}, active, "/data", nil))
 
 	if _, err := tool.Run(t.Context(), json.RawMessage(`{}`)); err != nil {
@@ -145,8 +145,8 @@ func TestInvocation_NoEngagementNoProxy(t *testing.T) {
 }
 
 func TestInvocation_ContextError(t *testing.T) {
-	failing := func(context.Context) (PluginConfig, error) {
-		return PluginConfig{}, errors.New("db down")
+	failing := func(context.Context) (PluginConfig, *tools.Registry, error) {
+		return PluginConfig{}, nil, errors.New("db down")
 	}
 	tool, _ := registerCapture(t, failing)
 

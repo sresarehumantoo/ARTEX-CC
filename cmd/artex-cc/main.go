@@ -244,7 +244,7 @@ func cmdServe(args []string) {
 			if t != nil {
 				proxy = &plugin.Proxy{URL: t.ProxyAddr(), CACert: absPath(t.CACertPath())}
 			}
-			active := func() (int64, int64) { return srv.ActiveEngagement() }
+			active := func() (int64, int64, *tools.Registry) { return srv.ActiveRegistry() }
 			pctx := plugin.EngagementContext(s, active, absPath(*dataDir), proxy)
 			if err := plugin.DiscoverAndRegister(reg, pdir, plugin.DefaultTimeout, pctx); err != nil {
 				slog.Warn("plugin loading failed", "dir", pdir, "err", err)
