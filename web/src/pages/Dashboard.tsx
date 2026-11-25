@@ -19,7 +19,7 @@ import { Badge, severityVariant } from '../components/ui/badge'
 import { getEngagement, getActivity, getAssets } from '../lib/api'
 import { cn } from '../lib/utils'
 import { StatusBadge } from '../components/StatusBadge'
-import type { Activity, EngagementData, GraphNode } from '../lib/types'
+import type { Activity, EngagementData, GraphNode, IntentSummary } from '../lib/types'
 
 function relativeTime(iso: string): string {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
@@ -157,7 +157,19 @@ function GoalProgress({ goals }: { goals: GraphNode[] }) {
   )
 }
 
-function RunningIntents({ intents }: { intents: GraphNode[] }) {
+function shortHolder(name: string): string {
+  const m = name.match(/^chat\/(.{8}).{2,}$/)
+  return m ? `chat/${m[1]}…` : name
+}
+
+function timeLeft(iso: string): string {
+  const minutes = Math.floor((new Date(iso).getTime() - Date.now()) / 60_000)
+  if (minutes < 1) return 'expiring'
+  if (minutes < 60) return `${minutes}m left`
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m left`
+}
+
+export function RunningIntents({ intents }: { intents: IntentSummary[] }) {
   return (
     <Card>
       <CardHeader>
@@ -176,9 +188,25 @@ function RunningIntents({ intents }: { intents: GraphNode[] }) {
           <div className="space-y-2">
             {intents.map((i) => (
               <div key={i.id} className="flex items-start gap-3">
-                <p className="min-w-0 flex-1 text-sm text-foreground">
-                  {(i as any).label || (i as any).summary || (i.payload?.summary as string) || (i.payload?.text as string) || `Intent #${i.id}`}
-                </p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-foreground">
+                    {i.label || i.summary || i.text || `Intent #${i.id}`}
+                  </p>
+                  {i.claimed_by && (
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-mono" title={i.claimed_by}>{shortHolder(i.claimed_by)}</span>
+                      {i.claim_expires_at && <> · {timeLeft(i.claim_expires_at)}</>}
+                    </p>
+                  )}
+                  {i.claim_expired && (
+                    <p className="text-xs text-muted-foreground">
+                      claim lapsed
+                      {i.previous_owner && (
+                        <> (<span className="font-mono" title={i.previous_owner}>{shortHolder(i.previous_owner)}</span>)</>
+                      )}
+                    </p>
+                  )}
+                </div>
                 <StatusBadge domain="intent" value={i.state} dot />
               </div>
             ))}
@@ -626,7 +654,7 @@ export function Dashboard() {
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <GoalProgress goals={e.goals} />
-            <RunningIntents intents={e.running_intents} />
+            <RunningIntents intents={[...e.running_intents, ...e.open_intents.filter((i) => i.claim_expired)]} />
           </div>
 
           <RecentFindings findings={e.finding_list} />

@@ -4,8 +4,8 @@ export interface EngagementData {
   description: string
   goal: string
   goals: GraphNode[]
-  open_intents: GraphNode[]
-  running_intents: GraphNode[]
+  open_intents: IntentSummary[]
+  running_intents: IntentSummary[]
   recent_done_intents: GraphNode[]
   done_intents_total: number
   frontier_open: number
@@ -25,6 +25,18 @@ export interface EngagementData {
     intents_done: number
     intents_total: number
   }
+}
+
+export interface IntentSummary {
+  id: number
+  state: string
+  summary?: string
+  label?: string
+  text?: string
+  claimed_by?: string
+  claim_expires_at?: string
+  claim_expired?: boolean
+  previous_owner?: string
 }
 
 export interface GraphNode {
