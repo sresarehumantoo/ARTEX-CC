@@ -246,7 +246,7 @@ function AssetInventory({ assets }: { assets: Asset[] }) {
 }
 
 function ActivitySummary({ activity }: { activity: Activity[] }) {
-  const significant = activity.filter(a => a.kind !== 'noop' && a.summary.trim().length > 0).slice(0, 50)
+  const significant = activity.filter(a => a.kind !== 'noop' && (a.summary ?? '').trim().length > 0).slice(0, 50)
 
   if (significant.length === 0) {
     return <p className="text-sm text-muted-foreground">No significant activity recorded.</p>
