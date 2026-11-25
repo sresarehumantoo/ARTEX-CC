@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 type TaskScope struct {
@@ -129,6 +131,38 @@ func (s *Store) ListTaskScope(ctx context.Context, taskID int64) ([]int64, error
 			return nil, err
 		}
 		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// ListScopeRules returns the task's own scope entries followed by the scope of
+// the company the task belongs to, the same two sources IsInScope consults.
+func (s *Store) ListScopeRules(ctx context.Context, taskID int64) ([]tools.ScopeRule, error) {
+	rows, err := s.QueryContext(ctx, `
+		SELECT kind, value, reason FROM (
+			SELECT 0 AS src, ts.id, ts.kind,
+				COALESCE(ts.domain, ts.net::text, ts.value, c.name, '') AS value,
+				COALESCE(ts.reason, '') AS reason
+			FROM task_scope ts LEFT JOIN companies c ON c.id = ts.company_id
+			WHERE ts.task_id = $1
+			UNION ALL
+			SELECT 1, cs.id, cs.kind,
+				COALESCE(cs.domain, cs.net::text, cs.value, cs.raw),
+				COALESCE(cs.reason, '')
+			FROM company_scope cs JOIN tasks t ON t.company_id = cs.company_id
+			WHERE t.id = $1
+		) r ORDER BY src, id`, taskID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []tools.ScopeRule{}
+	for rows.Next() {
+		var r tools.ScopeRule
+		if err := rows.Scan(&r.Kind, &r.Value, &r.Reason); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
 	}
 	return out, rows.Err()
 }

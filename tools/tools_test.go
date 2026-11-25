@@ -114,6 +114,10 @@ func (m *mockStore) ListTaskScope(_ context.Context, _ int64) ([]int64, error) {
 	return nil, nil
 }
 
+func (m *mockStore) ListScopeRules(_ context.Context, _ int64) ([]ScopeRule, error) {
+	return nil, nil
+}
+
 func (m *mockStore) IsInScope(_ context.Context, _ int64, _ string) (bool, string, string, error) {
 	return true, "mock: always in scope", "", nil
 }

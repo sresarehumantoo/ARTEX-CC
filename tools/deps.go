@@ -42,6 +42,7 @@ type Store interface {
 	// Task scope
 	AddTaskScope(ctx context.Context, taskID int64, kind, value, reason, source string) error
 	ListTaskScope(ctx context.Context, taskID int64) ([]int64, error)
+	ListScopeRules(ctx context.Context, taskID int64) ([]ScopeRule, error)
 	IsInScope(ctx context.Context, taskID int64, target string) (bool, string, string, error)
 
 	// Credentials
@@ -159,7 +160,7 @@ type Company struct {
 	Scope      []string `json:"scope"`
 }
 
-// ScopeRule is one wildcard or CIDR rule governing what targets are in scope.
+// ScopeRule is one scope entry: a domain, IP, CIDR, company, ICP or keyword.
 type ScopeRule struct {
 	Kind   string `json:"kind"`
 	Value  string `json:"value"`
