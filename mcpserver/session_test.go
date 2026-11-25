@@ -188,18 +188,32 @@ func TestListSessionsToolReturnsAllClients(t *testing.T) {
 		t.Fatal("empty content")
 	}
 	text := result.Content[0].Text
-	if !strings.Contains(text, sid1) || !strings.Contains(text, sid2) {
-		t.Fatalf("list_sessions result does not contain both session ids: %s", text)
+	if strings.Contains(text, sid1) || strings.Contains(text, sid2) {
+		t.Fatalf("list_sessions exposes raw session IDs: %s", text)
 	}
 
 	var payload struct {
-		Count int `json:"count"`
+		Count    int `json:"count"`
+		Sessions []struct {
+			Label string `json:"label"`
+			Self  bool   `json:"self"`
+		} `json:"sessions"`
 	}
 	if err := json.Unmarshal([]byte(text), &payload); err != nil {
 		t.Fatalf("unmarshal payload: %v", err)
 	}
-	if payload.Count < 2 {
-		t.Fatalf("expected at least 2 sessions, got %d", payload.Count)
+	if payload.Count != 2 || len(payload.Sessions) != 2 {
+		t.Fatalf("expected 2 sessions, got %s", text)
+	}
+	labels := map[string]bool{}
+	for _, s := range payload.Sessions {
+		labels[s.Label] = s.Self
+	}
+	if self, ok := labels[tools.OwnerLabel(sid1)]; !ok || !self {
+		t.Errorf("caller's own label missing or not marked self: %s", text)
+	}
+	if self, ok := labels[tools.OwnerLabel(sid2)]; !ok || self {
+		t.Errorf("other session's label missing or marked self: %s", text)
 	}
 }
 

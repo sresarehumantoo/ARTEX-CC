@@ -2,8 +2,20 @@ package store
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
+
+func TestNodeJSONOmitsOwner(t *testing.T) {
+	t.Parallel()
+	raw, err := json.Marshal(Node{ID: 1, Kind: "intent", State: "running", Owner: "mcp-session-secret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "mcp-session-secret") || strings.Contains(string(raw), `"owner"`) {
+		t.Errorf("Node JSON exposes the raw owner: %s", raw)
+	}
+}
 
 func TestUtf8Clean(t *testing.T) {
 	t.Parallel()

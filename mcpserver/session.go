@@ -11,7 +11,7 @@ import (
 // initializes a session gets its own Session instance. The Context key-value
 // store lets tool handlers maintain client-specific state across calls.
 type Session struct {
-	ID        string
+	ID        string `json:"-"`
 	CreatedAt time.Time
 
 	mu         sync.Mutex
@@ -60,7 +60,7 @@ func (s *Session) snapshot() SessionInfo {
 
 // SessionInfo is the serializable snapshot of a Session.
 type SessionInfo struct {
-	ID         string            `json:"id"`
+	ID         string            `json:"-"`
 	CreatedAt  time.Time         `json:"created_at"`
 	LastActive time.Time         `json:"last_active"`
 	Context    map[string]string `json:"context"`

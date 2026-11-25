@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - `serve --listen` without `--web` refuses to start on a non-loopback address (anything other than `localhost`, `127.0.0.0/8` or `::1`, including `:9400` and `0.0.0.0`) unless `ARTEX_MCP_TOKEN` is set, and then requires it as a bearer token on `/mcp`. Previously such a listener exposed every tool without authentication. Loopback listeners are unchanged, and honor `ARTEX_MCP_TOKEN` when it is set.
+- `list_sessions` returns each session's hashed holder `label` and a `self` flag instead of its raw session ID.
+- Claim holder labels are keyed with a random secret stored in `owner-label.key` in the data directory (created on first start, mode 0600), so processes sharing a data directory show the same labels. Labels shown before this change no longer match.
+
+### Fixed
+- Any MCP client could read other clients' session IDs from `list_sessions` and replay one as `Mcp-Session-Id` to complete or cancel intents claimed by that session.
+- A low-entropy `owner` could be recovered from its claim label by guessing, since the label was an unkeyed hash.
+- Session register and unregister debug logs, which reach `docker logs` and the web Logs page, carried raw session IDs; they now log the holder label.
 
 ## [0.5.0] - 2026-11-25
 

@@ -20,6 +20,7 @@ vendor/
 # Runtime / engagement data
 .artex.json
 .cc-artex.json
+owner-label.key
 *.db
 *.sqlite
 *.sqlite3

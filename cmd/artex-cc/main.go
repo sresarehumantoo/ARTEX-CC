@@ -230,6 +230,12 @@ func cmdServe(args []string) {
 		slog.Info("intent claim lease set", "lease", lease)
 	}
 
+	if key, err := config.OwnerLabelKey(*dataDir); err != nil {
+		slog.Warn("claim holder labels will differ between processes", "err", err)
+	} else {
+		tools.SetOwnerLabeler(tools.NewOwnerLabeler(key))
+	}
+
 	reg := tools.NewRegistry()
 	tools.RegisterAll(reg, s, engCfg.TaskID, engCfg.ExplorationID)
 

@@ -33,7 +33,7 @@
   "list_evidence": "`{count, evidence: [{id, finding_id, kind, filename, size, sha256, created_at}, ...]}`.",
   "list_facts": "`{facts: [{id, summary, state, origin, source}, ...], total}`.",
   "list_findings": "Array of finding summaries.",
-  "list_sessions": "`{count, sessions: [{id, created_at, last_active, context}, ...]}`.",
+  "list_sessions": "`{count, sessions: [{label, self, created_at, last_active, context}, ...]}`. `label` is the hashed holder label the session's claims show in `claimed_by` when taken without `owner` (raw session IDs are never returned); `self` marks the caller's own session.",
   "list_task_credentials": "`{credentials: [...]}`.",
   "list_untested_assets": "`{assets: [...], total, page, page_size}`.",
   "log_activity": "`\"activity logged: <id>\"`.",
