@@ -29,7 +29,6 @@ import (
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 	"github.com/SREsAreHumanToo/ARTEX-CC/traffic"
 	"github.com/SREsAreHumanToo/ARTEX-CC/web"
-	"github.com/mark3labs/mcp-go/server"
 )
 
 var (
@@ -355,7 +354,7 @@ func cmdServe(args []string) {
 	} else if *webUI {
 		mux := http.NewServeMux()
 
-		mcpHandler := server.NewStreamableHTTPServer(srv.MCPServer())
+		mcpHandler := srv.StreamableHTTP()
 		mux.Handle("/mcp", bearerAuth(mcpToken, conversations.Middleware(mcpHandler)))
 
 		mux.Handle("/api/", restAPI.Handler())
