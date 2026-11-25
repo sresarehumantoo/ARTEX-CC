@@ -5,13 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-25
+
 ### Added
 - `serve --require-identity` (or `ARTEX_REQUIRE_IDENTITY=1`), off by default, makes `start_intent`, `complete_intent` and `cancel_intent` refuse callers without a verified `X-Artex-Identity`, whatever session or `owner` they have, with an error pointing at `artex-cc identity issue`. `list_changes` returns `claims_error` instead of `my_claims` for such callers; other tools are unaffected. `start_intent`'s description and the orchestration guide state the requirement when it is on. It applies to HTTP only: `serve --stdio` with it set exits at startup, and an `ARTEX_REQUIRE_IDENTITY` value that is not a boolean is a startup error. The eval runner clears an inherited value for the servers it starts in its anonymous modes (stdio and `--identity=false`).
 - The web UI Dashboard's Active Intents card shows who holds each running intent's claim and how long it has left (`chat/<conversation id>` names shortened, full name on hover), and lists intents whose claim lapsed with a "claim lapsed" hint naming the previous holder.
+- Eval runner: `--env KEY=VALUE` (repeatable) adds variables to every Claude instance's environment.
 
 ### Changed
 - A request whose `X-Artex-Identity` fails to verify gets HTTP 400 instead of 401, with the same reason in the body. Claude Code reads a 401 as an OAuth challenge and hid the reason behind a Dynamic Client Registration error; a 403 would have cached the server as needing authentication. Bearer token failures still get 401.
 - Each rejected identity logs one warning with the reason (`malformed`, `bad_signature`, `expired`, `unknown_key` or `header`), the claimed name and key ID from the unverified token, and the remote address. The token is never logged.
+
+### Fixed
+- Eval runner: scenario `scope` entries are now registered with kinds the store accepts (`cidr`, `ip`, or `subdomain` for an exact host), and a run stops if any entry fails to apply. Previously scope was silently not applied.
 
 ## [0.6.0] - 2026-11-25
 
@@ -213,7 +219,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dockerfile for container deployments
 - GitHub Actions CI with PostgreSQL service container
 
-[Unreleased]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.4.1...v0.5.0
