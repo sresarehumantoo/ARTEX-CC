@@ -242,6 +242,76 @@ func TestIdentitySharedAcrossServersOnOneDataDir(t *testing.T) {
 	}
 }
 
+func TestChatIdentitiesHoldClaimsAcrossRestart(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	st := newIntentStore(10, 11)
+	const convA, convB = "chat/0b7c3c4e-5d3f-4b8e-9a51-2f0c6d1e8a90", "chat/9f2e1d0c-4b3a-4c5d-8e7f-a1b2c3d4e5f6"
+	before := startIdentityServer(t, st, dir)
+	a, b := identityHeader(issue(t, dir, convA)), identityHeader(issue(t, dir, convB))
+
+	if out, isErr := modernTool(t, before, a, "start_intent", map[string]any{"node_id": 10}); isErr || !strings.Contains(out, "claimed by "+convA) {
+		t.Fatalf("conversation A claim without owner = %q", out)
+	}
+	if out, isErr := modernTool(t, before, b, "start_intent", map[string]any{"node_id": 11}); isErr || !strings.Contains(out, "claimed by "+convB) {
+		t.Fatalf("conversation B claim without owner = %q", out)
+	}
+	if got := st.owner(10); got != "id:"+convA {
+		t.Fatalf("stored owner = %q, want id:%s", got, convA)
+	}
+	if got := st.owner(11); got != "id:"+convB {
+		t.Fatalf("stored owner = %q, want id:%s", got, convB)
+	}
+	if out, isErr := modernTool(t, before, b, "start_intent", map[string]any{"node_id": 10}); !isErr || !strings.Contains(out, "claimed by "+convA) {
+		t.Fatalf("conversation B on A's intent = %q, want conflict naming A", out)
+	}
+
+	after := startIdentityServer(t, st, dir)
+	reminted := identityHeader(issue(t, dir, convA))
+	for name, h := range map[string]http.Header{"old token": a, "reminted token": reminted} {
+		if out, isErr := modernTool(t, after, h, "start_intent", map[string]any{"node_id": 10}); isErr || !strings.Contains(out, "renewed") {
+			t.Fatalf("conversation A with %s after restart = %q, want renewal", name, out)
+		}
+	}
+	if out, isErr := modernTool(t, after, b, "start_intent", map[string]any{"node_id": 10}); !isErr || !strings.Contains(out, "claimed by "+convA) {
+		t.Fatalf("conversation B on A's intent after restart = %q, want conflict naming A", out)
+	}
+
+	if _, _, err := config.RotateIdentityKey(dir); err != nil {
+		t.Fatal(err)
+	}
+	rotated := startIdentityServer(t, st, dir)
+	for name, h := range map[string]http.Header{"A": a, "A reminted": reminted, "B": b} {
+		resp := postModern(t, rotated, h, "start_intent", map[string]any{"node_id": 10})
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusUnauthorized || !strings.Contains(string(body), "unknown key ID") {
+			t.Errorf("%s after rotation: HTTP %d %s, want 401 unknown key ID", name, resp.StatusCode, body)
+		}
+	}
+}
+
+func TestRetiredConversationHeaderRejected(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	st := newIntentStore(10)
+	url := startIdentityServer(t, st, dir)
+	for name, h := range map[string]http.Header{
+		"alone":         {"X-Artex-Conversation": {"conv-a.deadbeef"}},
+		"with identity": {"X-Artex-Conversation": {"conv-a.deadbeef"}, mcpserver.IdentityHeader: {issue(t, dir, "alice")}},
+	} {
+		resp := postModern(t, url, h, "start_intent", map[string]any{"node_id": 10, "owner": "x"})
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(body), "start a new web chat conversation") {
+			t.Errorf("%s: HTTP %d %s, want 400 telling the caller to start a new conversation", name, resp.StatusCode, body)
+		}
+	}
+	if got := st.owner(10); got != "" {
+		t.Fatalf("tool ran despite the retired header: owner %q", got)
+	}
+}
+
 func forgeToken(key []byte, payload map[string]any) string {
 	body, _ := json.Marshal(payload)
 	p := base64.RawURLEncoding.EncodeToString(body)

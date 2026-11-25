@@ -15,6 +15,10 @@ import (
 // IdentityHeader carries a signed client identity token on MCP requests.
 const IdentityHeader = "X-Artex-Identity"
 
+// retiredConversationHeader is the pre-identity web chat header. Its tokens
+// were signed with a per-process key, so none can still be valid.
+const retiredConversationHeader = "X-Artex-Conversation"
+
 var identityRejections = []error{
 	identity.ErrMalformed,
 	identity.ErrUnknownKey,
@@ -27,10 +31,16 @@ var identityRejections = []error{
 // protocol eras. Requests without the header pass through unchanged. A
 // header that is present but does not verify, including an empty or repeated
 // one, gets 401 so a misconfigured client fails loudly instead of claiming
-// anonymously. Mount it after bearer auth.
+// anonymously. A request carrying the retired X-Artex-Conversation header
+// gets 400, so a stale web chat process stops instead of moving its claims
+// to another holder. Mount it after bearer auth.
 func (s *Server) IdentityMiddleware(signer *identity.Signer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if _, ok := r.Header[http.CanonicalHeaderKey(retiredConversationHeader)]; ok {
+				http.Error(w, retiredConversationHeader+" is no longer supported: start a new web chat conversation", http.StatusBadRequest)
+				return
+			}
 			values, present := r.Header[http.CanonicalHeaderKey(IdentityHeader)]
 			if !present {
 				next.ServeHTTP(w, r)
