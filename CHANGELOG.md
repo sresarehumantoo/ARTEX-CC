@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- Every HTTP response, including the web UI and `/mcp`, carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'` and `Referrer-Policy: no-referrer`.
+
+### Fixed
+- The REST API answered every origin with `Access-Control-Allow-Origin: *` and decoded JSON whatever the Content-Type, so with auth off (the default on a loopback `--web` listener) any web page open in the operator's browser could read and change the engagement, credentials and MCP server entries. The wildcard CORS headers are gone, and POST, PUT, PATCH and DELETE requests are refused with 403 when `Sec-Fetch-Site` is `cross-site` or `same-site` or `Origin` does not match the request's Host. This also covers other ports on localhost, which a `SameSite=Lax` session cookie does not. Requests without either header (CLI and MCP clients) are unaffected.
+- A loopback listener accepted any Host header, so a DNS-rebinding page could reach it as same-origin. Requests that arrive on a loopback address, including a `0.0.0.0` listener reached through `127.0.0.1`, are now refused with 421 unless their Host is `localhost` or a loopback IP. Connections on other addresses are unaffected, so remote access by hostname keeps working.
+- Anyone who reached a fresh server before the operator, including a DNS-rebinding page on a Docker container whose published port hides whether the client is local, could set the first web UI password. While no password is set, the server now prints a one-time setup token and the setup URL to its logs at startup, and `POST /api/auth/init` returns 403 unless the request carries that token as `setup_token`. The setup screen asks for it. The token lives only in memory and is discarded once the password is set.
+
 ### Fixed
 - A goal marked met by `prove_goal` stayed met after its proving finding was dismissed. Dismissing a finding now removes its `proves` edges and reopens any goal left without another proof from a live finding or fact. Merging findings moves the secondary's `proves` edges to the primary, so the goal stays met. Concurrent dismissals of a goal's last proofs no longer leave it met, and `prove_goal` refuses a dismissed or merged finding.
 - Two agents merging the same findings into each other at once could leave both findings merged and neither live, reopening the goal they proved. `merge_findings` now locks the findings and the primary's merge chain in a fixed order, follows an already merged `primary_id` to the live finding it points to (returned as `id`, with `requested_primary_id`), refuses a dismissed primary, and skips secondaries that are already merged or dismissed, listing them in `skipped`. The `dismiss_finding` description now points duplicates to `merge_findings`.

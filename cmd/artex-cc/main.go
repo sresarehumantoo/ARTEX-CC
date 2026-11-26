@@ -128,6 +128,17 @@ func isLoopbackAddr(addr string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
+func setupURL(listen string) string {
+	host, port, err := net.SplitHostPort(listen)
+	if err != nil {
+		return "http://localhost:9400/setup"
+	}
+	if ip := net.ParseIP(host); host == "" || (ip != nil && ip.IsUnspecified()) {
+		host = "localhost"
+	}
+	return "http://" + net.JoinHostPort(host, port) + "/setup"
+}
+
 // mcpListenToken returns the bearer token /mcp must require on a listener
 // without --web, or "" when none is needed. Only literal loopback addresses
 // may run without one; other hostnames are not resolved and count as exposed.
@@ -180,6 +191,29 @@ func listenMiddleware(srv *mcpserver.Server, signer *identity.Signer, token stri
 		middleware = append(middleware, func(h http.Handler) http.Handler { return bearerAuth(token, h) })
 	}
 	return middleware
+}
+
+// loopbackHostOnly refuses requests that arrived on a loopback address with a
+// Host that is not a loopback name, so a DNS-rebound page cannot reach the
+// listener as if it were same-origin. Connections on other local addresses
+// pass, so remote access by hostname keeps working.
+func loopbackHostOnly(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		local, _ := r.Context().Value(http.LocalAddrContextKey).(net.Addr)
+		if local != nil && isLoopbackAddr(local.String()) && !api.LoopbackHost(r) {
+			http.Error(w, "host not allowed", http.StatusMisdirectedRequest)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func webHandler(mcp, restAPI http.Handler) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/mcp", mcp)
+	mux.Handle("/api/", restAPI)
+	mux.Handle("/", web.Handler())
+	return api.SecurityHeaders(mux)
 }
 
 func cmdServe(args []string) {
@@ -406,15 +440,18 @@ func cmdServe(args []string) {
 			os.Exit(1)
 		}
 	} else if *webUI {
-		mux := http.NewServeMux()
-
-		mux.Handle("/mcp", webMCPHandler(srv, mcpToken, webIdentity))
-
-		mux.Handle("/api/", restAPI.Handler())
-
-		mux.Handle("/", web.Handler())
-
-		httpServer := &http.Server{Addr: *listen, Handler: mux}
+		mcpHandler := webMCPHandler(srv, mcpToken, webIdentity)
+		handler := loopbackHostOnly(webHandler(mcpHandler, restAPI.Handler()))
+		httpServer := &http.Server{Addr: *listen, Handler: handler}
+		setupToken, err := restAPI.IssueSetupToken()
+		if err != nil {
+			slog.Error("generating setup token failed", "err", err)
+			os.Exit(1)
+		}
+		if setupToken != "" {
+			// Written to stderr directly so the token stays out of the /api/logs buffer.
+			fmt.Fprintf(os.Stderr, "\nNo web UI password is set. Open %s and enter this one-time setup token:\n\n    %s\n\n", setupURL(*listen), setupToken)
+		}
 		errCh := make(chan error, 1)
 		go func() { errCh <- httpServer.ListenAndServe() }()
 
@@ -433,6 +470,7 @@ func cmdServe(args []string) {
 		}
 	} else {
 		middleware := listenMiddleware(srv, loadIdentitySigner(*dataDir), listenToken)
+		middleware = append(middleware, loopbackHostOnly, api.SecurityHeaders)
 		slog.Info("serving", "addr", *listen, "mcp_auth", listenToken != "")
 		if err := srv.ServeHTTP(ctx, *listen, middleware...); err != nil && ctx.Err() == nil {
 			slog.Error("http server failed", "err", err)

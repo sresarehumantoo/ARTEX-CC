@@ -222,41 +222,6 @@ func decodeRecorder(t *testing.T, rec *httptest.ResponseRecorder) map[string]any
 	return m
 }
 
-func TestCorsMiddleware_Options(t *testing.T) {
-	a := newTestAPI(&mockStore{})
-	h := a.Handler()
-
-	req := httptest.NewRequest(http.MethodOptions, "/api/engagement", nil)
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("OPTIONS: want %d, got %d", http.StatusNoContent, rec.Code)
-	}
-	if v := rec.Header().Get("Access-Control-Allow-Origin"); v != "*" {
-		t.Fatalf("CORS origin: want *, got %q", v)
-	}
-	if v := rec.Header().Get("Access-Control-Allow-Methods"); !strings.Contains(v, "GET") {
-		t.Fatalf("CORS methods missing GET: %q", v)
-	}
-}
-
-func TestCorsMiddleware_PassThrough(t *testing.T) {
-	a := newTestAPI(&mockStore{graphOverview: &tools.Overview{}})
-	h := a.Handler()
-
-	req := httptest.NewRequest(http.MethodGet, "/api/engagement", nil)
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
-
-	if v := rec.Header().Get("Access-Control-Allow-Origin"); v != "*" {
-		t.Fatalf("CORS origin on GET: want *, got %q", v)
-	}
-	if rec.Code != http.StatusOK {
-		t.Fatalf("GET: want 200, got %d", rec.Code)
-	}
-}
-
 func TestWriteJSON(t *testing.T) {
 	rec := httptest.NewRecorder()
 	writeJSON(rec, http.StatusCreated, map[string]string{"ok": "true"})

@@ -28,5 +28,7 @@ if [ -z "$ready" ]; then
   exit 1
 fi
 
+setup_token="$("${compose[@]}" logs artex 2>/dev/null | grep -oE '[0-9a-f]{32}' | tail -1 || true)"
+
 cd "$repo/web"
-E2E_BASE_URL="http://127.0.0.1:$E2E_PORT" E2E_PASSWORD=artex-e2e-pass npx playwright test "$@"
+E2E_BASE_URL="http://127.0.0.1:$E2E_PORT" E2E_PASSWORD=artex-e2e-pass E2E_SETUP_TOKEN="$setup_token" npx playwright test "$@"

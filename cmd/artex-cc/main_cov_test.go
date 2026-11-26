@@ -611,3 +611,19 @@ func TestShutdown_WithStore(t *testing.T) {
 	}
 	shutdown(nil, s, 5*time.Second)
 }
+
+func TestSetupURL(t *testing.T) {
+	for addr, want := range map[string]string{
+		":9400":          "http://localhost:9400/setup",
+		"0.0.0.0:9400":   "http://localhost:9400/setup",
+		"[::]:9400":      "http://localhost:9400/setup",
+		"localhost:8080": "http://localhost:8080/setup",
+		"10.0.0.5:9400":  "http://10.0.0.5:9400/setup",
+		"[fe80::1]:9400": "http://[fe80::1]:9400/setup",
+		"artex.lan:9400": "http://artex.lan:9400/setup",
+	} {
+		if got := setupURL(addr); got != want {
+			t.Errorf("setupURL(%q) = %q, want %q", addr, got, want)
+		}
+	}
+}

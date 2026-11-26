@@ -33,7 +33,7 @@ With `--web`, the HTTP MCP endpoint at `/mcp` requires an `Authorization: Bearer
 
 On a loopback listener (`localhost`, `127.0.0.1`) the UI is open by default; pass `--auth` or set `ARTEX_AUTH=1` to require a password anyway. On any other listener, including the Docker image's `:9400`, a password is always required.
 
-On first visit the UI asks you to set a password (at least 8 characters). Sessions last seven days. The password hash lives in `auth.json` in the data directory; delete that file to reset it.
+On first visit the UI asks for a setup token and a password (at least 8 characters). While no password is set, the server prints a one-time setup token and the setup URL to its logs at startup; read it with `docker compose logs artex` for the Docker image. The token is kept only in memory, so a restart prints a new one, and it stops working once the password is set. Sessions last seven days. The password hash lives in `auth.json` in the data directory; to reset it, delete that file and restart the server for a new setup token.
 
 <Aside type="caution">
 Do not expose the web UI to an untrusted network. It can run commands through the chat runner and reads everything the engagement has recorded, including credentials.
