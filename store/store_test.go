@@ -689,7 +689,7 @@ func TestImportRecordsURLCredential(t *testing.T) {
 			{"id": float64(2), "type": "endpoint", "url": "https://known:fromurl@" + host + "/login", "method": "GET"},
 		},
 		Credentials: []map[string]any{
-			{"domain": host, "username": "known", "password": "exported", "source": "agent", "note": "kept"},
+			{"domain": strings.ToUpper(host), "username": "known", "password": "exported", "source": "agent", "note": "kept"},
 		},
 	})
 	if err != nil {
@@ -710,7 +710,38 @@ func TestImportRecordsURLCredential(t *testing.T) {
 	if c := got["captured"]; c.Domain != host || c.Password != "fresh" || c.Source != "asset_url" {
 		t.Errorf("captured = %+v, want password fresh, source asset_url", c)
 	}
-	if c := got["known"]; c.Password != "exported" || c.Source != "agent" || c.Note != "kept" {
+	if c := got["known"]; c.Domain != host || c.Password != "exported" || c.Source != "agent" || c.Note != "kept" {
 		t.Errorf("known = %+v, want exported row unchanged", c)
+	}
+}
+
+func TestSaveCredentialDomainKey(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, _ := testEngagement(t, s, "credential-domain-key")
+	host := fmt.Sprintf("case-%d.example.com", taskID)
+
+	first, err := s.SaveCredential(ctx, taskID, tools.CredentialInput{Domain: " " + strings.ToUpper(host) + ". ", Username: "admin", Password: "one"})
+	if err != nil {
+		t.Fatalf("SaveCredential: %v", err)
+	}
+	second, err := s.SaveCredential(ctx, taskID, tools.CredentialInput{Domain: host, Username: "admin", Password: "two"})
+	if err != nil {
+		t.Fatalf("SaveCredential: %v", err)
+	}
+	if first != second {
+		t.Errorf("ids = %d, %d, want the same credential", first, second)
+	}
+	if _, err := s.InsertAsset(ctx, taskID, tools.AssetInput{Type: "service", URL: "https://admin:three@" + strings.ToUpper(host) + "/"}); err != nil {
+		t.Fatalf("InsertAsset: %v", err)
+	}
+
+	creds, err := s.ListCredentials(ctx, taskID)
+	if err != nil {
+		t.Fatalf("ListCredentials: %v", err)
+	}
+	if len(creds) != 1 || creds[0].Domain != host || creds[0].Password != "two" {
+		t.Errorf("credentials = %+v, want one %s/admin with password two", creds, host)
 	}
 }

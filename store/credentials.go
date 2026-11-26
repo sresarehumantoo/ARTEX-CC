@@ -28,7 +28,7 @@ type Credential struct {
 var errCredentialInvalid = errors.New("credential domain and username are required")
 
 func (s *Store) SaveCredential(ctx context.Context, taskID int64, cred tools.CredentialInput) (int64, error) {
-	domain := strings.TrimSpace(cred.Domain)
+	domain := DomainKey(cred.Domain)
 	username := strings.TrimSpace(cred.Username)
 	password := strings.TrimSpace(cred.Password)
 	note := strings.TrimSpace(cred.Note)

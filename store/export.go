@@ -583,7 +583,7 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 			`INSERT INTO task_credentials(task_id, domain, username, password, source, note)
 			 VALUES ($1, $2, $3, $4, $5, $6)
 			 ON CONFLICT (task_id, domain, username) DO NOTHING`,
-			taskID, exportMapString(c, "domain"), exportMapString(c, "username"),
+			taskID, DomainKey(exportMapString(c, "domain")), exportMapString(c, "username"),
 			password, exportMapString(c, "source"), exportMapString(c, "note"),
 		); err != nil {
 			return 0, 0, fmt.Errorf("import credential: %w", err)
