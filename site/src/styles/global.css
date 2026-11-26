@@ -47,6 +47,12 @@
   font-size: var(--sl-text-sm);
 }
 
+.sl-markdown-content :not(pre) > code {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  overflow-wrap: break-word;
+}
+
 .sl-markdown-content .screenshot-grid {
   display: grid;
   gap: 1rem;
