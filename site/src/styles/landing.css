@@ -38,6 +38,55 @@
   mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
 }
 
+.hero-glow {
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 0%, oklch(0.75 0.14 232 / 0.16), transparent 70%),
+    radial-gradient(ellipse 40% 30% at 85% 10%, oklch(0.78 0.13 210 / 0.08), transparent 70%);
+}
+
+.section-glow {
+  background: radial-gradient(ellipse 50% 40% at 50% 0%, oklch(0.75 0.14 232 / 0.06), transparent 70%);
+}
+
+.text-gradient {
+  background: linear-gradient(180deg, #fff 30%, oklch(0.8 0 0));
+  background-clip: text;
+  color: transparent;
+}
+
+.text-gradient-muted {
+  background: linear-gradient(90deg, oklch(0.62 0 0), oklch(0.5 0 0));
+  background-clip: text;
+  color: transparent;
+}
+
+@utility card {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-xl);
+  background:
+    linear-gradient(180deg, oklch(1 0 0 / 0.035), oklch(1 0 0 / 0.01)),
+    var(--color-ink);
+  box-shadow: inset 0 1px 0 0 oklch(1 0 0 / 0.05);
+}
+
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-sky-400);
+}
+
+.frame-ring {
+  position: relative;
+  border-radius: var(--radius-2xl);
+  padding: 1px;
+  background: linear-gradient(180deg, oklch(1 0 0 / 0.18), oklch(1 0 0 / 0.04) 40%, oklch(0.75 0.14 232 / 0.25));
+  box-shadow:
+    0 30px 80px -20px oklch(0 0 0 / 0.8),
+    0 0 120px -40px oklch(0.75 0.14 232 / 0.35);
+}
+
 [role='tabpanel'][hidden] {
   display: none;
 }
