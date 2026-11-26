@@ -102,6 +102,14 @@ func TestCompleteEngagement(t *testing.T) {
 	if task.Status != "done" {
 		t.Errorf("Status = %q, want %q", task.Status, "done")
 	}
+
+	ov, err := s.GraphOverview(ctx, task.ExplorationID)
+	if err != nil {
+		t.Fatalf("GraphOverview: %v", err)
+	}
+	if ov.Task["status"] != "achieved" {
+		t.Errorf("overview status = %v, want %q", ov.Task["status"], "achieved")
+	}
 }
 
 func TestCompleteEngagementNotFound(t *testing.T) {

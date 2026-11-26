@@ -12,7 +12,7 @@
   "delete_engagement": "`\"engagement <id> deleted\"`.",
   "dismiss_finding": "`\"finding <id> dismissed: <reason>\"`.",
   "engagement_activity": "Timeline of `\"<timestamp> - <kind>: <summary>\"` entries.",
-  "engagement_status": "`{task_id, exploration_id, goal, status, findings_total, facts_total, frontier_open, done_intents, coverage?}`.",
+  "engagement_status": "`{task_id, exploration_id, goal, status, findings_total, facts_total, frontier_open, done_intents, coverage?}`. `status` is `open`, or `achieved` once `goal_met` has run.",
   "enrich_domain": "Discovered DNS records, reverse-DNS results, and any new assets (IPs, subdomains from CNAMEs).",
   "enrich_ip": "PTR records and discovered hostnames.",
   "enrich_service": "Status code, redirect chain, server headers, page title, TLS certificate details, and detected technologies.",

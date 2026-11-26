@@ -288,16 +288,11 @@ func makeEngagementStatus(store Store, defaultTaskID, defaultExplorationID int64
 
 			_, goal, _ := store.Root(ctx, explorationID)
 
-			status := "active"
-			if s, ok := ov.Task["status"].(string); ok && s != "" {
-				status = s
-			}
-
 			result := map[string]any{
 				"task_id":        taskID,
 				"exploration_id": explorationID,
 				"goal":           goal,
-				"status":         status,
+				"status":         ov.Task["status"],
 				"findings_total": ov.FindingsTotal,
 				"facts_total":    ov.FactsTotal,
 				"frontier_open":  ov.FrontierOpen,
