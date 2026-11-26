@@ -19,7 +19,7 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 		Name:     "report_finding",
 		Category: CategoryFindings,
 		Description: "Record a confirmed finding, with evidence providing verifiable proof such as command output and logs. " +
-			"Pass the current intent_id when in a task context. " +
+			"Pass the current intent_id when in a task context; it also renews your claim on that intent. " +
 			"After reporting, the coordinator sees this in graph_overview and can use it as evidence for prove_goal.\n" +
 			"Before reporting, especially when other agents work the same engagement, call list_findings (or list_changes) and check for " +
 			"an existing finding with the same vulnclass on the same asset; if it is the same issue, add to it instead of filing a new one. " +
@@ -86,6 +86,7 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 			if err != nil {
 				return errResult(err.Error()), nil
 			}
+			renewHeldIntents(ctx, store, []int64{input.IntentID})
 
 			resp := map[string]any{"finding_id": findingID, "node_id": nodeID}
 			if len(dupes) > 0 {

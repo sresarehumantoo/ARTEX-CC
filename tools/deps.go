@@ -35,6 +35,7 @@ type Store interface {
 	AddNode(ctx context.Context, explorationID int64, kind string, payload map[string]any, priority int, state, origin string, anchors []int64) (int64, error)
 	UpdateNodeState(ctx context.Context, nodeID int64, state string) error
 	ClaimIntent(ctx context.Context, nodeID int64, owner string, lease time.Duration) (*IntentClaim, error)
+	RenewIntentClaims(ctx context.Context, nodeIDs []int64, holder string, lease time.Duration) error
 	ListNodes(ctx context.Context, explorationID int64, kind string, limit int) ([]Node, error)
 	NodeDetail(ctx context.Context, nodeID int64) (*Node, error)
 	AddEdge(ctx context.Context, from int64, rel string, to int64) error

@@ -304,8 +304,12 @@ same engagement, coordinate through the graph:
   that one and cancel_intent yours.
 - Call start_intent before working an intent. If it fails because another
   session holds the claim, pick a different intent; do not wait or retry.
-- Claims last 30 minutes. On long work, call start_intent on the same intent
-  again to renew it.
+- Claims last 30 minutes and renew whenever you pass the intent's id as
+  intent_id to record_fact, report_finding or record_coverage, so record
+  results as you go. If you work longer than that without recording
+  anything for it, call start_intent on the same intent again to renew it.
+  Clients that claim with an owner argument and no session or identity
+  must always renew with start_intent.
 - Finish with complete_intent, or cancel_intent if it is no longer worth
   doing, so the claim is released. Both are refused on an intent another
   session holds; leave it to its owner. On an open intent both claim it

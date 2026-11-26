@@ -169,6 +169,7 @@ func makeRecordFact(store Store, explorationID int64) Tool {
 		Name:     "record_fact",
 		Category: CategoryExploration,
 		Description: "Write an exploration fact/conclusion into the exploration graph, linked to the intent that produced it (intent_id). " +
+			"Passing intent_id for an intent you hold also renews your claim on it. " +
 			"Call this IMMEDIATELY when you learn something, do not wait until the end. " +
 			"Facts written here are visible to the coordinator and other subagents via graph_overview and list_facts.\n" +
 			"Used to record both positive conclusions (fingerprinting/enumeration) and negative conclusions ('port closed'/'parameter not injectable').\n" +
@@ -213,6 +214,7 @@ func makeRecordFact(store Store, explorationID int64) Tool {
 				return errResult("facts must be a non-empty array"), nil
 			}
 
+			var worked []int64
 			recordOne := func(it factItem) (int64, error) {
 				if strings.TrimSpace(it.Summary) == "" {
 					return 0, fmt.Errorf("summary must not be empty")
@@ -251,11 +253,13 @@ func makeRecordFact(store Store, explorationID int64) Tool {
 				}
 				if intent > 0 {
 					_ = store.AddEdge(ctx, intent, RelYields, id)
+					worked = append(worked, intent)
 				}
 				return id, nil
 			}
 
 			ids, errs := runBatch(a.Facts, recordOne)
+			renewHeldIntents(ctx, store, worked)
 			isBatch := len(a.Facts) > 1
 			return singleOrBatchReturn(ids, errs, isBatch, "fact")
 		},

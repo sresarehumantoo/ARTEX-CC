@@ -19,7 +19,8 @@ func makeStartIntent(store Store) Tool {
 		Name:     "start_intent",
 		Category: CategoryExploration,
 		Description: "Claim an open intent for this session and mark it running. Call this when you begin working on an intent. " +
-			fmt.Sprintf("The claim is exclusive for %d minutes; call again to renew it on long work. ", int(IntentLease.Minutes())) +
+			fmt.Sprintf("The claim is exclusive for %d minutes and renews whenever you pass this intent as intent_id to record_fact, report_finding or record_coverage. ", int(IntentLease.Minutes())) +
+			"If you go that long without recording anything for it, call start_intent again to renew it, or the intent reopens for other sessions. " +
 			"Fails if another session holds a live claim, so pick a different intent. " +
 			"Pass the same owner on every claim call if you use one." + identityRequiredDesc(),
 		Schema: obj(map[string]any{

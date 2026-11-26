@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -18,7 +19,8 @@ import (
 const DefaultIntentLease = 30 * time.Minute
 
 // IntentLease is how long a start_intent claim stays exclusive before another
-// session may take the intent over. Calling start_intent again renews it.
+// session may take the intent over. Calling start_intent again renews it, and
+// so does the holder recording a fact, finding or coverage against it.
 // serve sets it from ARTEX_INTENT_LEASE before registering tools, because
 // start_intent's description states it.
 var IntentLease = DefaultIntentLease
@@ -196,7 +198,31 @@ type ClaimConflictError struct {
 }
 
 func (e *ClaimConflictError) Error() string {
-	return fmt.Sprintf("intent %d is claimed by %s until %s (in %s); pick another intent",
+	return fmt.Sprintf("intent %d is claimed by %s until %s (in %s); pick another intent. "+
+		"The claim renews while its holder records results against it, so do not wait for it to lapse",
 		e.NodeID, OwnerLabel(e.Owner), e.ExpiresAt.UTC().Format(time.RFC3339),
 		time.Until(e.ExpiresAt).Round(time.Second))
+}
+
+// renewHeldIntents extends the caller's claims on the intents a write was
+// recorded against, so a holder that keeps recording results keeps its
+// claim. Only the holder's own calls renew, and a failed renewal never fails
+// the write.
+func renewHeldIntents(ctx context.Context, store Store, intentIDs []int64) {
+	var ids []int64
+	for _, id := range intentIDs {
+		if id > 0 {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	holder, err := ClaimOwner(ctx, "")
+	if err != nil {
+		return
+	}
+	if err := store.RenewIntentClaims(ctx, ids, holder, IntentLease); err != nil {
+		slog.Warn("renew intent claims", "intents", ids, "err", err)
+	}
 }
