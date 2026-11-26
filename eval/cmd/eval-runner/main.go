@@ -117,7 +117,7 @@ func main() {
 		dsn = os.Getenv("ARTEX_PG")
 	}
 	if dsn == "" {
-		dsn = "postgres://ccartex_eval:ccartex_eval@localhost:5432/ccartex_eval?sslmode=disable"
+		dsn = "postgres://ccartex_eval:ccartex_eval@localhost:5433/ccartex_eval?sslmode=disable"
 	}
 
 	scenario, timeout, err := loadScenario(flag.Arg(0))
