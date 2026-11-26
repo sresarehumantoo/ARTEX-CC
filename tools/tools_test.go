@@ -63,6 +63,10 @@ func (m *mockStore) UpdateNodeState(_ context.Context, _ int64, _ string) error 
 	return nil
 }
 
+func (m *mockStore) ProveGoal(_ context.Context, _, _ int64) error {
+	return nil
+}
+
 func (m *mockStore) ClaimIntent(_ context.Context, id int64, owner string, lease time.Duration) (*IntentClaim, error) {
 	return &IntentClaim{NodeID: id, Owner: owner, ExpiresAt: time.Now().Add(lease)}, nil
 }

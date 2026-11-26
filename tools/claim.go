@@ -67,6 +67,9 @@ func CheckIdentity(ctx context.Context) error {
 	return nil
 }
 
+// ErrDeadEvidence means prove_goal was given a dismissed or merged node.
+var ErrDeadEvidence = errors.New("evidence node is dismissed or merged")
+
 type sessionIDKey struct{}
 
 // WithSessionID returns a context carrying the calling MCP session ID.

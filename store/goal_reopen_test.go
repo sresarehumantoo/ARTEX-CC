@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 
@@ -160,5 +161,41 @@ func TestConcurrentDismissOfBothProofsReopensGoal(t *testing.T) {
 		if got := goalState(t, s, goal); got != "open" {
 			t.Fatalf("round %d: goal state = %q, want open", round, got)
 		}
+	}
+}
+
+func TestProveGoalRefusesDeadFinding(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "prove-dead")
+	dismissed, dismissedNode := addTestFinding(t, s, taskID, expID)
+	primary, primaryNode := addTestFinding(t, s, taskID, expID)
+	merged, mergedNode := addTestFinding(t, s, taskID, expID)
+	goal := provedGoal(t, s, expID)
+	if err := s.UpdateNodeState(ctx, goal, "open"); err != nil {
+		t.Fatalf("UpdateNodeState: %v", err)
+	}
+
+	if err := s.DismissFinding(ctx, dismissed, "false positive"); err != nil {
+		t.Fatalf("DismissFinding: %v", err)
+	}
+	if _, err := s.MergeFindings(ctx, primary, []int64{merged}); err != nil {
+		t.Fatalf("MergeFindings: %v", err)
+	}
+	for _, node := range []int64{dismissedNode, mergedNode} {
+		if err := s.ProveGoal(ctx, goal, node); !errors.Is(err, tools.ErrDeadEvidence) {
+			t.Errorf("ProveGoal(node %d) = %v, want ErrDeadEvidence", node, err)
+		}
+	}
+	if got := goalState(t, s, goal); got != "open" {
+		t.Fatalf("goal state after refused proofs = %q, want open", got)
+	}
+
+	if err := s.ProveGoal(ctx, goal, primaryNode); err != nil {
+		t.Fatalf("ProveGoal(live): %v", err)
+	}
+	if got := goalState(t, s, goal); got != "met" {
+		t.Errorf("goal state = %q, want met", got)
 	}
 }

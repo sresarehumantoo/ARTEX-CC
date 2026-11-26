@@ -39,6 +39,7 @@ type Store interface {
 	ListNodes(ctx context.Context, explorationID int64, kind string, limit int) ([]Node, error)
 	NodeDetail(ctx context.Context, nodeID int64) (*Node, error)
 	AddEdge(ctx context.Context, from int64, rel string, to int64) error
+	ProveGoal(ctx context.Context, goalID, evidenceID int64) error
 	Frontier(ctx context.Context, explorationID int64, limit int) ([]Node, error)
 	CountFinishedIntents(ctx context.Context, explorationID int64) (int, error)
 	CountOpenIntents(ctx context.Context, explorationID int64) (int, error)

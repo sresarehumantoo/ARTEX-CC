@@ -216,6 +216,48 @@ func (s *Store) AddEdge(ctx context.Context, from int64, rel string, to int64) e
 	return s.Link(explorationID, from, rel, to)
 }
 
+// ProveGoal links evidenceID to goalID with a proves edge and marks the goal
+// met, refusing evidence that is dismissed or a merged finding. The evidence
+// row lock makes a concurrent dismissal either wait for the edge (and revoke
+// it) or commit first (and be seen here).
+func (s *Store) ProveGoal(ctx context.Context, goalID, evidenceID int64) error {
+	tx, err := s.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	var explorationID int64
+	var state string
+	if err := tx.QueryRowContext(ctx,
+		`SELECT exploration_id, state FROM exploration_nodes WHERE id = $1 FOR SHARE`, evidenceID,
+	).Scan(&explorationID, &state); err != nil {
+		return fmt.Errorf("evidence node %d: %w", evidenceID, err)
+	}
+	var deadFinding bool
+	if err := tx.QueryRowContext(ctx,
+		`SELECT EXISTS (SELECT 1 FROM findings WHERE node_id = $1 AND (dismissed OR merged_into IS NOT NULL))`, evidenceID,
+	).Scan(&deadFinding); err != nil {
+		return fmt.Errorf("evidence finding %d: %w", evidenceID, err)
+	}
+	if state == "dismissed" || deadFinding {
+		return tools.ErrDeadEvidence
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO exploration_edges(exploration_id, src_id, rel, dst_id)
+		 VALUES ($1, $2, $3, $4)
+		 ON CONFLICT (exploration_id, src_id, rel, dst_id) DO NOTHING`,
+		explorationID, evidenceID, RelProves, goalID); err != nil {
+		return fmt.Errorf("link proof: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE exploration_nodes SET state = 'met', blocked_reason = NULL, owner = NULL, claim_expires_at = NULL WHERE id = $1`,
+		goalID); err != nil {
+		return fmt.Errorf("mark goal %d met: %w", goalID, err)
+	}
+	return tx.Commit()
+}
+
 const nodeSelectCols = `n.id, n.kind, n.payload, n.priority, n.state,
 	COALESCE(n.origin, ''), COALESCE(n.owner, ''),
 	COALESCE(n.blocked_reason, ''), COALESCE(n.delete_reason, ''),
