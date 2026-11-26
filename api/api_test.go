@@ -117,6 +117,9 @@ func (m *mockStore) OriginFactID(context.Context, int64) (int64, error)       { 
 func (m *mockStore) AddGoals(context.Context, int64, []tools.GoalInput, bool) (*tools.GoalsResult, error) {
 	return &tools.GoalsResult{}, nil
 }
+func (m *mockStore) AddIntents(context.Context, int64, []tools.IntentInput) (*tools.IntentsResult, error) {
+	return &tools.IntentsResult{}, nil
+}
 func (m *mockStore) Edges(_ context.Context, _ int64, _ int) ([]tools.Edge, error) {
 	return m.edges, m.edgesErr
 }

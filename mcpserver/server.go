@@ -297,6 +297,11 @@ same engagement, coordinate through the graph:
 - Goals are set once per engagement. If set_goals returns existing_goals,
   another session set them first: adopt those goals instead of adding your
   own.
+- add_intent skips an intent whose summary (ignoring case, punctuation and
+  spacing) and asset_ids match an open or running intent, and returns its
+  existing_id under skipped: start_intent that one. It also lists
+  open_intents that nobody holds; if one covers work you just planned, work
+  that one and cancel_intent yours.
 - Call start_intent before working an intent. If it fails because another
   session holds the claim, pick a different intent; do not wait or retry.
 - Claims last 30 minutes. On long work, call start_intent on the same intent

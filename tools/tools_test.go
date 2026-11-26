@@ -123,6 +123,14 @@ func (m *mockStore) AddGoals(_ context.Context, _ int64, goals []GoalInput, _ bo
 	return res, nil
 }
 
+func (m *mockStore) AddIntents(_ context.Context, _ int64, intents []IntentInput) (*IntentsResult, error) {
+	res := &IntentsResult{}
+	for i := range intents {
+		res.IDs = append(res.IDs, int64(10+i))
+	}
+	return res, nil
+}
+
 func (m *mockStore) Edges(_ context.Context, _ int64, _ int) ([]Edge, error) {
 	return nil, nil
 }

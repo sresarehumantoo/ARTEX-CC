@@ -702,3 +702,155 @@ func (s *Store) AddGoals(ctx context.Context, explorationID int64, goals []tools
 	}
 	return res, tx.Commit()
 }
+
+const openIntentsListed = 10
+
+// AddIntents adds intents in one transaction that holds the exploration row
+// lock, so agents planning at the same time see each other's intents. An
+// intent whose IntentKey matches an open or running intent, or an earlier one
+// in the same call, is skipped.
+func (s *Store) AddIntents(ctx context.Context, explorationID int64, intents []tools.IntentInput) (*tools.IntentsResult, error) {
+	tx, err := s.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	var locked int64
+	if err := tx.QueryRowContext(ctx,
+		`SELECT id FROM explorations WHERE id = $1 FOR UPDATE`, explorationID,
+	).Scan(&locked); err != nil {
+		return nil, fmt.Errorf("lock exploration %d: %w", explorationID, err)
+	}
+
+	rows, err := tx.QueryContext(ctx,
+		`SELECT n.id, COALESCE(n.payload->>'summary', ''), n.priority, n.state,
+			n.state = 'open' OR n.claim_expires_at IS NULL OR n.claim_expires_at <= now(),
+			COALESCE((SELECT json_agg(asset_id) FROM exploration_anchors WHERE node_id = n.id), '[]'::json)
+		 FROM exploration_nodes n
+		 WHERE n.exploration_id = $1 AND n.kind = $2 AND n.state IN ('open', 'running')
+		 ORDER BY n.priority DESC, n.id`,
+		explorationID, KindIntent)
+	if err != nil {
+		return nil, err
+	}
+	type existingIntent struct {
+		ref       tools.IntentRef
+		state     string
+		claimable bool
+	}
+	var existing []existingIntent
+	seen := map[string]existingIntent{}
+	for rows.Next() {
+		var e existingIntent
+		var anchorsJSON string
+		if err := rows.Scan(&e.ref.ID, &e.ref.Summary, &e.ref.Priority, &e.state, &e.claimable, &anchorsJSON); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		var anchors []int64
+		_ = json.Unmarshal([]byte(anchorsJSON), &anchors)
+		existing = append(existing, e)
+		key := tools.IntentKey(e.ref.Summary, anchors)
+		if _, dup := seen[key]; !dup {
+			seen[key] = e
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	var origin int64
+	if err := tx.QueryRowContext(ctx,
+		`SELECT id FROM exploration_nodes WHERE exploration_id = $1 AND kind = 'fact' AND (state = 'origin' OR origin = 'system') ORDER BY id LIMIT 1`,
+		explorationID).Scan(&origin); err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+
+	var assetIDs []int64
+	for _, it := range intents {
+		assetIDs = append(assetIDs, it.AssetIDs...)
+	}
+	assetExists := map[int64]bool{}
+	if len(assetIDs) > 0 {
+		rows, err := tx.QueryContext(ctx, `SELECT id FROM assets WHERE id = ANY($1)`, assetIDs)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var id int64
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			assetExists[id] = true
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+	}
+
+	res := &tools.IntentsResult{IDs: make([]int64, len(intents)), Errors: map[int]string{}}
+	matched := map[int64]bool{}
+items:
+	for i, it := range intents {
+		for _, a := range it.AssetIDs {
+			if !assetExists[a] {
+				res.Errors[i] = fmt.Sprintf("asset_id %d does not exist", a)
+				continue items
+			}
+		}
+		key := tools.IntentKey(it.Summary, it.AssetIDs)
+		if e, dup := seen[key]; dup {
+			res.Skipped = append(res.Skipped, tools.SkippedIntent{Index: i, Summary: it.Summary, ExistingID: e.ref.ID, State: e.state})
+			matched[e.ref.ID] = true
+			continue
+		}
+		payload := map[string]any{"summary": it.Summary}
+		if len(it.AssetIDs) > 0 {
+			payload["asset_ids"] = it.AssetIDs
+		}
+		raw, _ := json.Marshal(payload)
+		var id int64
+		if err := tx.QueryRowContext(ctx,
+			`INSERT INTO exploration_nodes(exploration_id, kind, payload, priority, state, origin)
+			 VALUES ($1, $2, $3, $4, 'open', 'planner') RETURNING id`,
+			explorationID, KindIntent, string(raw), it.Priority).Scan(&id); err != nil {
+			return nil, err
+		}
+		for _, a := range it.AssetIDs {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO exploration_anchors(node_id, asset_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+				id, a); err != nil {
+				return nil, err
+			}
+		}
+		parents := it.ParentIDs
+		if len(parents) == 0 && origin > 0 {
+			parents = []int64{origin}
+		}
+		for _, p := range parents {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO exploration_edges(exploration_id, src_id, rel, dst_id)
+				 VALUES ($1, $2, $3, $4)
+				 ON CONFLICT (exploration_id, src_id, rel, dst_id) DO NOTHING`,
+				explorationID, p, RelDerivedFrom, id); err != nil {
+				return nil, err
+			}
+		}
+		seen[key] = existingIntent{ref: tools.IntentRef{ID: id, Summary: it.Summary, Priority: it.Priority}, state: "open"}
+		res.IDs[i] = id
+	}
+
+	for _, e := range existing {
+		if len(res.Open) == openIntentsListed {
+			break
+		}
+		if e.claimable && !matched[e.ref.ID] {
+			res.Open = append(res.Open, e.ref)
+		}
+	}
+	return res, tx.Commit()
+}
