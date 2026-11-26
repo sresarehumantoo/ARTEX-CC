@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/fs"
 	"log/slog"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -47,7 +50,29 @@ type InstanceRun struct {
 	DurationSeconds float64 `json:"duration_seconds"`
 	ExitError       string  `json:"exit_error,omitempty"`
 	KilledAt        string  `json:"killed_at,omitempty"`
+	TempDir         string  `json:"temp_dir,omitempty"`
+	Scratch         Scratch `json:"scratch"`
 }
+
+// Scratch is what an instance left in its temp dir after the run.
+type Scratch struct {
+	Files       int           `json:"files"`
+	Bytes       int64         `json:"bytes"`
+	Listed      []ScratchFile `json:"listed,omitempty"`
+	PrivateKeys []string      `json:"private_keys,omitempty"`
+}
+
+type ScratchFile struct {
+	Path string `json:"path"`
+	Size int64  `json:"size"`
+}
+
+const (
+	scratchListCap  = 50
+	privateKeyProbe = 1 << 20
+)
+
+var privateKeyRe = regexp.MustCompile(`-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----`)
 
 func parseKillAfter(s string, instances int) (*killSpec, error) {
 	if s == "" {
@@ -80,6 +105,7 @@ func buildPrompt(sc Scenario, instance, instances int, askOwner bool) string {
 	if sc.Credentials.Username != "" {
 		prompt += fmt.Sprintf(" Known credentials: %s / %s.", sc.Credentials.Username, sc.Credentials.Password)
 	}
+	prompt += " Keep scratch files (scripts, payloads, downloads, keys) in $TMPDIR, not /tmp."
 	if instances > 1 {
 		prompt += fmt.Sprintf(" You are instance %d of %d; other agents are working this engagement at the same time. "+
 			"Coordinate through intent claims and list_changes as the engagement guide describes.", instance, instances)
@@ -104,6 +130,51 @@ func serveEnv(rc runConfig) []string {
 		env = append(env, "ARTEX_REQUIRE_IDENTITY=")
 	}
 	return env
+}
+
+// instanceEnv gives each claude instance (and any serve --stdio it starts) its
+// own temp dir, so instances cannot clobber each other's scratch files and
+// nothing lands in the operator's /tmp. --env comes last and can override it.
+func instanceEnv(rc runConfig, tmpDir string) []string {
+	env := append(serveEnv(rc), "TMPDIR="+tmpDir, "TMP="+tmpDir, "TEMP="+tmpDir)
+	return append(env, rc.extraEnv...)
+}
+
+// scanScratch counts the files under dir, lists the first scratchListCap in
+// path order and flags regular files whose first MiB holds a PEM private key.
+// Symlinks are listed but not followed.
+func scanScratch(dir string) Scratch {
+	var s Scratch
+	_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		rel, _ := filepath.Rel(dir, path)
+		s.Files++
+		s.Bytes += info.Size()
+		if len(s.Listed) < scratchListCap {
+			s.Listed = append(s.Listed, ScratchFile{Path: rel, Size: info.Size()})
+		}
+		if info.Mode().IsRegular() && hasPrivateKey(path) {
+			s.PrivateKeys = append(s.PrivateKeys, rel)
+		}
+		return nil
+	})
+	return s
+}
+
+func hasPrivateKey(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	head, _ := io.ReadAll(io.LimitReader(f, privateKeyProbe))
+	return privateKeyRe.Match(head)
 }
 
 func writeMCPConfig(path string, server map[string]any, perm os.FileMode) error {
@@ -237,9 +308,9 @@ func claudeArgs(mcpConfigPath, model, prompt string) []string {
 	return append(args, "-p", prompt)
 }
 
-func runInstance(ctx context.Context, rc runConfig, sc Scenario, mcpConfigPath string, instance int, timeout time.Duration) InstanceRun {
+func runInstance(ctx context.Context, rc runConfig, sc Scenario, mcpConfigPath string, instance int, timeout time.Duration) (run InstanceRun) {
 	transcript := filepath.Join(rc.transcriptsDir, fmt.Sprintf("instance-%d.jsonl", instance))
-	run := InstanceRun{Instance: instance, Transcript: transcript}
+	run = InstanceRun{Instance: instance, Transcript: transcript}
 
 	out, err := os.Create(transcript)
 	if err != nil {
@@ -248,12 +319,28 @@ func runInstance(ctx context.Context, rc runConfig, sc Scenario, mcpConfigPath s
 	}
 	defer out.Close()
 
+	tmpDir, err := filepath.Abs(filepath.Join(rc.transcriptsDir, fmt.Sprintf("tmp-instance-%d", instance)))
+	if err == nil {
+		err = os.MkdirAll(tmpDir, 0700)
+	}
+	if err != nil {
+		run.ExitError = err.Error()
+		return run
+	}
+	run.TempDir = tmpDir
+	defer func() {
+		run.Scratch = scanScratch(tmpDir)
+		if len(run.Scratch.PrivateKeys) > 0 {
+			slog.Warn("instance left private keys in its temp dir; delete them", "instance", instance, "dir", tmpDir, "files", run.Scratch.PrivateKeys)
+		}
+	}()
+
 	args := claudeArgs(mcpConfigPath, sc.Model, buildPrompt(sc, instance, rc.instances, rc.transport == "http" && !rc.identity))
 	cmd := exec.CommandContext(ctx, rc.claudeBin, args...)
 	cmd.Stdout = out
 	cmd.Stderr = os.Stderr
 	cmd.Dir = rc.dataDir
-	cmd.Env = append(serveEnv(rc), rc.extraEnv...)
+	cmd.Env = instanceEnv(rc, tmpDir)
 	setProcessGroup(cmd)
 	cmd.Cancel = func() error { return killProcessGroup(cmd) }
 	cmd.WaitDelay = 10 * time.Second

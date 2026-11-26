@@ -43,6 +43,9 @@ func fakeMain(args []string) {
 	var out struct {
 		Config string `json:"config"`
 		Prompt string `json:"prompt"`
+		TMPDIR string `json:"tmpdir"`
+		TMP    string `json:"tmp"`
+		TEMP   string `json:"temp"`
 	}
 	for i, a := range args {
 		switch {
@@ -52,6 +55,12 @@ func fakeMain(args []string) {
 			out.Prompt = args[i+1]
 		}
 	}
+	out.TMPDIR, out.TMP, out.TEMP = os.Getenv("TMPDIR"), os.Getenv("TMP"), os.Getenv("TEMP")
+	_ = os.WriteFile(filepath.Join(out.TMPDIR, "wf.sh"), []byte("echo hi\n"), 0644)
+	if strings.Contains(out.Prompt, "instance 2 of") {
+		_ = os.MkdirAll(filepath.Join(out.TMPDIR, "loot"), 0755)
+		_ = os.WriteFile(filepath.Join(out.TMPDIR, "loot", "id_ed25519"), []byte("-----BEGIN OPENSSH PRIVATE KEY-----\nAAAA\n-----END OPENSSH PRIVATE KEY-----\n"), 0600)
+	}
 	_ = json.NewEncoder(os.Stdout).Encode(out)
 	os.Exit(0)
 }
@@ -59,7 +68,11 @@ func fakeMain(args []string) {
 type fakeRun struct {
 	Config string
 	Prompt string
+	TMPDIR string
+	TMP    string
+	TEMP   string
 	Server map[string]any
+	Run    InstanceRun
 }
 
 func runFake(t *testing.T, transport string, withIdentity bool) (runConfig, []fakeRun, string) {
@@ -103,6 +116,7 @@ func runFake(t *testing.T, transport string, withIdentity bool) (runConfig, []fa
 			t.Fatalf("transcript %d: %v: %s", r.Instance, err, data)
 		}
 		fr.Server = readMCPServer(t, fr.Config)
+		fr.Run = r
 		got = append(got, fr)
 	}
 	scorecard, _ := json.Marshal(Scorecard{Runs: runs, Identity: rc.identity})
@@ -171,5 +185,26 @@ func TestRunInstancesStdioUnchanged(t *testing.T) {
 		if strings.Contains(r.Prompt, "owner") {
 			t.Errorf("stdio prompt asks for an owner: %s", r.Prompt)
 		}
+	}
+}
+
+func TestRunInstancesTempDir(t *testing.T) {
+	rc, runs, _ := runFake(t, "stdio", false)
+	for i, r := range runs {
+		want, _ := filepath.Abs(filepath.Join(rc.transcriptsDir, fmt.Sprintf("tmp-instance-%d", i+1)))
+		if r.TMPDIR != want || r.TMP != want || r.TEMP != want || r.Run.TempDir != want {
+			t.Errorf("instance %d temp dirs %q %q %q (run %q), want %q", i+1, r.TMPDIR, r.TMP, r.TEMP, r.Run.TempDir, want)
+		}
+		if !strings.Contains(r.Prompt, "in $TMPDIR, not /tmp") {
+			t.Errorf("instance %d prompt lacks the scratch line: %s", i+1, r.Prompt)
+		}
+	}
+	one, two := runs[0].Run.Scratch, runs[1].Run.Scratch
+	if one.Files != 1 || len(one.Listed) != 1 || one.Listed[0] != (ScratchFile{Path: "wf.sh", Size: 8}) || len(one.PrivateKeys) != 0 {
+		t.Errorf("instance 1 scratch: %+v", one)
+	}
+	key := filepath.Join("loot", "id_ed25519")
+	if two.Files != 2 || len(two.PrivateKeys) != 1 || two.PrivateKeys[0] != key {
+		t.Errorf("instance 2 scratch: %+v", two)
 	}
 }
