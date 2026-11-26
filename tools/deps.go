@@ -435,6 +435,8 @@ type EngagementExport struct {
 	Credentials []map[string]any `json:"credentials"`
 	Coverage    []map[string]any `json:"coverage"`
 	Scope       []map[string]any `json:"scope"`
+
+	TargetChanges []map[string]any `json:"target_changes,omitempty"`
 }
 
 // TimelineEntry is one row in the engagement activity timeline.
