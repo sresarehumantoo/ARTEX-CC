@@ -139,7 +139,10 @@ func parseTranscript(instance int, path string) (*Transcript, error) {
 			}
 		case "result":
 			t.HasResult = true
-			t.CostUSD += line.TotalCostUSD
+			// Each later turn (a background task waking the session) writes another
+			// result line; total_cost_usd is the session's running total, while usage
+			// covers that turn alone.
+			t.CostUSD = line.TotalCostUSD
 			if line.Usage != nil {
 				if resultUsage == nil {
 					resultUsage = &Usage{}
