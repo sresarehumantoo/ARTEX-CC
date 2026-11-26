@@ -68,6 +68,8 @@ Do not expose the web UI to an untrusted network. It can run commands through th
   </figure>
 </div>
 
+When several agents work one engagement, the Dashboard's Active Intents card shows who holds each running intent's claim and how long it has left, and flags intents whose claim lapsed. Changes made by other `artex-cc` processes on the same database show up live too. Chat conversations hold their claims as the identity `chat/<conversation id>`, so a resumed conversation keeps them across a server restart.
+
 Besides the engagement views, the UI includes:
 
 - **Chat** with a Claude subprocess runner (uses the `claude` CLI, see `--claude-bin`), with agents and presets.

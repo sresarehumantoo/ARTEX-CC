@@ -37,7 +37,7 @@ docker compose up
 </TabItem>
 <TabItem label="Binaries">
 
-Download an archive for your platform from the [Releases](https://github.com/SREsAreHumanToo/ARTEX-CC/releases) page. Each release includes checksums.
+Download an archive for your platform from the [Releases](https://github.com/SREsAreHumanToo/ARTEX-CC/releases) page, or the `.deb` package on Debian and Ubuntu. Each release includes checksums.
 
 </TabItem>
 <TabItem label="Source">
@@ -47,6 +47,8 @@ Requires Go 1.26 or later.
 ```sh
 go install github.com/SREsAreHumanToo/ARTEX-CC/cmd/artex-cc@latest
 ```
+
+A `go install` build does not include the built [web UI](/docs/web-ui/) assets, so `serve --web` shows a blank page. Everything else works; use Homebrew, a release binary or Docker if you want the web UI.
 
 </TabItem>
 </Tabs>
@@ -64,7 +66,7 @@ You need PostgreSQL running locally (or anywhere reachable).
    artex-cc init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"
    ```
 
-   `init` creates the schema, sets up the engagement, generates a CA certificate for HTTPS interception, and prints trust instructions for your OS. See [Proxy CA trust](/docs/configuration/#proxy-ca-trust).
+   `init` creates the schema, sets up the engagement, generates a CA certificate for HTTPS interception, and prints trust instructions for your OS. See [Proxy CA trust](/docs/configuration/#proxy-ca-trust). It also prints an MCP config snippet; a password in the DSN is shown there as `***`, so fill it in or pass the DSN through `ARTEX_PG` in the server's `env` instead.
 
 2. Add the MCP server to Claude Code, in `~/.claude.json` or a project `.mcp.json`:
 
@@ -97,7 +99,7 @@ For Cursor, Cline, Windsurf, Zed and other clients, see [MCP clients](/docs/mcp-
 
 `docker compose up` starts PostgreSQL and ARTEX together. On first run it creates the database schema and a default engagement. The MCP server listens on `localhost:9400` and the recording proxy on `localhost:8788`.
 
-To set the engagement goal:
+To set the engagement goal, pass `ARTEX_GOAL` on the first run (later runs reuse the engagement already in the `data` volume):
 
 ```sh
 ARTEX_GOAL="Pentest example.com" docker compose up
@@ -139,7 +141,7 @@ Or use the stdio transport through Docker:
 
 The container's main process already runs the recording proxy on `:8788`, so this second process takes a throwaway port (`127.0.0.1:0`) only to enable the traffic tools. Both read the same captured traffic.
 
-The Docker image also enables the [web UI](/docs/web-ui/) at `http://localhost:9400`.
+The Docker image also enables the [web UI](/docs/web-ui/) at `http://localhost:9400`. On first visit it asks for a one-time setup token and a new password; the token is in the container logs (`docker compose logs artex`).
 
 ## Next steps
 

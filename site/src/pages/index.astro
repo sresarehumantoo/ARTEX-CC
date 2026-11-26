@@ -58,7 +58,8 @@ const session = [
   { phase: '', tool: 'record_fact', arg: 'found: api.example.com' },
   { phase: '', tool: 'insert_assets', arg: 'subdomain: api.example.com, service: https/443' },
   { phase: 'plan', tool: 'add_intent', arg: 'test api.example.com for auth bypass' },
-  { phase: 'test', tool: 'traffic_hosts', arg: '' },
+  { phase: 'test', tool: 'start_intent', arg: 'claim the auth bypass intent' },
+  { phase: '', tool: 'traffic_hosts', arg: '' },
   { phase: '', tool: 'traffic_search', arg: 'host: api.example.com' },
   { phase: '', tool: 'traffic_get', arg: 'inspect the auth request' },
   { phase: '', tool: 'traffic_replay', arg: 'replay with modified auth header' },
@@ -525,7 +526,7 @@ const install = [
                 Then create an engagement, add the printed MCP config to Claude Code, and ask it to start.
               </p>
               <Command
-                command={'createdb ccartex\nartex init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"'}
+                command={'createdb ccartex\nartex-cc init --pg "postgres://localhost/ccartex" --goal "Pentest example.com"'}
               />
             </div>
           </div>

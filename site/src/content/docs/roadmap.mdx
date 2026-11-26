@@ -10,17 +10,17 @@ import toolStats from '../../data/tool-stats.json';
 ARTEX is a working MCP tool server for penetration testing. It exposes ARTEX's
 data model as tools Claude Code calls directly, with no separate LLM API key.
 
-**Lines of code:** ~30,000 Go, excluding tests.
+**Lines of code:** ~36,000 Go, excluding tests.
 
-**Tool count:** {toolStats.tools} registered tools (core + traffic + evidence + enrich + ingest + scope + intent + activity + triage + coverage).
+**Tool count:** {toolStats.tools} registered tools in {toolStats.categories} categories.
 
-**Test count:** 1,470 Go test functions across all packages.
+**Test count:** 1,700+ Go test functions across all packages.
 
 **What works today:**
 
-- **CLI:** `serve` (stdio and HTTP transports, `--web` for the web UI), `init` (creates engagement, schema, CA cert; `--dry-run` and `--format json`), `tools` (prints the tool catalog, `--json`, no database needed), `version` (with `--json`), `health` (PostgreSQL connectivity check, `--format json`, `--timeout`), `completion` (bash/zsh/fish). `--version` flag on all subcommands. `--timeout` for graceful shutdown. `ARTEX_PG` and `ARTEX_LISTEN` env var overrides.
+- **CLI:** `serve` (stdio and HTTP transports, `--web` for the web UI), `init` (creates engagement, schema, CA cert; `--dry-run` and `--format json`), `tools` (prints the tool catalog, `--json`, no database needed), `version` (with `--json`), `health` (PostgreSQL connectivity check, `--format json`, `--timeout`), `identity` (`issue`, `rotate` and `show` for signed client identity tokens), `completion` (bash/zsh/fish). `--version` flag on all subcommands. `--timeout` for graceful shutdown. `ARTEX_PG` and `ARTEX_LISTEN` env var overrides.
 - **Store (PostgreSQL):** Full schema with auto-migration. Assets (6 types), companies, company scope, task scope, exploration graph (nodes, edges, anchors, constraints), findings, credentials, coverage ledger with history, intercept rules, activity log. Engagement export/import to portable JSON archives.
-- **Exploration graph:** Goals, intents, facts, findings, hints, constraints. Edges connect them (derived_from, yields, spawns, proves). Frontier query. Graph overview for situational awareness. Prove-goal workflow with confidence gating. Intent lifecycle (start, complete, cancel).
+- **Exploration graph:** Goals, intents, facts, findings, hints, constraints. Edges connect them (derived_from, yields, spawns, proves). Frontier query. Graph overview for situational awareness. Prove-goal workflow with confidence gating. Intent lifecycle (start, complete, cancel) with duplicate intents skipped. Target change journal (`record_target_change`, `record_target_restore`) with restore status in the report.
 - **Asset management:** Bulk insert with upsert, DSL-based queries (fuzzy, exact, exclusion, numeric comparisons, boolean combinators, parentheses), untested-asset queries, company scope attribution.
 - **Findings and credentials:** Report findings with severity/evidence/assets, list findings, merge duplicates, dismiss false positives, duplicate detection, bind findings to captured traffic. Save and list credentials with upsert-on-domain+username. AES-256-GCM encryption at rest for credential passwords.
 - **Coverage:** Record coverage entries (surface x risk_area x outcome), coverage history, coverage gaps analysis (`list_coverage_gaps`).
@@ -42,15 +42,15 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 - **Intercept rules:** Tool-call interception with allow/deny/ask actions and timeout policy.
 - **Web UI:** `serve --web` serves a dashboard on the MCP port: exploration graph, findings with bound traffic, assets, coverage, credentials, traffic explorer, report, plus chat with a Claude subprocess runner, agents and presets, intercept approvals, and password auth.
 - **Multi-client MCP:** Per-client session state over the HTTP transport, with the `list_sessions` tool.
-- **Multi-agent coordination:** Renewable intent claims per session, cross-process change notifications, and `list_changes` for polling what other agents recorded.
+- **Multi-agent coordination:** Intent claims with a 30-minute lease that renews whenever the holder records results, claim-on-close for `complete_intent` and `cancel_intent`, duplicate intent skipping in `add_intent`, cross-process change notifications, and `list_changes` for polling what other agents recorded. HTTP clients can hold claims under a signed `X-Artex-Identity` that survives reconnects and restarts, and `serve --require-identity` makes it mandatory for claims.
 - **Plugins:** Exec-based plugin system. Executables in the plugin directory describe their tools with `--manifest` and are registered as MCP tools. Results can include assets, facts and findings, which are written into the graph with scope enforcement.
 - **Traffic analysis:** `traffic_patterns` for temporal analysis, `traffic_stats` with request size statistics, `traffic_clear` to delete captured traffic by host.
 - **MCP resource:** `artex://engagement` resource serves the orchestration guide with live engagement context.
 - **Structured logging:** slog-based JSON logging across all packages.
-- **CI:** GitHub Actions with fmt-check, `go build`, `go vet`, `go test`, Codecov coverage reporting, and store tests against a real PostgreSQL instance.
+- **CI:** GitHub Actions with fmt-check, golangci-lint, `go build`, `go vet`, `go test`, `govulncheck`, a frontend type-check, Codecov coverage reporting, and store tests against a real PostgreSQL instance.
 - **Distribution:** v0.6.1 released with cross-platform binaries (goreleaser), .deb packaging, a Homebrew cask, and a Docker image that ships the web UI, the Claude CLI and a pentest tooling layer (nmap, impacket, evil-winrm, nuclei, ffuf and more).
 - **Documentation:** Project site at [artex-cc.com](https://artex-cc.com) with docs, evals, a blog, a [tool reference](/docs/tools/) generated from `artex-cc tools --json`, [MCP client configs](/docs/mcp-clients/) and a [live demo](/demo/) of the web UI. AGENTS.md contributor guide.
-- **Community files:** AGPL-3.0 license, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, example engagement walkthrough, godoc comments on all exported types. Zero open issues, 140+ PRs merged.
+- **Community files:** AGPL-3.0 license, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, example engagement walkthrough, godoc comments on all exported types. Zero open issues, 220+ PRs merged.
 
 
 ## 2. P0: Ship blockers (all complete)
@@ -193,7 +193,7 @@ Done. `serve --web` serves the web UI alongside the HTTP transport: exploration 
 
 ### ✅ 6.3 Collaborative multi-agent support
 
-Done. `start_intent` takes a renewable 30-minute lease for the calling session and refuses other sessions until it lapses; `graph_overview` shows who holds each running intent. Every process publishes successful mutating tool calls on the `artex_changes` PostgreSQL channel, so `serve --web` sees changes made by other processes. Agents poll `list_changes` with a cursor for new or updated findings, facts, intents, goals, hints and assets, and see the claims they hold. The orchestration guide tells parallel sessions to claim before working, skip claimed intents, renew long claims and poll for changes.
+Done. `start_intent` takes a 30-minute lease for the calling session, `owner` or signed identity and refuses other holders until it lapses; recording a fact, finding or coverage entry against the intent renews it. `complete_intent` and `cancel_intent` claim an open intent before closing it, and `add_intent` skips intents that duplicate an open or running one. `graph_overview` shows who holds each running intent. Every process publishes successful mutating tool calls on the `artex_changes` PostgreSQL channel, so `serve --web` sees changes made by other processes. Agents poll `list_changes` with a cursor for new or updated findings, facts, intents, goals, hints and assets, and see the claims they hold. HTTP clients can send a signed `X-Artex-Identity` token (`artex-cc identity issue`) so their claims survive reconnects and server restarts, and the target change journal tells agents what others changed on a host and what baseline to restore. The orchestration guide tells parallel sessions to claim before working, skip claimed intents, record results as they go and poll for changes.
 
 ### ✅ 6.4 Scope enforcement
 
