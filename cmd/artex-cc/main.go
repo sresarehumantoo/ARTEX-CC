@@ -356,7 +356,7 @@ func cmdServe(args []string) {
 			}
 		}()
 		tools.RegisterTrafficTools(reg, t, s, engCfg.TaskID)
-		slog.Info("recording proxy started", "addr", *proxyAddr, "ca_cert", t.CACertPath())
+		slog.Info("recording proxy started", "addr", t.ProxyAddr(), "ca_cert", t.CACertPath())
 	}
 
 	// srv is assigned below; plugin handlers only read it once serving starts.

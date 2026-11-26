@@ -2,9 +2,12 @@ package traffic
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -554,6 +557,32 @@ func TestProxyAddr(t *testing.T) {
 	tr2 := &Traffic{addr: "10.0.0.1:8788"}
 	if got := tr2.ProxyAddr(); got != "http://10.0.0.1:8788" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestProxyAddrResolvesPortZero(t *testing.T) {
+	t.Parallel()
+	tr := openTestTraffic(t)
+	u, err := url.Parse(tr.ProxyAddr())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Port() == "0" {
+		t.Fatalf("ProxyAddr = %q, want the bound port", tr.ProxyAddr())
+	}
+	go tr.Start()
+	t.Cleanup(func() { tr.Shutdown(context.Background()) })
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		c, err := net.Dial("tcp", u.Host)
+		if err == nil {
+			c.Close()
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("dial %s: %v", u.Host, err)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }
 
