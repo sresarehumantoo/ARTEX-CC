@@ -162,6 +162,7 @@ const install = [
           }
           <a
             href={repo}
+            aria-label="GitHub"
             class="ml-2 inline-flex items-center gap-2 rounded-md border border-line bg-white/[0.03] px-3 py-1.5 text-neutral-200 transition-colors hover:border-white/20 hover:bg-white/[0.06] hover:text-white"
           >
             <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"
@@ -246,7 +247,7 @@ const install = [
                   <span class="size-2.5 rounded-full bg-neutral-700"></span>
                   <span class="size-2.5 rounded-full bg-neutral-700"></span>
                 </div>
-                <span class="font-mono text-xs text-neutral-500">artex-cc serve --web</span>
+                <span class="font-mono text-xs text-neutral-400">artex-cc serve --web</span>
               </div>
               <video
                 width={webDemoPoster.width}
@@ -545,17 +546,17 @@ const install = [
           </p>
         </div>
         <div class="mt-12 grid gap-10 sm:grid-cols-[1fr_auto]">
-          <div class="max-w-md space-y-3 text-neutral-500">
+          <div class="max-w-md space-y-3 text-neutral-400">
             <img src={logo.src} alt="" width="134" height="28" class="mb-5 h-6 w-auto opacity-90" />
             <p>
               ARTEX-CC is licensed under the{' '}
-              <a href={`${repo}/blob/main/LICENSE`} class="text-neutral-300 underline-offset-4 hover:text-white hover:underline">GNU AGPL-3.0</a>.
+              <a href={`${repo}/blob/main/LICENSE`} class="text-neutral-300 underline decoration-neutral-600 underline-offset-4 hover:text-white hover:decoration-white">GNU AGPL-3.0</a>.
             </p>
             <p>
               Parts of it are derived from{' '}
-              <a href="https://github.com/BaaRai/ARTEX" class="text-neutral-300 underline-offset-4 hover:text-white hover:underline">ARTEX</a> by
+              <a href="https://github.com/BaaRai/ARTEX" class="text-neutral-300 underline decoration-neutral-600 underline-offset-4 hover:text-white hover:decoration-white">ARTEX</a> by
               Autumn-27, BaaRai and the ARTEX contributors, also AGPL-3.0. See{' '}
-              <a href={`${repo}/blob/main/NOTICE`} class="text-neutral-300 underline-offset-4 hover:text-white hover:underline">NOTICE</a>.
+              <a href={`${repo}/blob/main/NOTICE`} class="text-neutral-300 underline decoration-neutral-600 underline-offset-4 hover:text-white hover:decoration-white">NOTICE</a>.
             </p>
           </div>
           <nav aria-label="Footer" class="grid grid-cols-2 gap-x-12 gap-y-2.5">
