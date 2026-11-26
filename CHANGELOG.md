@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Fixed
+- The web Graph page crashed with "Cannot read properties of null" on an engagement with no edges yet, because `GET /api/graph` returned `null` for empty `nodes` or `edges`; both are now always arrays.
+
+### Fixed
 - `POST /api/hints` (the web UI's Add hint) returned 500 because it stored hints in the `open` state, which the database rejects; it now stores them `active`, the same as `add_hint`.
 
 ### Added
