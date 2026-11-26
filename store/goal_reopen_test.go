@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -303,12 +304,16 @@ func TestMergeSkipsDeadSecondaries(t *testing.T) {
 	if err := s.DismissFinding(ctx, fp, "false positive"); err != nil {
 		t.Fatalf("DismissFinding: %v", err)
 	}
-	merged, err := s.MergeFindings(ctx, p, []int64{gone, fp})
+	merged, err := s.MergeFindings(ctx, p, []int64{gone, fp, p})
 	if err != nil {
 		t.Fatalf("MergeFindings: %v", err)
 	}
-	if len(merged.Skipped) != 2 {
-		t.Fatalf("skipped = %+v, want %d and %d", merged.Skipped, gone, fp)
+	want := []tools.SkippedFinding{
+		{ID: gone, Reason: fmt.Sprintf("already merged into finding %d", other)},
+		{ID: fp, Reason: "dismissed"},
+	}
+	if !slices.Equal(merged.Skipped, want) {
+		t.Fatalf("skipped = %+v, want %+v", merged.Skipped, want)
 	}
 	if into, _ := findingState(t, s, gone); into == nil || *into != other {
 		t.Errorf("gone merged_into = %v, want %d", into, other)
@@ -339,6 +344,78 @@ func TestMergeIntoDismissedRootFails(t *testing.T) {
 	}
 	if into, dismissed := findingState(t, s, c); into != nil || dismissed {
 		t.Errorf("c changed: merged_into = %v dismissed = %v", into, dismissed)
+	}
+}
+
+func TestMergeSkipsResolvedPrimary(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "merge-skip-root")
+	a, _ := addTestFinding(t, s, taskID, expID)
+	b, _ := addTestFinding(t, s, taskID, expID)
+
+	if _, err := s.MergeFindings(ctx, b, []int64{a}); err != nil {
+		t.Fatalf("merge a into b: %v", err)
+	}
+	merged, err := s.MergeFindings(ctx, a, []int64{b})
+	if err != nil {
+		t.Fatalf("MergeFindings: %v", err)
+	}
+	want := []tools.SkippedFinding{{ID: b, Reason: "is the resolved primary"}}
+	if !slices.Equal(merged.Skipped, want) {
+		t.Errorf("skipped = %+v, want %+v", merged.Skipped, want)
+	}
+}
+
+func TestMergeFollowsChainToRoot(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "merge-chain")
+	a, _ := addTestFinding(t, s, taskID, expID)
+	b, _ := addTestFinding(t, s, taskID, expID)
+	c, _ := addTestFinding(t, s, taskID, expID)
+	d, _ := addTestFinding(t, s, taskID, expID)
+
+	if _, err := s.MergeFindings(ctx, b, []int64{a}); err != nil {
+		t.Fatalf("merge a into b: %v", err)
+	}
+	if _, err := s.MergeFindings(ctx, c, []int64{b}); err != nil {
+		t.Fatalf("merge b into c: %v", err)
+	}
+	merged, err := s.MergeFindings(ctx, a, []int64{d})
+	if err != nil {
+		t.Fatalf("MergeFindings: %v", err)
+	}
+	if merged.ID != c || merged.RequestedPrimaryID != a {
+		t.Errorf("result id = %d requested = %d, want %d and %d", merged.ID, merged.RequestedPrimaryID, c, a)
+	}
+	if into, _ := findingState(t, s, d); into == nil || *into != c {
+		t.Errorf("d merged_into = %v, want %d", into, c)
+	}
+}
+
+func TestMergeChainCycleFails(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "merge-cycle")
+	a, _ := addTestFinding(t, s, taskID, expID)
+	b, _ := addTestFinding(t, s, taskID, expID)
+	c, _ := addTestFinding(t, s, taskID, expID)
+	if _, err := s.ExecContext(ctx,
+		`UPDATE findings SET merged_into = CASE id WHEN $1 THEN $2 ELSE $1 END WHERE id IN ($1, $2)`, a, b,
+	); err != nil {
+		t.Fatalf("create cycle: %v", err)
+	}
+
+	_, err := s.MergeFindings(ctx, a, []int64{c})
+	if err == nil || !strings.Contains(err.Error(), "cycle") {
+		t.Fatalf("err = %v, want cycle error", err)
+	}
+	if into, _ := findingState(t, s, c); into != nil {
+		t.Errorf("c merged_into = %d, want unchanged", *into)
 	}
 }
 
