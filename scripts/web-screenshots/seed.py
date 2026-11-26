@@ -11,11 +11,16 @@ import json
 import subprocess
 import sys
 import urllib.request
+from urllib.parse import quote
 
 BASE = "http://127.0.0.1:19400"
 PROXY = "http://127.0.0.1:18788"
 PASSWORD = "artex-demo-pass"
 CONTAINER = "artex-shots-artex-1"
+WORKSPACE = {
+    "scope.txt": "acme.example\n*.acme.example\n203.0.113.0/24\n",
+    "notes/recon.md": "# Recon\n\n- portal and api share an nginx/Express stack\n- vpn.acme.example is out of scope for exploitation\n",
+}
 
 
 class MCP:
@@ -117,6 +122,11 @@ def rest_session():
             raise
         opener.open(urllib.request.Request(BASE + "/api/auth/login", body, headers))
     return opener
+
+
+def seed_workspace(opener):
+    for path, body in WORKSPACE.items():
+        opener.open(urllib.request.Request(BASE + "/api/workspace/file?path=" + quote(path), body.encode(), method="PUT"))
 
 
 def traffic_ids(opener):
@@ -262,7 +272,9 @@ def seed(c, snap):
 
 def main():
     send_traffic()
-    snap = traffic_ids(rest_session())
+    opener = rest_session()
+    seed_workspace(opener)
+    snap = traffic_ids(opener)
     seed(MCP(), snap)
     print(f"seeded; web password: {PASSWORD}")
 

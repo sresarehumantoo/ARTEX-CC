@@ -14,7 +14,7 @@ const pages: [string, string][] = [
   ['tasks', 'Obtain domain admin'],
   ['commands', 'subfinder'],
   ['usage', 'API authorization testing'],
-  ['workspace', '.artex.json'],
+  ['workspace', 'scope.txt'],
   ['agents', 'Pentest Lead'],
   ['mcp-servers', 'artex'],
   ['tools', 'insert_assets'],
