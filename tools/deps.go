@@ -87,6 +87,11 @@ type Store interface {
 	// Intent lifecycle
 	UpdateNodeFields(ctx context.Context, nodeID int64, state string, payloadMerge map[string]any) error
 
+	// Target change journal
+	RecordTargetChange(ctx context.Context, explorationID int64, in TargetChangeInput) (*TargetChangeRecord, error)
+	RecordTargetRestore(ctx context.Context, explorationID int64, changeIDs []int64, observed, restoredBy string) ([]TargetRestoreOutcome, error)
+	ListTargetChanges(ctx context.Context, explorationID int64, unrestoredOnly bool) ([]TargetChange, error)
+
 	// Export/Import
 	ExportEngagementData(ctx context.Context, taskID int64) (*EngagementExport, error)
 	ImportEngagementData(ctx context.Context, data *EngagementExport) (taskID int64, explorationID int64, err error)
@@ -234,6 +239,8 @@ type Overview struct {
 	Coverage          map[string]any   `json:"coverage,omitempty"`
 	Credentials       []map[string]any `json:"task_credentials,omitempty"`
 	ChangesCursor     string           `json:"changes_cursor,omitempty"`
+
+	UnrestoredTargetChanges []map[string]any `json:"unrestored_target_changes,omitempty"`
 }
 
 // Node is a vertex in the exploration graph (goal, hint, intent, fact, or finding).
