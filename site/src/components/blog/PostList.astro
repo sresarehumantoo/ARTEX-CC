@@ -1,0 +1,114 @@
+---
+import configs from 'virtual:starlight-blog/configs';
+import PostCard from './PostCard.astro';
+import TagList from './TagList.astro';
+
+interface Props {
+  route: string;
+}
+
+const { route } = Astro.props;
+const { posts } = Astro.locals.starlightBlog;
+const { title } = Astro.locals.starlightRoute.entry.data;
+const postCount = configs.get('blog')?.postCount ?? 5;
+
+const kind = route.startsWith('tags/') ? 'tag' : route.startsWith('authors/') ? 'author' : 'index';
+const page = kind === 'index' ? Number(route || 1) : 1;
+const pageCount = Math.max(1, Math.ceil(posts.length / postCount));
+
+const listed =
+  kind === 'tag'
+    ? posts.filter((post) => post.tags.some((tag) => tag.label === title))
+    : kind === 'author'
+      ? posts.filter((post) => post.authors.some((author) => author.name === title))
+      : posts.slice((page - 1) * postCount, page * postCount);
+
+const lead = page === 1 && kind === 'index' ? (listed.find((post) => post.featured) ?? listed[0]) : undefined;
+const rest = listed.filter((post) => post !== lead);
+
+const tagCounts = new Map<string, { label: string; href: string; count: number }>();
+for (const post of posts) {
+  for (const tag of post.tags) {
+    const entry = tagCounts.get(tag.href) ?? { ...tag, count: 0 };
+    entry.count++;
+    tagCounts.set(tag.href, entry);
+  }
+}
+const allTags = [...tagCounts.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
+const pageHref = (n: number) => (n === 1 ? '/blog/' : `/blog/${n}/`);
+const plural = (n: number) => `${n} ${n === 1 ? 'post' : 'posts'}`;
+---
+
+<div class="blog-list not-content">
+  <header class="blog-hero">
+    <div class="blog-hero-grid" aria-hidden="true"></div>
+    {
+      kind === 'index' ? (
+        <>
+          <p class="blog-eyebrow">
+            Blog{page > 1 && <span> &middot; page {page} of {pageCount}</span>}
+          </p>
+          <h1 class="blog-hero-title">Notes from building ARTEX-CC</h1>
+          <p class="blog-hero-lead">
+            Design write-ups, eval runs and what broke along the way, from an MCP server that lets Claude Code run
+            pentests.
+          </p>
+          <div class="blog-hero-actions">
+            <TagList tags={allTags} />
+            <a class="blog-rss" href="/blog/rss.xml">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+                <path d="M5 3a1 1 0 0 0 0 2c7.18 0 13 5.82 13 13a1 1 0 1 0 2 0C20 9.72 13.28 3 5 3Zm0 7a1 1 0 0 0 0 2 6 6 0 0 1 6 6 1 1 0 1 0 2 0 8 8 0 0 0-8-8Zm1 7a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z" />
+              </svg>
+              RSS
+            </a>
+          </div>
+        </>
+      ) : (
+        <>
+          <p class="blog-eyebrow">
+            <a href="/blog/">Blog</a> / {kind === 'tag' ? 'Tag' : 'Author'}
+          </p>
+          <h1 class="blog-hero-title">
+            {kind === 'tag' && <span class="blog-hash">#</span>}
+            {title}
+          </h1>
+          <p class="blog-hero-lead">
+            {plural(listed.length)}
+            {kind === 'tag' ? ` tagged ${title}.` : ` by ${title}.`}
+          </p>
+          {kind === 'tag' && <TagList tags={allTags} current={title} />}
+        </>
+      )
+    }
+  </header>
+
+  {lead && <PostCard post={lead} featured />}
+
+  {
+    rest.length > 0 && (
+      <section class="blog-section" aria-labelledby="blog-more">
+        <h2 id="blog-more" class="blog-section-title">
+          {lead ? 'Earlier posts' : 'Posts'}
+        </h2>
+        <div class="blog-rows">
+          {rest.map((post) => (
+            <PostCard {post} />
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  {
+    kind === 'index' && pageCount > 1 && (
+      <nav class="blog-pager" aria-label="Blog pages">
+        {page > 1 ? <a href={pageHref(page - 1)} rel="prev">&larr; Newer posts</a> : <span />}
+        <span class="blog-pager-count">
+          {page} / {pageCount}
+        </span>
+        {page < pageCount ? <a href={pageHref(page + 1)} rel="next">Older posts &rarr;</a> : <span />}
+      </nav>
+    )
+  }
+</div>

@@ -1,0 +1,33 @@
+---
+import { Image } from 'astro:assets';
+import type { StarlightBlogPostData } from 'starlight-blog/data';
+
+interface Props {
+  cover: NonNullable<StarlightBlogPostData['cover']>;
+  alt?: string;
+  widths: number[];
+  sizes: string;
+  loading?: 'eager' | 'lazy';
+}
+
+const { cover, alt = cover.alt, widths, sizes, loading = 'lazy' } = Astro.props;
+const dark = 'dark' in cover ? cover.dark : cover.image;
+const light = 'light' in cover ? cover.light : undefined;
+const common = { alt, sizes, loading };
+---
+
+{
+  typeof dark === 'string' ? (
+    <img src={dark} alt={alt} loading={loading} class:list={{ 'light:sl-hidden': light }} />
+  ) : (
+    <Image src={dark} widths={widths} {...common} class:list={{ 'light:sl-hidden': light }} />
+  )
+}
+{
+  light &&
+    (typeof light === 'string' ? (
+      <img src={light} alt={alt} loading={loading} class="dark:sl-hidden" />
+    ) : (
+      <Image src={light} widths={widths} {...common} class="dark:sl-hidden" />
+    ))
+}

@@ -1,0 +1,23 @@
+---
+interface Props {
+  tags: { label: string; href: string; count?: number }[];
+  current?: string;
+}
+
+const { tags, current } = Astro.props;
+---
+
+{
+  tags.length > 0 && (
+    <ul class="blog-tags" aria-label="Tags">
+      {tags.map((tag) => (
+        <li>
+          <a class="blog-tag" href={tag.href} aria-current={tag.label === current ? 'page' : undefined}>
+            {tag.label}
+            {tag.count !== undefined && <span class="blog-tag-count">{tag.count}</span>}
+          </a>
+        </li>
+      ))}
+    </ul>
+  )
+}

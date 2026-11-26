@@ -1,0 +1,24 @@
+---
+import Default from '@astrojs/starlight/components/MarkdownContent.astro';
+import PostList from './PostList.astro';
+import Post from './Post.astro';
+
+const { id } = Astro.locals.starlightRoute;
+const route = /^blog(?:\/(.+))?$/.exec(id)?.[1];
+const isBlog = id === 'blog' || route !== undefined;
+const isList = id === 'blog' || /^(\d+|tags\/.+|authors\/.+)$/.test(route ?? '');
+---
+
+{
+  !isBlog ? (
+    <Default>
+      <slot />
+    </Default>
+  ) : isList ? (
+    <PostList route={route ?? ''} />
+  ) : (
+    <Post>
+      <slot />
+    </Post>
+  )
+}
