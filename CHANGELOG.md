@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Fixed
+- Web UI chat: a message sent just as a conversation's Claude process exits now starts a new process once the old one has saved its final status, instead of failing with a 500 "file already closed" or having the new process's status overwritten with idle.
+
+### Fixed
 - Company scope lines written as `*.example.com` matched no host. They now match subdomains only (`a.example.com`, `a.b.example.com`), never the apex `example.com`, which must be listed separately to be in scope. A `*` anywhere other than a leading `*.` is rejected, as is a wildcard `root_domain` task scope entry.
 
 ### Fixed
