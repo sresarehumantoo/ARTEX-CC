@@ -51,6 +51,7 @@ type Runner struct {
 	hub       *Hub
 	mu        sync.Mutex
 	processes map[string]*runningConv
+	afterExit func(id string)
 }
 
 type runningConv struct {
@@ -60,6 +61,7 @@ type runningConv struct {
 	cancel    context.CancelFunc
 	sessionID string
 	done      chan struct{}
+	exited    atomic.Bool
 	stopping  atomic.Bool
 	stderr    *limitedBuffer
 }
@@ -203,15 +205,21 @@ func (r *Runner) Available() bool {
 func (r *Runner) Running(id string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	_, ok := r.processes[id]
-	return ok
+	rc, ok := r.processes[id]
+	return ok && !rc.exited.Load()
 }
 
 func (r *Runner) Start(ctx context.Context, id, model, agent, systemPrompt string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, ok := r.processes[id]; ok {
-		return nil
+	for old := r.processes[id]; old != nil; old = r.processes[id] {
+		if !old.exited.Load() {
+			return nil
+		}
+		// Wait out the old pump's final writes so they cannot overwrite the new process's status.
+		r.mu.Unlock()
+		<-old.done
+		r.mu.Lock()
 	}
 	var settings LLMSettings
 	if r.settings != nil {
@@ -347,7 +355,7 @@ func (r *Runner) Send(id, message string) error {
 	r.mu.Lock()
 	rc := r.processes[id]
 	r.mu.Unlock()
-	if rc == nil {
+	if rc == nil || rc.exited.Load() {
 		return ErrNotRunning
 	}
 	line, err := json.Marshal(map[string]any{
@@ -414,6 +422,10 @@ func (r *Runner) pump(id string, rc *runningConv, stdout io.Reader) {
 		rc.cancel()
 	}
 	err := rc.cmd.Wait()
+	rc.exited.Store(true)
+	if r.afterExit != nil {
+		r.afterExit(id)
+	}
 	rc.cancel()
 	if rc.mcpConfig != r.mcpConfig {
 		os.Remove(rc.mcpConfig)
@@ -428,8 +440,6 @@ func (r *Runner) pump(id string, rc *runningConv, stdout io.Reader) {
 	}
 	r.setStatus(id, ChatStatusIdle)
 
-	// Deregister only after the store writes above, so a new Start for this
-	// conversation cannot have its status overwritten by this exiting pump.
 	r.mu.Lock()
 	if r.processes[id] == rc {
 		delete(r.processes, id)

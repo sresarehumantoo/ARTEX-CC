@@ -500,6 +500,74 @@ func TestRunnerEmitsErrorOnNonZeroExit(t *testing.T) {
 	waitFor(t, func() bool { return !r.Running(conv.ID) })
 }
 
+func TestRunnerSendAfterExitStartsNewProcess(t *testing.T) {
+	bin := writeFakeClaude(t, `if [ ! -f started ]; then touch started; exit 0; fi
+read line
+echo '{"type":"assistant","message":{"content":[{"type":"text","text":"reply"}]}}'
+sleep 30
+`)
+	r := NewRunner(bin, "/tmp/mcp.json", t.TempDir(), 1)
+	reached := make(chan struct{})
+	release := make(chan struct{})
+	var once sync.Once
+	r.afterExit = func(string) {
+		once.Do(func() {
+			close(reached)
+			<-release
+		})
+	}
+	a := New(&mockStore{}, nil, 1, 1, WithDataDir(t.TempDir()), WithRunner(r))
+	srv := httptest.NewServer(a.Handler())
+	t.Cleanup(srv.Close)
+	t.Cleanup(r.StopAll)
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	t.Cleanup(unblock)
+	c := createConv(t, srv.URL)
+
+	if err := r.Start(context.Background(), c.ID, "", "", ""); err != nil {
+		t.Fatal(err)
+	}
+	<-reached
+	if r.Running(c.ID) {
+		t.Fatal("exited process still reported running")
+	}
+	if err := r.Send(c.ID, "hi"); !errors.Is(err, ErrNotRunning) {
+		t.Fatalf("send to exited process: %v", err)
+	}
+
+	sent := make(chan *http.Response, 1)
+	go func() {
+		resp, err := http.Post(srv.URL+"/api/conversations/"+c.ID+"/messages", "application/json", strings.NewReader(`{"message":"hello"}`))
+		if err != nil {
+			sent <- nil
+			return
+		}
+		resp.Body.Close()
+		sent <- resp
+	}()
+	time.Sleep(100 * time.Millisecond)
+	unblock()
+	if resp := <-sent; resp == nil || resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("send: %+v", resp)
+	}
+	if !r.Running(c.ID) {
+		t.Fatal("expected a new running process")
+	}
+	waitFor(t, func() bool {
+		evs, _ := a.chat.Events(c.ID, 0)
+		for _, e := range evs {
+			if e.Kind == ChatKindText && e.Text == "reply" {
+				return true
+			}
+		}
+		return false
+	})
+	if conv, _ := a.chat.Get(c.ID); conv.Status != ChatStatusRunning {
+		t.Fatalf("status = %s, want %s", conv.Status, ChatStatusRunning)
+	}
+}
+
 func TestRunnerSetSettings(t *testing.T) {
 	r := NewRunner("claude", "/tmp/mcp.json", t.TempDir(), 1)
 	called := false
