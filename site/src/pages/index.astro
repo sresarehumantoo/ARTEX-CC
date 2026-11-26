@@ -2,6 +2,7 @@
 import { analyticsBeacon } from '../analytics.mjs';
 import '../styles/landing.css';
 import '../styles/motion.css';
+import '../styles/landing-motion.css';
 import { Image } from 'astro:assets';
 import { getEntry } from 'astro:content';
 import Command from '../components/Command.astro';
@@ -175,24 +176,32 @@ const install = [
     </header>
 
     <main id="main">
-      <section id="hero" class="relative overflow-hidden border-b border-line">
-        <div class="grid-bg pointer-events-none absolute inset-0" aria-hidden="true"></div>
-        <div class="hero-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
+      <section id="hero" class="relative overflow-hidden border-b border-line" data-spotlight-area>
+        <div class="grid-bg pointer-events-none absolute inset-0" aria-hidden="true" data-hero-grid></div>
+        <div class="hero-glow pointer-events-none absolute inset-0" aria-hidden="true" data-hero-glow></div>
         <div class="relative mx-auto max-w-6xl px-4 pt-16 pb-20 sm:px-6 sm:pt-28 sm:pb-28">
           <div class="flex flex-col items-start sm:items-center sm:text-center">
-            <p
-              class="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full border border-line bg-white/[0.03] px-3 py-1 font-mono text-[10px] text-neutral-400 uppercase sm:text-[11px] sm:tracking-wide"
+            <a
+              href="/changelog/"
+              class="group inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full border border-line bg-white/[0.03] px-3 py-1 font-mono text-[10px] text-neutral-400 uppercase transition-colors hover:border-white/20 hover:text-neutral-200 sm:text-[11px] sm:tracking-wide"
+              data-enter
             >
-              <span class="size-1.5 rounded-full bg-sky-400 shadow-[0_0_8px] shadow-sky-400" aria-hidden="true"></span>
-              MCP server for Claude Code{version && <span> &middot; <span class="normal-case">v{version}</span></span>} &middot; AGPL-3.0
-            </p>
+              <span class="size-1.5 rounded-full bg-sky-400 shadow-[0_0_8px] shadow-sky-400" aria-hidden="true" data-pulse></span>
+              {version && <span><span class="normal-case">v{version}</span> &middot;</span>}
+              <span>Open source, AGPL-3.0 &middot;</span>
+              <span class="inline-flex items-center gap-1 text-sky-300"
+                >Changelog <span aria-hidden="true" class="transition-transform group-hover:translate-x-0.5">&rarr;</span></span
+              >
+            </a>
             <h1
               class="mt-7 max-w-4xl text-[2.5rem] leading-[1.05] font-semibold tracking-tighter text-balance sm:text-6xl lg:text-7xl"
             >
-              <span class="text-gradient">Use your Claude subscription to run pentests.</span>{' '}
+              <span class="text-gradient"
+                >Use your <span data-highlight>Claude subscription</span> to run <span data-highlight>pentests</span>.</span
+              >{' '}
               <span class="text-gradient-muted block pb-1">No API key needed.</span>
             </h1>
-            <p class="mt-6 max-w-2xl text-base leading-relaxed text-pretty text-neutral-400 sm:text-lg">
+            <p class="mt-6 max-w-2xl text-base leading-relaxed text-pretty text-neutral-400 sm:text-lg" data-enter style="--enter-i: 1">
               ARTEX-CC gives Claude Code an asset graph, exploration tracking, findings, coverage, traffic capture and
               reporting as {toolStats.tools} MCP tools. Claude decides what to test. ARTEX keeps the record of what was tested, what
               was found, and what is left.
@@ -201,12 +210,15 @@ const install = [
             <Command
               command="brew install --cask sresarehumantoo/tap/artex-cc"
               class="mt-9 w-full max-w-xl text-left shadow-lg shadow-black/40"
+              data-enter=""
+              style="--enter-i: 2"
             />
 
-            <div class="mt-6 flex flex-wrap items-center gap-3 sm:justify-center">
+            <div class="mt-6 flex flex-wrap items-center gap-3 sm:justify-center" data-enter style="--enter-i: 3">
               <a
                 href="/demo/"
                 class="group inline-flex items-center gap-2 rounded-lg bg-sky-400 px-5 py-2.5 text-sm font-semibold text-neutral-950 shadow-[0_0_0_1px_oklch(0.85_0.1_230),0_8px_24px_-6px_oklch(0.75_0.14_232/0.6)] transition hover:bg-sky-300"
+                data-sheen
               >
                 Try the live demo
                 <span aria-hidden="true" class="transition-transform group-hover:translate-x-0.5">&rarr;</span>
@@ -226,7 +238,7 @@ const install = [
             </div>
           </div>
 
-          <figure class="frame-ring mt-16 sm:mt-20">
+          <figure class="frame-ring mt-16 sm:mt-20" data-enter="lift" style="--enter-i: 4">
             <div class="overflow-hidden rounded-[calc(var(--radius-2xl)-1px)] bg-panel">
               <div class="flex items-center gap-4 border-b border-line bg-white/[0.02] px-4 py-3">
                 <div class="flex gap-1.5" aria-hidden="true">
@@ -277,7 +289,7 @@ const install = [
           <ol class="mt-6 grid gap-4 sm:grid-cols-3" data-reveal-children>
             {
               props.map((p, i) => (
-                <li class="card p-6 transition-colors hover:border-white/15">
+                <li class="card p-6 transition-colors hover:border-white/15" data-spotlight>
                   <span class="inline-flex size-8 items-center justify-center rounded-md border border-sky-400/25 bg-sky-400/10 font-mono text-xs text-sky-300">
                     0{i + 1}
                   </span>
@@ -328,7 +340,7 @@ const install = [
             <div class="border-b border-line px-4 py-3.5 text-neutral-200">
               <span class="text-sky-400">&gt;</span> Pentest example.com, starting with reconnaissance.
             </div>
-            <ol class="px-4 py-4">
+            <ol class="px-4 py-4" data-stream>
               {
                 session.map((s, i) => (
                   <li
@@ -339,7 +351,7 @@ const install = [
                   >
                     <span class="text-[11px] tracking-wider text-neutral-500 uppercase">{s.phase}</span>
                     <span class="flex gap-2.5">
-                      <span class="mt-[9px] size-1.5 shrink-0 rounded-full bg-emerald-400/80" aria-hidden="true"></span>
+                      <span class="mt-[9px] size-1.5 shrink-0 rounded-full bg-emerald-400/80" aria-hidden="true" data-stream-dot></span>
                       <span>
                         <span class="whitespace-nowrap text-sky-300">{s.tool}</span>
                         {s.arg && <span class="text-neutral-500"> ({s.arg})</span>}
@@ -353,7 +365,7 @@ const install = [
         </div>
       </section>
 
-      <section id="eval" class="relative overflow-hidden border-b border-line">
+      <section id="eval" class="relative overflow-clip border-b border-line">
         <div class="section-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
         <div class="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28" data-reveal-children>
           <p class="eyebrow">Eval</p>
@@ -364,29 +376,29 @@ const install = [
             and the OpenSSL 3 MD4 deprecation.
           </p>
           <dl class="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4" data-reveal-children>
-            <div class="card p-5 sm:p-6">
+            <div class="card p-5 sm:p-6" data-spotlight>
               <dt class="text-xs font-medium tracking-wide text-neutral-500 uppercase">Flags</dt>
               <dd class="mt-2 font-mono text-2xl font-medium tracking-tight text-white sm:text-3xl">2 / 2</dd>
             </div>
-            <div class="card p-5 sm:p-6">
+            <div class="card p-5 sm:p-6" data-spotlight>
               <dt class="text-xs font-medium tracking-wide text-neutral-500 uppercase">Wall clock</dt>
               <dd class="mt-2 font-mono text-2xl font-medium tracking-tight text-white sm:text-3xl">~8 min</dd>
             </div>
-            <div class="card p-5 sm:p-6">
+            <div class="card p-5 sm:p-6" data-spotlight>
               <dt class="text-xs font-medium tracking-wide text-neutral-500 uppercase">Web lookups</dt>
               <dd class="mt-2 font-mono text-2xl font-medium tracking-tight text-white sm:text-3xl">0</dd>
             </div>
-            <div class="card p-5 sm:p-6">
+            <div class="card p-5 sm:p-6" data-spotlight>
               <dt class="text-xs font-medium tracking-wide text-neutral-500 uppercase">Target</dt>
               <dd class="mt-2 font-mono text-2xl font-medium tracking-tight text-white sm:text-3xl">AD DC</dd>
             </div>
           </dl>
-          <ol class="card mt-4 divide-y divide-line px-5 sm:px-6">
+          <ol class="card mt-4 divide-y divide-line px-5 sm:px-6" data-timeline>
             {
               forest.map((f, i) => (
                 <li class="grid gap-1.5 py-5 sm:grid-cols-[11rem_1fr] sm:gap-6">
                   <span class="flex items-center gap-3 font-mono text-sm text-sky-400">
-                    <span class="text-neutral-600">{String(i + 1).padStart(2, '0')}</span>
+                    <span class="text-neutral-600" data-timeline-step>{String(i + 1).padStart(2, '0')}</span>
                     {f.phase}
                   </span>
                   <span class="text-sm leading-relaxed text-neutral-300">{f.body}</span>
@@ -424,7 +436,7 @@ const install = [
           <ul class="mt-12 grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3" data-reveal-children>
             {
               shots.map((s) => (
-                <li class="card group overflow-hidden p-2 transition-colors hover:border-white/15">
+                <li class="card group overflow-hidden p-2 transition-colors hover:border-white/15" data-spotlight>
                   <figure>
                     <div class="overflow-hidden rounded-lg border border-line">
                       <Image
@@ -565,6 +577,7 @@ const install = [
 
     <script>
       import '../scripts/motion.ts';
+      import '../scripts/landing-motion.ts';
 
       document.addEventListener('click', async (event) => {
         const button = (event.target as Element).closest<HTMLButtonElement>('button[data-copy]');
@@ -572,10 +585,15 @@ const install = [
         try {
           await navigator.clipboard.writeText(button.dataset.copy ?? '');
           button.textContent = 'Copied';
+          button.dataset.copyState = 'copied';
         } catch {
           button.textContent = 'Failed';
+          button.dataset.copyState = 'failed';
         }
-        setTimeout(() => (button.textContent = 'Copy'), 1500);
+        setTimeout(() => {
+          button.textContent = 'Copy';
+          delete button.dataset.copyState;
+        }, 1500);
       });
 
       for (const root of document.querySelectorAll<HTMLElement>('[data-tabs]')) {

@@ -2,9 +2,10 @@
 interface Props {
   command: string;
   class?: string;
+  [attr: string]: unknown;
 }
 
-const { command, class: className } = Astro.props;
+const { command, class: className, ...attrs } = Astro.props;
 const lines = command.split('\n');
 ---
 
@@ -13,6 +14,7 @@ const lines = command.split('\n');
     'flex items-start gap-3 rounded-lg border border-line bg-black/40 py-2 pr-2 pl-4 font-mono text-sm',
     className,
   ]}
+  {...attrs}
 >
   <pre class="min-w-0 flex-1 overflow-x-auto py-1 leading-6"><code>{
     lines.map((line) => (
