@@ -28,7 +28,7 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 - **Report generation:** Markdown report from findings, assets, and coverage. Finding quality assessment (PoE level, verification status, counterevidence). CSV and markdown export formats for findings, assets, and nodes.
 - **Enrich:** Passive reconnaissance tools (`enrich_domain`, `enrich_ip`, `enrich_service`) with DNS resolution, reverse DNS, WHOIS, certificate transparency, technology fingerprinting, and URL validation.
 - **Scanner ingestion:** Parsers for nmap, nuclei, httpx, ffuf, and masscan (XML and JSON) output. Results feed directly into the asset graph.
-- **Scope enforcement:** `check_scope` tool and automatic enforcement in asset, enrich, and traffic tools. Blocks out-of-scope actions with an override mechanism.
+- **Scope enforcement:** `check_scope` tool and automatic enforcement in asset, enrich, and traffic tools. Blocks out-of-scope actions; there is no override.
 - **Multi-engagement switching:** `switch_engagement` tool for changing active context without a server restart.
 - **Engagement management:** Update and delete engagements, activity timeline view.
 - **Activity log:** `list_activity` and `log_activity` tools for audit trail access.
