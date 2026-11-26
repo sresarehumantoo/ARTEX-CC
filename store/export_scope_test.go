@@ -196,3 +196,41 @@ func checkImportedCompanyScope(t *testing.T, s *Store, taskID int64, companyName
 	}
 	return companyID
 }
+
+func TestImportServiceWithoutTechnologies(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, _ := testEngagement(t, s, "export-no-tech")
+	url := fmt.Sprintf("https://no-tech-%d.example/", time.Now().UnixNano())
+	assetID, err := s.InsertAsset(ctx, taskID, tools.AssetInput{Type: "service", URL: url})
+	if err != nil {
+		t.Fatal(err)
+	}
+	export, err := s.ExportEngagementData(ctx, taskID)
+	if err != nil {
+		t.Fatalf("ExportEngagementData: %v", err)
+	}
+	raw, err := json.Marshal(export)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded tools.EngagementExport
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ExecContext(ctx, `DELETE FROM assets WHERE id = $1`, assetID); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := s.ImportEngagementData(ctx, &decoded); err != nil {
+		t.Fatalf("ImportEngagementData: %v", err)
+	}
+	var empty bool
+	if err := s.QueryRowContext(ctx, `SELECT technologies = '{}' FROM assets WHERE url = $1`, url).Scan(&empty); err != nil {
+		t.Fatal(err)
+	}
+	if !empty {
+		t.Error("imported technologies are not empty")
+	}
+}

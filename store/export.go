@@ -893,6 +893,7 @@ func exportMapToAssetInput(m map[string]any) AssetInput {
 		input.Port = &p
 	}
 
+	input.Technologies = []string{}
 	if techs, ok := m["technologies"]; ok {
 		input.Technologies = exportToStringSlice(techs)
 	}
