@@ -242,7 +242,7 @@ export default function Workspace() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Workspace</h1>
-          <p className="text-sm text-muted-foreground">Browse and edit files in the data directory.</p>
+          <p className="text-sm text-muted-foreground">Browse and edit files in the <span className="font-mono">workspace</span> folder of the data directory.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" onClick={() => setCreating('file')}>
