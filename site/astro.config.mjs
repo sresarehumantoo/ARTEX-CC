@@ -31,12 +31,15 @@ export default defineConfig({
             artex: { name: 'ARTEX-CC maintainers', url: repo },
           },
           metrics: { readingTime: true },
+          postCount: 10,
+          recentPostCount: 5,
         }),
       ],
-      customCss: ['./src/styles/global.css'],
+      customCss: ['./src/styles/global.css', './src/styles/blog.css'],
       components: {
         ThemeProvider: './src/components/ThemeProvider.astro',
         Footer: './src/components/Footer.astro',
+        MarkdownContent: './src/components/blog/MarkdownContent.astro',
       },
       head: [
         { tag: 'meta', attrs: { property: 'og:image', content: `${site}/social-preview.png` } },

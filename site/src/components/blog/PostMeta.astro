@@ -1,0 +1,26 @@
+---
+import type { StarlightBlogPostData } from 'starlight-blog/data';
+
+interface Props {
+  post: StarlightBlogPostData;
+  updated?: boolean;
+}
+
+const { post, updated = false } = Astro.props;
+
+// Post dates are calendar days; formatting in the build machine's zone shifts them by one.
+const format = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
+const minutes = post.metrics.readingTime.minutes;
+---
+
+<p class="blog-meta">
+  <time datetime={post.createdAt.toISOString()}>{format.format(post.createdAt)}</time>
+  {
+    updated && post.updatedAt && post.updatedAt.getTime() !== post.createdAt.getTime() && (
+      <span>
+        Updated <time datetime={post.updatedAt.toISOString()}>{format.format(post.updatedAt)}</time>
+      </span>
+    )
+  }
+  {minutes > 0 && <span>{minutes} min read</span>}
+</p>

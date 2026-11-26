@@ -1,0 +1,79 @@
+---
+import Default from '@astrojs/starlight/components/MarkdownContent.astro';
+import Cover from './Cover.astro';
+import PostMeta from './PostMeta.astro';
+import TagList from './TagList.astro';
+
+const { id } = Astro.locals.starlightRoute;
+const { posts } = Astro.locals.starlightBlog;
+const index = posts.findIndex((post) => post.entry.id === id);
+const post = posts[index]!;
+const newer = posts[index - 1];
+const older = posts[index + 1];
+const { description } = post.entry.data;
+---
+
+<div class="blog-post">
+  <header class="blog-post-header not-content">
+    <p class="blog-eyebrow"><a href="/blog/">&larr; Blog</a></p>
+    <h1 id="_top" class="blog-post-title">{post.title}</h1>
+    {description && <p class="blog-post-dek">{description}</p>}
+    <div class="blog-post-byline">
+      {
+        post.authors.map((author) =>
+          author.url ? (
+            <a class="blog-author" href={author.url}>
+              {author.name}
+            </a>
+          ) : (
+            <span class="blog-author">{author.name}</span>
+          ),
+        )
+      }
+      <PostMeta {post} updated />
+    </div>
+    <TagList tags={post.tags} />
+  </header>
+
+  {
+    post.cover && (
+      <figure class="blog-post-cover not-content">
+        <Cover
+          cover={post.cover}
+          widths={[720, 1440]}
+          sizes="(min-width: 50rem) 42rem, 100vw"
+          loading="eager"
+        />
+      </figure>
+    )
+  }
+
+  <Default>
+    <slot />
+  </Default>
+
+  <footer class="blog-post-footer not-content" data-pagefind-ignore>
+    {
+      (newer || older) && (
+        <nav class="blog-post-nav" aria-label="More posts">
+          {newer && (
+            <a class="blog-post-nav-link" href={newer.href} rel="prev">
+              <span class="blog-post-nav-label">&larr; Newer</span>
+              <span class="blog-post-nav-title">{newer.title}</span>
+            </a>
+          )}
+          {older && (
+            <a class="blog-post-nav-link blog-post-nav-older" href={older.href} rel="next">
+              <span class="blog-post-nav-label">Older &rarr;</span>
+              <span class="blog-post-nav-title">{older.title}</span>
+            </a>
+          )}
+        </nav>
+      )
+    }
+    <div class="blog-post-footer-row">
+      <TagList tags={post.tags} />
+      <a class="blog-back" href="/blog/">All posts &rarr;</a>
+    </div>
+  </footer>
+</div>

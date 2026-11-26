@@ -1,0 +1,43 @@
+---
+import type { StarlightBlogPostData } from 'starlight-blog/data';
+import Cover from './Cover.astro';
+import PostMeta from './PostMeta.astro';
+import TagList from './TagList.astro';
+
+interface Props {
+  post: StarlightBlogPostData;
+  featured?: boolean;
+}
+
+const { post, featured = false } = Astro.props;
+const excerpt = post.entry.data.excerpt ?? post.entry.data.description;
+const Heading = featured ? 'h2' : 'h3';
+---
+
+<article class:list={['blog-card', { 'blog-card-featured': featured }]}>
+  <div class="blog-card-body">
+    {featured && <p class="blog-card-label">{post.featured ? 'Featured' : 'Latest post'}</p>}
+    <PostMeta {post} />
+    <Heading class="blog-card-title">
+      <a href={post.href}>{post.title}</a>
+    </Heading>
+    {excerpt && <p class="blog-card-excerpt">{excerpt}</p>}
+    <div class="blog-card-footer">
+      <TagList tags={post.tags} />
+      {featured && <span class="blog-card-cta" aria-hidden="true">Read post &rarr;</span>}
+    </div>
+  </div>
+  {
+    post.cover && (
+      <figure class="blog-card-cover">
+        <Cover
+          cover={post.cover}
+          alt=""
+          widths={[640, 1280]}
+          sizes={featured ? '(min-width: 50rem) 40rem, 100vw' : '(min-width: 50rem) 12rem, 100vw'}
+          loading={featured ? 'eager' : 'lazy'}
+        />
+      </figure>
+    )
+  }
+</article>
