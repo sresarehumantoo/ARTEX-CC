@@ -435,6 +435,7 @@ func cmdServe(args []string) {
 			slog.Warn("publishing change failed", "tool", name, "err", err)
 		}
 	}))
+	srvOpts = append(srvOpts, mcpserver.WithVersion(strings.TrimPrefix(version, "v")))
 	srv = mcpserver.New(reg, srvOpts...)
 	if restAPI != nil {
 		webExploration := func() int64 { return engCfg.ExplorationID }
