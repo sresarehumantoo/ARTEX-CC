@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -45,9 +47,38 @@ type Store struct {
 	dir string
 }
 
-// NewStore returns a Store rooted at dataDir/evidence.
+// NewStore returns a Store rooted at dataDir/evidence, restricting any
+// existing tree to the owner.
 func NewStore(dataDir string) *Store {
-	return &Store{dir: filepath.Join(dataDir, "evidence")}
+	s := &Store{dir: filepath.Join(dataDir, "evidence")}
+	tightenPerms(s.dir)
+	return s
+}
+
+// tightenPerms restricts evidence written by earlier versions (0755
+// directories, 0644 files) to the owner, since it can hold credentials.
+func tightenPerms(root string) {
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.Type()&fs.ModeSymlink != 0 {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		want := fs.FileMode(0o600)
+		if d.IsDir() {
+			want = 0o700
+		} else if !info.Mode().IsRegular() {
+			return nil
+		}
+		if info.Mode().Perm() != want {
+			if err := os.Chmod(path, want); err != nil {
+				slog.Warn("failed to restrict evidence file permissions", "path", path, "err", err)
+			}
+		}
+		return nil
+	})
 }
 
 func generateID() (string, error) {
@@ -85,14 +116,14 @@ func (s *Store) Save(_ context.Context, engagementID, findingID int64, kind, fil
 	}
 
 	engDir := filepath.Join(s.dir, strconv.FormatInt(engagementID, 10))
-	if err := os.MkdirAll(engDir, 0o755); err != nil {
+	if err := os.MkdirAll(engDir, 0o700); err != nil {
 		return Evidence{}, fmt.Errorf("create evidence directory: %w", err)
 	}
 
 	baseName := id + "_" + filename
 	dataPath := filepath.Join(engDir, baseName)
 
-	f, err := os.Create(dataPath)
+	f, err := os.OpenFile(dataPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return Evidence{}, fmt.Errorf("create evidence file: %w", err)
 	}
@@ -125,7 +156,7 @@ func (s *Store) Save(_ context.Context, engagementID, findingID int64, kind, fil
 		os.Remove(dataPath)
 		return Evidence{}, fmt.Errorf("marshal metadata: %w", err)
 	}
-	if err := os.WriteFile(metaPath, metaData, 0o644); err != nil {
+	if err := os.WriteFile(metaPath, metaData, 0o600); err != nil {
 		os.Remove(dataPath)
 		return Evidence{}, fmt.Errorf("write metadata: %w", err)
 	}

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -238,5 +239,75 @@ func TestValidKind(t *testing.T) {
 	}
 	if ValidKind("bogus") {
 		t.Error("expected bogus to be invalid")
+	}
+}
+
+func TestSaveIsOwnerOnly(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX permissions not enforced on Windows")
+	}
+	t.Parallel()
+	s := testStore(t)
+	ev, err := s.Save(context.Background(), 1, 1, "request_response", "req.txt", strings.NewReader("Cookie: session=x"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dataPath := filepath.Join(s.dir, "1", ev.ID+"_req.txt")
+	for path, want := range map[string]os.FileMode{
+		filepath.Join(s.dir, "1"): 0o700,
+		dataPath:                  0o600,
+		dataPath + ".meta.json":   0o600,
+	} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := info.Mode().Perm(); got != want {
+			t.Fatalf("%s mode %o, want %o", path, got, want)
+		}
+	}
+}
+
+func TestNewStoreTightensExistingPerms(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX permissions not enforced on Windows")
+	}
+	t.Parallel()
+	dataDir := t.TempDir()
+	engDir := filepath.Join(dataDir, "evidence", "1")
+	if err := os.MkdirAll(engDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(engDir, "ev1_req.txt")
+	outside := filepath.Join(dataDir, "outside.txt")
+	for _, p := range []string{file, outside} {
+		if err := os.WriteFile(p, []byte("secret"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(outside, filepath.Join(engDir, "link")); err != nil {
+		t.Fatal(err)
+	}
+	for p, mode := range map[string]os.FileMode{filepath.Join(dataDir, "evidence"): 0o755, engDir: 0o755, file: 0o644, outside: 0o644} {
+		if err := os.Chmod(p, mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	NewStore(dataDir)
+
+	for path, want := range map[string]os.FileMode{
+		filepath.Join(dataDir, "evidence"): 0o700,
+		engDir:                             0o700,
+		file:                               0o600,
+		outside:                            0o644,
+	} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := info.Mode().Perm(); got != want {
+			t.Fatalf("%s mode %o, want %o", path, got, want)
+		}
 	}
 }

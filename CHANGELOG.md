@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Fixed
+- Captured traffic blobs, the traffic index directory and saved evidence are owner-only (files 0600, directories 0700) instead of world-readable, since they can hold credentials and session tokens. Existing traffic trees (including host directories captured by older versions, but not `_ca`) are tightened once at the first startup, and existing evidence trees at every startup.
+
+### Fixed
 - The web Graph page crashed with "Cannot read properties of null" on an engagement with no edges yet, because `GET /api/graph` returned `null` for empty `nodes` or `edges`; both are now always arrays.
 
 ### Fixed
