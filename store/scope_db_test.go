@@ -153,10 +153,9 @@ func TestIsInScopeDomainMatch(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"kind", "domain", "net"}).
 			AddRow("root_domain", "example.com", ""))
 
-	mock.ExpectQuery("SELECT company_id FROM tasks").
+	mock.ExpectQuery("FROM company_scope").
 		WithArgs(int64(1)).
-		WillReturnRows(sqlmock.NewRows([]string{"company_id"}).
-			AddRow(sql.NullInt64{Valid: false}))
+		WillReturnRows(sqlmock.NewRows([]string{"kind", "domain", "net"}))
 
 	inScope, reason, _, err := s.IsInScope(ctx, 1, "sub.example.com")
 	if err != nil {
@@ -180,10 +179,9 @@ func TestIsInScopeIPMatch(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"kind", "domain", "net"}).
 			AddRow("cidr", "", "10.0.0.0/24"))
 
-	mock.ExpectQuery("SELECT company_id FROM tasks").
+	mock.ExpectQuery("FROM company_scope").
 		WithArgs(int64(1)).
-		WillReturnRows(sqlmock.NewRows([]string{"company_id"}).
-			AddRow(sql.NullInt64{Valid: false}))
+		WillReturnRows(sqlmock.NewRows([]string{"kind", "domain", "net"}))
 
 	inScope, reason, _, err := s.IsInScope(ctx, 1, "10.0.0.5")
 	if err != nil {
@@ -207,10 +205,13 @@ func TestIsInScopeNoMatch(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"kind", "domain", "net"}).
 			AddRow("root_domain", "example.com", ""))
 
-	mock.ExpectQuery("SELECT company_id FROM tasks").
+	mock.ExpectQuery("FROM company_scope").
 		WithArgs(int64(1)).
-		WillReturnRows(sqlmock.NewRows([]string{"company_id"}).
-			AddRow(sql.NullInt64{Valid: false}))
+		WillReturnRows(sqlmock.NewRows([]string{"kind", "domain", "net"}))
+
+	mock.ExpectQuery("SELECT c.name FROM companies").
+		WithArgs(int64(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}))
 
 	inScope, reason, _, err := s.IsInScope(ctx, 1, "other.org")
 	if err != nil {
@@ -250,43 +251,51 @@ func TestLoadTaskScopeRulesDB(t *testing.T) {
 	}
 }
 
-func TestLoadCompanyScopeForTaskNoCompany(t *testing.T) {
+func TestIsInScopeCompanyWithoutHostScopeFailsClosed(t *testing.T) {
 	t.Parallel()
 	s, mock := newRegexpMockStore(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery("SELECT company_id FROM tasks").
-		WithArgs(int64(5)).
-		WillReturnRows(sqlmock.NewRows([]string{"company_id"}).
-			AddRow(sql.NullInt64{Valid: false}))
+	mock.ExpectQuery("FROM task_scope WHERE task_id").
+		WithArgs(int64(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"kind", "domain", "net"}).
+			AddRow("company", "", ""))
 
-	rules, err := s.loadCompanyScopeForTask(ctx, 5)
+	mock.ExpectQuery("FROM company_scope").
+		WithArgs(int64(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"kind", "domain", "net"}).
+			AddRow("keyword", "", ""))
+
+	mock.ExpectQuery("SELECT c.name FROM companies").
+		WithArgs(int64(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow("Acme"))
+
+	inScope, reason, _, err := s.IsInScope(ctx, 1, "anything.example")
 	if err != nil {
-		t.Fatalf("loadCompanyScopeForTask: %v", err)
+		t.Fatalf("IsInScope: %v", err)
 	}
-	if rules != nil {
-		t.Errorf("expected nil rules, got %d", len(rules))
+	if inScope {
+		t.Error("expected not in scope when a company entry has no host scope")
+	}
+	if want := "target does not match any scope rule; company Acme has no domain/IP/CIDR scope, add it with add_company_scope"; reason != want {
+		t.Errorf("reason = %q, want %q", reason, want)
 	}
 }
 
-func TestLoadCompanyScopeForTaskWithCompany(t *testing.T) {
+func TestLoadCompanyScopeRulesDB(t *testing.T) {
 	t.Parallel()
 	s, mock := newRegexpMockStore(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery("SELECT company_id FROM tasks").
+	mock.ExpectQuery(`FROM company_scope WHERE company_id IN \((.|\n)*kind = 'company'(.|\n)*FROM tasks`).
 		WithArgs(int64(5)).
-		WillReturnRows(sqlmock.NewRows([]string{"company_id"}).
-			AddRow(sql.NullInt64{Int64: 7, Valid: true}))
-
-	mock.ExpectQuery("SELECT kind").
-		WithArgs(int64(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"kind", "domain", "net"}).
-			AddRow("domain", "corp.example.com", ""))
+			AddRow("domain", "corp.example.com", "").
+			AddRow("keyword", "", ""))
 
-	rules, err := s.loadCompanyScopeForTask(ctx, 5)
+	rules, err := s.loadCompanyScopeRules(ctx, 5)
 	if err != nil {
-		t.Fatalf("loadCompanyScopeForTask: %v", err)
+		t.Fatalf("loadCompanyScopeRules: %v", err)
 	}
 	if len(rules) != 1 {
 		t.Fatalf("got %d rules, want 1", len(rules))

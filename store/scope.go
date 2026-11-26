@@ -135,8 +135,14 @@ func (s *Store) ListTaskScope(ctx context.Context, taskID int64) ([]int64, error
 	return out, rows.Err()
 }
 
+// scopeCompanyIDsSQL selects the companies whose company_scope applies to task
+// $1: every task_scope company entry plus the task's own company_id.
+const scopeCompanyIDsSQL = `
+	SELECT company_id FROM task_scope WHERE task_id = $1 AND kind = 'company'
+	UNION SELECT company_id FROM tasks WHERE id = $1 AND company_id IS NOT NULL`
+
 // ListScopeRules returns the task's own scope entries followed by the scope of
-// the company the task belongs to, the same two sources IsInScope consults.
+// every company the task covers, the same sources IsInScope consults.
 func (s *Store) ListScopeRules(ctx context.Context, taskID int64) ([]tools.ScopeRule, error) {
 	rows, err := s.QueryContext(ctx, `
 		SELECT kind, value, reason FROM (
@@ -149,8 +155,8 @@ func (s *Store) ListScopeRules(ctx context.Context, taskID int64) ([]tools.Scope
 			SELECT 1, cs.id, cs.kind,
 				COALESCE(cs.domain, cs.net::text, cs.value, cs.raw),
 				COALESCE(cs.reason, '')
-			FROM company_scope cs JOIN tasks t ON t.company_id = cs.company_id
-			WHERE t.id = $1
+			FROM company_scope cs
+			WHERE cs.company_id IN (`+scopeCompanyIDsSQL+`)
 		) r ORDER BY src, id`, taskID)
 	if err != nil {
 		return nil, err
@@ -222,15 +228,11 @@ func (s *Store) IsInScope(ctx context.Context, taskID int64, target string) (boo
 		}
 		rules = append(rules, taskRules...)
 
-		companyRules, err := s.loadCompanyScopeForTask(ctx, taskID)
+		companyRules, err := s.loadCompanyScopeRules(ctx, taskID)
 		if err != nil {
 			return false, "", "", err
 		}
 		rules = append(rules, companyRules...)
-	}
-
-	if len(rules) == 0 {
-		return true, "no scope rules defined (permissive default)", "", nil
 	}
 
 	for _, r := range rules {
@@ -245,6 +247,20 @@ func (s *Store) IsInScope(ctx context.Context, taskID int64, target string) (boo
 				return true, "domain matches scope rule", r.raw, nil
 			}
 		}
+	}
+
+	if taskID > 0 {
+		unscoped, err := s.companiesWithoutHostScope(ctx, taskID)
+		if err != nil {
+			return false, "", "", err
+		}
+		if len(unscoped) > 0 {
+			return false, fmt.Sprintf("target does not match any scope rule; company %s has no domain/IP/CIDR scope, add it with add_company_scope", strings.Join(unscoped, ", ")), "", nil
+		}
+	}
+
+	if len(rules) == 0 {
+		return true, "no scope rules defined (permissive default)", "", nil
 	}
 
 	return false, "target does not match any scope rule", "", nil
@@ -278,16 +294,10 @@ func (s *Store) loadTaskScopeRules(ctx context.Context, taskID int64) ([]scopeCh
 	return out, rows.Err()
 }
 
-func (s *Store) loadCompanyScopeForTask(ctx context.Context, taskID int64) ([]scopeCheckRule, error) {
-	var companyID sql.NullInt64
-	err := s.QueryRowContext(ctx, `SELECT company_id FROM tasks WHERE id = $1`, taskID).Scan(&companyID)
-	if err != nil || !companyID.Valid {
-		return nil, err
-	}
-
+func (s *Store) loadCompanyScopeRules(ctx context.Context, taskID int64) ([]scopeCheckRule, error) {
 	rows, err := s.QueryContext(ctx, `
 		SELECT kind, COALESCE(domain,''), COALESCE(net::text,'')
-		FROM company_scope WHERE company_id = $1`, companyID.Int64)
+		FROM company_scope WHERE company_id IN (`+scopeCompanyIDsSQL+`)`, taskID)
 	if err != nil {
 		return nil, err
 	}
@@ -302,6 +312,31 @@ func (s *Store) loadCompanyScopeForTask(ctx context.Context, taskID int64) ([]sc
 		if r != nil {
 			out = append(out, *r)
 		}
+	}
+	return out, rows.Err()
+}
+
+// companiesWithoutHostScope names the task's company entries that contribute no
+// enforceable rule, so IsInScope fails closed instead of treating them as absent.
+func (s *Store) companiesWithoutHostScope(ctx context.Context, taskID int64) ([]string, error) {
+	rows, err := s.QueryContext(ctx, `
+		SELECT c.name FROM companies c
+		WHERE c.id IN (SELECT company_id FROM task_scope WHERE task_id = $1 AND kind = 'company')
+		  AND NOT EXISTS (
+			SELECT 1 FROM company_scope cs
+			WHERE cs.company_id = c.id AND cs.kind IN ('domain','ip','cidr'))
+		ORDER BY c.name`, taskID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		out = append(out, name)
 	}
 	return out, rows.Err()
 }
