@@ -829,7 +829,7 @@ func TestServerRenewsClaims(t *testing.T) {
 	t.Setenv(fakeEnv, "1")
 	for desc, want := range map[string]bool{
 		"The claim is exclusive for 30 minutes and renews whenever you pass this intent as intent_id to record_fact. ": true,
-		"The claim is exclusive for 30 minutes; call again to renew it on long work. ":                                  false,
+		"The claim is exclusive for 30 minutes; call again to renew it on long work. ":                                 false,
 	} {
 		catalog, _ := json.Marshal([]map[string]string{{"name": "record_fact"}, {"name": "start_intent", "description": desc}})
 		t.Setenv(fakeCatalogEnv, string(catalog))
