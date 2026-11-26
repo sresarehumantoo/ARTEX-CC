@@ -15,11 +15,15 @@ func RegisterIntentTools(reg *Registry, store Store, explorationID int64) {
 }
 
 func makeStartIntent(store Store) Tool {
+	minuteUnit := "minutes"
+	if IntentLease == time.Minute {
+		minuteUnit = "minute"
+	}
 	return Tool{
 		Name:     "start_intent",
 		Category: CategoryExploration,
 		Description: "Claim an open intent for this session and mark it running. Call this when you begin working on an intent. " +
-			fmt.Sprintf("The claim is exclusive for %d minutes and renews whenever you pass this intent as intent_id to record_fact, report_finding or record_coverage, with the same owner if you claimed with one. ", int(IntentLease.Minutes())) +
+			fmt.Sprintf("The claim is exclusive for %d %s and renews whenever you pass this intent as intent_id to record_fact, report_finding or record_coverage, with the same owner if you claimed with one. ", int(IntentLease.Minutes()), minuteUnit) +
 			"If you go that long without recording anything for it, call start_intent again to renew it, or the intent reopens for other sessions. " +
 			"Fails if another session holds a live claim, so pick a different intent. " +
 			"Pass the same owner on every claim call if you use one." + identityRequiredDesc(),

@@ -78,6 +78,23 @@ func (m *intentMockStore) UpdateNodeFields(_ context.Context, id int64, state st
 
 var testSessionCtx = WithSessionID(context.Background(), "sess-test")
 
+func TestStartIntentLeaseDescription(t *testing.T) {
+	previous := IntentLease
+	t.Cleanup(func() { IntentLease = previous })
+	for _, tc := range []struct {
+		lease time.Duration
+		want  string
+	}{
+		{time.Minute, "exclusive for 1 minute and renews"},
+		{30 * time.Minute, "exclusive for 30 minutes and renews"},
+	} {
+		IntentLease = tc.lease
+		if got := makeStartIntent(nil).Description; !strings.Contains(got, tc.want) {
+			t.Errorf("lease %v: description %q does not contain %q", tc.lease, got, tc.want)
+		}
+	}
+}
+
 func TestStartIntentClaimConflictAndRenewal(t *testing.T) {
 	t.Parallel()
 	ms := newIntentMockStore()
