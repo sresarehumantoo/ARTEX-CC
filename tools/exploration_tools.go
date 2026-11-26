@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -560,8 +561,12 @@ func makeProveGoal(store Store, explorationID int64) Tool {
 				}
 			}
 
-			_ = store.AddEdge(ctx, ev, RelProves, goal)
-			_ = store.UpdateNodeState(ctx, goal, "met")
+			if err := store.ProveGoal(ctx, goal, ev); err != nil {
+				if errors.Is(err, ErrDeadEvidence) {
+					return errResult(fmt.Sprintf("prove_goal refused: node %d is dismissed or merged; prove the goal with a live finding or fact", ev)), nil
+				}
+				return errResult("prove_goal failed: " + err.Error()), nil
+			}
 
 			goals, err := store.ListNodes(ctx, explorationID, KindGoal, 1000)
 			if err == nil && len(goals) > 0 {

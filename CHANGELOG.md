@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Fixed
+- A goal marked met by `prove_goal` stayed met after its proving finding was dismissed. Dismissing a finding now removes its `proves` edges and reopens any goal left without another proof from a live finding or fact. Merging findings moves the secondary's `proves` edges to the primary, so the goal stays met. Concurrent dismissals of a goal's last proofs no longer leave it met, and `prove_goal` refuses a dismissed or merged finding.
+
+### Fixed
 - Web UI chat: a message sent just as a conversation's Claude process exits now starts a new process once the old one has saved its final status, instead of failing with a 500 "file already closed" or having the new process's status overwritten with idle.
 
 ### Fixed

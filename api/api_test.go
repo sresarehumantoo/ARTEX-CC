@@ -111,6 +111,7 @@ func (m *mockStore) ListNodes(_ context.Context, _ int64, _ string, _ int) ([]to
 }
 func (m *mockStore) NodeDetail(context.Context, int64) (*tools.Node, error) { return nil, nil }
 func (m *mockStore) AddEdge(context.Context, int64, string, int64) error    { return nil }
+func (m *mockStore) ProveGoal(context.Context, int64, int64) error          { return nil }
 func (m *mockStore) Frontier(context.Context, int64, int) ([]tools.Node, error) {
 	return nil, nil
 }

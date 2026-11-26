@@ -17,6 +17,7 @@ type explorationMockStore struct {
 	listErr       error
 	listNodes     []Node
 	edgeErr       error
+	proveErr      error
 	constraintErr error
 	goalsResult   *GoalsResult
 	gotGoals      []GoalInput
@@ -85,6 +86,10 @@ func (m *explorationMockStore) ListNodes(_ context.Context, _ int64, _ string, _
 
 func (m *explorationMockStore) AddEdge(_ context.Context, _ int64, _ string, _ int64) error {
 	return m.edgeErr
+}
+
+func (m *explorationMockStore) ProveGoal(_ context.Context, _, _ int64) error {
+	return m.proveErr
 }
 
 func (m *explorationMockStore) AddConstraint(_ context.Context, _ int64, _, _, _ string) (int64, error) {
@@ -921,6 +926,25 @@ func TestProveGoalNotAFactOrFinding(t *testing.T) {
 	}
 	if !strings.Contains(r.Content, "must be a fact/finding") {
 		t.Errorf("expected evidence validation, got: %s", r.Content)
+	}
+}
+
+func TestProveGoalDeadEvidence(t *testing.T) {
+	t.Parallel()
+	ms := newExplorationMockStore()
+	ms.nodeMap[1] = &Node{ID: 1, Kind: KindGoal, State: "open"}
+	ms.nodeMap[2] = &Node{ID: 2, Kind: KindFinding, State: "dismissed"}
+	ms.proveErr = ErrDeadEvidence
+	reg := NewRegistry()
+	RegisterExplorationTools(reg, ms, 1)
+
+	tool, _ := reg.Lookup("prove_goal")
+	r, err := tool.Run(context.Background(), json.RawMessage(`{"goal_id": 1, "evidence_id": 2}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !r.IsError || !strings.Contains(r.Content, "dismissed or merged") {
+		t.Errorf("expected dead evidence refusal, got: %s", r.Content)
 	}
 }
 
