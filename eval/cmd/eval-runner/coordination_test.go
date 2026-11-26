@@ -489,3 +489,13 @@ func TestEvalHolderInstance(t *testing.T) {
 		}
 	}
 }
+
+func TestResultCostIsRunningTotal(t *testing.T) {
+	tr := (&transcript{}).other(at(1)).result(3.48).other(at(2)).result(3.78).other(at(3)).result(5.36).parse(t, 1)
+	if tr.CostUSD != 5.36 {
+		t.Fatalf("cost = %v, want the last running total 5.36", tr.CostUSD)
+	}
+	if tr.Usage.OutputTokens != 9 || tr.Usage.CacheReadTokens != 2700 {
+		t.Fatalf("usage should sum per-turn result usage: %+v", tr.Usage)
+	}
+}
