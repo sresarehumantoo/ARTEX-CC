@@ -36,6 +36,7 @@ export default defineConfig({
       customCss: ['./src/styles/global.css'],
       components: {
         ThemeProvider: './src/components/ThemeProvider.astro',
+        Footer: './src/components/Footer.astro',
       },
       head: [
         { tag: 'meta', attrs: { property: 'og:image', content: `${site}/social-preview.png` } },
