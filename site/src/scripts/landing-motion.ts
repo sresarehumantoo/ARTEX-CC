@@ -50,7 +50,7 @@ if (finePointer.matches && !reducedMotion.matches) {
     'pointermove',
     (event) => {
       if (event.pointerType !== 'mouse') return;
-      target = (event.target as Element).closest<HTMLElement>('[data-spotlight]');
+      target = (event.target as Element).closest<HTMLElement>('[data-spotlight], [data-spotlight-area]');
       if (!target) return;
       x = event.clientX;
       y = event.clientY;

@@ -176,15 +176,16 @@ const install = [
     </header>
 
     <main id="main">
-      <section id="hero" class="relative overflow-hidden border-b border-line">
-        <div class="grid-bg pointer-events-none absolute inset-0" aria-hidden="true"></div>
-        <div class="hero-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
+      <section id="hero" class="relative overflow-hidden border-b border-line" data-spotlight-area>
+        <div class="grid-bg pointer-events-none absolute inset-0" aria-hidden="true" data-hero-grid></div>
+        <div class="hero-glow pointer-events-none absolute inset-0" aria-hidden="true" data-hero-glow></div>
         <div class="relative mx-auto max-w-6xl px-4 pt-16 pb-20 sm:px-6 sm:pt-28 sm:pb-28">
           <div class="flex flex-col items-start sm:items-center sm:text-center">
             <p
               class="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full border border-line bg-white/[0.03] px-3 py-1 font-mono text-[10px] text-neutral-400 uppercase sm:text-[11px] sm:tracking-wide"
+              data-enter
             >
-              <span class="size-1.5 rounded-full bg-sky-400 shadow-[0_0_8px] shadow-sky-400" aria-hidden="true"></span>
+              <span class="size-1.5 rounded-full bg-sky-400 shadow-[0_0_8px] shadow-sky-400" aria-hidden="true" data-pulse></span>
               MCP server for Claude Code{version && <span> &middot; <span class="normal-case">v{version}</span></span>} &middot; AGPL-3.0
             </p>
             <h1
@@ -193,7 +194,7 @@ const install = [
               <span class="text-gradient">Use your Claude subscription to run pentests.</span>{' '}
               <span class="text-gradient-muted block pb-1">No API key needed.</span>
             </h1>
-            <p class="mt-6 max-w-2xl text-base leading-relaxed text-pretty text-neutral-400 sm:text-lg">
+            <p class="mt-6 max-w-2xl text-base leading-relaxed text-pretty text-neutral-400 sm:text-lg" data-enter style="--enter-i: 1">
               ARTEX-CC gives Claude Code an asset graph, exploration tracking, findings, coverage, traffic capture and
               reporting as {toolStats.tools} MCP tools. Claude decides what to test. ARTEX keeps the record of what was tested, what
               was found, and what is left.
@@ -202,12 +203,15 @@ const install = [
             <Command
               command="brew install --cask sresarehumantoo/tap/artex-cc"
               class="mt-9 w-full max-w-xl text-left shadow-lg shadow-black/40"
+              data-enter=""
+              style="--enter-i: 2"
             />
 
-            <div class="mt-6 flex flex-wrap items-center gap-3 sm:justify-center">
+            <div class="mt-6 flex flex-wrap items-center gap-3 sm:justify-center" data-enter style="--enter-i: 3">
               <a
                 href="/demo/"
                 class="group inline-flex items-center gap-2 rounded-lg bg-sky-400 px-5 py-2.5 text-sm font-semibold text-neutral-950 shadow-[0_0_0_1px_oklch(0.85_0.1_230),0_8px_24px_-6px_oklch(0.75_0.14_232/0.6)] transition hover:bg-sky-300"
+                data-sheen
               >
                 Try the live demo
                 <span aria-hidden="true" class="transition-transform group-hover:translate-x-0.5">&rarr;</span>
@@ -227,7 +231,7 @@ const install = [
             </div>
           </div>
 
-          <figure class="frame-ring mt-16 sm:mt-20">
+          <figure class="frame-ring mt-16 sm:mt-20" data-enter="lift" style="--enter-i: 4">
             <div class="overflow-hidden rounded-[calc(var(--radius-2xl)-1px)] bg-panel">
               <div class="flex items-center gap-4 border-b border-line bg-white/[0.02] px-4 py-3">
                 <div class="flex gap-1.5" aria-hidden="true">
