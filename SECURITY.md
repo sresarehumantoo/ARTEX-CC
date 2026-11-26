@@ -27,10 +27,13 @@ intended ability to intercept, record, and replay network traffic.
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Report privately through GitHub Security Advisories:
-[open a new advisory](https://github.com/SREsAreHumanToo/ARTEX-CC/security/advisories/new),
-or use the "Report a vulnerability" button on the repository's Security tab. The
-advisory is visible only to you and the maintainers.
+Report privately via one of:
+
+- **GitHub Security Advisories (preferred):**
+  [open a new advisory](https://github.com/SREsAreHumanToo/ARTEX-CC/security/advisories/new),
+  or use the "Report a vulnerability" button on the repository's Security tab. The
+  advisory is visible only to you and the maintainers.
+- **Email:** [security@artex-cc.com](mailto:security@artex-cc.com).
 
 Include:
 
