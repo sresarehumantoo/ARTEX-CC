@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
@@ -90,25 +91,35 @@ func (s *Store) ListCredentials(ctx context.Context, taskID int64) ([]tools.Cred
 	return out, rows.Err()
 }
 
-// assetURLCredential extracts the userinfo of an asset URL, percent-decoded.
-// Only the authority is parsed, so a malformed path or query does not lose it.
+// assetURLCredential extracts the userinfo NormalizeAssetURL strips from an
+// asset URL, percent-decoded, with the host it belongs to.
 func assetURLCredential(raw string) (domain, username, password string, ok bool) {
-	raw = strings.TrimSpace(raw)
-	i := strings.Index(raw, "://")
-	if i < 0 {
+	stripped, userinfo, found := tools.SplitURLUserinfo(strings.TrimSpace(raw))
+	if !found {
 		return "", "", "", false
 	}
-	if j := strings.IndexAny(raw[i+3:], "/?#"); j >= 0 {
-		raw = raw[:i+3+j]
+	start, end := tools.URLAuthority(stripped)
+	host := stripped[start:end]
+	if strings.HasPrefix(host, "[") {
+		host, _, _ = strings.Cut(host[1:], "]")
+	} else {
+		host, _, _ = strings.Cut(host, ":")
 	}
-	u, err := url.Parse(raw)
-	if err != nil || u.User == nil {
+	if strings.IndexFunc(host, unicode.IsSpace) >= 0 {
 		return "", "", "", false
 	}
-	domain = DomainKey(u.Hostname())
-	username = strings.TrimSpace(u.User.Username())
-	password, _ = u.User.Password()
+	user, pass, _ := strings.Cut(userinfo, ":")
+	domain = DomainKey(host)
+	username = strings.TrimSpace(unescapeUserinfo(user))
+	password = unescapeUserinfo(pass)
 	return domain, username, password, domain != "" && username != ""
+}
+
+func unescapeUserinfo(s string) string {
+	if u, err := url.PathUnescape(s); err == nil {
+		return u
+	}
+	return s
 }
 
 // saveAssetURLCredential records userinfo stripped from an asset URL. It never

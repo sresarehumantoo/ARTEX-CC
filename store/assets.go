@@ -78,18 +78,17 @@ func DomainKey(fqdn string) string {
 
 // NormalizeAssetURL is the canonical form asset URLs are stored and looked up
 // by: userinfo removed, scheme and host lowercased, default ports dropped.
-// Path, query and fragment are kept as given.
+// Path, query and fragment are kept as given, and so is a Unicode host.
 func NormalizeAssetURL(raw string) string {
-	raw = strings.TrimSpace(raw)
+	raw = tools.RedactURLUserinfo(strings.TrimSpace(raw))
 	u, err := url.Parse(raw)
 	if err != nil || u.Host == "" {
-		return stripURLUserinfo(raw)
+		return raw
 	}
-	u.User = nil
-	u.Scheme = strings.ToLower(u.Scheme)
+	scheme := strings.ToLower(u.Scheme)
 	host := strings.ToLower(u.Hostname())
 	port := u.Port()
-	if (u.Scheme == "http" && port == "80") || (u.Scheme == "https" && port == "443") {
+	if (scheme == "http" && port == "80") || (scheme == "https" && port == "443") {
 		port = ""
 	}
 	if strings.Contains(host, ":") {
@@ -98,27 +97,15 @@ func NormalizeAssetURL(raw string) string {
 	if port != "" {
 		host += ":" + port
 	}
-	u.Host = host
-	return u.String()
-}
-
-// stripURLUserinfo drops anything before the last @ in the authority of a URL
-// that url.Parse rejects, so malformed input still does not keep credentials.
-func stripURLUserinfo(raw string) string {
-	i := strings.Index(raw, "://")
-	if i < 0 {
+	start, end := tools.URLAuthority(raw)
+	if start < 0 {
 		return raw
 	}
-	rest := raw[i+3:]
-	authEnd := len(rest)
-	if j := strings.IndexAny(rest, "/?#"); j >= 0 {
-		authEnd = j
+	prefix := "//"
+	if scheme != "" {
+		prefix = scheme + "://"
 	}
-	at := strings.LastIndex(rest[:authEnd], "@")
-	if at < 0 {
-		return raw
-	}
-	return raw[:i+3] + rest[at+1:]
+	return prefix + host + raw[end:]
 }
 
 func RootDomain(host string) (root string, isApex bool) {
