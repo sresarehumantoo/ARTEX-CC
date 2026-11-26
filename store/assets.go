@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/url"
 	"strings"
 	"time"
 
@@ -73,6 +74,38 @@ type AssetInput struct {
 
 func DomainKey(fqdn string) string {
 	return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(fqdn)), ".")
+}
+
+// NormalizeAssetURL is the canonical form asset URLs are stored and looked up
+// by: userinfo removed, scheme and host lowercased, default ports dropped.
+// Path, query and fragment are kept as given, and so is a Unicode host.
+func NormalizeAssetURL(raw string) string {
+	raw = tools.RedactURLUserinfo(strings.TrimSpace(raw))
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return raw
+	}
+	scheme := strings.ToLower(u.Scheme)
+	host := strings.ToLower(u.Hostname())
+	port := u.Port()
+	if (scheme == "http" && port == "80") || (scheme == "https" && port == "443") {
+		port = ""
+	}
+	if strings.Contains(host, ":") {
+		host = "[" + host + "]"
+	}
+	if port != "" {
+		host += ":" + port
+	}
+	start, end := tools.URLAuthority(raw)
+	if start < 0 {
+		return raw
+	}
+	prefix := "//"
+	if scheme != "" {
+		prefix = scheme + "://"
+	}
+	return prefix + host + raw[end:]
 }
 
 func RootDomain(host string) (root string, isApex bool) {
@@ -234,6 +267,9 @@ func (s *Store) InsertAsset(ctx context.Context, taskID int64, item tools.AssetI
 	if err != nil {
 		return 0, fmt.Errorf("insert %s: %w", item.Type, err)
 	}
+	if err := s.saveAssetURLCredential(ctx, tx, taskID, internal.URL); err != nil {
+		return 0, fmt.Errorf("save url credential: %w", err)
+	}
 	return id, tx.Commit()
 }
 
@@ -242,6 +278,7 @@ func insertAssetReturningID(tx *sql.Tx, taskID int64, item AssetInput) (int64, e
 	if len(item.Extra) > 0 {
 		extra = item.Extra
 	}
+	item.URL = NormalizeAssetURL(item.URL)
 	mergeTasks := `array(SELECT DISTINCT unnest(assets.task_ids || ARRAY[$1::bigint]))`
 
 	var id int64

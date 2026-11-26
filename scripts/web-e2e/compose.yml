@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: {POSTGRES_USER: ccartex, POSTGRES_PASSWORD: ccartex, POSTGRES_DB: ccartex}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ccartex -d ccartex"]
+      interval: 3s
+      retries: 20
+  artex:
+    build: ../..
+    depends_on: {postgres: {condition: service_healthy}}
+    environment:
+      ARTEX_PG: postgres://ccartex:ccartex@postgres:5432/ccartex?sslmode=disable
+    ports: ["127.0.0.1:${E2E_PORT:-19410}:9400"]

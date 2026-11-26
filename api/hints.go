@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 func (a *API) registerHintsRoutes(mux *http.ServeMux) {
@@ -18,8 +20,7 @@ func (a *API) handleAddHint(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "text is required")
 		return
 	}
-	payload := map[string]any{"text": body.Text}
-	id, err := a.store.AddNode(r.Context(), a.explorationID, "hint", payload, 0, "open", "web-ui", nil)
+	id, err := tools.AddHint(r.Context(), a.store, a.explorationID, body.Text, "web-ui", nil)
 	if err != nil {
 		slog.Error("add hint", "err", err)
 		writeError(w, http.StatusInternalServerError, "internal error")

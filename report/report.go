@@ -15,6 +15,8 @@ type Input struct {
 	Findings    []ReportFinding
 	Coverage    *CoverageLedger
 	Quality     map[int64]FindingQuality
+
+	TargetChanges []TargetChange
 }
 
 const reportMaxGaps = 200
@@ -46,7 +48,17 @@ func Markdown(in Input) string {
 		}
 		fmt.Fprintf(&b, "%s %d", t, in.AssetCounts[t])
 	}
-	b.WriteString("\n\n")
+	b.WriteString("\n")
+	unrestored := 0
+	for _, c := range in.TargetChanges {
+		if !c.Restored {
+			unrestored++
+		}
+	}
+	if len(in.TargetChanges) > 0 {
+		fmt.Fprintf(&b, "- Target changes: %d, unrestored: **%d**\n", len(in.TargetChanges), unrestored)
+	}
+	b.WriteString("\n")
 
 	fmt.Fprintf(&b, "## Findings\n\n")
 	if len(in.Findings) == 0 {
@@ -96,7 +108,32 @@ func Markdown(in Input) string {
 		b.WriteString("\n")
 	}
 
+	if len(in.TargetChanges) > 0 {
+		writeTargetChanges(&b, in.TargetChanges, unrestored)
+	}
+
 	return b.String()
+}
+
+func writeTargetChanges(b *strings.Builder, changes []TargetChange, unrestored int) {
+	b.WriteString("## Target changes\n\n")
+	if unrestored > 0 {
+		fmt.Fprintf(b, "**%d change(s) were not restored to their recorded baseline. The affected hosts are not back in their original state.**\n\n", unrestored)
+	} else {
+		b.WriteString("Every recorded change was restored to its baseline fingerprint.\n\n")
+	}
+	for _, c := range changes {
+		status := "**NOT RESTORED**"
+		if c.Restored {
+			status = fmt.Sprintf("restored by %s at %s", c.RestoredBy, c.RestoredAt.UTC().Format("2006-01-02 15:04:05"))
+		}
+		fmt.Fprintf(b, "- #%d %s: `%s` on `%s` (%s, recorded by %s), baseline `%s`", c.ID, status, c.Resource, c.Target, c.Kind, c.RecordedBy, c.Baseline)
+		if !c.Restored && c.RestoreAttempts > 0 {
+			fmt.Fprintf(b, ", last observed `%s` after %d restore attempt(s)", c.LastObserved, c.RestoreAttempts)
+		}
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
 }
 
 func nz(s, d string) string {

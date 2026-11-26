@@ -48,6 +48,12 @@ func (a *API) handleGraph(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	if nodes == nil {
+		nodes = []tools.Node{}
+	}
+	if edges == nil {
+		edges = []tools.Edge{}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"nodes": nodes,
 		"edges": edges,

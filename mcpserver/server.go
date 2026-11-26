@@ -351,6 +351,22 @@ Subagents inside one Claude Code process share its MCP session, so their
 claims are yours unless each passes its own owner; assign them distinct
 intents yourself.
 
+## Changes to the target
+
+- Before you modify, create or delete anything on a target (file, registry
+  key, service, scheduled task, account, config), call record_target_change
+  with its original fingerprint (sha256:<hex> of a file, absent for
+  something you create) and where you keep the backup.
+- If record_target_change returns a warning, another live change already
+  exists on that resource and what you see is not the original. Restore to
+  the returned baseline, never to your own backup, and coordinate with the
+  holders in existing_changes.
+- Before you finish, restore what you changed and call
+  record_target_restore with the fingerprint you observe afterwards. Only a
+  match with the baseline counts as restored.
+- Never report a host restored or cleaned up while graph_overview or
+  list_changes shows unrestored_target_changes.
+
 ## Recovery from context exhaustion
 
 The exploration graph preserves ALL state. If you start a fresh session or

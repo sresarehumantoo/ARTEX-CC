@@ -1,0 +1,14 @@
+Winforge Health Report - 2026-11-24
+=====================================
+
+Service Status Summary:
+  web-dashboard    HEALTHY   (last check: 08:00 UTC)
+  postgres-primary HEALTHY   (last check: 08:00 UTC)
+  redis-cache      STOPPED   (last check: 07:45 UTC) **ACTION REQUIRED**
+  backup-agent     HEALTHY   (last check: 08:00 UTC)
+
+Notes:
+- Redis cache stopped responding at 07:45. Investigating memory pressure.
+- All API tokens rotated on 2026-10-01 per policy.
+- Dashboard credentials stored in database (monitor.db).
+- Next maintenance window: 2026-12-01 02:00-04:00 UTC.

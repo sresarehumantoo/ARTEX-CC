@@ -1,0 +1,13 @@
+Winforge Service Map
+====================
+
+Internal services (127.0.0.1 only):
+  :8080  - Monitor Dashboard (Python/HTTP)
+  :5432  - PostgreSQL Primary
+  :6379  - Redis Cache (currently stopped)
+  :9090  - Backup Agent
+
+Authentication:
+  Dashboard API uses token-based auth for admin endpoints.
+  Tokens are managed in the api_tokens table.
+  Search endpoint is public (no auth required).

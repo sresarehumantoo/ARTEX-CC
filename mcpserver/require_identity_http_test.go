@@ -33,6 +33,10 @@ func (changesClaimStore) ListClaims(context.Context, int64, string) ([]tools.Hel
 	return []tools.HeldClaim{}, nil
 }
 
+func (changesClaimStore) ListTargetChanges(context.Context, int64, bool) ([]tools.TargetChange, error) {
+	return nil, nil
+}
+
 func TestRequireIdentityOverHTTP(t *testing.T) {
 	setRequireIdentity(t, true)
 	dir := t.TempDir()
