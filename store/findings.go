@@ -393,6 +393,7 @@ func (s *Store) mergeFindings(ctx context.Context, primaryID int64, secondaryIDs
 	}
 
 	var skipped []tools.SkippedFinding
+	var merging []int64
 	done := map[int64]bool{}
 	for _, secID := range secondaryIDs {
 		if secID == primaryID || done[secID] {
@@ -403,15 +404,20 @@ func (s *Store) mergeFindings(ctx context.Context, primaryID int64, secondaryIDs
 		switch {
 		case secID == rootID:
 			skipped = append(skipped, tools.SkippedFinding{ID: secID, Reason: "is the resolved primary"})
-			continue
 		case sec.MergedInto != nil:
 			skipped = append(skipped, tools.SkippedFinding{ID: secID, Reason: fmt.Sprintf("already merged into finding %d", *sec.MergedInto)})
-			continue
 		case sec.Dismissed:
 			skipped = append(skipped, tools.SkippedFinding{ID: secID, Reason: "dismissed"})
-			continue
+		default:
+			merging = append(merging, secID)
 		}
+	}
+	if err := lockMergeNodesTx(ctx, tx, merging); err != nil {
+		return nil, err
+	}
 
+	for _, secID := range merging {
+		sec := locked[secID]
 		var secAssets []int64
 		_ = json.Unmarshal(sec.AssetIDs, &secAssets)
 		for _, a := range secAssets {
@@ -503,6 +509,33 @@ func (s *Store) DismissFinding(ctx context.Context, findingID int64, reason stri
 		return err
 	}
 	return tx.Commit()
+}
+
+// lockMergeNodesTx locks the nodes of the merging findings, then every goal
+// they prove, each set in one statement in id order. ProveGoal and
+// DismissFinding also lock an evidence node before its goals, so taking all
+// of them up front keeps every merge, proof and dismissal in one lock order.
+func lockMergeNodesTx(ctx context.Context, tx *sql.Tx, findingIDs []int64) error {
+	if len(findingIDs) == 0 {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `
+		SELECT n.id FROM exploration_nodes n JOIN findings f ON f.node_id = n.id
+		WHERE f.id = ANY($1)
+		ORDER BY n.id FOR NO KEY UPDATE OF n`,
+		findingIDs); err != nil {
+		return fmt.Errorf("lock nodes of merged findings: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+		SELECT g.id FROM exploration_nodes g
+		WHERE g.kind = $3 AND g.id IN (
+			SELECT e.dst_id FROM exploration_edges e JOIN findings f ON f.node_id = e.src_id
+			WHERE f.id = ANY($1) AND e.rel = $2)
+		ORDER BY g.id FOR NO KEY UPDATE`,
+		findingIDs, RelProves, KindGoal); err != nil {
+		return fmt.Errorf("lock goals proved by merged findings: %w", err)
+	}
+	return nil
 }
 
 // moveGoalProofsTx copies the proves edges of a finding's node onto toNode.

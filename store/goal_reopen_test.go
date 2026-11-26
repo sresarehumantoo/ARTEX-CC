@@ -456,3 +456,82 @@ func TestConcurrentMergesAlongChainDoNotDeadlock(t *testing.T) {
 		}
 	}
 }
+
+func TestConcurrentMergesOverSharedGoalsDoNotDeadlock(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "merge-goal-race")
+
+	for round := range 100 {
+		p1, _ := addTestFinding(t, s, taskID, expID)
+		p2, _ := addTestFinding(t, s, taskID, expID)
+		s1, n1 := addTestFinding(t, s, taskID, expID)
+		s2, n2 := addTestFinding(t, s, taskID, expID)
+		s3, n3 := addTestFinding(t, s, taskID, expID)
+		s4, n4 := addTestFinding(t, s, taskID, expID)
+		g1 := provedGoal(t, s, expID, n1, n4)
+		g2 := provedGoal(t, s, expID, n2, n3)
+
+		start := make(chan struct{})
+		errs := make(chan error, 2)
+		var wg sync.WaitGroup
+		for _, m := range [][3]int64{{p1, s1, s2}, {p2, s3, s4}} {
+			wg.Go(func() {
+				<-start
+				_, err := s.MergeFindings(ctx, m[0], m[1:])
+				errs <- err
+			})
+		}
+		close(start)
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			if err != nil {
+				t.Fatalf("round %d: MergeFindings: %v", round, err)
+			}
+		}
+		for _, g := range []int64{g1, g2} {
+			if got := goalState(t, s, g); got != "met" {
+				t.Fatalf("round %d: goal %d state = %q, want met", round, g, got)
+			}
+		}
+	}
+}
+
+func TestConcurrentMergeAndProveGoalDoNotDeadlock(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "merge-prove-race")
+
+	for round := range 100 {
+		primary, _ := addTestFinding(t, s, taskID, expID)
+		s1, n1 := addTestFinding(t, s, taskID, expID)
+		s2, n2 := addTestFinding(t, s, taskID, expID)
+		goal := provedGoal(t, s, expID, n1)
+
+		start := make(chan struct{})
+		var mergeErr, proveErr error
+		var wg sync.WaitGroup
+		wg.Go(func() {
+			<-start
+			_, mergeErr = s.MergeFindings(ctx, primary, []int64{s1, s2})
+		})
+		wg.Go(func() {
+			<-start
+			proveErr = s.ProveGoal(ctx, goal, n2)
+		})
+		close(start)
+		wg.Wait()
+		if mergeErr != nil {
+			t.Fatalf("round %d: MergeFindings: %v", round, mergeErr)
+		}
+		if proveErr != nil && !errors.Is(proveErr, tools.ErrDeadEvidence) {
+			t.Fatalf("round %d: ProveGoal: %v", round, proveErr)
+		}
+		if got := goalState(t, s, goal); got != "met" {
+			t.Fatalf("round %d: goal state = %q, want met", round, got)
+		}
+	}
+}
