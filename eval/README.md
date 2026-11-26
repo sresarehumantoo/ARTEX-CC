@@ -29,7 +29,7 @@ docker compose up -d
 
 # Wait for health checks, then run a scenario
 go run ../eval/cmd/eval-runner \
-  --pg 'postgres://ccartex_eval:ccartex_eval@localhost:5432/ccartex_eval?sslmode=disable' \
+  --pg 'postgres://ccartex_eval:ccartex_eval@localhost:5433/ccartex_eval?sslmode=disable' \
   scenarios/vulnapp-full.yml
 
 # Dry-run (set up engagement, skip Claude execution, score empty state)
@@ -38,6 +38,10 @@ go run ../eval/cmd/eval-runner --dry-run scenarios/vulnapp-full.yml
 # Tear down
 docker compose down -v
 ```
+
+The eval Postgres is published on `127.0.0.1:5433`, so it can run next to the
+dev stack's Postgres on 5432. Without `--pg`, the runner uses `ARTEX_PG` if set,
+then the DSN above, so unset `ARTEX_PG` if it points at your dev database.
 
 The runner calls `claude` (Claude Code CLI) in `--print --dangerously-skip-permissions`
 mode with an auto-generated MCP config pointing ARTEX at the eval Postgres. It also passes
