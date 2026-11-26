@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Fixed
+- The web UI workspace (`/api/workspace`) was rooted at the data directory itself, so anyone who could reach the API (with auth off, the default on a loopback listener) could read, overwrite or delete ARTEX's own secrets there: `auth.json` (password hash and session key), `identity.key`, `owner-label.key`, `mcp-config.json` (the `/mcp` bearer token), `chat-mcp/`, `mcp_servers.json` and the proxy CA key under `traffic/_ca`. The workspace now has its own root, `workspace/` in the data directory, created 0700, with new files 0600 and folders 0700. Paths that leave it, including through a symlink that resolves outside it, are refused with 400. Nothing is moved on upgrade, since the data directory gives no reliable way to tell your files from ARTEX's own: the new workspace starts empty, and files you kept at the top of the data directory stay there until you move them into `workspace/`.
+
+### Fixed
 - `artex-cc init` printed the PostgreSQL DSN, password included, in the MCP config snippet and in `--dry-run --format json`, so in Docker the password ended up in `docker logs`. The password is now shown as `***` with a note to substitute it or pass it via `ARTEX_PG`; DSNs without a password print unchanged.
 
 ### Fixed

@@ -30,7 +30,6 @@ BASE = seed.BASE
 CONTAINER = seed.CONTAINER
 PG = "artex-shots-postgres-1"
 SPAN = timedelta(hours=3)
-SKIP_WORKSPACE = {"auth.json", "mcp-config.json", "traffic/_ca", "traffic/_index"}
 
 
 def psql(sql):
@@ -192,7 +191,7 @@ def capture():
     workspace = {"dirs": {}, "files": {}}
 
     def walk(path):
-        entries = [e for e in c.get("/api/workspace?path=" + quote(path)) or [] if (f"{path}/{e['name']}" if path else e["name"]) not in SKIP_WORKSPACE]
+        entries = c.get("/api/workspace?path=" + quote(path)) or []
         workspace["dirs"][path] = entries
         for e in entries:
             child = f"{path}/{e['name']}" if path else e["name"]

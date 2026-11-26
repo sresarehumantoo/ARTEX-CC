@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"path/filepath"
 	"sync"
 
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
@@ -15,6 +16,7 @@ type API struct {
 	explorationID int64
 
 	files     *FileStore
+	workspace string
 	claudeBin string
 	hub       *Hub
 	changes   changeBatcher
@@ -32,7 +34,10 @@ type API struct {
 type Option func(*API)
 
 func WithDataDir(dir string) Option {
-	return func(a *API) { a.files = NewFileStore(dir) }
+	return func(a *API) {
+		a.files = NewFileStore(dir)
+		a.workspace = filepath.Join(dir, workspaceDir)
+	}
 }
 
 func WithRunner(r ChatRunner) Option {

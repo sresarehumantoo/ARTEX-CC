@@ -78,6 +78,12 @@ Besides the engagement views, the UI includes:
 
 Screenshots use a seeded demo engagement against reserved `*.example` names and documentation IP ranges.
 
+## Workspace
+
+The workspace page browses, edits, uploads and deletes files under `workspace/` in the data directory (for example `./pentest/workspace/` with `--data ./pentest`). The server creates the folder owner-only (0700) on first use. Paths cannot leave it: `..` segments and absolute paths are refused, and so is any symlink that resolves outside it. ARTEX's own files in the data directory (`auth.json`, `identity.key`, `mcp-config.json`, `traffic/`, conversations and so on) are not reachable from the workspace.
+
+Up to 0.6.1 the workspace was the data directory itself. Upgrading does not move anything, so files of your own that you kept at the top of the data directory stay where they are; move them into `workspace/` to see them in the UI.
+
 ## Source link
 
 The UI links to its own source code. ARTEX-CC is AGPL-3.0: if you run a modified version as a network service, section 13 requires you to offer its users the corresponding source.
