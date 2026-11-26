@@ -228,7 +228,7 @@ func runInstances(ctx context.Context, rc runConfig, sc Scenario, timeout time.D
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	if err := os.MkdirAll(rc.transcriptsDir, 0755); err != nil {
+	if err := os.MkdirAll(rc.transcriptsDir, 0700); err != nil {
 		return nil, fmt.Errorf("create transcripts dir: %w", err)
 	}
 
@@ -268,7 +268,7 @@ func runInstances(ctx context.Context, rc runConfig, sc Scenario, timeout time.D
 		}
 		if server != nil {
 			path := filepath.Join(rc.dataDir, "mcp.json")
-			if err := writeMCPConfig(path, server, 0644); err != nil {
+			if err := writeMCPConfig(path, server, 0600); err != nil {
 				return nil, fmt.Errorf("write mcp config: %w", err)
 			}
 			for i := range configs {
@@ -312,7 +312,7 @@ func runInstance(ctx context.Context, rc runConfig, sc Scenario, mcpConfigPath s
 	transcript := filepath.Join(rc.transcriptsDir, fmt.Sprintf("instance-%d.jsonl", instance))
 	run = InstanceRun{Instance: instance, Transcript: transcript}
 
-	out, err := os.Create(transcript)
+	out, err := os.OpenFile(transcript, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		run.ExitError = err.Error()
 		return run
@@ -393,7 +393,7 @@ func startHTTPServer(rc runConfig) (string, func(), error) {
 	l.Close()
 
 	logPath := filepath.Join(rc.transcriptsDir, "server.log")
-	logFile, err := os.Create(logPath)
+	logFile, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return "", nil, err
 	}
