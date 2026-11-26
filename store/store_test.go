@@ -35,6 +35,37 @@ func testDB(t *testing.T) *Store {
 	return sharedStore
 }
 
+func TestOpenSkipsSchemaWhileTablesInUse(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	tx, err := s.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+	if _, err := tx.ExecContext(ctx, `LOCK TABLE tasks IN ROW EXCLUSIVE MODE`); err != nil {
+		t.Fatal(err)
+	}
+
+	opened := make(chan error, 1)
+	go func() {
+		s2, err := Open(ctx, os.Getenv("ARTEX_TEST_PG"))
+		if err == nil {
+			s2.Close()
+		}
+		opened <- err
+	}()
+	select {
+	case err := <-opened:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Open blocked on a table held by an open transaction")
+	}
+}
+
 func testEngagement(t *testing.T, s *Store, label string) (int64, int64) {
 	t.Helper()
 	ctx := context.Background()

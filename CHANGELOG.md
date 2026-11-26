@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Fixed
+- Opening the store (`serve` or any CLI command) skips re-running `schema.sql` when the database already has the same schema, so starting a server or CLI against a database another server is using no longer risks `deadlock detected` errors in either one.
+
+### Fixed
 - `docker-compose.yml` built the default `ARTEX_PG` with a hardcoded `ccartex:ccartex` login, so overriding `POSTGRES_PASSWORD` (or `POSTGRES_USER`/`POSTGRES_DB`) left ARTEX unable to connect. The default DSN now uses the same variables and defaults as the postgres service.
 
 ### Fixed
