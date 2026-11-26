@@ -13,7 +13,7 @@ const targetChangeCols = `id, target, resource, kind, COALESCE(intent_id, 0), or
 	COALESCE(baseline_change_id, id), backup, note, recorded_by, created_at, restored_at, restored_by,
 	last_observed, restore_attempts`
 
-const sameResource = `lower(btrim(target)) = lower(btrim($2)) AND lower(btrim(resource)) = lower(btrim($3))`
+const sameResource = `lower(btrim(target)) = lower(btrim($2)) AND target_change_resource_key(resource) = target_change_resource_key($3)`
 
 type rowScanner interface {
 	Scan(dest ...any) error
