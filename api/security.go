@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -48,4 +49,18 @@ func sameOrigin(r *http.Request) bool {
 	}
 	u, err := url.Parse(origin)
 	return err == nil && u.Host != "" && strings.EqualFold(u.Host, r.Host)
+}
+
+// LoopbackHost reports whether r's Host header is localhost or a loopback IP.
+func LoopbackHost(r *http.Request) bool {
+	host := r.Host
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.Trim(host, "[]")
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }

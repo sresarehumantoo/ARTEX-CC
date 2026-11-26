@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -71,24 +73,38 @@ func TestLoopbackHostOnly(t *testing.T) {
 	h := loopbackHostOnly(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
-	for host, allowed := range map[string]bool{
-		"localhost:9400":    true,
-		"LOCALHOST":         true,
-		"127.0.0.1:9400":    true,
-		"127.0.0.2":         true,
-		"[::1]:9400":        true,
-		"[::1]":             true,
-		"evil.example:9400": false,
-		"evil.example":      false,
-		"192.168.1.20:9400": false,
-		"":                  false,
+	loopback := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 9400}
+	loopback6 := &net.TCPAddr{IP: net.IPv6loopback, Port: 9400}
+	remote := &net.TCPAddr{IP: net.IPv4(172, 17, 0, 2), Port: 9400}
+	for _, tt := range []struct {
+		local   net.Addr
+		host    string
+		allowed bool
+	}{
+		{loopback, "localhost:9400", true},
+		{loopback, "LOCALHOST", true},
+		{loopback, "127.0.0.1:9400", true},
+		{loopback, "127.0.0.2", true},
+		{loopback, "[::1]:9400", true},
+		{loopback6, "[::1]", true},
+		{loopback, "evil.example:9400", false},
+		{loopback6, "evil.example", false},
+		{loopback, "192.168.1.20:9400", false},
+		{loopback, "", false},
+		{remote, "artex.example.com", true},
+		{remote, "evil.example:9400", true},
+		{remote, "localhost:9400", true},
+		{nil, "evil.example", true},
 	} {
 		r := httptest.NewRequest("GET", "/api/findings", nil)
-		r.Host = host
+		r.Host = tt.host
+		if tt.local != nil {
+			r = r.WithContext(context.WithValue(r.Context(), http.LocalAddrContextKey, tt.local))
+		}
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
-		if got := w.Code == http.StatusNoContent; got != allowed {
-			t.Errorf("Host %q: status %d, want allowed=%v", host, w.Code, allowed)
+		if got := w.Code == http.StatusNoContent; got != tt.allowed {
+			t.Errorf("local %v Host %q: status %d, want allowed=%v", tt.local, tt.host, w.Code, tt.allowed)
 		}
 	}
 }

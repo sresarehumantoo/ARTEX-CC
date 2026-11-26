@@ -182,16 +182,14 @@ func listenMiddleware(srv *mcpserver.Server, signer *identity.Signer, token stri
 	return middleware
 }
 
-// loopbackHostOnly refuses requests whose Host is not a loopback name, so a
-// DNS-rebound page cannot reach an unauthenticated loopback listener as if it
-// were same-origin.
+// loopbackHostOnly refuses requests that arrived on a loopback address with a
+// Host that is not a loopback name, so a DNS-rebound page cannot reach the
+// listener as if it were same-origin. Connections on other local addresses
+// pass, so remote access by hostname keeps working.
 func loopbackHostOnly(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		host := r.Host
-		if h, _, err := net.SplitHostPort(host); err == nil {
-			host = h
-		}
-		if !isLoopbackAddr(strings.Trim(host, "[]")) {
+		local, _ := r.Context().Value(http.LocalAddrContextKey).(net.Addr)
+		if local != nil && isLoopbackAddr(local.String()) && !api.LoopbackHost(r) {
 			http.Error(w, "host not allowed", http.StatusMisdirectedRequest)
 			return
 		}
@@ -432,10 +430,7 @@ func cmdServe(args []string) {
 		}
 	} else if *webUI {
 		mcpHandler := webMCPHandler(srv, mcpToken, webIdentity)
-		handler := webHandler(mcpHandler, restAPI.Handler())
-		if isLoopbackAddr(*listen) {
-			handler = loopbackHostOnly(handler)
-		}
+		handler := loopbackHostOnly(webHandler(mcpHandler, restAPI.Handler()))
 		httpServer := &http.Server{Addr: *listen, Handler: handler}
 		errCh := make(chan error, 1)
 		go func() { errCh <- httpServer.ListenAndServe() }()
@@ -455,10 +450,7 @@ func cmdServe(args []string) {
 		}
 	} else {
 		middleware := listenMiddleware(srv, loadIdentitySigner(*dataDir), listenToken)
-		if isLoopbackAddr(*listen) {
-			middleware = append(middleware, loopbackHostOnly)
-		}
-		middleware = append(middleware, api.SecurityHeaders)
+		middleware = append(middleware, loopbackHostOnly, api.SecurityHeaders)
 		slog.Info("serving", "addr", *listen, "mcp_auth", listenToken != "")
 		if err := srv.ServeHTTP(ctx, *listen, middleware...); err != nil && ctx.Err() == nil {
 			slog.Error("http server failed", "err", err)
