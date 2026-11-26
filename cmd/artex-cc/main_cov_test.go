@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -600,6 +601,70 @@ func TestCmdInit_FullFlow_Text(t *testing.T) {
 	}
 	if !strings.Contains(out, "mcpServers") {
 		t.Errorf("expected MCP config example in output: %q", out)
+	}
+}
+
+func TestCmdInit_CreatesMissingDataDir(t *testing.T) {
+	dsn := testPGDSN(t)
+	dir := filepath.Join(t.TempDir(), "new", "data")
+	t.Setenv("ARTEX_PG", "")
+
+	captureStdout(t, func() {
+		cmdInit([]string{"--pg", dsn, "--goal", "missing data dir", "--data", dir, "--format", "json"})
+	})
+
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o711 {
+		t.Errorf("data dir mode = %o, want 711", perm)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".artex.json")); err != nil {
+		t.Errorf("config file not created: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "traffic", "_ca", "mitmproxy-ca-cert.pem")); err != nil {
+		t.Errorf("CA certificate not created: %v", err)
+	}
+}
+
+func TestCmdInit_SaveFailureLeavesNoEngagement(t *testing.T) {
+	if args := os.Getenv("ARTEX_TEST_INIT_ARGS"); args != "" {
+		cmdInit(strings.Fields(args))
+		os.Exit(0)
+	}
+	dsn := testPGDSN(t)
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, ".artex.json"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	goal := "orphan-check-" + filepath.Base(filepath.Dir(dir))
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestCmdInit_SaveFailureLeavesNoEngagement$")
+	cmd.Env = append(os.Environ(),
+		"ARTEX_PG="+dsn,
+		"ARTEX_TEST_INIT_ARGS=--goal "+goal+" --data "+dir)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 1 {
+		t.Fatalf("init exited with %v, want status 1; stderr: %s", err, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "failed to save config") {
+		t.Errorf("stderr = %q, want the save failure", stderr.String())
+	}
+
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var n int
+	if err := db.QueryRow(`SELECT count(*) FROM tasks WHERE goal = $1`, goal).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Errorf("%d engagement rows left after a failed init, want 0", n)
 	}
 }
 

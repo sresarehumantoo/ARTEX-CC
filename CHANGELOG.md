@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Fixed
+- `artex-cc init --data DIR` failed with "failed to save config" when `DIR` did not exist, after it had already created the engagement in PostgreSQL, leaving an orphan engagement behind. `init` now creates a missing data directory 0711, as `serve` does, and generates the proxy CA before touching the database. If writing `.artex.json` still fails, the new engagement is deleted again.
+
+### Fixed
 - Files in the data directory were world-readable: `auth.json` (password hash and session key), `mcp_servers.json` (server env values such as API keys), chat conversations and their event logs, approvals, intercept rules, LLM settings, agent presets, skills and `.artex.json` were written 0644 in 0755 directories. They are now written 0600 in 0700 directories. When `serve` has to create the data directory it creates it 0711, so other users can still reach the public CA certificate in `traffic/_ca` without listing anything else; an existing data directory keeps its mode. At the first startup after upgrading, `serve` removes group and other access from the files and directories ARTEX writes in the data directory (`.artex.json`, `identity.key`, `owner-label.key`, `auth.json`, `mcp_servers.json`, `mcp-config.json`, `approvals.json`, `intercept_rules.json`, `chat-mcp/`, `conversations/`, `settings/`, `agents/`, `skills/`, `workspace/` and `evidence/`), skipping symlinks and leaving everything else in the directory alone, then writes `.perms-tightened` so later starts skip the walk. `traffic/` keeps tightening its own tree. Evidence is covered by that walk instead of being rescanned at every startup. The eval runner writes `mcp.json` (which holds the PostgreSQL DSN), its engagement config, transcripts, `server.log` and `coordination.txt` 0600 and creates the transcripts directory 0700.
 
 ### Fixed
