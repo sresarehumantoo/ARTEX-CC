@@ -330,6 +330,17 @@ func Open(dir, addr string) (*Traffic, error) {
 		}
 	}
 	fsperm.TightenOnce(dir, filepath.Join(dir, "_index", permsMarker), "_ca")
+	// go-mitmproxy binds its own listener from Options.Addr and never exposes it,
+	// so a port of 0 is resolved here; otherwise ProxyAddr would hand plugins and
+	// replay a URL ending in ":0".
+	if host, port, err := net.SplitHostPort(addr); err == nil && port == "0" {
+		ln, err := net.Listen("tcp", addr)
+		if err != nil {
+			return nil, err
+		}
+		addr = net.JoinHostPort(host, strconv.Itoa(ln.Addr().(*net.TCPAddr).Port))
+		ln.Close()
+	}
 	// busy_timeout is a per-connection setting, so it belongs in the DSN rather
 	// than in a one-off Exec: the pool opens connections on demand, and an Exec
 	// only configures whichever one happened to serve it — leaving every other
