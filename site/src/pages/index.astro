@@ -2,6 +2,7 @@
 import { analyticsBeacon } from '../analytics.mjs';
 import '../styles/landing.css';
 import '../styles/motion.css';
+import '../styles/landing-motion.css';
 import { Image } from 'astro:assets';
 import { getEntry } from 'astro:content';
 import Command from '../components/Command.astro';
@@ -328,7 +329,7 @@ const install = [
             <div class="border-b border-line px-4 py-3.5 text-neutral-200">
               <span class="text-sky-400">&gt;</span> Pentest example.com, starting with reconnaissance.
             </div>
-            <ol class="px-4 py-4">
+            <ol class="px-4 py-4" data-stream>
               {
                 session.map((s, i) => (
                   <li
@@ -339,7 +340,7 @@ const install = [
                   >
                     <span class="text-[11px] tracking-wider text-neutral-500 uppercase">{s.phase}</span>
                     <span class="flex gap-2.5">
-                      <span class="mt-[9px] size-1.5 shrink-0 rounded-full bg-emerald-400/80" aria-hidden="true"></span>
+                      <span class="mt-[9px] size-1.5 shrink-0 rounded-full bg-emerald-400/80" aria-hidden="true" data-stream-dot></span>
                       <span>
                         <span class="whitespace-nowrap text-sky-300">{s.tool}</span>
                         {s.arg && <span class="text-neutral-500"> ({s.arg})</span>}
@@ -565,6 +566,7 @@ const install = [
 
     <script>
       import '../scripts/motion.ts';
+      import '../scripts/landing-motion.ts';
 
       document.addEventListener('click', async (event) => {
         const button = (event.target as Element).closest<HTMLButtonElement>('button[data-copy]');
