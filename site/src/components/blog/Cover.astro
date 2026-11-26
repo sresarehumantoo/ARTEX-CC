@@ -13,12 +13,13 @@ interface Props {
 const { cover, alt = cover.alt, widths, sizes, loading = 'lazy' } = Astro.props;
 const dark = 'dark' in cover ? cover.dark : cover.image;
 const light = 'light' in cover ? cover.light : undefined;
-const common = { alt, sizes, loading };
+const fetchpriority = loading === 'eager' ? 'high' : undefined;
+const common = { alt, sizes, loading, fetchpriority };
 ---
 
 {
   typeof dark === 'string' ? (
-    <img src={dark} alt={alt} loading={loading} class:list={{ 'light:sl-hidden': light }} />
+    <img src={dark} alt={alt} loading={loading} fetchpriority={fetchpriority} class:list={{ 'light:sl-hidden': light }} />
   ) : (
     <Image src={dark} widths={widths} {...common} class:list={{ 'light:sl-hidden': light }} />
   )
@@ -26,7 +27,7 @@ const common = { alt, sizes, loading };
 {
   light &&
     (typeof light === 'string' ? (
-      <img src={light} alt={alt} loading={loading} class="dark:sl-hidden" />
+      <img src={light} alt={alt} loading={loading} fetchpriority={fetchpriority} class="dark:sl-hidden" />
     ) : (
       <Image src={light} widths={widths} {...common} class="dark:sl-hidden" />
     ))
