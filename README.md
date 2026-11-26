@@ -19,7 +19,7 @@
 
 </div>
 
-ARTEX is an autonomous penetration testing platform that exposes [upstream ARTEX](https://github.com/BaaRai/ARTEX)'s pentest model as MCP tools Claude Code calls through your existing Claude subscription. Asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 63 MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
+ARTEX is an autonomous penetration testing platform that exposes [upstream ARTEX](https://github.com/BaaRai/ARTEX)'s pentest model as MCP tools Claude Code calls through your existing Claude subscription. Asset graph, exploration tracking, finding management, coverage recording, traffic capture, and report generation, exposed as 65 MCP tools. No separate LLM API key, no token budget, no agent loop of its own.
 
 You bring the brain. ARTEX brings the hands.
 
