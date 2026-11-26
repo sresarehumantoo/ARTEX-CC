@@ -6,6 +6,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- CI runs `govulncheck` against the module on every push and pull request.
+
+### Fixed
+- Bumped `github.com/gorilla/websocket` to v1.5.4-0.20240701034025-d67f41855da4 (GO-2026-6278, reached through the recording proxy) and `github.com/klauspost/compress` to v1.20.2 (GO-2026-6865).
+
+### Added
 - Target change journal. `record_target_change` records a change to a target (target, resource, kind, original fingerprint, backup, intent) before it is made; when another unrestored change on the same target and resource exists, it returns a warning naming who recorded it and the baseline, the first recorded original fingerprint, which is what to restore to. `record_target_restore` takes change ids and the fingerprint observed after restoring, and marks changes restored only on an exact match with the baseline; a mismatch is recorded as a failed attempt. `graph_overview` and `list_changes` list `unrestored_target_changes`, `generate_report` has a Target changes section, and engagement export and import carry the journal. The orchestration guide tells agents to record changes before making them and never to report a host restored while unrestored changes remain.
 
 ### Fixed
