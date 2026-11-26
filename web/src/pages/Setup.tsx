@@ -10,6 +10,7 @@ const MIN_LENGTH = 8
 
 export default function Setup() {
   const navigate = useNavigate()
+  const [setupToken, setSetupToken] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
@@ -38,7 +39,7 @@ export default function Setup() {
     setLoading(true)
     setError('')
     try {
-      await initAuth(password)
+      await initAuth(password, setupToken.trim())
       navigate('/', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Setup failed')
@@ -59,6 +60,21 @@ export default function Setup() {
     <AuthShell title="Set a password" description="Choose a password to protect this ARTEX-CC instance.">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="space-y-1.5">
+          <Label htmlFor="setup-token">Setup token</Label>
+          <Input
+            id="setup-token"
+            value={setupToken}
+            onChange={e => setSetupToken(e.target.value)}
+            aria-describedby="setup-token-hint"
+            autoFocus
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <p id="setup-token-hint" className="text-xs text-muted-foreground">
+            Printed in the server logs at startup (<code>docker compose logs artex</code> for Docker).
+          </p>
+        </div>
+        <div className="space-y-1.5">
           <Label htmlFor="password">Set password</Label>
           <Input
             id="password"
@@ -67,7 +83,6 @@ export default function Setup() {
             onChange={e => setPassword(e.target.value)}
             placeholder={`At least ${MIN_LENGTH} characters`}
             minLength={MIN_LENGTH}
-            autoFocus
             autoComplete="new-password"
           />
         </div>
@@ -83,7 +98,7 @@ export default function Setup() {
           />
         </div>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        <Button type="submit" className="w-full" disabled={loading || !password || !confirm}>
+        <Button type="submit" className="w-full" disabled={loading || !setupToken.trim() || !password || !confirm}>
           {loading ? 'Saving...' : 'Set password'}
         </Button>
       </form>

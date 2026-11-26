@@ -26,8 +26,8 @@ export function login(password: string): Promise<void> {
   return post('/api/auth/login', { password }, 'Login failed')
 }
 
-export function initAuth(password: string): Promise<void> {
-  return post('/api/auth/init', { password }, 'Setup failed')
+export function initAuth(password: string, setupToken: string): Promise<void> {
+  return post('/api/auth/init', { password, setup_token: setupToken }, 'Setup failed')
 }
 
 export function changePassword(current: string, newPassword: string): Promise<void> {
