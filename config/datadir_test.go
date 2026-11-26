@@ -17,6 +17,10 @@ func TestPrepareDataDirTightensOnce(t *testing.T) {
 	files := map[string]os.FileMode{
 		".artex.json":                       0o644,
 		"auth.json":                         0o644,
+		"auth.json.tmp":                     0o644,
+		"README.md":                         0o644,
+		"src/main.go":                       0o644,
+		"scripts/run.sh":                    0o755,
 		"conversations/c1/events.jsonl":     0o644,
 		"evidence/1/ev1_req.txt":            0o644,
 		"workspace/run.sh":                  0o755,
@@ -30,6 +34,8 @@ func TestPrepareDataDirTightensOnce(t *testing.T) {
 		"evidence":         0o755,
 		"evidence/1":       0o755,
 		"workspace":        0o755,
+		"src":              0o755,
+		"scripts":          0o755,
 		"traffic":          0o755,
 		"traffic/_ca":      0o755,
 		"traffic/_index":   0o755,
@@ -48,9 +54,15 @@ func TestPrepareDataDirTightensOnce(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(dir, "conversations", "c1", "link")); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.Symlink(filepath.Dir(outside), filepath.Join(dir, "skills")); err != nil {
+		t.Fatal(err)
+	}
 	chmodAll(t, dir, files)
 	chmodAll(t, dir, dirs)
 	if err := os.Chmod(outside, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(filepath.Dir(outside), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -59,9 +71,15 @@ func TestPrepareDataDirTightensOnce(t *testing.T) {
 	}
 
 	for p, want := range map[string]os.FileMode{
-		"":                                  0o711,
+		"":                                  0o755,
 		".artex.json":                       0o600,
 		"auth.json":                         0o600,
+		"auth.json.tmp":                     0o600,
+		"README.md":                         0o644,
+		"src":                               0o755,
+		"src/main.go":                       0o644,
+		"scripts":                           0o755,
+		"scripts/run.sh":                    0o755,
 		"conversations":                     0o700,
 		"conversations/c1":                  0o700,
 		"conversations/c1/events.jsonl":     0o600,
@@ -79,6 +97,7 @@ func TestPrepareDataDirTightensOnce(t *testing.T) {
 		assertPerm(t, filepath.Join(dir, p), want)
 	}
 	assertPerm(t, outside, 0o644)
+	assertPerm(t, filepath.Dir(outside), 0o755)
 
 	if err := os.Chmod(filepath.Join(dir, "auth.json"), 0o644); err != nil {
 		t.Fatal(err)
@@ -89,7 +108,7 @@ func TestPrepareDataDirTightensOnce(t *testing.T) {
 	assertPerm(t, filepath.Join(dir, "auth.json"), 0o644)
 }
 
-func TestPrepareDataDirCreatesTraversableRoot(t *testing.T) {
+func TestPrepareDataDirChmodsOnlyARootItCreates(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX permissions not enforced on Windows")
 	}
@@ -100,6 +119,17 @@ func TestPrepareDataDirCreatesTraversableRoot(t *testing.T) {
 	}
 	assertPerm(t, dir, 0o711)
 	assertPerm(t, filepath.Join(dir, permsMarkerFile), 0o600)
+
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(dir, permsMarkerFile)); err != nil {
+		t.Fatal(err)
+	}
+	if err := PrepareDataDir(dir); err != nil {
+		t.Fatal(err)
+	}
+	assertPerm(t, dir, 0o700)
 }
 
 func chmodAll(t *testing.T, dir string, modes map[string]os.FileMode) {
