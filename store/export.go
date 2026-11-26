@@ -77,6 +77,15 @@ func (s *Store) ExportEngagementData(ctx context.Context, taskID int64) (*tools.
 	}
 	export.Scope = scope
 
+	if task.CompanyID != nil {
+		export.CompanyID = *task.CompanyID
+	}
+	companies, err := s.exportCompanies(ctx, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("export companies: %w", err)
+	}
+	export.Companies = companies
+
 	changes, err := s.ListTargetChanges(ctx, explorationID, false)
 	if err != nil {
 		return nil, fmt.Errorf("export target changes: %w", err)
@@ -217,7 +226,7 @@ func (s *Store) exportConstraints(ctx context.Context, explorationID int64) ([]m
 func (s *Store) exportAssets(ctx context.Context, taskID int64) ([]map[string]any, error) {
 	rows, err := s.QueryContext(ctx,
 		`SELECT id, type, domain, root_domain, ip, port, url, service_type, service_name,
-			bundle_id, app_name, method, technologies, extra
+			bundle_id, app_name, method, technologies, extra, company_id, company_source
 		 FROM assets WHERE $1 = ANY(task_ids)
 		 ORDER BY id`, taskID)
 	if err != nil {
@@ -234,11 +243,18 @@ func (s *Store) exportAssets(ctx context.Context, taskID int64) ([]map[string]an
 		var port sql.NullInt32
 		var technologies stringArray
 		var extra []byte
+		var companyID sql.NullInt64
+		var companySource string
 		if err := rows.Scan(&id, &assetType, &domain, &rootDomain, &ip, &port,
-			&urlVal, &svcType, &svcName, &bundleID, &appName, &method, &technologies, &extra); err != nil {
+			&urlVal, &svcType, &svcName, &bundleID, &appName, &method, &technologies, &extra,
+			&companyID, &companySource); err != nil {
 			return nil, err
 		}
 		m := map[string]any{"id": id, "type": assetType}
+		if companyID.Valid {
+			m["company_id"] = companyID.Int64
+			m["company_source"] = companySource
+		}
 		if domain.Valid && domain.String != "" {
 			m["domain"] = domain.String
 		}
@@ -412,8 +428,10 @@ func (s *Store) exportCoverage(ctx context.Context, taskID int64) ([]map[string]
 
 func (s *Store) exportScope(ctx context.Context, taskID int64) ([]map[string]any, error) {
 	rows, err := s.QueryContext(ctx,
-		`SELECT kind, domain, COALESCE(net::text, ''), value, source, COALESCE(reason, '')
-		 FROM task_scope WHERE task_id = $1 ORDER BY id`, taskID)
+		`SELECT ts.kind, COALESCE(ts.domain, ''), COALESCE(ts.net::text, ''), COALESCE(ts.value, ''),
+			ts.company_id, COALESCE(c.name, ''), ts.source, COALESCE(ts.reason, '')
+		 FROM task_scope ts LEFT JOIN companies c ON c.id = ts.company_id
+		 WHERE ts.task_id = $1 ORDER BY ts.id`, taskID)
 	if err != nil {
 		return nil, err
 	}
@@ -421,8 +439,9 @@ func (s *Store) exportScope(ctx context.Context, taskID int64) ([]map[string]any
 
 	var out []map[string]any
 	for rows.Next() {
-		var kind, domain, netStr, value, source, reason string
-		if err := rows.Scan(&kind, &domain, &netStr, &value, &source, &reason); err != nil {
+		var kind, domain, netStr, value, companyName, source, reason string
+		var companyID sql.NullInt64
+		if err := rows.Scan(&kind, &domain, &netStr, &value, &companyID, &companyName, &source, &reason); err != nil {
 			return nil, err
 		}
 		m := map[string]any{"kind": kind, "source": source}
@@ -432,6 +451,11 @@ func (s *Store) exportScope(ctx context.Context, taskID int64) ([]map[string]any
 			m["value"] = netStr
 		} else if value != "" {
 			m["value"] = value
+		} else if companyName != "" {
+			m["value"] = companyName
+		}
+		if companyID.Valid {
+			m["company_id"] = companyID.Int64
 		}
 		if reason != "" {
 			m["reason"] = reason
@@ -439,6 +463,63 @@ func (s *Store) exportScope(ctx context.Context, taskID int64) ([]map[string]any
 		out = append(out, m)
 	}
 	return out, rows.Err()
+}
+
+func (s *Store) exportCompanies(ctx context.Context, taskID int64) ([]map[string]any, error) {
+	rows, err := s.QueryContext(ctx,
+		`SELECT id, name, COALESCE(logo, '') FROM companies WHERE id IN (
+			SELECT company_id FROM task_scope WHERE task_id = $1
+			UNION SELECT company_id FROM assets WHERE $1 = ANY(task_ids)
+			UNION SELECT company_id FROM tasks WHERE id = $1
+		 ) ORDER BY id`, taskID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []map[string]any
+	for rows.Next() {
+		var id int64
+		var name, logo string
+		if err := rows.Scan(&id, &name, &logo); err != nil {
+			return nil, err
+		}
+		m := map[string]any{"id": id, "name": name}
+		if logo != "" {
+			m["logo"] = logo
+		}
+		out = append(out, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for _, m := range out {
+		rules, err := s.ListCompanyScope(m["id"].(int64))
+		if err != nil {
+			return nil, err
+		}
+		var scope []map[string]any
+		for _, r := range rules {
+			line := map[string]any{"kind": r.Kind, "raw": r.Raw}
+			switch {
+			case r.Domain != "":
+				line["value"] = r.Domain
+			case r.Net != "":
+				line["value"] = r.Net
+			default:
+				line["value"] = r.Value
+			}
+			if r.Reason != "" {
+				line["reason"] = r.Reason
+			}
+			scope = append(scope, line)
+		}
+		if len(scope) > 0 {
+			m["scope"] = scope
+		}
+	}
+	return out, nil
 }
 
 func (s *Store) ImportEngagementData(ctx context.Context, data *tools.EngagementExport) (int64, int64, error) {
@@ -460,10 +541,58 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 		return 0, 0, fmt.Errorf("create exploration: %w", err)
 	}
 
+	companyIDMap := map[int64]int64{}
+	for _, c := range data.Companies {
+		oldID := exportMapInt64(c, "id")
+		name := strings.TrimSpace(exportMapString(c, "name"))
+		if name == "" {
+			return 0, 0, fmt.Errorf("import company (old id %d): name is required", oldID)
+		}
+		var newID int64
+		if err := tx.QueryRowContext(ctx,
+			`INSERT INTO companies(name, nkey, logo) VALUES ($1, $2, NULLIF($3,''))
+			 ON CONFLICT (nkey) DO UPDATE SET logo = COALESCE(NULLIF(EXCLUDED.logo,''), companies.logo)
+			 RETURNING id`,
+			name, companyNKey(name), exportMapString(c, "logo"),
+		).Scan(&newID); err != nil {
+			return 0, 0, fmt.Errorf("import company %q: %w", name, err)
+		}
+		if oldID > 0 {
+			companyIDMap[oldID] = newID
+		}
+		lines, _ := c["scope"].([]any)
+		for _, l := range lines {
+			line, _ := l.(map[string]any)
+			kind := exportMapString(line, "kind")
+			value := exportMapString(line, "value")
+			raw := exportMapString(line, "raw")
+			if raw == "" {
+				raw = value
+			}
+			var domainVal, netVal, valueVal any
+			switch kind {
+			case "domain":
+				domainVal = value
+			case "ip", "cidr":
+				netVal = value
+			default:
+				valueVal = value
+			}
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO company_scope(company_id, kind, domain, net, value, raw, reason)
+				 VALUES ($1, $2, $3, $4::cidr, $5, $6, NULLIF($7, ''))
+				 ON CONFLICT DO NOTHING`,
+				newID, kind, domainVal, netVal, valueVal, raw, exportMapString(line, "reason"),
+			); err != nil {
+				return 0, 0, fmt.Errorf("import company %q scope %q: %w", name, raw, err)
+			}
+		}
+	}
+
 	var taskID int64
 	if err := tx.QueryRowContext(ctx,
-		`INSERT INTO tasks(name, description, goal, exploration_id) VALUES ($1, $2, $3, $4) RETURNING id`,
-		data.Goal, data.Description, data.Goal, explorationID,
+		`INSERT INTO tasks(name, description, goal, exploration_id, company_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		data.Goal, data.Description, data.Goal, explorationID, nullID(companyIDMap[data.CompanyID]),
 	).Scan(&taskID); err != nil {
 		return 0, 0, fmt.Errorf("create task: %w", err)
 	}
@@ -507,6 +636,15 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 		}
 		if oldID > 0 {
 			assetIDMap[oldID] = id
+		}
+		if companyID := companyIDMap[exportMapInt64(a, "company_id")]; companyID > 0 {
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE assets SET company_id = $1, company_source = COALESCE(NULLIF($2, ''), 'explicit')
+				 WHERE id = $3 AND company_id IS NULL`,
+				companyID, exportMapString(a, "company_source"), id,
+			); err != nil {
+				return 0, 0, fmt.Errorf("import asset company (old id %d): %w", oldID, err)
+			}
 		}
 		assetURLs = append(assetURLs, input.URL)
 	}
@@ -670,8 +808,14 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 		if kind == "" || value == "" {
 			continue
 		}
-		var domainVal, netVal, valueVal any
+		var domainVal, netVal, valueVal, companyVal any
 		switch kind {
+		case "company":
+			companyID := companyIDMap[exportMapInt64(sc, "company_id")]
+			if companyID == 0 {
+				return 0, 0, fmt.Errorf("import scope: company %q is not in the export's companies", value)
+			}
+			companyVal = companyID
 		case "root_domain", "subdomain":
 			domainVal = value
 		case "ip", "cidr":
@@ -680,10 +824,10 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 			valueVal = value
 		}
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO task_scope(task_id, kind, domain, net, value, source, reason)
-			 VALUES ($1, $2, $3, $4::cidr, $5, $6, NULLIF($7, ''))
+			`INSERT INTO task_scope(task_id, kind, company_id, domain, net, value, source, reason)
+			 VALUES ($1, $2, $3, $4, $5::cidr, $6, $7, NULLIF($8, ''))
 			 ON CONFLICT DO NOTHING`,
-			taskID, kind, domainVal, netVal, valueVal, source, reason,
+			taskID, kind, companyVal, domainVal, netVal, valueVal, source, reason,
 		); err != nil {
 			return 0, 0, fmt.Errorf("import scope: %w", err)
 		}
