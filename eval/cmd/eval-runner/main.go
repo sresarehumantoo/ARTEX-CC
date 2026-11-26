@@ -241,7 +241,7 @@ func main() {
 			scorecard.Coordination = coord
 			summary := coord.Summary()
 			fmt.Fprint(os.Stderr, "\n"+summary+"\n")
-			if err := os.WriteFile(filepath.Join(rc.transcriptsDir, "coordination.txt"), []byte(summary), 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(rc.transcriptsDir, "coordination.txt"), []byte(summary), 0600); err != nil {
 				slog.Warn("failed to write coordination summary", "err", err)
 			}
 		}
@@ -339,7 +339,7 @@ func writeEngagementConfig(dir string, taskID, explorationID int64, sc Scenario)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, ".artex.json"), data, 0644)
+	return os.WriteFile(filepath.Join(dir, ".artex.json"), data, 0600)
 }
 
 func score(ctx context.Context, s *store.Store, explorationID, taskID int64, sc Scenario, startedAt, finishedAt time.Time, timedOut bool) (*Scorecard, error) {

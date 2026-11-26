@@ -25,7 +25,7 @@ func loadOrCreateKey(dataDir, name string) ([]byte, error) {
 	if err == nil || !errors.Is(err, os.ErrNotExist) {
 		return key, err
 	}
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+	if err := os.MkdirAll(dataDir, 0o711); err != nil {
 		return nil, err
 	}
 	key = make([]byte, 32)

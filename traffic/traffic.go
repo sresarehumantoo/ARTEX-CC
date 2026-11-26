@@ -31,6 +31,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/SREsAreHumanToo/ARTEX-CC/internal/fsperm"
 	"github.com/SREsAreHumanToo/ARTEX-CC/traffic/rewrite"
 	mproxy "github.com/lqqyt2423/go-mitmproxy/proxy"
 	_ "modernc.org/sqlite"
@@ -328,7 +329,7 @@ func Open(dir, addr string) (*Traffic, error) {
 			return nil, err
 		}
 	}
-	tightenTree(dir)
+	fsperm.TightenOnce(dir, filepath.Join(dir, "_index", permsMarker), "_ca")
 	// busy_timeout is a per-connection setting, so it belongs in the DSN rather
 	// than in a one-off Exec: the pool opens connections on demand, and an Exec
 	// only configures whichever one happened to serve it — leaving every other
@@ -877,70 +878,11 @@ type storedBody struct {
 	index  string
 }
 
-// permsMarker, under _index, records that tightenTree finished, so later starts
-// skip the walk; everything written since is created owner-only.
+// permsMarker, under _index, records that the one-time tightening of what
+// earlier versions wrote (0755 directories, 0644 files, including legacy host
+// trees of captured headers and bodies) finished. _ca is left alone: the CA
+// certificate in it must stay readable.
 const permsMarker = "perms-tightened"
-
-// tightenTree restricts what earlier versions wrote under the traffic directory
-// (0755 directories, 0644 files, including legacy host trees of captured headers
-// and bodies) to the owner, since it can hold credentials. _ca is left alone:
-// the CA certificate in it must stay readable.
-func tightenTree(dir string) {
-	marker := filepath.Join(dir, "_index", permsMarker)
-	if _, err := os.Stat(marker); err == nil {
-		return
-	}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		slog.Warn("failed to restrict traffic file permissions", "path", dir, "err", err)
-		return
-	}
-	ok := true
-	for _, e := range entries {
-		if e.Name() != "_ca" && !tightenPerms(filepath.Join(dir, e.Name())) {
-			ok = false
-		}
-	}
-	if ok {
-		if err := os.WriteFile(marker, nil, 0o600); err != nil {
-			slog.Warn("failed to record traffic permission tightening", "err", err)
-		}
-	}
-}
-
-// tightenPerms restricts one tree to the owner, skipping symlinks. It reports
-// whether every entry was reached and restricted.
-func tightenPerms(root string) bool {
-	ok := true
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			ok = false
-			return nil
-		}
-		if d.Type()&fs.ModeSymlink != 0 {
-			return nil
-		}
-		info, err := d.Info()
-		if err != nil {
-			ok = false
-			return nil
-		}
-		want := fs.FileMode(0o600)
-		if d.IsDir() {
-			want = 0o700
-		} else if !info.Mode().IsRegular() {
-			return nil
-		}
-		if info.Mode().Perm() != want {
-			if err := os.Chmod(path, want); err != nil {
-				slog.Warn("failed to restrict traffic file permissions", "path", path, "err", err)
-				ok = false
-			}
-		}
-		return nil
-	})
-	return ok
-}
 
 // spill decides where one body lives. Small bodies stay inline. Large ones are
 // written to the content-addressed store and keep a readable preview inline so a

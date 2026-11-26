@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -76,5 +77,23 @@ func TestRoundtrip(t *testing.T) {
 	}
 	if loaded != original {
 		t.Errorf("roundtrip mismatch:\n  got:  %+v\n  want: %+v", loaded, original)
+	}
+}
+
+func TestSaveEngagementOwnerOnly(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX permissions not enforced on Windows")
+	}
+	t.Parallel()
+	dir := t.TempDir()
+	if err := SaveEngagement(dir, EngagementConfig{TaskID: 1}); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(filepath.Join(dir, engagementFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("mode %o, want 600", got)
 	}
 }

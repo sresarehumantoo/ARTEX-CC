@@ -58,11 +58,11 @@ func (fs *FileStore) WriteJSON(path string, v any) error {
 	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		return err
 	}
 	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return err
 	}
 	if err := os.Rename(tmp, p); err != nil {
@@ -83,10 +83,10 @@ func (fs *FileStore) AppendJSONL(path string, v any) error {
 	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -192,6 +193,36 @@ func TestRunInstancesStdioUnchanged(t *testing.T) {
 		if strings.Contains(r.Prompt, "owner") {
 			t.Errorf("stdio prompt asks for an owner: %s", r.Prompt)
 		}
+	}
+}
+
+func TestRunInstancesWritesOwnerOnly(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX permissions not enforced on Windows")
+	}
+	for _, transport := range []string{"stdio", "http"} {
+		t.Run(transport, func(t *testing.T) {
+			rc, runs, _ := runFake(t, transport, false)
+			paths := map[string]os.FileMode{
+				filepath.Join(rc.dataDir, "mcp.json"): 0o600,
+				rc.transcriptsDir:                     0o700,
+			}
+			for _, r := range runs {
+				paths[r.Run.Transcript] = 0o600
+			}
+			if transport == "http" {
+				paths[filepath.Join(rc.transcriptsDir, "server.log")] = 0o600
+			}
+			for path, want := range paths {
+				info, err := os.Stat(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got := info.Mode().Perm(); got != want {
+					t.Errorf("%s mode %o, want %o", path, got, want)
+				}
+			}
+		})
 	}
 }
 
