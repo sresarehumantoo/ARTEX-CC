@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -57,7 +58,10 @@ func TestBuildPrompt(t *testing.T) {
 	sc := Scenario{Target: "http://localhost:8083", Goal: "find bugs"}
 	single := buildPrompt(sc, 1, 1, false)
 	if strings.Contains(single, "instance") || strings.Contains(single, "owner") {
-		t.Fatalf("single stdio prompt must stay unchanged: %s", single)
+		t.Fatalf("single stdio prompt must not mention instances or owners: %s", single)
+	}
+	if !strings.HasSuffix(single, " Keep scratch files (scripts, payloads, downloads, keys) in $TMPDIR, not /tmp.") {
+		t.Fatalf("single prompt lacks the scratch line: %s", single)
 	}
 	multi := buildPrompt(sc, 2, 3, false)
 	if !strings.HasPrefix(multi, single) || !strings.Contains(multi, "You are instance 2 of 3;") {
@@ -223,5 +227,61 @@ func TestScopeKind(t *testing.T) {
 		if got := scopeKind(entry); got != want {
 			t.Errorf("scopeKind(%q) = %q, want %q", entry, got, want)
 		}
+	}
+}
+
+func TestInstanceEnv(t *testing.T) {
+	t.Setenv("TMPDIR", "/tmp")
+	lookup := func(env []string, key string) string {
+		v := "unset"
+		for _, kv := range env {
+			if s, ok := strings.CutPrefix(kv, key+"="); ok {
+				v = s
+			}
+		}
+		return v
+	}
+	rc := runConfig{transport: "stdio", lease: "2m", extraEnv: []string{"TELEPORT_HOME=/empty"}}
+	env := instanceEnv(rc, "/runs/t/tmp-instance-1")
+	for _, k := range []string{"TMPDIR", "TMP", "TEMP"} {
+		if got := lookup(env, k); got != "/runs/t/tmp-instance-1" {
+			t.Errorf("%s = %q", k, got)
+		}
+	}
+	if lookup(env, "TELEPORT_HOME") != "/empty" || lookup(env, "ARTEX_INTENT_LEASE") != "2m" || lookup(env, "ARTEX_REQUIRE_IDENTITY") != "" {
+		t.Errorf("--env or serve env lost: %v", env)
+	}
+	rc.extraEnv = append(rc.extraEnv, "TMPDIR=/scratch")
+	if got := lookup(instanceEnv(rc, "/runs/t/tmp-instance-1"), "TMPDIR"); got != "/scratch" {
+		t.Errorf("--env TMPDIR should win, got %q", got)
+	}
+}
+
+func TestScanScratch(t *testing.T) {
+	dir := t.TempDir()
+	for i := range scratchListCap + 5 {
+		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("f%03d.ps1", i)), []byte("x"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rsa := "junk\n-----BEGIN RSA PRIVATE KEY-----\nMIIE\n-----END RSA PRIVATE KEY-----\n"
+	if err := os.WriteFile(filepath.Join(dir, "a.key"), []byte(rsa), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "pub.pem"), []byte("-----BEGIN PUBLIC KEY-----\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(dir, "a.key"), filepath.Join(dir, "link")); err != nil {
+		t.Fatal(err)
+	}
+	s := scanScratch(dir)
+	if s.Files != scratchListCap+8 || len(s.Listed) != scratchListCap || s.Listed[0].Path != "a.key" {
+		t.Fatalf("files %d, listed %d, first %+v", s.Files, len(s.Listed), s.Listed[0])
+	}
+	if len(s.PrivateKeys) != 1 || s.PrivateKeys[0] != "a.key" {
+		t.Fatalf("private keys: %v", s.PrivateKeys)
+	}
+	if empty := scanScratch(filepath.Join(dir, "missing")); empty.Files != 0 {
+		t.Fatalf("missing dir: %+v", empty)
 	}
 }
