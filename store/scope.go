@@ -66,13 +66,13 @@ func (s *Store) AddTaskScope(ctx context.Context, taskID int64, kind, value, rea
 		if root == "" {
 			root = d
 		}
-		if root == "" {
+		if root == "" || strings.Contains(d, "*") {
 			return fmt.Errorf("invalid root domain: %s", value)
 		}
 		ts.Domain = root
 	case "subdomain":
 		d := DomainKey(stripHostPort(value))
-		if d == "" {
+		if base := strings.TrimPrefix(d, "*."); base == "" || strings.Contains(base, "*") {
 			return fmt.Errorf("invalid subdomain: %s", value)
 		}
 		ts.Domain = d
@@ -326,6 +326,9 @@ func parseScopeCheckRule(kind, domain, netStr string) *scopeCheckRule {
 func matchesDomain(target, rule string) bool {
 	target = strings.ToLower(target)
 	rule = strings.ToLower(rule)
+	if base, ok := strings.CutPrefix(rule, "*."); ok {
+		return strings.HasSuffix(target, "."+base)
+	}
 	if target == rule {
 		return true
 	}

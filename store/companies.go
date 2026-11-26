@@ -173,8 +173,7 @@ func ParseScopeLine(kind, value string) (*ScopeRule, error) {
 	switch kind {
 	case "domain":
 		d := strings.ToLower(strings.TrimSuffix(value, "."))
-		d = strings.TrimPrefix(d, "*.")
-		if d == "" || strings.ContainsAny(d, " \t/*") {
+		if base := strings.TrimPrefix(d, "*."); base == "" || strings.ContainsAny(base, " \t/*") {
 			return nil, fmt.Errorf("invalid domain: %s", value)
 		}
 		r.Domain = d

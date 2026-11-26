@@ -776,3 +776,40 @@ func TestSaveCredentialDomainKey(t *testing.T) {
 		t.Errorf("credentials = %+v, want one %s/admin with password two", creds, host)
 	}
 }
+
+func TestIsInScopeWildcardDomainDB(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, _ := testEngagement(t, s, "wildcard-scope")
+
+	companyID, err := s.GetOrCreateCompany(ctx, fmt.Sprintf("wildcard-scope-%d", taskID), "")
+	if err != nil {
+		t.Fatalf("GetOrCreateCompany: %v", err)
+	}
+	if _, _, _, _, err := s.AddCompanyScope(ctx, companyID, []string{"*.wild-scope.example"}, "test"); err != nil {
+		t.Fatalf("AddCompanyScope: %v", err)
+	}
+	if _, err := s.ExecContext(ctx, `UPDATE tasks SET company_id = $1 WHERE id = $2`, companyID, taskID); err != nil {
+		t.Fatalf("set task company: %v", err)
+	}
+
+	tests := []struct {
+		target string
+		want   bool
+	}{
+		{"wild-scope.example", false},
+		{"api.wild-scope.example", true},
+		{"https://a.b.wild-scope.example/login", true},
+		{"badwild-scope.example", false},
+	}
+	for _, tt := range tests {
+		got, reason, _, err := s.IsInScope(ctx, taskID, tt.target)
+		if err != nil {
+			t.Fatalf("IsInScope(%q): %v", tt.target, err)
+		}
+		if got != tt.want {
+			t.Errorf("IsInScope(%q) = %v (%s), want %v", tt.target, got, reason, tt.want)
+		}
+	}
+}
