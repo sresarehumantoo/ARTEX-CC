@@ -413,6 +413,10 @@ func TestMergeFindingsMock(t *testing.T) {
 
 	mock.ExpectBegin()
 
+	mock.ExpectQuery(`SELECT merged_into FROM findings WHERE id`).
+		WithArgs(int64(10)).
+		WillReturnRows(sqlmock.NewRows([]string{"merged_into"}).AddRow(nil))
+
 	mock.ExpectQuery(`SELECT .+ FROM findings WHERE id = .+ FOR UPDATE`).
 		WithArgs(int64(10)).
 		WillReturnRows(sqlmock.NewRows([]string{

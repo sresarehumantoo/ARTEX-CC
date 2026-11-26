@@ -341,3 +341,41 @@ func TestMergeIntoDismissedRootFails(t *testing.T) {
 		t.Errorf("c changed: merged_into = %v dismissed = %v", into, dismissed)
 	}
 }
+
+func TestConcurrentMergesAlongChainDoNotDeadlock(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "merge-chain-race")
+
+	for round := range 40 {
+		low, _ := addTestFinding(t, s, taskID, expID)
+		mid, _ := addTestFinding(t, s, taskID, expID)
+		high, _ := addTestFinding(t, s, taskID, expID)
+		if _, err := s.MergeFindings(ctx, low, []int64{mid}); err != nil {
+			t.Fatalf("round %d: merge mid into low: %v", round, err)
+		}
+
+		start := make(chan struct{})
+		errs := make(chan error, 2)
+		var wg sync.WaitGroup
+		for _, m := range [][2]int64{{mid, high}, {low, mid}} {
+			wg.Go(func() {
+				<-start
+				_, err := s.MergeFindings(ctx, m[0], []int64{m[1]})
+				errs <- err
+			})
+		}
+		close(start)
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			if err != nil {
+				t.Fatalf("round %d: MergeFindings: %v", round, err)
+			}
+		}
+		if into, _ := findingState(t, s, high); into == nil || *into != low {
+			t.Fatalf("round %d: high merged_into = %v, want %d", round, into, low)
+		}
+	}
+}

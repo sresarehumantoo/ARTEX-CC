@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -285,15 +286,61 @@ func lockFindingTx(ctx context.Context, tx *sql.Tx, id int64) (*Finding, error) 
 // finding reached by following merged_into. Secondaries that are already
 // merged, dismissed or the root itself are skipped and reported.
 func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs []int64) (*tools.MergedFinding, error) {
+	for range mergeAttempts - 1 {
+		out, err := s.mergeFindings(ctx, primaryID, secondaryIDs)
+		if !errors.Is(err, errMergeChainChanged) {
+			return out, err
+		}
+	}
+	out, err := s.mergeFindings(ctx, primaryID, secondaryIDs)
+	if errors.Is(err, errMergeChainChanged) {
+		return nil, fmt.Errorf("merge chain of finding %d kept changing during %d attempts; retry the merge", primaryID, mergeAttempts)
+	}
+	return out, err
+}
+
+const mergeAttempts = 5
+
+var errMergeChainChanged = errors.New("merge chain changed")
+
+// mergeChain returns the merged_into chain above id, read without locks. It
+// stops at a missing finding or a repeated id, leaving those errors to the
+// locked walk.
+func mergeChain(ctx context.Context, tx *sql.Tx, id int64) ([]int64, error) {
+	var chain []int64
+	seen := map[int64]bool{id: true}
+	for {
+		var next sql.NullInt64
+		err := tx.QueryRowContext(ctx, "SELECT merged_into FROM findings WHERE id = $1", id).Scan(&next)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && (!next.Valid || seen[next.Int64])) {
+			return chain, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("merge chain of finding %d: %w", id, err)
+		}
+		id = next.Int64
+		seen[id] = true
+		chain = append(chain, id)
+	}
+}
+
+func (s *Store) mergeFindings(ctx context.Context, primaryID int64, secondaryIDs []int64) (*tools.MergedFinding, error) {
 	tx, err := s.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	// Locking in id order serializes concurrent merges of the same findings,
-	// so two opposite merges cannot both commit and leave neither live.
+	chain, err := mergeChain(ctx, tx, primaryID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Locking the requested findings and the primary's chain in one id order
+	// serializes concurrent merges over them without deadlocking, so two
+	// opposite merges cannot both commit and leave neither live.
 	ids := append([]int64{primaryID}, secondaryIDs...)
+	ids = append(ids, chain...)
 	slices.Sort(ids)
 	ids = slices.Compact(ids)
 	locked := make(map[int64]*Finding, len(ids))
@@ -303,7 +350,10 @@ func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs
 			if id == primaryID {
 				return nil, fmt.Errorf("primary finding %d: %w", id, err)
 			}
-			return nil, fmt.Errorf("secondary finding %d: %w", id, err)
+			if slices.Contains(secondaryIDs, id) {
+				return nil, fmt.Errorf("secondary finding %d: %w", id, err)
+			}
+			return nil, fmt.Errorf("finding %d (merge target of %d): %w", id, primaryID, err)
 		}
 		locked[id] = f
 	}
@@ -317,11 +367,7 @@ func (s *Store) MergeFindings(ctx context.Context, primaryID int64, secondaryIDs
 		}
 		seen[next] = true
 		if locked[next] == nil {
-			f, err := lockFindingTx(ctx, tx, next)
-			if err != nil {
-				return nil, fmt.Errorf("finding %d (merge target of %d): %w", next, primary.ID, err)
-			}
-			locked[next] = f
+			return nil, errMergeChainChanged
 		}
 		primary = locked[next]
 	}
