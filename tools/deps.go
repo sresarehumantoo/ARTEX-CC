@@ -224,6 +224,16 @@ type MergedFinding struct {
 	Evidence  string  `json:"evidence"`
 	AssetIDs  []int64 `json:"asset_ids"`
 	Status    string  `json:"status"`
+	// RequestedPrimaryID is set when the requested primary was already merged
+	// and ID is the live finding it resolved to.
+	RequestedPrimaryID int64            `json:"requested_primary_id,omitempty"`
+	Skipped            []SkippedFinding `json:"skipped,omitempty"`
+}
+
+// SkippedFinding is a secondary that a merge left untouched.
+type SkippedFinding struct {
+	ID     int64  `json:"id"`
+	Reason string `json:"reason"`
 }
 
 // Overview is aggregated exploration state returned by GraphOverview.

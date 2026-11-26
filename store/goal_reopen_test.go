@@ -3,6 +3,9 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
+	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -197,5 +200,259 @@ func TestProveGoalRefusesDeadFinding(t *testing.T) {
 	}
 	if got := goalState(t, s, goal); got != "met" {
 		t.Errorf("goal state = %q, want met", got)
+	}
+}
+
+func findingState(t *testing.T, s *Store, id int64) (mergedInto *int64, dismissed bool) {
+	t.Helper()
+	if err := s.QueryRowContext(context.Background(),
+		`SELECT merged_into, dismissed FROM findings WHERE id = $1`, id,
+	).Scan(&mergedInto, &dismissed); err != nil {
+		t.Fatalf("finding %d: %v", id, err)
+	}
+	return mergedInto, dismissed
+}
+
+func TestConcurrentOppositeMergesLeaveOneLive(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	for i := range 10 {
+		taskID, expID := testEngagement(t, s, fmt.Sprintf("merge-race-%d", i))
+		a, aNode := addTestFinding(t, s, taskID, expID)
+		b, bNode := addTestFinding(t, s, taskID, expID)
+		goal := provedGoal(t, s, expID, aNode, bNode)
+
+		var wg sync.WaitGroup
+		errs := make([]error, 2)
+		for j, pair := range [][2]int64{{a, b}, {b, a}} {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, errs[j] = s.MergeFindings(ctx, pair[0], []int64{pair[1]})
+			}()
+		}
+		wg.Wait()
+		for _, err := range errs {
+			if err != nil {
+				t.Fatalf("round %d: MergeFindings: %v", i, err)
+			}
+		}
+
+		live := 0
+		for _, f := range []int64{a, b} {
+			if merged, dismissed := findingState(t, s, f); merged == nil && !dismissed {
+				live++
+			}
+		}
+		if live != 1 {
+			t.Fatalf("round %d: %d live findings, want 1", i, live)
+		}
+		if got := goalState(t, s, goal); got != "met" {
+			t.Fatalf("round %d: goal state = %q, want met", i, got)
+		}
+	}
+}
+
+func TestMergeIntoMergedPrimaryResolvesRoot(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "merge-resolve")
+	a, _ := addTestFinding(t, s, taskID, expID)
+	b, _ := addTestFinding(t, s, taskID, expID)
+	c, cNode := addTestFinding(t, s, taskID, expID)
+	goal := provedGoal(t, s, expID, cNode)
+
+	if _, err := s.MergeFindings(ctx, b, []int64{a}); err != nil {
+		t.Fatalf("merge a into b: %v", err)
+	}
+	merged, err := s.MergeFindings(ctx, a, []int64{b, c})
+	if err != nil {
+		t.Fatalf("merge into merged a: %v", err)
+	}
+	if merged.ID != b || merged.RequestedPrimaryID != a {
+		t.Errorf("result id = %d requested = %d, want %d and %d", merged.ID, merged.RequestedPrimaryID, b, a)
+	}
+	if len(merged.Skipped) != 1 || merged.Skipped[0].ID != b {
+		t.Errorf("skipped = %+v, want only %d", merged.Skipped, b)
+	}
+	if into, _ := findingState(t, s, c); into == nil || *into != b {
+		t.Errorf("c merged_into = %v, want %d", into, b)
+	}
+	if into, dismissed := findingState(t, s, b); into != nil || dismissed {
+		t.Errorf("b is not live: merged_into = %v dismissed = %v", into, dismissed)
+	}
+	if got := goalState(t, s, goal); got != "met" {
+		t.Errorf("goal state = %q, want met", got)
+	}
+}
+
+func TestMergeSkipsDeadSecondaries(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "merge-skip")
+	p, _ := addTestFinding(t, s, taskID, expID)
+	other, _ := addTestFinding(t, s, taskID, expID)
+	gone, _ := addTestFinding(t, s, taskID, expID)
+	fp, _ := addTestFinding(t, s, taskID, expID)
+
+	if _, err := s.MergeFindings(ctx, other, []int64{gone}); err != nil {
+		t.Fatalf("merge gone into other: %v", err)
+	}
+	if err := s.DismissFinding(ctx, fp, "false positive"); err != nil {
+		t.Fatalf("DismissFinding: %v", err)
+	}
+	merged, err := s.MergeFindings(ctx, p, []int64{gone, fp, p})
+	if err != nil {
+		t.Fatalf("MergeFindings: %v", err)
+	}
+	want := []tools.SkippedFinding{
+		{ID: gone, Reason: fmt.Sprintf("already merged into finding %d", other)},
+		{ID: fp, Reason: "dismissed"},
+	}
+	if !slices.Equal(merged.Skipped, want) {
+		t.Fatalf("skipped = %+v, want %+v", merged.Skipped, want)
+	}
+	if into, _ := findingState(t, s, gone); into == nil || *into != other {
+		t.Errorf("gone merged_into = %v, want %d", into, other)
+	}
+	if into, _ := findingState(t, s, fp); into != nil {
+		t.Errorf("dismissed finding was merged into %d", *into)
+	}
+}
+
+func TestMergeIntoDismissedRootFails(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "merge-dismissed-root")
+	a, _ := addTestFinding(t, s, taskID, expID)
+	b, _ := addTestFinding(t, s, taskID, expID)
+	c, _ := addTestFinding(t, s, taskID, expID)
+
+	if _, err := s.MergeFindings(ctx, b, []int64{a}); err != nil {
+		t.Fatalf("merge a into b: %v", err)
+	}
+	if err := s.DismissFinding(ctx, b, "false positive"); err != nil {
+		t.Fatalf("DismissFinding: %v", err)
+	}
+	_, err := s.MergeFindings(ctx, a, []int64{c})
+	if err == nil || !strings.Contains(err.Error(), "dismissed") {
+		t.Fatalf("err = %v, want dismissed primary error", err)
+	}
+	if into, dismissed := findingState(t, s, c); into != nil || dismissed {
+		t.Errorf("c changed: merged_into = %v dismissed = %v", into, dismissed)
+	}
+}
+
+func TestMergeSkipsResolvedPrimary(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "merge-skip-root")
+	a, _ := addTestFinding(t, s, taskID, expID)
+	b, _ := addTestFinding(t, s, taskID, expID)
+
+	if _, err := s.MergeFindings(ctx, b, []int64{a}); err != nil {
+		t.Fatalf("merge a into b: %v", err)
+	}
+	merged, err := s.MergeFindings(ctx, a, []int64{b})
+	if err != nil {
+		t.Fatalf("MergeFindings: %v", err)
+	}
+	want := []tools.SkippedFinding{{ID: b, Reason: "is the resolved primary"}}
+	if !slices.Equal(merged.Skipped, want) {
+		t.Errorf("skipped = %+v, want %+v", merged.Skipped, want)
+	}
+}
+
+func TestMergeFollowsChainToRoot(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "merge-chain")
+	a, _ := addTestFinding(t, s, taskID, expID)
+	b, _ := addTestFinding(t, s, taskID, expID)
+	c, _ := addTestFinding(t, s, taskID, expID)
+	d, _ := addTestFinding(t, s, taskID, expID)
+
+	if _, err := s.MergeFindings(ctx, b, []int64{a}); err != nil {
+		t.Fatalf("merge a into b: %v", err)
+	}
+	if _, err := s.MergeFindings(ctx, c, []int64{b}); err != nil {
+		t.Fatalf("merge b into c: %v", err)
+	}
+	merged, err := s.MergeFindings(ctx, a, []int64{d})
+	if err != nil {
+		t.Fatalf("MergeFindings: %v", err)
+	}
+	if merged.ID != c || merged.RequestedPrimaryID != a {
+		t.Errorf("result id = %d requested = %d, want %d and %d", merged.ID, merged.RequestedPrimaryID, c, a)
+	}
+	if into, _ := findingState(t, s, d); into == nil || *into != c {
+		t.Errorf("d merged_into = %v, want %d", into, c)
+	}
+}
+
+func TestMergeChainCycleFails(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "merge-cycle")
+	a, _ := addTestFinding(t, s, taskID, expID)
+	b, _ := addTestFinding(t, s, taskID, expID)
+	c, _ := addTestFinding(t, s, taskID, expID)
+	if _, err := s.ExecContext(ctx,
+		`UPDATE findings SET merged_into = CASE id WHEN $1 THEN $2 ELSE $1 END WHERE id IN ($1, $2)`, a, b,
+	); err != nil {
+		t.Fatalf("create cycle: %v", err)
+	}
+
+	_, err := s.MergeFindings(ctx, a, []int64{c})
+	if err == nil || !strings.Contains(err.Error(), "cycle") {
+		t.Fatalf("err = %v, want cycle error", err)
+	}
+	if into, _ := findingState(t, s, c); into != nil {
+		t.Errorf("c merged_into = %d, want unchanged", *into)
+	}
+}
+
+func TestConcurrentMergesAlongChainDoNotDeadlock(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "merge-chain-race")
+
+	for round := range 40 {
+		low, _ := addTestFinding(t, s, taskID, expID)
+		mid, _ := addTestFinding(t, s, taskID, expID)
+		high, _ := addTestFinding(t, s, taskID, expID)
+		if _, err := s.MergeFindings(ctx, low, []int64{mid}); err != nil {
+			t.Fatalf("round %d: merge mid into low: %v", round, err)
+		}
+
+		start := make(chan struct{})
+		errs := make(chan error, 2)
+		var wg sync.WaitGroup
+		for _, m := range [][2]int64{{mid, high}, {low, mid}} {
+			wg.Go(func() {
+				<-start
+				_, err := s.MergeFindings(ctx, m[0], []int64{m[1]})
+				errs <- err
+			})
+		}
+		close(start)
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			if err != nil {
+				t.Fatalf("round %d: MergeFindings: %v", round, err)
+			}
+		}
+		if into, _ := findingState(t, s, high); into == nil || *into != low {
+			t.Fatalf("round %d: high merged_into = %v, want %d", round, into, low)
+		}
 	}
 }

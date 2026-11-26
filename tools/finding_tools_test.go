@@ -572,6 +572,31 @@ func TestMergeFindingsHappyPath(t *testing.T) {
 	}
 }
 
+func TestMergeFindingsReportsResolvedPrimaryAndSkipped(t *testing.T) {
+	t.Parallel()
+	ms := &findingMockStore{
+		mergedFinding: &MergedFinding{
+			ID:                 7,
+			Status:             "confirmed",
+			RequestedPrimaryID: 1,
+			Skipped:            []SkippedFinding{{ID: 2, Reason: "already merged into finding 7"}},
+		},
+	}
+	reg := NewRegistry()
+	RegisterFindingTools(reg, ms, 1, 1)
+	tool, _ := reg.Lookup("merge_findings")
+
+	r, err := tool.Run(context.Background(), json.RawMessage(`{"finding_ids": [1, 2], "primary_id": 1}`))
+	if err != nil || r.IsError {
+		t.Fatalf("merge_findings: %v %s", err, r.Content)
+	}
+	for _, want := range []string{`"id":7`, `"requested_primary_id":1`, `"skipped":[{"id":2,"reason":"already merged into finding 7"}]`} {
+		if !strings.Contains(r.Content, want) {
+			t.Errorf("result missing %s: %s", want, r.Content)
+		}
+	}
+}
+
 func TestMergeFindingsMissingPrimaryID(t *testing.T) {
 	t.Parallel()
 	ms := &findingMockStore{}

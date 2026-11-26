@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - A goal marked met by `prove_goal` stayed met after its proving finding was dismissed. Dismissing a finding now removes its `proves` edges and reopens any goal left without another proof from a live finding or fact. Merging findings moves the secondary's `proves` edges to the primary, so the goal stays met. Concurrent dismissals of a goal's last proofs no longer leave it met, and `prove_goal` refuses a dismissed or merged finding.
+- Two agents merging the same findings into each other at once could leave both findings merged and neither live, reopening the goal they proved. `merge_findings` now locks the findings and the primary's merge chain in a fixed order, follows an already merged `primary_id` to the live finding it points to (returned as `id`, with `requested_primary_id`), refuses a dismissed primary, and skips secondaries that are already merged or dismissed, listing them in `skipped`. The `dismiss_finding` description now points duplicates to `merge_findings`.
 
 ### Fixed
 - Web UI chat: a message sent just as a conversation's Claude process exits now starts a new process once the old one has saved its final status, instead of failing with a 500 "file already closed" or having the new process's status overwritten with idle.
