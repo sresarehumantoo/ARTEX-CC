@@ -722,3 +722,21 @@ func TestListUntestedAssetsDefaultPagination(t *testing.T) {
 		t.Errorf("expected default page_size 10, got: %s", r.Content)
 	}
 }
+
+func TestInsertAssetsOutOfScopeRedactsUserinfo(t *testing.T) {
+	t.Parallel()
+	ms := &assetMockStore{inScope: false, scopeReason: "not in scope"}
+	reg := NewRegistry()
+	RegisterAssetTools(reg, ms, 1)
+
+	tool, _ := reg.Lookup("insert_assets")
+	r, err := tool.Run(context.Background(), json.RawMessage(`{
+		"assets": [{"type": "service", "url": "https://admin:pa/ss@evil.com/x"}]
+	}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(r.Content, "out of scope (https://evil.com/x)") || strings.Contains(r.Content, "pa/ss") {
+		t.Errorf("expected redacted out of scope error, got: %s", r.Content)
+	}
+}
