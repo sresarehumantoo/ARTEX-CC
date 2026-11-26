@@ -453,6 +453,8 @@ const (
 	KindFact    = "fact"
 	KindFinding = "finding"
 
+	StateHintActive = "active"
+
 	RelDerivedFrom = "derived_from"
 	RelYields      = "yields"
 	RelSpawns      = "spawns"
