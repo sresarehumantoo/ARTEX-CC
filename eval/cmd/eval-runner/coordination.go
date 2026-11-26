@@ -236,6 +236,9 @@ type Coordination struct {
 	RedundantRecon     RedundantRecon      `json:"redundant_recon"`
 	CrossParents       CrossParents        `json:"cross_instance_parents"`
 	Takeovers          []Takeover          `json:"takeovers,omitempty"`
+	UnclaimedWork      int                 `json:"unclaimed_work_calls"`
+	UnclaimedFinishes  int                 `json:"unclaimed_finishes"`
+	ConcurrentWork     []ConcurrentWork    `json:"concurrent_intent_work"`
 	Instances          []InstanceCoord     `json:"instances"`
 	Total              InstanceCoordTotals `json:"total"`
 }
@@ -300,19 +303,40 @@ type Takeover struct {
 	FactsAttached    int        `json:"facts_attached"`
 }
 
+// ConcurrentWork is two instances whose work windows on one intent overlap
+// between From and To (see concurrentWork).
+type ConcurrentWork struct {
+	IntentID       int64     `json:"intent_id"`
+	FirstInstance  int       `json:"first_instance"`
+	FirstRecords   int       `json:"first_records"`
+	SecondInstance int       `json:"second_instance"`
+	SecondRecords  int       `json:"second_records"`
+	From           time.Time `json:"overlap_from"`
+	To             time.Time `json:"overlap_to"`
+}
+
+type UnclaimedWork struct {
+	WorkCalls int     `json:"work_calls"`
+	Calls     int     `json:"calls"`
+	Bash      int     `json:"bash"`
+	Records   int     `json:"artex_records"`
+	Finishes  []int64 `json:"finished_unclaimed_intents,omitempty"`
+}
+
 type InstanceCoord struct {
-	Instance      int      `json:"instance"`
-	ToolCalls     int      `json:"tool_calls"`
-	BashCommands  int      `json:"bash_commands"`
-	ListChanges   int      `json:"list_changes_calls"`
-	ClaimsTaken   int      `json:"claims_taken"`
-	Conflicts     int      `json:"conflicts"`
-	Holders       []string `json:"holders,omitempty"`
-	NodesCreated  int      `json:"nodes_created"`
-	CrossParents  int      `json:"cross_instance_parents"`
-	Usage         Usage    `json:"usage"`
-	CostUSD       float64  `json:"cost_usd"`
-	ResultMessage bool     `json:"result_message"`
+	Instance      int           `json:"instance"`
+	ToolCalls     int           `json:"tool_calls"`
+	BashCommands  int           `json:"bash_commands"`
+	ListChanges   int           `json:"list_changes_calls"`
+	ClaimsTaken   int           `json:"claims_taken"`
+	Conflicts     int           `json:"conflicts"`
+	Holders       []string      `json:"holders,omitempty"`
+	NodesCreated  int           `json:"nodes_created"`
+	CrossParents  int           `json:"cross_instance_parents"`
+	Unclaimed     UnclaimedWork `json:"unclaimed_work"`
+	Usage         Usage         `json:"usage"`
+	CostUSD       float64       `json:"cost_usd"`
+	ResultMessage bool          `json:"result_message"`
 }
 
 type InstanceCoordTotals struct {
@@ -331,8 +355,9 @@ type claimEvent struct {
 }
 
 type releaseEvent struct {
-	intent int64
-	at     time.Time
+	intent   int64
+	at       time.Time
+	instance int
 }
 
 type nodeOrigin struct {
@@ -355,6 +380,7 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 	commands := map[string]map[int]int{}
 	holderInstance := map[string]int{}
 	perInstance := make([]InstanceCoord, len(in.Transcripts))
+	var firstIntent time.Time
 
 	for ti, t := range in.Transcripts {
 		ic := &perInstance[ti]
@@ -402,7 +428,7 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 					c.RefusedCompletions++
 				} else if m := doneRe.FindStringSubmatch(call.Result); m != nil && !call.IsError {
 					id, _ := strconv.ParseInt(m[1], 10, 64)
-					releases = append(releases, releaseEvent{id, call.At})
+					releases = append(releases, releaseEvent{id, call.At, t.Instance})
 				}
 			case "list_changes":
 				ic.ListChanges++
@@ -423,6 +449,9 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 					continue
 				}
 				for _, n := range createdNodes(call) {
+					if n.kind == tools.KindIntent && (firstIntent.IsZero() || call.At.Before(firstIntent)) {
+						firstIntent = call.At
+					}
 					nodes[n.id] = nodeOrigin{t.Instance, n.kind, n.intent}
 					ic.NodesCreated++
 					if n.findingID > 0 {
@@ -437,6 +466,13 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 		c.UnhandledConflicts[k].HolderInstance = resolveHolder(u.Holder, holderInstance)
 	}
 	c.DoubleClaims = doubleClaims(claims, releases)
+	c.ConcurrentWork = concurrentWork(in.Transcripts, claims, releases)
+	for ti, t := range in.Transcripts {
+		u := unclaimedWork(t, claims, releases, firstIntent)
+		perInstance[ti].Unclaimed = u
+		c.UnclaimedWork += u.Calls
+		c.UnclaimedFinishes += len(u.Finishes)
+	}
 	if c.Conflicts > 0 {
 		c.ConflictsHandledPc = 100 * float64(c.ConflictsHandled) / float64(c.Conflicts)
 	}
@@ -539,6 +575,180 @@ func doubleClaims(claims []claimEvent, releases []releaseEvent) []DoubleClaim {
 		}
 		held[cl.intent] = cl
 	}
+	return out
+}
+
+// workTools are the ARTEX tools that record results or act on the target.
+// Planning, reads and claim bookkeeping are not counted as work.
+var workTools = map[string]bool{
+	"report_finding": true, "record_fact": true, "record_coverage": true, "insert_assets": true,
+	"save_evidence": true, "capture_command_output": true, "ingest_scanner_output": true, "ingest_masscan": true,
+}
+
+// unclaimedWork counts the instance's Bash calls (failed commands included)
+// and successful workTools calls made while it held no live claim on any
+// intent, out of WorkCalls such calls in all. Calls before the first intent
+// of the run was created are skipped, since nothing could be claimed then.
+// It also lists the intents the instance completed or cancelled without ever
+// having claimed them.
+func unclaimedWork(t *Transcript, claims []claimEvent, releases []releaseEvent, firstIntent time.Time) UnclaimedWork {
+	var u UnclaimedWork
+	for _, call := range t.Calls {
+		switch {
+		case call.Tool == "complete_intent" || call.Tool == "cancel_intent":
+			m := doneRe.FindStringSubmatch(call.Result)
+			if m == nil || call.IsError || conflictRe.MatchString(call.Result) {
+				continue
+			}
+			id, _ := strconv.ParseInt(m[1], 10, 64)
+			if !claimedBefore(claims, t.Instance, id, call.At) && !slices.Contains(u.Finishes, id) {
+				u.Finishes = append(u.Finishes, id)
+			}
+		case call.Tool == "Bash" || workTools[call.Tool] && !call.IsError:
+			if firstIntent.IsZero() || call.At.Before(firstIntent) {
+				continue
+			}
+			u.WorkCalls++
+			if holdsClaim(claims, releases, t.Instance, call.At) {
+				continue
+			}
+			u.Calls++
+			if call.Tool == "Bash" {
+				u.Bash++
+			} else {
+				u.Records++
+			}
+		}
+	}
+	return u
+}
+
+func holdsClaim(claims []claimEvent, releases []releaseEvent, instance int, at time.Time) bool {
+	for _, cl := range claims {
+		if cl.instance == instance && !cl.at.After(at) && at.Before(cl.expires) && !releasedBetween(releases, cl.intent, cl.at, at) {
+			return true
+		}
+	}
+	return false
+}
+
+func claimedBefore(claims []claimEvent, instance int, intent int64, at time.Time) bool {
+	for _, cl := range claims {
+		if cl.instance == instance && cl.intent == intent && !cl.at.After(at) {
+			return true
+		}
+	}
+	return false
+}
+
+// recordedIntents returns the intent of each fact or finding a call recorded.
+func recordedIntents(call ToolCall) []int64 {
+	var ids []int64
+	switch call.Tool {
+	case "report_finding":
+		ids = append(ids, inputIntentID(call.Input))
+	case "record_fact":
+		var a struct {
+			Facts []struct {
+				IntentID json.RawMessage `json:"intent_id"`
+			} `json:"facts"`
+		}
+		_ = json.Unmarshal(call.Input, &a)
+		for _, f := range a.Facts {
+			ids = append(ids, rawID(f.IntentID))
+		}
+	}
+	return slices.DeleteFunc(ids, func(id int64) bool { return id <= 0 })
+}
+
+// concurrentWork flags two instances whose work windows on one intent
+// overlap. A window runs from the instance's first claim of the intent or
+// first record against it, whichever is earlier, to its last record or its
+// completion or cancellation, and needs at least one record or finish. Leases
+// are ignored: this catches an instance that kept working after its lease
+// lapsed and another instance took the intent.
+func concurrentWork(ts []*Transcript, claims []claimEvent, releases []releaseEvent) []ConcurrentWork {
+	type span struct {
+		first, last time.Time
+		n           int
+		worked      bool
+	}
+	spans := map[int64]map[int]*span{}
+	extend := func(intent int64, instance int, at time.Time, start bool) *span {
+		if spans[intent] == nil {
+			spans[intent] = map[int]*span{}
+		}
+		s := spans[intent][instance]
+		if s == nil {
+			s = &span{first: at, last: at}
+			spans[intent][instance] = s
+		}
+		if at.Before(s.first) {
+			s.first = at
+		}
+		if !start && (!s.worked || at.After(s.last)) {
+			s.last = at
+			s.worked = true
+		}
+		return s
+	}
+	for _, cl := range claims {
+		extend(cl.intent, cl.instance, cl.at, true)
+	}
+	for _, r := range releases {
+		extend(r.intent, r.instance, r.at, false)
+	}
+	for _, t := range ts {
+		for _, call := range t.Calls {
+			if call.IsError {
+				continue
+			}
+			for _, id := range recordedIntents(call) {
+				extend(id, t.Instance, call.At, false).n++
+			}
+		}
+	}
+	for _, byInst := range spans {
+		for inst, s := range byInst {
+			if !s.worked {
+				delete(byInst, inst)
+			}
+		}
+	}
+	out := []ConcurrentWork{}
+	for intent, byInst := range spans {
+		var insts []int
+		for inst := range byInst {
+			insts = append(insts, inst)
+		}
+		sort.Ints(insts)
+		for i, a := range insts {
+			for _, b := range insts[i+1:] {
+				sa, sb := byInst[a], byInst[b]
+				if !sa.first.Before(sb.last) || !sb.first.Before(sa.last) {
+					continue
+				}
+				from, to := sa.first, sa.last
+				if sb.first.After(from) {
+					from = sb.first
+				}
+				if sb.last.Before(to) {
+					to = sb.last
+				}
+				out = append(out, ConcurrentWork{IntentID: intent, FirstInstance: a, FirstRecords: sa.n,
+					SecondInstance: b, SecondRecords: sb.n, From: from, To: to})
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].IntentID != out[j].IntentID {
+			return out[i].IntentID < out[j].IntentID
+		}
+		if out[i].FirstInstance != out[j].FirstInstance {
+			return out[i].FirstInstance < out[j].FirstInstance
+		}
+		return out[i].SecondInstance < out[j].SecondInstance
+	})
 	return out
 }
 
@@ -808,6 +1018,22 @@ func (c *Coordination) Summary() string {
 		fmt.Fprintf(&b, "  intent %d: instance %d (%s) then instance %d (%s) at %s, before %s\n",
 			d.IntentID, d.FirstInstance, d.FirstHolder, d.SecondInstance, d.SecondHolder,
 			d.SecondAt.Format(time.RFC3339), d.FirstExpires.Format(time.RFC3339))
+	}
+	fmt.Fprintf(&b, "Concurrent work on one intent: %d (%s)\n", len(c.ConcurrentWork), pass(len(c.ConcurrentWork) == 0))
+	for _, w := range c.ConcurrentWork {
+		fmt.Fprintf(&b, "  intent %d: instance %d (%d records) and instance %d (%d records) interleaved from %s to %s\n",
+			w.IntentID, w.FirstInstance, w.FirstRecords, w.SecondInstance, w.SecondRecords,
+			w.From.Format(time.RFC3339), w.To.Format(time.RFC3339))
+	}
+	fmt.Fprintf(&b, "Work outside a claimed intent: %d calls, %d unclaimed intents completed or cancelled\n", c.UnclaimedWork, c.UnclaimedFinishes)
+	for _, i := range c.Instances {
+		if u := i.Unclaimed; u.Calls > 0 || len(u.Finishes) > 0 {
+			fmt.Fprintf(&b, "  instance %d: %d of %d work calls (%d bash, %d artex records)", i.Instance, u.Calls, u.WorkCalls, u.Bash, u.Records)
+			if len(u.Finishes) > 0 {
+				fmt.Fprintf(&b, ", finished unclaimed intents %v", u.Finishes)
+			}
+			b.WriteString("\n")
+		}
 	}
 	if c.Conflicts > 0 {
 		fmt.Fprintf(&b, "Conflict responses handled: %d/%d (%.0f%%, %s)\n", c.ConflictsHandled, c.Conflicts,

@@ -422,8 +422,6 @@ func score(ctx context.Context, s *store.Store, explorationID, taskID int64, sc 
 	}, nil
 }
 
-// coverageEntries reads the ledger row count from graph_overview's coverage
-// map: an int straight from the store, a float64 after a JSON round trip.
 // envFlag collects repeatable --env KEY=VALUE flags.
 type envFlag []string
 
@@ -456,6 +454,8 @@ func scopeKind(entry string) string {
 	return "subdomain"
 }
 
+// coverageEntries reads the ledger row count from graph_overview's coverage
+// map: an int straight from the store, a float64 after a JSON round trip.
 func coverageEntries(cov map[string]any) int {
 	switch n := cov["entries"].(type) {
 	case int:

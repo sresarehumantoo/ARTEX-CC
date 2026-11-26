@@ -497,6 +497,7 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 	}
 
 	assetIDMap := map[int64]int64{}
+	var assetURLs []string
 	for _, a := range data.Assets {
 		oldID := exportMapInt64(a, "id")
 		input := exportMapToAssetInput(a)
@@ -507,6 +508,7 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 		if oldID > 0 {
 			assetIDMap[oldID] = id
 		}
+		assetURLs = append(assetURLs, input.URL)
 	}
 
 	for _, n := range data.Nodes {
@@ -617,10 +619,16 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 			`INSERT INTO task_credentials(task_id, domain, username, password, source, note)
 			 VALUES ($1, $2, $3, $4, $5, $6)
 			 ON CONFLICT (task_id, domain, username) DO NOTHING`,
-			taskID, exportMapString(c, "domain"), exportMapString(c, "username"),
+			taskID, DomainKey(exportMapString(c, "domain")), exportMapString(c, "username"),
 			password, exportMapString(c, "source"), exportMapString(c, "note"),
 		); err != nil {
 			return 0, 0, fmt.Errorf("import credential: %w", err)
+		}
+	}
+
+	for _, u := range assetURLs {
+		if err := s.saveAssetURLCredential(ctx, tx, taskID, u); err != nil {
+			return 0, 0, fmt.Errorf("import url credential: %w", err)
 		}
 	}
 

@@ -47,12 +47,26 @@ instance runs with `--output-format stream-json --verbose`, and its transcript i
 saved as `transcripts-<scenario>-<timestamp>/instance-<i>.jsonl` next to the
 scorecard, so every tool call, argument and result is on record.
 
+Each instance also gets its own temp directory,
+`transcripts-<scenario>-<timestamp>/tmp-instance-<i>` (mode 0700), set as
+`TMPDIR`, `TMP` and `TEMP` in its environment, so instances cannot clobber each
+other's helper scripts and nothing lands in your `/tmp`. Because agents often
+hardcode `/tmp` in commands, every prompt (including N=1) ends its base text
+with "Keep scratch files (scripts, payloads, downloads, keys) in $TMPDIR, not
+/tmp." An `--env TMPDIR=...` overrides the directory. The directories are kept
+after the run; each entry in the scorecard's `runs` records `temp_dir` and a
+`scratch` section with the number and total size of files left there, the
+first 50 by path with their sizes, and `private_keys`: files whose first MiB
+holds a PEM `-----BEGIN ... PRIVATE KEY-----` block. The runner also logs a
+warning for those; delete them before sharing or committing results. Files an
+agent writes to `/tmp` anyway are not tracked.
+
 ## Multiple instances
 
 `--instances N` starts N `claude` processes at once on the same engagement, with
 the same goal. When N is above 1, each prompt ends with "You are instance i of
 N; other agents are working this engagement at the same time" and a pointer to
-intent claims and `list_changes`. With N=1 the prompt is unchanged.
+intent claims and `list_changes`. With N=1 that sentence is left out.
 
 `--transport` picks how instances reach ARTEX:
 
@@ -128,7 +142,8 @@ The scorecard (written to stdout and a JSON file) includes:
 
 Additional data: total findings, total assets, coverage records, goals set,
 intents created/finished, wall-clock duration, timeout flag, and per instance
-the transcript path, duration, exit error and kill time.
+the transcript path, duration, exit error, kill time, temp directory and the
+scratch files left in it.
 
 ## Coordination scorecard
 
@@ -141,6 +156,8 @@ transcripts are the source of truth for claims.
 | Metric | How it is computed |
 |--------|--------------------|
 | `double_claims` | Successful `start_intent` results replayed in time order (tool result timestamps); a claim by a second instance before the previous holder's expiry (from the result text, else `--lease` or 30m) and with no `complete_intent`/`cancel_intent` in between. Pass: 0 |
+| `unclaimed_work` | Per instance: `work_calls` is its work done after the first intent of the run was created (bootstrap recon before that is skipped, since nothing could be claimed). Work is every Bash call (failed commands included) and every successful `report_finding`, `record_fact`, `record_coverage`, `insert_assets`, `save_evidence`, `capture_command_output`, `ingest_scanner_output` or `ingest_masscan`; planning, reads and claim bookkeeping are not work. `calls` (split into `bash` and `artex_records`) is the part done while the instance held no live claim on any intent, from the same claim, release and expiry replay as `double_claims`, so with a short `--lease` work after a lapse counts. Holding any claim is enough, whatever intent the work was for. `finished_unclaimed_intents` lists intents it completed or cancelled without ever having claimed them. Totals are `unclaimed_work_calls` and `unclaimed_finishes`. Informational |
+| `concurrent_intent_work` | Pairs of instances whose work windows on one intent overlap. A window runs from the instance's first claim of the intent or first fact/finding with that `intent_id`, whichever is earlier, to its last such record or its successful `complete_intent`/`cancel_intent`, and needs at least one record or finish. Leases are ignored, so this catches an instance that kept working after its lease lapsed while another took the intent over, and an instance recording against an intent another one holds, which `double_claims` misses when only one of them claimed. Windows that only touch are not counted. Pass: 0 |
 | `conflicts_handled` | `start_intent` results saying the intent "is claimed by" another holder, counted as handled when one of the next 5 tool calls of that instance is `start_intent` on a different intent. Pass: 90% or more |
 | `refused_completions` | `complete_intent` or `cancel_intent` refused because another holder has a live claim |
 | `holders`, `holder_instance` | Holder labels each instance claimed under, and for each unhandled conflict the instance holding the intent: read from the label for `eval/<run>/i<n>` identities, else the instance whose own claims carried that hashed label |
