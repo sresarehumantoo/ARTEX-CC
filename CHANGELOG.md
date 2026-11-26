@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Fixed
+- Importing an engagement export dropped each finding's `merged_into`, so merged findings came back live (merged into nothing) while their graph nodes stayed dismissed, and `merge_findings` and goal proofs treated them as live. Import now remaps `merged_into` to the new finding ids. Exports that lack the field import as before, with no finding merged.
+
+### Fixed
 - Credentials saved before domains were normalized kept their original casing, so saving `example.com`/admin next to an old `Example.com`/admin row created a second row. Migration 0007 rewrites stored credential domains to the normalized form and merges rows that then collide: the most recently updated row keeps its password and source (taking the newest non-empty password if its own is empty, copied without decryption), and every distinct note is kept. Asset URLs stored before normalization are rewritten once when `serve` starts, after the credential key is loaded, and any userinfo they held is recorded as an `asset_url` credential for each of the asset's tasks. A URL whose normalized form already belongs to another asset only has its userinfo stripped, and is left unchanged when that also collides; such assets are not merged.
 
 ### Fixed
