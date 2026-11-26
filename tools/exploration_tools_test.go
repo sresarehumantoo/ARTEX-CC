@@ -21,6 +21,8 @@ type explorationMockStore struct {
 	goalsResult   *GoalsResult
 	gotGoals      []GoalInput
 	gotAppend     bool
+	intentsResult *IntentsResult
+	gotIntents    []IntentInput
 }
 
 func (m *explorationMockStore) AddGoals(ctx context.Context, explorationID int64, goals []GoalInput, appendGoals bool) (*GoalsResult, error) {
@@ -52,6 +54,21 @@ func (m *explorationMockStore) GraphOverview(_ context.Context, _ int64) (*Overv
 
 func (m *explorationMockStore) AddNode(_ context.Context, _ int64, _ string, _ map[string]any, _ int, _, _ string, _ []int64) (int64, error) {
 	return m.addNodeID, m.addNodeErr
+}
+
+func (m *explorationMockStore) AddIntents(_ context.Context, _ int64, intents []IntentInput) (*IntentsResult, error) {
+	m.gotIntents = intents
+	if m.intentsResult != nil {
+		return m.intentsResult, nil
+	}
+	if m.addNodeErr != nil {
+		return nil, m.addNodeErr
+	}
+	res := &IntentsResult{}
+	for i := range intents {
+		res.IDs = append(res.IDs, m.addNodeID+int64(i))
+	}
+	return res, nil
 }
 
 func (m *explorationMockStore) NodeDetail(_ context.Context, id int64) (*Node, error) {
@@ -924,5 +941,128 @@ func TestGraphOverviewStoreError(t *testing.T) {
 	}
 	if !strings.Contains(r.Content, "db down") {
 		t.Errorf("expected store error, got: %s", r.Content)
+	}
+}
+
+func TestAddIntentSingleDuplicateReportsExisting(t *testing.T) {
+	t.Parallel()
+	ms := newExplorationMockStore()
+	ms.intentsResult = &IntentsResult{
+		IDs:     []int64{0},
+		Skipped: []SkippedIntent{{Index: 0, Summary: "Test XSS", ExistingID: 4, State: "running"}},
+	}
+	reg := NewRegistry()
+	RegisterExplorationTools(reg, ms, 1)
+	tool, _ := reg.Lookup("add_intent")
+
+	r, _ := tool.Run(context.Background(), json.RawMessage(`{"summary": "Test XSS", "asset_ids": [3], "priority": 7}`))
+	if r.IsError {
+		t.Fatalf("duplicate should not be an error: %s", r.Content)
+	}
+	var out struct {
+		IDs     []int64         `json:"ids"`
+		Skipped []SkippedIntent `json:"skipped"`
+		Note    string          `json:"note"`
+	}
+	if err := json.Unmarshal([]byte(r.Content), &out); err != nil {
+		t.Fatalf("want JSON, got %s", r.Content)
+	}
+	if len(out.IDs) != 1 || out.IDs[0] != 0 || len(out.Skipped) != 1 || out.Skipped[0].ExistingID != 4 || out.Note == "" {
+		t.Errorf("got %+v", out)
+	}
+	if len(ms.gotIntents) != 1 || ms.gotIntents[0].Priority != 7 || fmt.Sprint(ms.gotIntents[0].AssetIDs) != "[3]" {
+		t.Errorf("store got %+v", ms.gotIntents)
+	}
+}
+
+func TestAddIntentBatchMapsIndexesAndListsOpen(t *testing.T) {
+	t.Parallel()
+	ms := newExplorationMockStore()
+	ms.nodeMap[5] = &Node{ID: 5, Kind: KindIntent, State: "open"}
+	ms.intentsResult = &IntentsResult{
+		IDs:     []int64{20, 0, 0},
+		Skipped: []SkippedIntent{{Index: 1, Summary: "b", ExistingID: 8, State: "open"}},
+		Errors:  map[int]string{2: "asset_id 99 does not exist"},
+		Open:    []IntentRef{{ID: 9, Summary: "planned elsewhere", Priority: 5}},
+	}
+	reg := NewRegistry()
+	RegisterExplorationTools(reg, ms, 1)
+	tool, _ := reg.Lookup("add_intent")
+
+	r, _ := tool.Run(context.Background(), json.RawMessage(`{"intents": [
+		{"summary": "bad parent", "parent_ids": [5]},
+		{"summary": "a"},
+		{"summary": "b"},
+		{"summary": "c", "asset_ids": [99]}
+	]}`))
+	if r.IsError {
+		t.Fatalf("unexpected error: %s", r.Content)
+	}
+	var out struct {
+		IDs         []int64           `json:"ids"`
+		Errors      map[string]string `json:"errors"`
+		Skipped     []SkippedIntent   `json:"skipped"`
+		OpenIntents []IntentRef       `json:"open_intents"`
+		Note        string            `json:"note"`
+	}
+	if err := json.Unmarshal([]byte(r.Content), &out); err != nil {
+		t.Fatalf("want JSON, got %s", r.Content)
+	}
+	if fmt.Sprint(out.IDs) != "[0 20 0 0]" {
+		t.Errorf("ids = %v, want [0 20 0 0]", out.IDs)
+	}
+	if !strings.Contains(out.Errors["0"], "can only anchor on fact/finding") || out.Errors["3"] != "asset_id 99 does not exist" {
+		t.Errorf("errors = %v", out.Errors)
+	}
+	if len(out.Skipped) != 1 || out.Skipped[0].Index != 2 {
+		t.Errorf("skipped = %+v, want caller index 2", out.Skipped)
+	}
+	if len(out.OpenIntents) != 1 || out.OpenIntents[0].ID != 9 || !strings.Contains(out.Note, "open_intents") {
+		t.Errorf("open_intents = %+v, note = %q", out.OpenIntents, out.Note)
+	}
+	if len(ms.gotIntents) != 3 {
+		t.Errorf("store got %d intents, want the 3 valid ones", len(ms.gotIntents))
+	}
+}
+
+func TestAddIntentSingleListsOpenIntents(t *testing.T) {
+	t.Parallel()
+	ms := newExplorationMockStore()
+	ms.intentsResult = &IntentsResult{IDs: []int64{21}, Open: []IntentRef{{ID: 9, Summary: "x", Priority: 5}}}
+	reg := NewRegistry()
+	RegisterExplorationTools(reg, ms, 1)
+	tool, _ := reg.Lookup("add_intent")
+
+	r, _ := tool.Run(context.Background(), json.RawMessage(`{"summary": "new"}`))
+	if r.IsError || !strings.Contains(r.Content, `"ids":[21]`) || !strings.Contains(r.Content, `"open_intents"`) {
+		t.Errorf("got %s", r.Content)
+	}
+}
+
+func TestIntentKey(t *testing.T) {
+	t.Parallel()
+	same := [][2]string{
+		{"Test the /login form for SQL injection.", "test the login form, for SQL-injection"},
+		{"  Enumerate   SMB shares ", "enumerate smb shares!"},
+	}
+	for _, p := range same {
+		if IntentKey(p[0], nil) != IntentKey(p[1], nil) {
+			t.Errorf("IntentKey(%q) != IntentKey(%q)", p[0], p[1])
+		}
+	}
+	if IntentKey("Enumerate ports", []int64{2, 1, 2}) != IntentKey("enumerate ports", []int64{1, 2}) {
+		t.Error("asset order or repeats changed the key")
+	}
+	different := [][2]string{
+		{"Test login for SQLi", "Test search for SQLi"},
+		{"Scan port 80", "Scan port 8080"},
+	}
+	for _, p := range different {
+		if IntentKey(p[0], nil) == IntentKey(p[1], nil) {
+			t.Errorf("IntentKey(%q) == IntentKey(%q)", p[0], p[1])
+		}
+	}
+	if IntentKey("Enumerate ports", []int64{1}) == IntentKey("Enumerate ports", nil) {
+		t.Error("asset ids ignored")
 	}
 }

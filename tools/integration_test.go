@@ -79,6 +79,29 @@ func (m *statefulMock) AddNode(_ context.Context, _ int64, kind string, payload 
 	return id, nil
 }
 
+func (m *statefulMock) AddIntents(ctx context.Context, explorationID int64, intents []IntentInput) (*IntentsResult, error) {
+	res := &IntentsResult{}
+	seen := map[string]Node{}
+	for _, n := range m.nodes {
+		if n.Kind == KindIntent && (n.State == "open" || n.State == "running") {
+			summary, _ := n.Payload["summary"].(string)
+			seen[IntentKey(summary, nil)] = n
+		}
+	}
+	for i, it := range intents {
+		key := IntentKey(it.Summary, it.AssetIDs)
+		if n, dup := seen[key]; dup {
+			res.IDs = append(res.IDs, 0)
+			res.Skipped = append(res.Skipped, SkippedIntent{Index: i, Summary: it.Summary, ExistingID: n.ID, State: n.State})
+			continue
+		}
+		id, _ := m.AddNode(ctx, explorationID, KindIntent, map[string]any{"summary": it.Summary}, it.Priority, "open", "planner", it.AssetIDs)
+		seen[key] = Node{ID: id, State: "open"}
+		res.IDs = append(res.IDs, id)
+	}
+	return res, nil
+}
+
 func (m *statefulMock) NodeDetail(_ context.Context, id int64) (*Node, error) {
 	for i := range m.nodes {
 		if m.nodes[i].ID == id {

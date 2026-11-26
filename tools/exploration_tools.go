@@ -48,7 +48,10 @@ func makeAddIntent(store Store, explorationID int64) Tool {
 			"An intent is an open exploration direction: describe freely in one summary sentence what to explore/verify/exploit.\n" +
 			"Batch preferred: put multiple new directions into the intents array in a single submission (saves round trips). " +
 			"Returns an ids array, same length and order as intents. For a single intent, omit intents and pass the top-level summary.\n" +
-			"After calling graph_overview and identifying gaps, use this to queue new work. Each intent is one exploration direction.",
+			"After calling graph_overview and identifying gaps, use this to queue new work. Each intent is one exploration direction.\n" +
+			"Other agents may plan the same work at the same time. An intent whose summary (ignoring case, punctuation and spacing) and asset_ids " +
+			"match an open or running intent is not added: skipped gives the existing_id to start_intent instead. " +
+			"open_intents lists unclaimed intents that already existed; if one covers the same work as an intent you added, work that one and cancel_intent yours.",
 		Schema: obj(map[string]any{
 			"intents":    arr(map[string]any{"type": "object"}, "[Prefer this] array of exploration directions to add"),
 			"summary":    str("[single] one sentence describing this exploration direction"),
@@ -75,49 +78,88 @@ func makeAddIntent(store Store, explorationID int64) Tool {
 				return errResult(fmt.Sprintf("intents array too large (%d items, max %d)", len(items), maxBatchLen)), nil
 			}
 
-			addOne := func(it intentItem) (int64, error) {
-				if strings.TrimSpace(it.Summary) == "" {
-					return 0, fmt.Errorf("summary must not be empty")
-				}
-				parents := pidList(it.ParentIDs)
+			checkParents := func(parents []int64) error {
 				for _, p := range parents {
 					n, err := store.NodeDetail(ctx, p)
 					if err != nil || n == nil {
-						return 0, fmt.Errorf("parent_id %d does not exist", p)
+						return fmt.Errorf("parent_id %d does not exist", p)
 					}
 					if n.Kind != KindFact && n.Kind != KindFinding {
-						return 0, fmt.Errorf("parent_id %d is a %q node: intents can only anchor on fact/finding nodes", p, n.Kind)
+						return fmt.Errorf("parent_id %d is a %q node: intents can only anchor on fact/finding nodes", p, n.Kind)
 					}
 				}
+				return nil
+			}
 
+			errs := map[string]string{}
+			var inputs []IntentInput
+			var itemIndex []int
+			for i, it := range items {
+				if strings.TrimSpace(it.Summary) == "" {
+					errs[strconv.Itoa(i)] = "summary must not be empty"
+					continue
+				}
+				parents := pidList(it.ParentIDs)
+				if err := checkParents(parents); err != nil {
+					errs[strconv.Itoa(i)] = err.Error()
+					continue
+				}
 				priority := it.Priority
 				if priority == 0 {
 					priority = 5
 				}
-				anchors := pidList(it.AssetIDs)
-				payload := map[string]any{"summary": it.Summary}
-				if len(anchors) > 0 {
-					payload["asset_ids"] = anchors
-				}
-
-				id, err := store.AddNode(ctx, explorationID, KindIntent, payload, priority, "open", "planner", anchors)
-				if err != nil {
-					return 0, err
-				}
-
-				for _, parent := range parents {
-					_ = store.AddEdge(ctx, parent, RelDerivedFrom, id)
-				}
-				if len(parents) == 0 {
-					if origin, _ := store.OriginFactID(ctx, explorationID); origin > 0 {
-						_ = store.AddEdge(ctx, origin, RelDerivedFrom, id)
-					}
-				}
-				return id, nil
+				inputs = append(inputs, IntentInput{Summary: it.Summary, Priority: priority, AssetIDs: pidList(it.AssetIDs), ParentIDs: parents})
+				itemIndex = append(itemIndex, i)
 			}
 
-			ids, errs := runBatch(items, addOne)
-			return singleOrBatchReturn(ids, errs, isBatch, "intent")
+			ids := make([]int64, len(items))
+			var skipped []SkippedIntent
+			var open []IntentRef
+			if len(inputs) > 0 {
+				res, err := store.AddIntents(ctx, explorationID, inputs)
+				if err != nil {
+					return errResult(err.Error()), nil
+				}
+				for j, id := range res.IDs {
+					ids[itemIndex[j]] = id
+				}
+				for j, e := range res.Errors {
+					errs[strconv.Itoa(itemIndex[j])] = e
+				}
+				for _, sk := range res.Skipped {
+					sk.Index = itemIndex[sk.Index]
+					skipped = append(skipped, sk)
+				}
+				open = res.Open
+			}
+
+			if !isBatch {
+				if e, bad := errs["0"]; bad {
+					return errResult(e), nil
+				}
+				if len(skipped) == 0 && len(open) == 0 {
+					return textResult(fmt.Sprintf("intent created: %d", ids[0])), nil
+				}
+			}
+			out := map[string]any{"ids": ids}
+			if len(errs) > 0 {
+				out["errors"] = errs
+			}
+			var notes []string
+			if len(skipped) > 0 {
+				out["skipped"] = skipped
+				notes = append(notes, "Skipped intents match an open or running intent (existing_id) and were not added: "+
+					"start_intent that one instead unless another session holds it.")
+			}
+			if len(open) > 0 {
+				out["open_intents"] = open
+				notes = append(notes, "open_intents already existed and nobody holds them, possibly planned by another agent: "+
+					"if one covers the same work as an intent you just added, work that one and cancel_intent yours.")
+			}
+			if len(notes) > 0 {
+				out["note"] = strings.Join(notes, " ")
+			}
+			return jsonResult(out)
 		},
 	}
 }

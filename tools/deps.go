@@ -2,8 +2,11 @@ package tools
 
 import (
 	"context"
+	"fmt"
+	"slices"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // Store is the interface tools use to access the data layer.
@@ -40,6 +43,7 @@ type Store interface {
 	CountOpenIntents(ctx context.Context, explorationID int64) (int, error)
 	OriginFactID(ctx context.Context, explorationID int64) (int64, error)
 	AddGoals(ctx context.Context, explorationID int64, goals []GoalInput, appendGoals bool) (*GoalsResult, error)
+	AddIntents(ctx context.Context, explorationID int64, intents []IntentInput) (*IntentsResult, error)
 	Edges(ctx context.Context, explorationID int64, limit int) ([]Edge, error)
 	ListChanges(ctx context.Context, explorationID, taskID int64, after ChangeCursor, limit int) ([]Change, error)
 	ListClaims(ctx context.Context, explorationID int64, owner string) ([]HeldClaim, error)
@@ -294,6 +298,47 @@ const (
 // whitespace, internal whitespace runs and trailing periods are ignored.
 func NormalizeGoalText(s string) string {
 	return strings.TrimRight(strings.Join(strings.Fields(strings.ToLower(s)), " "), ".")
+}
+
+type IntentInput struct {
+	Summary   string
+	Priority  int
+	AssetIDs  []int64
+	ParentIDs []int64
+}
+
+type IntentRef struct {
+	ID       int64  `json:"id"`
+	Summary  string `json:"summary"`
+	Priority int    `json:"priority"`
+}
+
+type SkippedIntent struct {
+	Index      int    `json:"index"`
+	Summary    string `json:"summary"`
+	ExistingID int64  `json:"existing_id"`
+	State      string `json:"existing_state"`
+}
+
+// IntentsResult reports what AddIntents did. IDs has one entry per input,
+// 0 where the intent was skipped as a duplicate or failed (Errors, keyed by
+// input index). Open lists the claimable intents that existed before the call
+// and were not duplicates of it.
+type IntentsResult struct {
+	IDs     []int64
+	Skipped []SkippedIntent
+	Errors  map[int]string
+	Open    []IntentRef
+}
+
+// IntentKey is what add_intent deduplicates on: the summary's words ignoring
+// case, punctuation and spacing, plus the set of asset ids.
+func IntentKey(summary string, assetIDs []int64) string {
+	words := strings.FieldsFunc(strings.ToLower(summary), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	ids := slices.Compact(slices.Sorted(slices.Values(assetIDs)))
+	return strings.Join(words, " ") + "|" + fmt.Sprint(ids)
 }
 
 type Constraint struct {
