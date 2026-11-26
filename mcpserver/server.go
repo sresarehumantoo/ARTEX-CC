@@ -35,6 +35,7 @@ type Server struct {
 	traffic       *traffic.Traffic
 	evidence      *evidence.Store
 	notifier      ToolNotifier
+	version       string
 }
 
 // Option is a functional option for configuring a Server.
@@ -65,11 +66,17 @@ func WithNotifier(fn ToolNotifier) Option {
 	return func(s *Server) { s.notifier = fn }
 }
 
+// WithVersion returns an Option that sets the version reported to MCP clients.
+func WithVersion(v string) Option {
+	return func(s *Server) { s.version = v }
+}
+
 // New creates a Server with its tools registered and optional engagement context.
 func New(registry *tools.Registry, opts ...Option) *Server {
 	s := &Server{
 		registry: registry,
 		sessions: NewSessionManager(),
+		version:  "dev",
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -87,7 +94,7 @@ func New(registry *tools.Registry, opts ...Option) *Server {
 
 	s.mcp = server.NewMCPServer(
 		"artex",
-		"0.1.0",
+		s.version,
 		server.WithToolCapabilities(false),
 		server.WithHooks(hooks),
 	)
