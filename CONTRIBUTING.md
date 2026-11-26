@@ -12,7 +12,7 @@ Prerequisites:
 git clone https://github.com/SREsAreHumanToo/ARTEX-CC.git
 cd ARTEX-CC
 make build   # builds the web UI, then ./artex-cc
-make ci      # fmt-check + vet + test, same as CI
+make ci      # fmt-check + vet + golangci-lint + test, same as CI
 ```
 
 To build only the Go binary (skips the web UI): `go build ./cmd/artex-cc`.
@@ -37,7 +37,7 @@ Store tests are skipped when `ARTEX_TEST_PG` is not set, so `go test ./...` is s
 ## Code style
 
 - Go code must be formatted with `gofmt -s`. CI runs `make fmt-check`; run `make fmt` to fix.
-- `go vet ./...` must pass. There is no linter beyond vet.
+- `go vet ./...` and `make golangci-lint` (configured in `.golangci.yml`) must pass. CI runs golangci-lint v1.64.8.
 - `make lint` type-checks the web UI.
 
 ## Adding a tool
@@ -45,7 +45,9 @@ Store tests are skipped when `ARTEX_TEST_PG` is not set, so `go test ./...` is s
 Tools live in `tools/` and are grouped by category: `asset_tools.go`,
 `exploration_tools.go`, `finding_tools.go`, `credential_tools.go`,
 `scope_tools.go`, `engagement_tools.go`, `report_tools.go`,
-`traffic_tools.go`.
+`traffic_tools.go`, `evidence_tools.go`, `enrich_tools.go`, `ingest_tools.go`,
+`activity_tools.go`, `intent_tools.go`, `changes_tools.go`,
+`target_change_tools.go`, `export_tools.go`.
 
 1. Write a `makeYourTool(store Store, ...) Tool` function in the appropriate
    file, following the pattern of the existing tools.
@@ -54,9 +56,10 @@ Tools live in `tools/` and are grouped by category: `asset_tools.go`,
    `tools/deps.go` and implement it in `store/`.
 
 Most tool groups are registered in `RegisterAll` via their `Register*Tools`
-function. Traffic tools are the exception: they depend on a `*traffic.Traffic`
-instance instead of `Store` and are registered separately in `cmd/artex-cc/`
-when the `--proxy` flag is set.
+function. Traffic tools are the exception: they also depend on a
+`*traffic.Traffic` instance and are registered separately in `cmd/artex-cc/`
+when the `--proxy` flag is set. Evidence tools are registered there too, since
+they need the evidence store.
 
 The `Tool` struct has `Name`, `Description`, `Schema`, and `Run`. The schema
 uses the helper functions in `tools/helpers.go` (`obj`, `str`, `enm`, etc.).

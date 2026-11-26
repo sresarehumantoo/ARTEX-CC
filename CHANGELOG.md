@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Eval runner: each instance gets its own temp directory (`transcripts-<scenario>-<timestamp>/tmp-instance-<i>`, set as `TMPDIR`, `TMP` and `TEMP`), every prompt tells agents to keep scratch files there instead of `/tmp`, and each scorecard run records `temp_dir` and a `scratch` section listing the files left behind, flagging any holding a PEM private key.
+- Eval runner: the coordination scorecard adds `unclaimed_work` (per instance work done while holding no live claim, and intents finished without being claimed) and `concurrent_intent_work` (pairs of instances whose work on one intent overlaps). Canceling an unclaimed intent the instance created itself is listed as `own_duplicate_cancels`, not as an unclaimed finish.
+- Eval runner: the claim replay models implicit claim renewal when the server supports it, reported as `implicit_renewal` and `implicit_renewals`.
+- Eval runner: the Winforge three-track target and the `winforge-multitrack.yml` scenario.
+
+### Fixed
+- Eval runner: an instance's `cost_usd` is taken from its last `result` line, which is the session's running total, instead of summing every `result` line.
+
 ### Fixed
 - Company scope was never enforced. Scope checks only read the company in `tasks.company_id`, which engagements created by `init` never set, and ignored `add_task_scope` entries of kind `company`, so the domain, IP and CIDR lines recorded with `add_company_scope` restricted nothing, and an engagement whose only scope entries were companies allowed every target. Each `company` entry now contributes its company's domain, IP and CIDR lines to `check_scope`, to the tools that enforce scope and to the `in_scope` rules plugins receive. This is a behavior change: an engagement with only `company` entries goes from allowing everything to allowing only those companies' scope. A `company` entry whose company has no domain, IP or CIDR lines fails closed: targets that match no other scope entry are refused with a reason naming the company and `add_company_scope`, instead of the engagement falling back to allowing everything.
 - `export_engagement` failed with "converting NULL to string is unsupported" for any engagement with scope entries, and exports did not carry companies: a `company` scope entry lost its company, and the company's scope lines, the engagement's company and asset company links were not exported at all. Exports now include a `companies` list (each referenced company with its scope lines), a top-level `company_id`, and `company_id` on `company` scope entries and assets. Import gets or creates each company by name, adds its scope lines, and links the new engagement, its `company` scope entries and its assets to it; an asset already linked to a company keeps that link. Exports without `companies`, such as those from v0.6.1, import as before. The export format version stays 1.
@@ -63,6 +72,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - Captured traffic blobs, the traffic index directory and saved evidence are owner-only (files 0600, directories 0700) instead of world-readable, since they can hold credentials and session tokens. Existing traffic trees (including host directories captured by older versions, but not `_ca`) are tightened once at the first startup, and existing evidence trees at every startup.
+
+### Changed
+- A claim on a running intent renews when its holder records results against it: `record_fact`, `report_finding` with `intent_id`, and `record_coverage` with the new `intent_id` argument extend the lease. Only the holder renews, a claim with more than half its lease left is not rewritten, and a lapsed claim nobody has taken over is revived. Clients holding claims only through an `owner` argument still renew with `start_intent`.
+- `complete_intent` and `cancel_intent` on an open intent now claim it first and then close it, refusing if another holder got there first, and record the closer's holder label as `completed_by` or `cancelled_by`. Completing an intent that was never started also returns a reminder to call `start_intent` before working an intent. Closing an open intent now needs a claim holder (session, identity or `owner`).
+- `add_intent` serializes per engagement and skips an intent whose normalized summary and `asset_ids` match an open or running intent, returning it in `skipped` with its `existing_id` (its slot in `ids` is 0). It also lists up to ten unclaimed `open_intents` so agents can pick up existing work. An unknown `asset_id` is a per-item error.
 
 ### Fixed
 - The web Graph page crashed with "Cannot read properties of null" on an engagement with no edges yet, because `GET /api/graph` returned `null` for empty `nodes` or `edges`; both are now always arrays.
