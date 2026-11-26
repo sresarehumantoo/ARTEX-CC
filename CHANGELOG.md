@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Asset URLs kept any `user:pass@` userinfo, so credentials surfaced in the graph, web UI and reports, and URLs differing only in scheme or host case or a default port (`:80` for http, `:443` for https) were stored as separate assets. URLs are now stored without userinfo (including a password containing a raw `/`, `?` or `#`), with a lowercase scheme and host and no default port; path, query and a Unicode host are kept as given, and `url==` and `url!=` filters match the same normalized form. Userinfo is recorded as a task credential for the host with source `asset_url` (percent-decoded; a username without a password is kept), and never replaces an existing credential for the same host and username. Importing an engagement export captures userinfo from its asset URLs the same way, after the exported credentials, so an exported credential for the same host and username is kept. Tool errors that echo an asset URL no longer include its userinfo.
+- Credential domains were stored with their original case, so `Example.com` and `example.com` were separate credentials. Saved and imported credential domains are now lowercased; existing rows are not rewritten.
+
 ## [0.6.1] - 2026-11-25
 
 ### Added
@@ -35,9 +39,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The MCP HTTP transport's logs redact anything shaped like an identity token.
 - `serve` over HTTP (`--web` or `--listen`) loads or creates `identity.key` in the data directory at startup and exits if it cannot; stdio is unaffected.
 - Web UI chat conversations hold claims as the identity `chat/<conversation id>`, minted from `identity.key` each time a conversation starts or resumes, so labels show that name and a resumed conversation keeps its claims across a server restart. This replaces the in-memory `X-Artex-Conversation` signer; a request still sending `X-Artex-Conversation` gets HTTP 400 telling the caller to start a new conversation.
-
-### Fixed
-- Asset URLs kept any `user:pass@` userinfo, so credentials surfaced in the graph, web UI and reports, and URLs differing only in scheme or host case or a default port (`:80` for http, `:443` for https) were stored as separate assets. URLs are now stored without userinfo, with a lowercase scheme and host and no default port; path and query are unchanged, and `url==` and `url!=` filters match the same normalized form.
 
 ## [0.5.1] - 2026-11-25
 
