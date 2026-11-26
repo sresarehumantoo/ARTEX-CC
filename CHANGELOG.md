@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Fixed
+- Company scope lines written as `*.example.com` matched no host. They now match subdomains only (`a.example.com`, `a.b.example.com`), never the apex `example.com`, which must be listed separately to be in scope. A `*` anywhere other than a leading `*.` is rejected, as is a wildcard `root_domain` task scope entry.
+
+### Fixed
 - Captured traffic blobs, the traffic index directory and saved evidence are owner-only (files 0600, directories 0700) instead of world-readable, since they can hold credentials and session tokens. Existing traffic trees (including host directories captured by older versions, but not `_ca`) are tightened once at the first startup, and existing evidence trees at every startup.
 
 ### Fixed

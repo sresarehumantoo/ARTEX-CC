@@ -208,6 +208,12 @@ func TestScopeDomainSuffixMatching(t *testing.T) {
 		{"rule is subdomain", "example.com", "sub.example.com", false},
 		{"exact subdomain match", "app.example.com", "app.example.com", true},
 		{"sub of subdomain", "dev.app.example.com", "app.example.com", true},
+		{"wildcard excludes apex", "example.com", "*.example.com", false},
+		{"wildcard subdomain", "api.example.com", "*.example.com", true},
+		{"wildcard deep subdomain", "a.b.example.com", "*.example.com", true},
+		{"wildcard lookalike", "badexample.com", "*.example.com", false},
+		{"wildcard lookalike subdomain", "api.badexample.com", "*.example.com", false},
+		{"wildcard different domain", "example.org", "*.example.com", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -401,6 +407,22 @@ func TestAddTaskScopeValidation(t *testing.T) {
 		err := s.AddTaskScope(ctx, 1, "subdomain", ".", "", "")
 		if err == nil || !strings.Contains(err.Error(), "invalid subdomain") {
 			t.Errorf("want invalid subdomain error, got %v", err)
+		}
+	})
+
+	t.Run("wildcard root domain", func(t *testing.T) {
+		err := s.AddTaskScope(ctx, 1, "root_domain", "*.example.com", "", "")
+		if err == nil || !strings.Contains(err.Error(), "invalid root domain") {
+			t.Errorf("want invalid root domain error, got %v", err)
+		}
+	})
+
+	t.Run("invalid wildcard subdomain", func(t *testing.T) {
+		for _, v := range []string{"*", "*.", "api.*.example.com", "*.*.example.com"} {
+			err := s.AddTaskScope(ctx, 1, "subdomain", v, "", "")
+			if err == nil || !strings.Contains(err.Error(), "invalid subdomain") {
+				t.Errorf("%q: want invalid subdomain error, got %v", v, err)
+			}
 		}
 	})
 
