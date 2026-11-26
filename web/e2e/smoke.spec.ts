@@ -36,14 +36,20 @@ test.describe('smoke tests', () => {
   })
 
   test('dark mode toggle works', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'light' })
     await page.goto('/')
     const html = page.locator('html')
-    const initialDark = await html.evaluate(el => el.classList.contains('dark'))
+    const themeButton = page.getByRole('button', { name: /^Theme:/ })
 
-    const themeButton = page.locator('button[aria-label*="Switch to"]')
+    await expect(themeButton).toHaveAccessibleName('Theme: system. Switch to light')
+    await expect(html).not.toHaveClass(/\bdark\b/)
+
     await themeButton.click()
+    await expect(themeButton).toHaveAccessibleName('Theme: light. Switch to dark')
+    await expect(html).not.toHaveClass(/\bdark\b/)
 
-    const afterDark = await html.evaluate(el => el.classList.contains('dark'))
-    expect(afterDark).not.toBe(initialDark)
+    await themeButton.click()
+    await expect(themeButton).toHaveAccessibleName('Theme: dark. Switch to system')
+    await expect(html).toHaveClass(/\bdark\b/)
   })
 })
