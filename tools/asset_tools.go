@@ -107,7 +107,7 @@ func makeInsertAssets(store Store, taskID int64) Tool {
 						continue
 					}
 					if !ok {
-						errs = append(errs, errEntry{Index: i, Error: fmt.Sprintf("out of scope (%s): %s", target, reason)})
+						errs = append(errs, errEntry{Index: i, Error: fmt.Sprintf("out of scope (%s): %s", RedactURLUserinfo(target), reason)})
 						continue
 					}
 				}

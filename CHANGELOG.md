@@ -5,6 +5,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- The web Graph page crashed with "Cannot read properties of null" on an engagement with no edges yet, because `GET /api/graph` returned `null` for empty `nodes` or `edges`; both are now always arrays.
+
+### Fixed
+- `POST /api/hints` (the web UI's Add hint) returned 500 because it stored hints in the `open` state, which the database rejects; it now stores them `active`, the same as `add_hint`.
+
+### Added
+- CI runs `govulncheck` against the module on every push and pull request.
+
+### Fixed
+- Bumped `github.com/gorilla/websocket` to v1.5.4-0.20240701034025-d67f41855da4 (GO-2026-6278, reached through the recording proxy) and `github.com/klauspost/compress` to v1.20.2 (GO-2026-6865).
+
+### Added
+- Target change journal. `record_target_change` records a change to a target (target, resource, kind, original fingerprint, backup, intent) before it is made; when another unrestored change on the same target and resource exists, it returns a warning naming who recorded it and the baseline, the first recorded original fingerprint, which is what to restore to. `record_target_restore` takes change ids and the fingerprint observed after restoring, and marks changes restored only on an exact match with the baseline; a mismatch is recorded as a failed attempt. `graph_overview` and `list_changes` list `unrestored_target_changes`, `generate_report` has a Target changes section, and engagement export and import carry the journal. The orchestration guide tells agents to record changes before making them and never to report a host restored while unrestored changes remain.
+
+### Fixed
+- Opening the store (`serve` or any CLI command) skips re-running `schema.sql` when the database already has the same schema, so starting a server or CLI against a database another server is using no longer risks `deadlock detected` errors in either one.
+
+### Fixed
+- `docker-compose.yml` built the default `ARTEX_PG` with a hardcoded `ccartex:ccartex` login, so overriding `POSTGRES_PASSWORD` (or `POSTGRES_USER`/`POSTGRES_DB`) left ARTEX unable to connect. The default DSN now uses the same variables and defaults as the postgres service.
+
+### Fixed
+- Asset URLs kept any `user:pass@` userinfo, so credentials surfaced in the graph, web UI and reports, and URLs differing only in scheme or host case or a default port (`:80` for http, `:443` for https) were stored as separate assets. URLs are now stored without userinfo (including a password containing a raw `/`, `?` or `#`), with a lowercase scheme and host and no default port; path, query and a Unicode host are kept as given, and `url==` and `url!=` filters match the same normalized form. Userinfo is recorded as a task credential for the host with source `asset_url` (percent-decoded; a username without a password is kept), and never replaces an existing credential for the same host and username. Importing an engagement export captures userinfo from its asset URLs the same way, after the exported credentials, so an exported credential for the same host and username is kept. Tool errors that echo an asset URL no longer include its userinfo.
+- Credential domains were stored with their original case, so `Example.com` and `example.com` were separate credentials. Saved and imported credential domains are now lowercased; existing rows are not rewritten.
+
 ## [0.6.1] - 2026-11-25
 
 ### Added

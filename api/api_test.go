@@ -97,6 +97,15 @@ func (m *mockStore) ListChanges(context.Context, int64, int64, tools.ChangeCurso
 func (m *mockStore) ListClaims(context.Context, int64, string) ([]tools.HeldClaim, error) {
 	return nil, nil
 }
+func (m *mockStore) RecordTargetChange(context.Context, int64, tools.TargetChangeInput) (*tools.TargetChangeRecord, error) {
+	return nil, nil
+}
+func (m *mockStore) RecordTargetRestore(context.Context, int64, []int64, string, string) ([]tools.TargetRestoreOutcome, error) {
+	return nil, nil
+}
+func (m *mockStore) ListTargetChanges(context.Context, int64, bool) ([]tools.TargetChange, error) {
+	return nil, nil
+}
 func (m *mockStore) ListNodes(_ context.Context, _ int64, _ string, _ int) ([]tools.Node, error) {
 	return m.listNodes, m.listNodesErr
 }
@@ -391,6 +400,22 @@ func TestHandleGraph_OK(t *testing.T) {
 	edges, ok := body["edges"].([]any)
 	if !ok || len(edges) != 1 {
 		t.Fatalf("edges: want 1 item, got %v", body["edges"])
+	}
+}
+
+func TestHandleGraph_EmptyListsAreArrays(t *testing.T) {
+	a := newTestAPI(&mockStore{})
+	h := a.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/graph", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: want 200, got %d", rec.Code)
+	}
+	if got := strings.TrimSpace(rec.Body.String()); got != `{"edges":[],"nodes":[]}` {
+		t.Fatalf("body: want empty arrays, got %s", got)
 	}
 }
 

@@ -257,6 +257,10 @@ func (p *dslParser) parseComparison(field, op string) (string, error) {
 	}
 	fieldLower := strings.ToLower(field)
 
+	if fieldLower == "url" && (op == "==" || op == "!=") {
+		value = NormalizeAssetURL(value)
+	}
+
 	if fieldLower == "technology" {
 		param := p.addParam("%" + value + "%")
 		switch op {

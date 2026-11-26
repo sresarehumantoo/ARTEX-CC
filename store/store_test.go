@@ -35,6 +35,37 @@ func testDB(t *testing.T) *Store {
 	return sharedStore
 }
 
+func TestOpenSkipsSchemaWhileTablesInUse(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	tx, err := s.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+	if _, err := tx.ExecContext(ctx, `LOCK TABLE tasks IN ROW EXCLUSIVE MODE`); err != nil {
+		t.Fatal(err)
+	}
+
+	opened := make(chan error, 1)
+	go func() {
+		s2, err := Open(ctx, os.Getenv("ARTEX_TEST_PG"))
+		if err == nil {
+			s2.Close()
+		}
+		opened <- err
+	}()
+	select {
+	case err := <-opened:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Open blocked on a table held by an open transaction")
+	}
+}
+
 func testEngagement(t *testing.T, s *Store, label string) (int64, int64) {
 	t.Helper()
 	ctx := context.Background()
@@ -588,5 +619,160 @@ func TestClaimIntentNotAnIntent(t *testing.T) {
 	}
 	if _, err := s.ClaimIntent(ctx, 1<<40, "sess-a", time.Minute); err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Errorf("err = %v, want 'not found'", err)
+	}
+}
+
+func TestInsertAssetNormalizesURL(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, _ := testEngagement(t, s, "url-normalize")
+	host := fmt.Sprintf("norm-%d.example.com", taskID)
+
+	first, err := s.InsertAsset(ctx, taskID, tools.AssetInput{Type: "service", URL: "https://admin:s3cret@" + host + "/Login?Next=A"})
+	if err != nil {
+		t.Fatalf("InsertAsset: %v", err)
+	}
+	second, err := s.InsertAsset(ctx, taskID, tools.AssetInput{Type: "service", URL: "HTTPS://" + strings.ToUpper(host) + ":443/Login?Next=A"})
+	if err != nil {
+		t.Fatalf("InsertAsset: %v", err)
+	}
+	if first != second {
+		t.Errorf("ids = %d, %d, want the same asset", first, second)
+	}
+
+	want := "https://" + host + "/Login?Next=A"
+	list, total, err := s.ListAssets(ctx, tools.AssetFilter{TaskID: taskID, DSL: `url=="https://user@` + strings.ToUpper(host) + `/Login?Next=A"`})
+	if err != nil {
+		t.Fatalf("ListAssets: %v", err)
+	}
+	if total != 1 || len(list) != 1 {
+		t.Fatalf("total = %d, len = %d, want 1", total, len(list))
+	}
+	if got := list[0].Data["url"]; got != want {
+		t.Errorf("url = %v, want %q", got, want)
+	}
+}
+
+func TestInsertAssetRecordsURLCredential(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, _ := testEngagement(t, s, "url-credential")
+	host := fmt.Sprintf("creds-%d.example.com", taskID)
+
+	if _, err := s.SaveCredential(ctx, taskID, tools.CredentialInput{Domain: host, Username: "known", Password: "original", Source: "agent"}); err != nil {
+		t.Fatalf("SaveCredential: %v", err)
+	}
+	for _, in := range []tools.AssetInput{
+		{Type: "service", URL: "https://ad%40min:p%3Ass@" + strings.ToUpper(host) + "/"},
+		{Type: "service", URL: "https://known:changed@" + host + "/login"},
+		{Type: "endpoint", URL: "https://guest@" + host + "/api", Method: "GET"},
+		{Type: "service", URL: "https://ad%40min:other@" + host + "/again"},
+	} {
+		if _, err := s.InsertAsset(ctx, taskID, in); err != nil {
+			t.Fatalf("InsertAsset(%s): %v", in.URL, err)
+		}
+	}
+
+	creds, err := s.ListCredentials(ctx, taskID)
+	if err != nil {
+		t.Fatalf("ListCredentials: %v", err)
+	}
+	got := map[string]tools.Credential{}
+	for _, c := range creds {
+		if c.Domain != host {
+			t.Errorf("domain = %q, want %q", c.Domain, host)
+		}
+		got[c.Username] = c
+	}
+	want := map[string][2]string{
+		"known":  {"original", "agent"},
+		"ad@min": {"p:ss", "asset_url"},
+		"guest":  {"", "asset_url"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("credentials = %+v, want %d entries", creds, len(want))
+	}
+	for user, w := range want {
+		c, ok := got[user]
+		if !ok {
+			t.Errorf("missing credential for %q", user)
+			continue
+		}
+		if c.Password != w[0] || c.Source != w[1] {
+			t.Errorf("%s: password, source = %q, %q, want %q, %q", user, c.Password, c.Source, w[0], w[1])
+		}
+	}
+}
+
+func TestImportRecordsURLCredential(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	host := fmt.Sprintf("import-creds-%d.example.com", os.Getpid())
+
+	taskID, _, err := s.ImportEngagementData(ctx, &tools.EngagementExport{
+		Version: 1,
+		Goal:    "import url credentials",
+		Assets: []map[string]any{
+			{"id": float64(1), "type": "endpoint", "url": "https://captured:fresh@" + host + "/", "method": "GET"},
+			{"id": float64(2), "type": "endpoint", "url": "https://known:fromurl@" + host + "/login", "method": "GET"},
+		},
+		Credentials: []map[string]any{
+			{"domain": strings.ToUpper(host), "username": "known", "password": "exported", "source": "agent", "note": "kept"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("ImportEngagementData: %v", err)
+	}
+
+	creds, err := s.ListCredentials(ctx, taskID)
+	if err != nil {
+		t.Fatalf("ListCredentials: %v", err)
+	}
+	got := map[string]tools.Credential{}
+	for _, c := range creds {
+		got[c.Username] = c
+	}
+	if len(got) != 2 {
+		t.Fatalf("credentials = %+v, want 2 entries", creds)
+	}
+	if c := got["captured"]; c.Domain != host || c.Password != "fresh" || c.Source != "asset_url" {
+		t.Errorf("captured = %+v, want password fresh, source asset_url", c)
+	}
+	if c := got["known"]; c.Domain != host || c.Password != "exported" || c.Source != "agent" || c.Note != "kept" {
+		t.Errorf("known = %+v, want exported row unchanged", c)
+	}
+}
+
+func TestSaveCredentialDomainKey(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, _ := testEngagement(t, s, "credential-domain-key")
+	host := fmt.Sprintf("case-%d.example.com", taskID)
+
+	first, err := s.SaveCredential(ctx, taskID, tools.CredentialInput{Domain: " " + strings.ToUpper(host) + ". ", Username: "admin", Password: "one"})
+	if err != nil {
+		t.Fatalf("SaveCredential: %v", err)
+	}
+	second, err := s.SaveCredential(ctx, taskID, tools.CredentialInput{Domain: host, Username: "admin", Password: "two"})
+	if err != nil {
+		t.Fatalf("SaveCredential: %v", err)
+	}
+	if first != second {
+		t.Errorf("ids = %d, %d, want the same credential", first, second)
+	}
+	if _, err := s.InsertAsset(ctx, taskID, tools.AssetInput{Type: "service", URL: "https://admin:three@" + strings.ToUpper(host) + "/"}); err != nil {
+		t.Fatalf("InsertAsset: %v", err)
+	}
+
+	creds, err := s.ListCredentials(ctx, taskID)
+	if err != nil {
+		t.Fatalf("ListCredentials: %v", err)
+	}
+	if len(creds) != 1 || creds[0].Domain != host || creds[0].Password != "two" {
+		t.Errorf("credentials = %+v, want one %s/admin with password two", creds, host)
 	}
 }

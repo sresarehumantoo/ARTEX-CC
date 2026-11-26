@@ -12,6 +12,22 @@ type ReportFinding struct {
 	Evidence  string
 }
 
+// TargetChange is a change made to a target during the engagement and
+// whether it was verifiably restored to its baseline.
+type TargetChange struct {
+	ID              int64
+	Target          string
+	Resource        string
+	Kind            string
+	Baseline        string
+	RecordedBy      string
+	Restored        bool
+	RestoredBy      string
+	RestoredAt      time.Time
+	LastObserved    string
+	RestoreAttempts int
+}
+
 // CoverageLedger is aggregated test coverage with identified gaps.
 type CoverageLedger struct {
 	Entries      []CoverageEntry

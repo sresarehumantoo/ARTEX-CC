@@ -2,10 +2,13 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
@@ -25,7 +28,7 @@ type Credential struct {
 var errCredentialInvalid = errors.New("credential domain and username are required")
 
 func (s *Store) SaveCredential(ctx context.Context, taskID int64, cred tools.CredentialInput) (int64, error) {
-	domain := strings.TrimSpace(cred.Domain)
+	domain := DomainKey(cred.Domain)
 	username := strings.TrimSpace(cred.Username)
 	password := strings.TrimSpace(cred.Password)
 	note := strings.TrimSpace(cred.Note)
@@ -86,4 +89,57 @@ func (s *Store) ListCredentials(ctx context.Context, taskID int64) ([]tools.Cred
 		out = append(out, c)
 	}
 	return out, rows.Err()
+}
+
+// assetURLCredential extracts the userinfo NormalizeAssetURL strips from an
+// asset URL, percent-decoded, with the host it belongs to.
+func assetURLCredential(raw string) (domain, username, password string, ok bool) {
+	stripped, userinfo, found := tools.SplitURLUserinfo(strings.TrimSpace(raw))
+	if !found {
+		return "", "", "", false
+	}
+	start, end := tools.URLAuthority(stripped)
+	host := stripped[start:end]
+	if strings.HasPrefix(host, "[") {
+		host, _, _ = strings.Cut(host[1:], "]")
+	} else {
+		host, _, _ = strings.Cut(host, ":")
+	}
+	if strings.IndexFunc(host, unicode.IsSpace) >= 0 {
+		return "", "", "", false
+	}
+	user, pass, _ := strings.Cut(userinfo, ":")
+	domain = DomainKey(host)
+	username = strings.TrimSpace(unescapeUserinfo(user))
+	password = unescapeUserinfo(pass)
+	return domain, username, password, domain != "" && username != ""
+}
+
+func unescapeUserinfo(s string) string {
+	if u, err := url.PathUnescape(s); err == nil {
+		return u
+	}
+	return s
+}
+
+// saveAssetURLCredential records userinfo stripped from an asset URL. It never
+// replaces an existing credential for the same domain and username.
+func (s *Store) saveAssetURLCredential(ctx context.Context, tx *sql.Tx, taskID int64, rawURL string) error {
+	domain, username, password, ok := assetURLCredential(rawURL)
+	if !ok {
+		return nil
+	}
+	if s.credentialKey != nil && password != "" {
+		enc, err := aesGCMEncrypt(s.credentialKey, password)
+		if err != nil {
+			return fmt.Errorf("encrypt credential: %w", err)
+		}
+		password = "enc:" + enc
+	}
+	_, err := tx.ExecContext(ctx, `
+		INSERT INTO task_credentials (task_id, domain, username, password, source)
+		VALUES ($1, $2, $3, $4, 'asset_url')
+		ON CONFLICT (task_id, domain, username) DO NOTHING`,
+		taskID, domain, username, password)
+	return err
 }
