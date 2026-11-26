@@ -1,7 +1,7 @@
 {
   "add_company_scope": "`{company_id, added, skipped, invalid, errors?}`.",
   "add_hint": "Single mode: `\"hint created: <id>\"`. Batch mode: `{ids: [...], errors: {...}}`.",
-  "add_intent": "Single mode: `\"intent created: <id>\"`. Batch mode: `{ids: [...], errors: {...}}`.",
+  "add_intent": "Batch mode: `{ids: [...], errors?, skipped?: [{index, summary, existing_id, existing_state}], open_intents?: [{id, summary, priority}], note?}`; `ids` holds 0 for an intent skipped as a duplicate of an open or running one. Single mode: `\"intent created: <id>\"`, or the batch shape when the intent was skipped or other unclaimed open intents exist.",
   "add_task_scope": "`{added: [{kind, value}, ...], errors?}`.",
   "bind_finding_traffic": "`\"traffic <id> bound to finding <id> as <role>\"`.",
   "cancel_intent": "`\"intent <id> cancelled\"`. Errors with the holder label and expiry if another session has a live claim on a running intent.",
