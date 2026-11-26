@@ -44,6 +44,7 @@ func TestExportEngagementData(t *testing.T) {
 			"id", "type", "domain", "root_domain", "ip", "port",
 			"url", "service_type", "service_name", "bundle_id",
 			"app_name", "method", "technologies", "extra",
+			"company_id", "company_source",
 		}).AddRow(
 			int64(100), "root_domain",
 			sql.NullString{String: "example.com", Valid: true},
@@ -52,6 +53,7 @@ func TestExportEngagementData(t *testing.T) {
 			sql.NullString{}, sql.NullString{}, sql.NullString{},
 			sql.NullString{}, sql.NullString{}, sql.NullString{},
 			"{}", []byte("{}"),
+			nil, "explicit",
 		))
 
 	// exportFindings
@@ -75,10 +77,15 @@ func TestExportEngagementData(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"surface", "risk_area", "outcome", "evidence", "reason", "worker"}))
 
 	// exportScope
-	mock.ExpectQuery("SELECT kind, domain.*FROM task_scope").
+	mock.ExpectQuery("FROM task_scope ts").
 		WithArgs(int64(1)).
-		WillReturnRows(sqlmock.NewRows([]string{"kind", "domain", "net", "value", "source", "reason"}).
-			AddRow("root_domain", "example.com", "", "", "agent", ""))
+		WillReturnRows(sqlmock.NewRows([]string{"kind", "domain", "net", "value", "company_id", "company_name", "source", "reason"}).
+			AddRow("root_domain", "example.com", "", "", nil, "", "agent", ""))
+
+	// exportCompanies
+	mock.ExpectQuery("SELECT id, name, COALESCE\\(logo").
+		WithArgs(int64(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "logo"}))
 
 	mock.ExpectQuery("FROM target_changes").
 		WithArgs(int64(10), false).
@@ -155,7 +162,7 @@ func TestImportEngagementData(t *testing.T) {
 
 	// create task
 	mock.ExpectQuery("INSERT INTO tasks").
-		WithArgs("find bugs", "test import", "find bugs", int64(100)).
+		WithArgs("find bugs", "test import", "find bugs", int64(100), nil).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(50)))
 
 	// import node

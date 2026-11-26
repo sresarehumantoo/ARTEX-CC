@@ -493,6 +493,8 @@ type EngagementExport struct {
 	Coverage    []map[string]any `json:"coverage"`
 	Scope       []map[string]any `json:"scope"`
 
+	CompanyID     int64            `json:"company_id,omitempty"`
+	Companies     []map[string]any `json:"companies,omitempty"`
 	TargetChanges []map[string]any `json:"target_changes,omitempty"`
 }
 
