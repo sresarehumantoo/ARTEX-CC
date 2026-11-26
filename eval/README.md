@@ -153,12 +153,32 @@ prints a readable summary to stderr and writes it to `coordination.txt` in the
 transcripts directory. Claim history is not stored in the database, so the
 transcripts are the source of truth for claims.
 
+The claim metrics share one replay of claim windows, in time order (tool
+result timestamps). A successful `start_intent` opens or renews a window until
+the expiry in its result text (else `--lease` or 30m), and a successful
+`complete_intent` or `cancel_intent` closes it. Servers that renew claims
+implicitly also extend the window when the instance holding the intent records
+work against it: a successful `record_fact` (each fact's `intent_id`),
+`report_finding` with `intent_id`, or `record_coverage` with `intent_id`. As in
+the server, only the instance that made the intent's latest claim renews it,
+the window then runs to call time + lease, a call with more than half a lease
+left changes nothing, and a lapsed claim nobody else has taken since is
+revived. `implicit_renewal` says whether this was modeled and
+`implicit_renewals` how many renewals it added. It is on when the `artex-cc`
+binary's `tools --json` catalog says recorded work renews `start_intent`
+claims (not probed with `--mcp-config`), or when any transcript has the
+renewal sentence that such servers put in every "is claimed by" refusal.
+Transcripts from older servers have neither and score as before. The replay
+cannot tell an anonymous holder that has no MCP session (`owner` only, which
+the server does not renew) from one that has, so such runs on a renewing
+server overstate renewals.
+
 | Metric | How it is computed |
 |--------|--------------------|
-| `double_claims` | Successful `start_intent` results replayed in time order (tool result timestamps); a claim by a second instance before the previous holder's expiry (from the result text, else `--lease` or 30m) and with no `complete_intent`/`cancel_intent` in between. Pass: 0 |
-| `unclaimed_work` | Per instance: `work_calls` is its work done after the first intent of the run was created (bootstrap recon before that is skipped, since nothing could be claimed). Work is every Bash call (failed commands included) and every successful `report_finding`, `record_fact`, `record_coverage`, `insert_assets`, `save_evidence`, `capture_command_output`, `ingest_scanner_output` or `ingest_masscan`; planning, reads and claim bookkeeping are not work. `calls` (split into `bash` and `artex_records`) is the part done while the instance held no live claim on any intent, from the same claim, release and expiry replay as `double_claims`, so with a short `--lease` work after a lapse counts. Holding any claim is enough, whatever intent the work was for. `finished_unclaimed_intents` lists intents it completed or cancelled without ever having claimed them. Totals are `unclaimed_work_calls` and `unclaimed_finishes`. Informational |
-| `concurrent_intent_work` | Pairs of instances whose work windows on one intent overlap. A window runs from the instance's first claim of the intent or first fact/finding with that `intent_id`, whichever is earlier, to its last such record or its successful `complete_intent`/`cancel_intent`, and needs at least one record or finish. Leases are ignored, so this catches an instance that kept working after its lease lapsed while another took the intent over, and an instance recording against an intent another one holds, which `double_claims` misses when only one of them claimed. Windows that only touch are not counted. Pass: 0 |
-| `conflicts_handled` | `start_intent` results saying the intent "is claimed by" another holder, counted as handled when one of the next 5 tool calls of that instance is `start_intent` on a different intent. Pass: 90% or more |
+| `double_claims` | From the claim replay: a successful claim by a second instance before the previous holder's window ends, implicit renewals included. Pass: 0 |
+| `unclaimed_work` | Per instance: `work_calls` is its work done after the first intent of the run was created (bootstrap recon before that is skipped, since nothing could be claimed). Work is every Bash call (failed commands included) and every successful `report_finding`, `record_fact`, `record_coverage`, `insert_assets`, `save_evidence`, `capture_command_output`, `ingest_scanner_output` or `ingest_masscan`; planning, reads and claim bookkeeping are not work. `calls` (split into `bash` and `artex_records`) is the part done while the instance held no live claim on any intent in the claim replay, so with a short `--lease` work after a lapse counts, while work after an implicit renewal (the renewing call included) does not. Holding any claim is enough, whatever intent the work was for. `finished_unclaimed_intents` lists intents it completed or cancelled without ever having claimed them. Totals are `unclaimed_work_calls` and `unclaimed_finishes`. Informational |
+| `concurrent_intent_work` | Pairs of instances whose work windows on one intent overlap. A window runs from the instance's first claim of the intent or first fact/finding with that `intent_id`, whichever is earlier, to its last such record or its successful `complete_intent`/`cancel_intent`, and needs at least one record or finish. Leases, and so renewals, are ignored, so this catches an instance that kept working after its lease lapsed while another took the intent over, and an instance recording against an intent another one holds, which `double_claims` misses when only one of them claimed. Windows that only touch are not counted. Pass: 0 |
+| `conflicts_handled` | `start_intent` results saying the intent "is claimed by" another holder, counted as unhandled when one of the next 5 tool calls of that instance retries `start_intent`, completes, cancels or records work against the same intent. A retry counts as handled once the expiry the refusal stated has passed and, with implicit renewal, the holder's window in the claim replay has also ended, since the holder may have renewed after the refusal. Pass: 90% or more |
 | `refused_completions` | `complete_intent` or `cancel_intent` refused because another holder has a live claim |
 | `holders`, `holder_instance` | Holder labels each instance claimed under, and for each unhandled conflict the instance holding the intent: read from the label for `eval/<run>/i<n>` identities, else the instance whose own claims carried that hashed label |
 | `holder_mismatches` | Successful claims whose `eval/<run>/i<n>` label names a different instance than the transcript it appears in, which means the per-instance configs were crossed. Pass: 0 |
@@ -166,7 +186,7 @@ transcripts are the source of truth for claims.
 | `redundant_recon` | Bash commands, whitespace-normalized, run by more than one instance; `redundant_runs` counts the instances beyond the first per command |
 | `list_changes_calls` | Per instance |
 | `cross_instance_parents` | Graph edges whose parent node was created by a different instance than the child, by child kind. Node creators come from the `add_intent`, `record_fact` and `report_finding` results in the transcripts |
-| `takeovers` | With `--kill-after`: each intent the killed instance still held when it died, the survivor that started it next and when, whether that was after the lease lapsed, and how many of the killed instance's facts for it are still attached in the graph |
+| `takeovers` | With `--kill-after`: each intent the killed instance still held in the claim replay when it died (`lease_expires` includes its implicit renewals), the survivor that started it next and when, whether that was after the lease lapsed, and how many of the killed instance's facts for it are still attached in the graph |
 | `usage`, `cost_usd` | Per instance and total, from the stream-json `result` message. A killed instance has no `result` message, so its token counts are summed from its assistant messages and its cost is 0 |
 
 ## Adding scenarios

@@ -233,7 +233,8 @@ func main() {
 	if len(runs) > 0 {
 		scorecard.TranscriptsDir = rc.transcriptsDir
 		leaseDur, _ := time.ParseDuration(*lease)
-		coord, err := scoreRun(ctx, s, explorationID, runs, leaseDur)
+		renewal := *mcpConfigFlag == "" && serverRenewsClaims(ctx, *artexBin)
+		coord, err := scoreRun(ctx, s, explorationID, runs, leaseDur, renewal)
 		if err != nil {
 			slog.Warn("coordination scoring failed", "err", err)
 		} else {
