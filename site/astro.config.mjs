@@ -3,6 +3,7 @@ import starlight from '@astrojs/starlight';
 import starlightBlog from 'starlight-blog';
 import tailwindcss from '@tailwindcss/vite';
 import { analyticsBeacon } from './src/analytics.mjs';
+import { rehypeTableScroll } from './src/rehype-table-scroll.mjs';
 
 const repo = 'https://github.com/SREsAreHumanToo/ARTEX-CC';
 const site = 'https://artex-cc.com';
@@ -10,6 +11,7 @@ const site = 'https://artex-cc.com';
 export default defineConfig({
   site,
   trailingSlash: 'always',
+  markdown: { rehypePlugins: [rehypeTableScroll] },
   integrations: [
     starlight({
       title: 'ARTEX-CC',
