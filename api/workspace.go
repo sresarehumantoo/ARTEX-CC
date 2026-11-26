@@ -12,7 +12,10 @@ import (
 	"time"
 )
 
-const maxWorkspaceUploadBytes = 256 << 20
+const (
+	workspaceDir            = "workspace"
+	maxWorkspaceUploadBytes = 256 << 20
+)
 
 type workspaceEntry struct {
 	Name     string    `json:"name"`
@@ -29,39 +32,67 @@ func (a *API) registerWorkspaceRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/workspace/mkdir", a.handleWorkspaceMkdir)
 }
 
-func (a *API) workspacePath(w http.ResponseWriter, r *http.Request, allowRoot bool) (string, bool) {
+func (a *API) workspacePath(w http.ResponseWriter, r *http.Request, allowRoot bool) (*os.Root, string, bool) {
 	rel := r.URL.Query().Get("path")
 	if strings.HasPrefix(rel, "/") || strings.HasPrefix(rel, "\\") {
 		writeError(w, http.StatusBadRequest, "invalid path")
-		return "", false
+		return nil, "", false
 	}
 	rel = path.Clean(filepath.ToSlash(rel))
 	if rel == "." && !allowRoot {
 		writeError(w, http.StatusBadRequest, "path required")
-		return "", false
+		return nil, "", false
 	}
-	full, err := a.files.resolve(rel)
-	if err != nil {
+	if !filepath.IsLocal(filepath.FromSlash(rel)) {
 		writeError(w, http.StatusBadRequest, "invalid path")
-		return "", false
+		return nil, "", false
 	}
-	return full, true
+	if err := os.MkdirAll(a.workspace, 0o700); err != nil {
+		workspaceError(w, err)
+		return nil, "", false
+	}
+	root, err := os.OpenRoot(a.workspace)
+	if err != nil {
+		workspaceError(w, err)
+		return nil, "", false
+	}
+	return root, filepath.FromSlash(rel), true
+}
+
+// os.Root does not export the error it returns for a symlink that leaves the root.
+func escapesRoot(err error) bool {
+	for ; err != nil; err = errors.Unwrap(err) {
+		if err.Error() == "path escapes from parent" {
+			return true
+		}
+	}
+	return false
 }
 
 func workspaceError(w http.ResponseWriter, err error) {
-	if errors.Is(err, os.ErrNotExist) {
+	switch {
+	case errors.Is(err, os.ErrNotExist):
 		writeError(w, http.StatusNotFound, "not found")
-		return
+	case escapesRoot(err):
+		writeError(w, http.StatusBadRequest, "invalid path")
+	default:
+		writeError(w, http.StatusInternalServerError, err.Error())
 	}
-	writeError(w, http.StatusInternalServerError, err.Error())
 }
 
 func (a *API) handleWorkspaceList(w http.ResponseWriter, r *http.Request) {
-	full, ok := a.workspacePath(w, r, true)
+	root, rel, ok := a.workspacePath(w, r, true)
 	if !ok {
 		return
 	}
-	entries, err := os.ReadDir(full)
+	defer root.Close()
+	dir, err := root.Open(rel)
+	if err != nil {
+		workspaceError(w, err)
+		return
+	}
+	defer dir.Close()
+	entries, err := dir.ReadDir(-1)
 	if err != nil {
 		workspaceError(w, err)
 		return
@@ -83,11 +114,12 @@ func (a *API) handleWorkspaceList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) handleWorkspaceRead(w http.ResponseWriter, r *http.Request) {
-	full, ok := a.workspacePath(w, r, false)
+	root, rel, ok := a.workspacePath(w, r, false)
 	if !ok {
 		return
 	}
-	f, err := os.Open(full)
+	defer root.Close()
+	f, err := root.Open(rel)
 	if err != nil {
 		workspaceError(w, err)
 		return
@@ -102,7 +134,7 @@ func (a *API) handleWorkspaceRead(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "path is a directory")
 		return
 	}
-	switch strings.ToLower(filepath.Ext(full)) {
+	switch strings.ToLower(filepath.Ext(rel)) {
 	case ".json", ".jsonl":
 		w.Header().Set("Content-Type", "application/json")
 	default:
@@ -118,15 +150,16 @@ func (a *API) handleWorkspaceRead(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) handleWorkspaceWrite(w http.ResponseWriter, r *http.Request) {
-	full, ok := a.workspacePath(w, r, false)
+	root, rel, ok := a.workspacePath(w, r, false)
 	if !ok {
 		return
 	}
-	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+	defer root.Close()
+	if err := root.MkdirAll(filepath.Dir(rel), 0o700); err != nil {
 		workspaceError(w, err)
 		return
 	}
-	f, err := os.OpenFile(full, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	f, err := root.OpenFile(rel, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		workspaceError(w, err)
 		return
@@ -143,11 +176,12 @@ func (a *API) handleWorkspaceWrite(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) handleWorkspaceDelete(w http.ResponseWriter, r *http.Request) {
-	full, ok := a.workspacePath(w, r, false)
+	root, rel, ok := a.workspacePath(w, r, false)
 	if !ok {
 		return
 	}
-	if err := os.Remove(full); err != nil {
+	defer root.Close()
+	if err := root.Remove(rel); err != nil {
 		workspaceError(w, err)
 		return
 	}
@@ -155,11 +189,12 @@ func (a *API) handleWorkspaceDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) handleWorkspaceMkdir(w http.ResponseWriter, r *http.Request) {
-	full, ok := a.workspacePath(w, r, false)
+	root, rel, ok := a.workspacePath(w, r, false)
 	if !ok {
 		return
 	}
-	if err := os.MkdirAll(full, 0o755); err != nil {
+	defer root.Close()
+	if err := root.MkdirAll(rel, 0o700); err != nil {
 		workspaceError(w, err)
 		return
 	}
