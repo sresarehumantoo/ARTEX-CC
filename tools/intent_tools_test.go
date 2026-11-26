@@ -60,12 +60,18 @@ func (m *intentMockStore) UpdateNodeState(_ context.Context, id int64, state str
 	return nil
 }
 
-func (m *intentMockStore) UpdateNodeFields(_ context.Context, id int64, state string, _ map[string]any) error {
+func (m *intentMockStore) UpdateNodeFields(_ context.Context, id int64, state string, merge map[string]any) error {
 	n, ok := m.nodes[id]
 	if !ok {
 		return fmt.Errorf("node %d not found", id)
 	}
 	n.State = state
+	for k, v := range merge {
+		if n.Payload == nil {
+			n.Payload = map[string]any{}
+		}
+		n.Payload[k] = v
+	}
 	delete(m.claims, id)
 	return nil
 }
@@ -753,5 +759,107 @@ func TestIntentFullLifecycle(t *testing.T) {
 	}
 	if ms.nodes[10].State != "done" {
 		t.Fatalf("expected done, got %s", ms.nodes[10].State)
+	}
+}
+
+type staleDetailStore struct {
+	*intentMockStore
+	state string
+}
+
+func (m staleDetailStore) NodeDetail(ctx context.Context, id int64) (*Node, error) {
+	n, err := m.intentMockStore.NodeDetail(ctx, id)
+	if n == nil || err != nil {
+		return n, err
+	}
+	stale := *n
+	stale.State = m.state
+	return &stale, nil
+}
+
+func TestCompleteOpenIntentClaimsAndRecordsCompleter(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "open"}
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+	complete, _ := reg.Lookup("complete_intent")
+
+	r, _ := complete.Run(WithSessionID(context.Background(), "sess-a"), json.RawMessage(`{"node_id": 10, "result": "nothing there"}`))
+	if r.IsError {
+		t.Fatalf("complete open intent: %s", r.Content)
+	}
+	if !strings.HasPrefix(r.Content, "intent 10 marked done") || !strings.Contains(r.Content, "start_intent before working") {
+		t.Errorf("result = %q, want done with a start_intent reminder", r.Content)
+	}
+	n := ms.nodes[10]
+	if n.State != "done" || n.Payload["completed_by"] != OwnerLabel("sess-a") || n.Payload["result"] != "nothing there" {
+		t.Errorf("node = %+v, want done and completed_by sess-a's label", n)
+	}
+	if _, held := ms.claims[10]; held {
+		t.Error("claim left in place")
+	}
+}
+
+func TestCompleteStartedIntentRecordsCompleter(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "open"}
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+	start, _ := reg.Lookup("start_intent")
+	complete, _ := reg.Lookup("complete_intent")
+	ctx := WithSessionID(context.Background(), "sess-a")
+
+	if r, _ := start.Run(ctx, json.RawMessage(`{"node_id": 10}`)); r.IsError {
+		t.Fatalf("start: %s", r.Content)
+	}
+	r, _ := complete.Run(ctx, json.RawMessage(`{"node_id": 10}`))
+	if r.IsError || r.Content != "intent 10 marked done" {
+		t.Errorf("result = %q, want plain done", r.Content)
+	}
+	if ms.nodes[10].Payload["completed_by"] != OwnerLabel("sess-a") {
+		t.Errorf("payload = %v", ms.nodes[10].Payload)
+	}
+}
+
+func TestCloseOpenIntentRefusedWhenClaimedMeanwhile(t *testing.T) {
+	t.Parallel()
+	for _, tool := range []string{"complete_intent", "cancel_intent"} {
+		ms := newIntentMockStore()
+		ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "running"}
+		ms.claims[10] = IntentClaim{NodeID: 10, Owner: "sess-b", ExpiresAt: time.Now().Add(time.Hour)}
+		reg := NewRegistry()
+		RegisterIntentTools(reg, staleDetailStore{ms, "open"}, 1)
+		closer, _ := reg.Lookup(tool)
+
+		r, _ := closer.Run(WithSessionID(context.Background(), "sess-a"), json.RawMessage(`{"node_id": 10}`))
+		if !r.IsError || !strings.Contains(r.Content, "claimed by "+OwnerLabel("sess-b")) {
+			t.Errorf("%s = %q, want claim conflict", tool, r.Content)
+		}
+		if ms.nodes[10].State != "running" || ms.claims[10].Owner != "sess-b" {
+			t.Errorf("%s changed the intent: %s, %+v", tool, ms.nodes[10].State, ms.claims[10])
+		}
+	}
+}
+
+func TestCancelOpenIntentRecordsCanceller(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "open"}
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+	cancel, _ := reg.Lookup("cancel_intent")
+
+	if r, _ := cancel.Run(context.Background(), json.RawMessage(`{"node_id": 10}`)); !r.IsError || !strings.Contains(r.Content, "pass owner") {
+		t.Errorf("cancel without session or owner = %q, want refusal", r.Content)
+	}
+	r, _ := cancel.Run(WithSessionID(context.Background(), "sess-a"), json.RawMessage(`{"node_id": 10, "reason": "duplicate"}`))
+	if r.IsError || r.Content != "intent 10 cancelled" {
+		t.Fatalf("cancel = %q", r.Content)
+	}
+	n := ms.nodes[10]
+	if n.State != "stopped" || n.Payload["cancelled_by"] != OwnerLabel("sess-a") || n.Payload["cancel_reason"] != "duplicate" {
+		t.Errorf("node = %+v", n)
 	}
 }
