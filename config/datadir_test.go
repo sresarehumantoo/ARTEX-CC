@@ -108,6 +108,92 @@ func TestPrepareDataDirTightensOnce(t *testing.T) {
 	assertPerm(t, filepath.Join(dir, "auth.json"), 0o644)
 }
 
+func TestPrepareDataDirLeavesAForeignDirAlone(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX permissions not enforced on Windows")
+	}
+	t.Parallel()
+	dir := t.TempDir()
+	files := map[string]os.FileMode{
+		"workspace/site/index.html": 0o644,
+		"skills/notes.md":           0o644,
+		"evidence/report.pdf":       0o644,
+	}
+	dirs := map[string]os.FileMode{
+		"":               0o755,
+		"workspace":      0o755,
+		"workspace/site": 0o755,
+		"skills":         os.ModeSetgid | 0o775,
+		"evidence":       0o755,
+	}
+	for p := range files {
+		if err := os.MkdirAll(filepath.Join(dir, filepath.Dir(p)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, p), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	chmodAll(t, dir, files)
+	chmodAll(t, dir, dirs)
+
+	if err := PrepareDataDir(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	for p, want := range files {
+		assertPerm(t, filepath.Join(dir, p), want)
+	}
+	for p, want := range dirs {
+		info, err := os.Stat(filepath.Join(dir, p))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := info.Mode() & (os.ModePerm | os.ModeSetgid); got != want {
+			t.Errorf("%s mode %v, want %v", p, got, want)
+		}
+	}
+	assertPerm(t, filepath.Join(dir, permsMarkerFile), 0o600)
+}
+
+func TestPrepareDataDirTightensAnEarlierDataDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX permissions not enforced on Windows")
+	}
+	t.Parallel()
+	for _, artexFile := range []string{".artex.json", "owner-label.key"} {
+		dir := t.TempDir()
+		files := map[string]os.FileMode{
+			artexFile:                   0o644,
+			"workspace/site/index.html": 0o644,
+		}
+		for p := range files {
+			if err := os.MkdirAll(filepath.Join(dir, filepath.Dir(p)), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, p), nil, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		chmodAll(t, dir, files)
+		chmodAll(t, dir, map[string]os.FileMode{"workspace": 0o755, "workspace/site": 0o755})
+
+		if err := PrepareDataDir(dir); err != nil {
+			t.Fatal(err)
+		}
+
+		for p, want := range map[string]os.FileMode{
+			artexFile:                   0o600,
+			"workspace":                 0o700,
+			"workspace/site":            0o700,
+			"workspace/site/index.html": 0o600,
+			permsMarkerFile:             0o600,
+		} {
+			assertPerm(t, filepath.Join(dir, p), want)
+		}
+	}
+}
+
 func TestPrepareDataDirChmodsOnlyARootItCreates(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX permissions not enforced on Windows")
