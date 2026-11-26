@@ -13,6 +13,7 @@ func RegisterAll(reg *Registry, store Store, taskID, explorationID int64) {
 	RegisterActivityTools(reg, store, explorationID)
 	RegisterIntentTools(reg, store, explorationID)
 	RegisterChangeTools(reg, store, taskID, explorationID)
+	RegisterTargetChangeTools(reg, store, explorationID)
 	RegisterExportTools(reg, store, taskID, explorationID)
 	RegisterIngestTools(reg, store, taskID, explorationID)
 }

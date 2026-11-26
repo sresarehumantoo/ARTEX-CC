@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/SREsAreHumanToo/ARTEX-CC/identity"
 	"github.com/SREsAreHumanToo/ARTEX-CC/mcpserver"
@@ -63,24 +62,12 @@ func serveListen(t *testing.T, srv *mcpserver.Server, signer *identity.Signer, t
 	if err != nil {
 		t.Fatal(err)
 	}
-	addr := ln.Addr().String()
-	ln.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	go srv.ServeHTTP(ctx, addr, listenMiddleware(srv, signer, token)...)
+	go srv.Serve(ctx, ln, listenMiddleware(srv, signer, token)...)
 
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		conn, err := net.DialTimeout("tcp", addr, 50*time.Millisecond)
-		if err == nil {
-			conn.Close()
-			return addr
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatal("server did not start in time")
-	return ""
+	return ln.Addr().String()
 }
 
 func initializeStatus(t *testing.T, addr, auth string) int {

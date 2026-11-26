@@ -498,3 +498,17 @@ func TestBuildDSLWhereTaskIDExact(t *testing.T) {
 		t.Errorf("sql = %q, want %q", sql, "$1 = ANY(task_ids)")
 	}
 }
+
+func TestBuildDSLWhereURLExactNormalized(t *testing.T) {
+	t.Parallel()
+	sql, args, err := buildDSLWhere(`url=="HTTPS://u:p@Example.com:443/Admin"`)
+	if err != nil {
+		t.Fatalf("buildDSLWhere: %v", err)
+	}
+	if sql != "url = $1" {
+		t.Errorf("sql = %q, want %q", sql, "url = $1")
+	}
+	if len(args) != 1 || args[0] != "https://example.com/Admin" {
+		t.Errorf("args = %v, want [https://example.com/Admin]", args)
+	}
+}

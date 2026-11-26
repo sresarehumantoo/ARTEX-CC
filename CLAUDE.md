@@ -1,4 +1,4 @@
-ARTEX is an MCP tool server for autonomous pentesting with Claude Code. 63 tools, PostgreSQL backend, recording proxy, evidence capture. You bring the brain, ARTEX brings the hands.
+ARTEX is an MCP tool server for autonomous pentesting with Claude Code. 65 tools, PostgreSQL backend, recording proxy, evidence capture. You bring the brain, ARTEX brings the hands.
 
 ## Quick setup
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 type reportMockStore struct {
@@ -232,5 +233,41 @@ func TestGenerateReportEmptyGoal(t *testing.T) {
 	}
 	if !strings.Contains(r.Content, "unspecified") || !strings.Contains(r.Content, "Unnamed") {
 		t.Errorf("expected fallback text for empty goal, got: %s", r.Content)
+	}
+}
+
+type reportChangesMockStore struct {
+	reportMockStore
+	changes []TargetChange
+}
+
+func (m *reportChangesMockStore) ListTargetChanges(_ context.Context, _ int64, unrestoredOnly bool) ([]TargetChange, error) {
+	return m.changes, nil
+}
+
+func TestGenerateReportListsTargetChanges(t *testing.T) {
+	t.Parallel()
+	at := time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC)
+	m := &reportChangesMockStore{
+		reportMockStore: reportMockStore{goal: "g"},
+		changes: []TargetChange{
+			{ID: 1, Target: "WIN01", Resource: "a.ps1", Kind: "modify", Baseline: "sha256:a", RecordedBy: "h-1", RestoredAt: &at, RestoredBy: "h-1"},
+			{ID: 2, Target: "WIN01", Resource: "b.ps1", Kind: "modify", Baseline: "sha256:b", RecordedBy: "h-2", LastObserved: "sha256:evil", RestoreAttempts: 1},
+		},
+	}
+	r, err := makeGenerateReport(m, 1, 1).Run(context.Background(), json.RawMessage(`{}`))
+	if err != nil || r.IsError {
+		t.Fatalf("err=%v content=%s", err, r.Content)
+	}
+	for _, want := range []string{
+		"Target changes: 2, unrestored: **1**",
+		"## Target changes",
+		"#1 restored by h-1",
+		"#2 **NOT RESTORED**: `b.ps1` on `WIN01`",
+		"baseline `sha256:b`, last observed `sha256:evil`",
+	} {
+		if !strings.Contains(r.Content, want) {
+			t.Errorf("report missing %q:\n%s", want, r.Content)
+		}
 	}
 }

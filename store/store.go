@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"embed"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -65,7 +66,7 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 	s := &Store{DB: sqlDB}
 
 	err = withSchemaMigrationLock(context.Background(), sqlDB, func(conn *sql.Conn) error {
-		if _, err := conn.ExecContext(context.Background(), schemaSQL); err != nil {
+		if err := applySchema(context.Background(), conn); err != nil {
 			return fmt.Errorf("apply schema: %w", err)
 		}
 		if err := applyMigrations(context.Background(), conn, migrationsFS()); err != nil {
@@ -150,6 +151,38 @@ func withSchemaMigrationLock(ctx context.Context, db *sql.DB, fn func(*sql.Conn)
 		}
 	}()
 	return fn(conn)
+}
+
+const schemaStateTable = `
+CREATE TABLE IF NOT EXISTS schema_state (
+    id       BOOLEAN PRIMARY KEY DEFAULT true CHECK (id),
+    checksum TEXT NOT NULL
+);
+`
+
+// applySchema runs schema.sql only when it differs from the last applied
+// copy. Its DDL locks many tables in one implicit transaction, which can
+// deadlock with live traffic from another server or CLI on the same database.
+func applySchema(ctx context.Context, conn *sql.Conn) error {
+	sum := sha256.Sum256([]byte(schemaSQL))
+	checksum := hex.EncodeToString(sum[:])
+	if _, err := conn.ExecContext(ctx, schemaStateTable); err != nil {
+		return err
+	}
+	var applied string
+	err := conn.QueryRowContext(ctx, `SELECT checksum FROM schema_state`).Scan(&applied)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if applied == checksum {
+		return nil
+	}
+	if _, err := conn.ExecContext(ctx, schemaSQL); err != nil {
+		return err
+	}
+	_, err = conn.ExecContext(ctx, `INSERT INTO schema_state (id, checksum) VALUES (true, $1)
+		ON CONFLICT (id) DO UPDATE SET checksum = EXCLUDED.checksum`, checksum)
+	return err
 }
 
 // Migration system

@@ -142,7 +142,7 @@ func ingestAssetToInput(a ingest.Asset) AssetInput {
 
 func ingestAssetRef(a ingest.Asset) string {
 	if a.URL != "" {
-		return a.URL
+		return RedactURLUserinfo(a.URL)
 	}
 	if a.Domain != "" {
 		return a.Domain

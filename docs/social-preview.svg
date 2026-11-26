@@ -143,7 +143,7 @@
 
   <!-- Feature highlights -->
   <g fill="#58a6ff" font-size="16" font-weight="400" text-anchor="middle">
-    <text x="280" y="470">63 MCP Tools</text>
+    <text x="280" y="470">65 MCP Tools</text>
     <circle cx="395" cy="466" r="2" fill="#30363d"/>
     <text x="510" y="470">Exploration Graph</text>
     <circle cx="635" cy="466" r="2" fill="#30363d"/>

@@ -436,6 +436,14 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 		ov.Coverage["gaps"] = covGaps
 	}
 
+	unrestored, err := s.ListTargetChanges(ctx, explorationID, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(unrestored) > 0 {
+		ov.UnrestoredTargetChanges = tools.UnrestoredSummaries(unrestored)
+	}
+
 	return ov, nil
 }
 
