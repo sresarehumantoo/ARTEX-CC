@@ -443,6 +443,10 @@
     #hero[data-offscreen] [data-sheen]::after {
       animation-play-state: paused;
     }
+
+    #main :is(a.rounded-lg, a.rounded-full, button):active {
+      scale: 0.97;
+    }
   }
 }
 

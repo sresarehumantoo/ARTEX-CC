@@ -36,6 +36,9 @@ if ('IntersectionObserver' in window) {
   for (const el of [document.getElementById('hero'), stream]) if (el) offscreen.observe(el);
 }
 
+// iOS Safari only applies :active styles once the page has a touchstart listener.
+document.addEventListener('touchstart', () => {}, { passive: true });
+
 if (finePointer.matches && !reducedMotion.matches) {
   let target: HTMLElement | null = null;
   let x = 0;
