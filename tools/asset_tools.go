@@ -274,7 +274,9 @@ func makeAddTaskScope(store Store, taskID int64) Tool {
 	return Tool{
 		Name:     "add_task_scope",
 		Category: CategoryAssets,
-		Description: "Add test scope to this task (coverage scope, not enforced): it is the denominator of asset test coverage.\n" +
+		Description: "Add entries to this task's scope. Scope is enforced: insert_assets, the enrich tools, traffic_replay and capture_command_output refuse targets outside it, and check_scope tests a target against it. " +
+			"Targets are matched against root_domain, subdomain, ip and cidr entries. A task with none of those allows every target, so the first one restricts the task to what is listed and later ones widen it. " +
+			"Task scope is also the denominator of list_untested_assets, which counts a company entry's assets too. icp and keyword entries are not matched or counted; plugins receive every entry.\n" +
 			"Supported kinds: company / root_domain / subdomain / ip / cidr / icp / keyword.\n" +
 			"Use the entries array for multiple entries.",
 		Schema: obj(map[string]any{
