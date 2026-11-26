@@ -363,3 +363,23 @@ func TestIngestMasscanStoreError(t *testing.T) {
 		t.Errorf("expected store error in errors, got: %s", r.Content)
 	}
 }
+
+func TestIngestScannerOutputStoreErrorRedactsUserinfo(t *testing.T) {
+	t.Parallel()
+	ms := &ingestMockStore{insertErr: fmt.Errorf("insert failed")}
+	reg := NewRegistry()
+	RegisterIngestTools(reg, ms, 1, 1)
+
+	tool, _ := reg.Lookup("ingest_scanner_output")
+	httpxLine := `{"url":"https://admin:s3cret@example.com/","status_code":200,"host":"93.184.216.34","port":"443","scheme":"https"}`
+	r, err := tool.Run(context.Background(), json.RawMessage(fmt.Sprintf(`{
+		"scanner": "httpx",
+		"output": %q
+	}`, httpxLine)))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(r.Content, "asset https://example.com/") || strings.Contains(r.Content, "s3cret") {
+		t.Errorf("expected redacted asset ref in errors, got: %s", r.Content)
+	}
+}
