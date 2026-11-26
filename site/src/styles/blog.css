@@ -42,7 +42,7 @@ html:has(.blog-list) .right-sidebar-container {
 }
 
 .blog-eyebrow {
-  color: var(--blog-faint);
+  color: var(--blog-muted);
   font-family: var(--sl-font-mono);
   font-size: var(--sl-text-xs);
   letter-spacing: 0.06em;
