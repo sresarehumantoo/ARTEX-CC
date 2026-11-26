@@ -219,6 +219,12 @@ class MonitorHandler(BaseHTTPRequestHandler):
             })
             return
 
+        # Rejected before any filesystem call: realpath on a UNC name would make
+        # the SYSTEM service connect to an attacker-chosen SMB host.
+        if ":" in name or name.startswith(("/", "\\")) or os.path.isabs(name):
+            self.send_json(403, {"error": "access denied"})
+            return
+
         # Intentionally vulnerable to directory traversal
         base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports")
         file_path = os.path.realpath(os.path.join(base_dir, name))
