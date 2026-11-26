@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Databases from before the fixes below could still hold met goals proved only by dismissed or merged findings. Migration 0006 moves the `proves` edges of merged findings to the live finding at the end of their merge chain, deletes those of dismissed findings and merged ones with no live root, and reopens each met goal left without a live proof.
+
 ### Changed
 - Every HTTP response, including the web UI and `/mcp`, carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'` and `Referrer-Policy: no-referrer`.
 
