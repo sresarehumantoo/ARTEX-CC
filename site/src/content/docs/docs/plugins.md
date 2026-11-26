@@ -72,7 +72,7 @@ When Claude calls a plugin tool, ARTEX starts the executable with no arguments a
 | `tool` | The tool name from the manifest, without the plugin prefix. One executable can serve several tools by switching on it. |
 | `input` | The arguments Claude passed, unchanged. |
 | `config.engagement` | The active engagement. `name` is the engagement goal. The config is built per call, so it follows `switch_engagement`. |
-| `config.in_scope` | The engagement's scope rules followed by its company's scope rules. Always an array, possibly empty. `kind` is one of `root_domain`, `subdomain`, `domain`, `ip`, `cidr`, `company`, `icp` or `keyword` (`domain` comes from company scope rows); IP rules are expressed as CIDRs. `reason` is omitted when empty. |
+| `config.in_scope` | The engagement's scope rules followed by the scope rules of each company it covers through a `company` entry. Always an array, possibly empty. `kind` is one of `root_domain`, `subdomain`, `domain`, `ip`, `cidr`, `company`, `icp` or `keyword` (`domain` comes from company scope rows); IP rules are expressed as CIDRs. `reason` is omitted when empty. |
 | `config.data_dir` | Absolute path of the `--data` directory, a good place for raw scanner output. |
 | `config.proxy` | Present only when `serve` runs with `--proxy`. Send HTTP(S) through `url` and trust `ca_cert` (an absolute PEM path) so the traffic is recorded and shows up in the `traffic_*` tools. |
 

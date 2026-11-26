@@ -226,6 +226,7 @@ func makeAddCompanyScope(store Store) Tool {
 		Category: CategoryAssets,
 		Description: "Add domains/IPs/CIDRs/ICP registrations/company keywords to a company's asset scope. " +
 			"Company names are unique: if the company doesn't exist it is created; if it exists it is reused.\n" +
+			"This alone does not change what is in scope. Once the company is added to a task with add_task_scope kind=company, its domain, IP and CIDR lines are enforced as part of that task's scope; ICP and keyword lines are recorded for attribution only.\n" +
 			"scope is one entry per line; the system auto-recognizes: root domain / URL / single IP / CIDR range / ICP registration / company keyword.\n" +
 			"Always give reason explaining the attribution basis.",
 		Schema: obj(map[string]any{
@@ -275,8 +276,9 @@ func makeAddTaskScope(store Store, taskID int64) Tool {
 		Name:     "add_task_scope",
 		Category: CategoryAssets,
 		Description: "Add entries to this task's scope. Scope is enforced: insert_assets, the enrich tools, traffic_replay and capture_command_output refuse targets outside it, and check_scope tests a target against it. " +
-			"Targets are matched against root_domain, subdomain, ip and cidr entries. A task with none of those allows every target, so the first one restricts the task to what is listed and later ones widen it. " +
-			"Task scope is also the denominator of list_untested_assets, which counts a company entry's assets too. icp and keyword entries are not matched or counted; plugins receive every entry.\n" +
+			"Targets are matched against root_domain, subdomain, ip and cidr entries and, for each company entry, the domain, IP and CIDR lines add_company_scope recorded for that company. A task with none of those allows every target, so the first one restricts the task to what is listed and later ones widen it. " +
+			"A company entry whose company has no domain, IP or CIDR lines allows nothing on its own rather than everything; add them with add_company_scope. " +
+			"Task scope is also the denominator of list_untested_assets, which counts a company entry's assets too. icp and keyword entries are not matched or counted; plugins receive every entry plus each company's scope lines.\n" +
 			"Supported kinds: company / root_domain / subdomain / ip / cidr / icp / keyword.\n" +
 			"Use the entries array for multiple entries.",
 		Schema: obj(map[string]any{
