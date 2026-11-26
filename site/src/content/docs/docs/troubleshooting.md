@@ -13,7 +13,11 @@ artex-cc health --pg "postgres://localhost/ccartex"
 
 ## `failed to load engagement config`
 
-`.artex.json` is missing from the data directory. Run `artex-cc init` first, or point `--data` at the directory where you ran it.
+`.artex.json` in the data directory exists but could not be read or parsed. It is written owner-only (0600), so the usual cause is running `serve` as a different user than `init`; otherwise check that the file is valid JSON. See [Data directory](/docs/configuration/#data-directory).
+
+## Tools report `requires a task context`, or the board is empty
+
+`serve` found no `.artex.json` in its data directory, so it started without an engagement. With no `--data`, the data directory is the server's working directory, which for an MCP client is wherever the client launched it. Run `artex-cc init` first, and pass `--data` pointing at the directory where you ran it.
 
 ## `invalid credential key`
 
@@ -41,7 +45,17 @@ With `--web` (which the Docker image uses), `/mcp` requires `Authorization: Bear
 docker compose exec artex cat /app/data/mcp-config.json
 ```
 
+Without `--web`, `/mcp` requires the bearer token only when `ARTEX_MCP_TOKEN` is set on the server; send that value. See [MCP clients](/docs/mcp-clients/#generic-stdio).
+
 A rejected `X-Artex-Identity` header gets `400` with the reason in the body, not `401`. See [When a token is rejected](/docs/mcp-clients/#when-a-token-is-rejected).
+
+## `serve` refuses to start: `is not a loopback address, so /mcp needs a bearer token`
+
+`--listen` (or `ARTEX_LISTEN`) is an address other than `localhost`, `127.0.0.0/8` or `[::1]`, such as `:9400` or `0.0.0.0:9400`, and the server runs without `--web`. Set `ARTEX_MCP_TOKEN` (for example `export ARTEX_MCP_TOKEN=$(openssl rand -hex 32)`) and send it as `Authorization: Bearer <token>`, or listen on `localhost`.
+
+## HTTP requests get `421` with `host not allowed`
+
+A request that arrives on a loopback address must carry a `Host` of `localhost` or a loopback IP, so a DNS-rebinding web page cannot reach the server. A reverse proxy on the same host that forwards the original `Host` header, or a hostname that resolves to `127.0.0.1`, gets 421. Point the client at `localhost` or `127.0.0.1`, or have the proxy send `Host: localhost`. Connections on other local addresses are not affected.
 
 ## Claude repeats work or forgets what it did
 

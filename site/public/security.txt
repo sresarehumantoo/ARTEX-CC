@@ -1,0 +1,6 @@
+Contact: https://github.com/SREsAreHumanToo/ARTEX-CC/security/advisories/new
+Contact: mailto:security@artex-cc.com
+Expires: 2027-11-26T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://artex-cc.com/security.txt
+Policy: https://artex-cc.com/security/

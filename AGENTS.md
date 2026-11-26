@@ -21,7 +21,7 @@ ARTEX_TEST_PG="postgres://localhost/ccartex_test" go test ./store/...
 ## Project structure
 
 ```
-cmd/artex-cc/      CLI entrypoint: serve, init, version
+cmd/artex-cc/      CLI entrypoint: serve, init, health, tools, identity, completion, version
 store/             PostgreSQL data layer (assets, graph, findings, credentials, coverage)
 store/migrations/  Numbered SQL migrations, embedded at build time
 mcpserver/         MCP protocol server (stdio and HTTP transports)
@@ -55,7 +55,7 @@ PostgreSQL is the only backend. Connection string comes from `--pg` or `ARTEX_PG
 
 ## Tool registration
 
-Tools are defined in `tools/` grouped by category: `asset_tools.go`, `exploration_tools.go`, `finding_tools.go`, `credential_tools.go`, `scope_tools.go`, `engagement_tools.go`, `report_tools.go`, `traffic_tools.go`, `evidence_tools.go`, `enrich_tools.go`, `ingest_tools.go`, `activity_tools.go`, `intent_tools.go`, `export_tools.go`.
+Tools are defined in `tools/` grouped by category: `asset_tools.go`, `exploration_tools.go`, `finding_tools.go`, `credential_tools.go`, `scope_tools.go`, `engagement_tools.go`, `report_tools.go`, `traffic_tools.go`, `evidence_tools.go`, `enrich_tools.go`, `ingest_tools.go`, `activity_tools.go`, `intent_tools.go`, `changes_tools.go`, `target_change_tools.go`, `export_tools.go`.
 
 Each category has a `Register*Tools` function called from `tools/register.go` (`RegisterAll`). Traffic tools are the exception: they depend on `*traffic.Traffic` and are registered separately in `cmd/artex-cc/main.go` when `--proxy` is set. Evidence tools also register separately (they need the evidence store).
 
@@ -70,4 +70,4 @@ A `Tool` has `Name`, `Description`, `Schema`, and `Run`. Schemas use the helpers
 
 ## Branch workflow
 
-Feature branches off `main`, PRs reviewed before merge. Run `go test ./...` and `go vet ./...` before pushing. CI runs both.
+Feature branches off `main`, PRs reviewed before merge. Run `make ci` (gofmt check, `go vet`, golangci-lint, `go test`) before pushing. CI runs the same checks.

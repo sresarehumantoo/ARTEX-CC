@@ -44,7 +44,8 @@ prints the exact command for your OS). Then start Claude Code:
 claude
 ```
 
-The 31 MCP tools appear automatically. Claude also reads the
+All 65 MCP tools appear automatically (the `traffic_*` tools and
+`bind_finding_traffic` only because the config passes `--proxy`). Claude also reads the
 `artex://engagement` resource, which contains the orchestration guide and your
 engagement goal. You are ready to go.
 
@@ -60,8 +61,9 @@ engagement goal. You are ready to go.
 
 ### Orient
 
-Claude's first move is always `graph_overview`. The graph is empty except for
-the root goal set during init.
+Claude's first move is always `graph_overview`. The graph is empty: the goal
+passed to `init` is the engagement's description in `task.goal`, not a goal node
+yet.
 
 ```
 Claude calls graph_overview()
@@ -69,22 +71,15 @@ Claude calls graph_overview()
 
 ```json
 {
-  "task": {"id": 1, "status": "active"},
-  "goals": [
-    {"id": 1, "text": "Bug bounty: app.example.com", "state": "open"}
-  ],
-  "hints": [],
-  "open_intents": [],
-  "running_intents": [],
-  "recent_done_intents": [],
+  "task": {"goal": "Bug bounty: app.example.com", "description": ""},
   "done_intents_total": 0,
   "frontier_open": 0,
   "findings_total": 0,
+  "findings_dismissed": 0,
+  "findings_merged": 0,
   "facts": 0,
-  "finding_list": [],
-  "recent_facts": [],
-  "coverage": {},
-  "task_credentials": []
+  "coverage": {"entries": 0, "gaps": 0},
+  "changes_cursor": "c1795765200000000..0"
 }
 ```
 
@@ -172,8 +167,8 @@ Claude calls record_fact({
 })
 ```
 
-```json
-{"id": 5}
+```
+fact created: 5
 ```
 
 Now Claude enriches `app.example.com` specifically, since that is the primary
@@ -248,7 +243,19 @@ Claude calls add_intent({
 
 ### Probe the primary target
 
-Claude picks up the highest-priority open intent and starts executing.
+Claude picks up the highest-priority open intent and claims it, so no other
+session or subagent works it at the same time:
+
+```
+Claude calls start_intent({node_id: 6})
+```
+
+```
+intent 6 is now running; claimed by h-3f9a1c2b7d4e until 2026-11-21T10:30:00Z
+```
+
+The claim lasts 30 minutes and renews each time Claude records a fact, finding
+or coverage entry against the intent.
 
 ```
 Claude calls enrich_service({host: "app.example.com", port: 443})
@@ -308,11 +315,22 @@ Claude calls insert_assets({
 {"results": [{"index": 0, "id": 6, "type": "service"}], "errors": []}
 ```
 
+With the intent's work recorded, Claude closes it, which releases the claim:
+
+```
+Claude calls complete_intent({node_id: 6, result: "Tech stack and TLS details recorded; service asset registered"})
+```
+
+```
+intent 6 marked done
+```
+
 ### Dispatch subagents for parallel work
 
 With multiple intents open, Claude dispatches subagents to work them in
 parallel. Each subagent receives one intent and has access to the same MCP
-tools.
+tools. Subagents share the coordinator's MCP session, so each one passes its
+own `owner` to `start_intent` and `complete_intent` to hold a separate claim.
 
 ```
 Claude launches 2 subagents in parallel:
@@ -354,7 +372,7 @@ The overview now shows new facts from the subagents:
     {"id": 11, "summary": "admin.example.com:8080 returns HTTP 200 with title 'Admin Panel - Login'"},
     {"id": 9, "summary": "app.example.com runs nginx/1.24.0 reverse-proxying Express/Node.js..."}
   ],
-  "coverage": {}
+  "coverage": {"entries": 0, "gaps": 0}
 }
 ```
 
@@ -387,7 +405,8 @@ Claude calls record_coverage({
   surface: "app.example.com /login",
   risk_area: "sqli",
   outcome: "no_issue_found",
-  evidence: "intent 17: tested username and password fields with standard SQL injection payloads; all returned 401 with consistent error message"
+  intent_id: 17,
+  evidence: "tested username and password fields with standard SQL injection payloads; all returned 401 with consistent error message"
 })
 ```
 
@@ -456,8 +475,8 @@ Claude calls report_finding({
 })
 ```
 
-```
-finding recorded: 1
+```json
+{"finding_id": 1, "node_id": 18}
 ```
 
 Claude binds the captured traffic as proof:
@@ -515,8 +534,8 @@ Claude calls report_finding({
 })
 ```
 
-```
-finding recorded: 2
+```json
+{"finding_id": 2, "node_id": 19}
 ```
 
 ### Finding 3: Missing rate limiting on login
@@ -535,8 +554,8 @@ Claude calls report_finding({
 })
 ```
 
-```
-finding recorded: 3
+```json
+{"finding_id": 3, "node_id": 20}
 ```
 
 ---
@@ -555,7 +574,8 @@ Claude calls prove_goal({
 })
 ```
 
-(Here node 18 is the finding node for finding 1 in the exploration graph.)
+(`evidence_id` takes the graph node, so Claude passes the `node_id` 18 that
+`report_finding` returned for finding 1.)
 
 ```
 goal 2 marked met
@@ -581,7 +601,8 @@ Claude calls record_coverage({
   surface: "app.example.com /api/v2/*",
   risk_area: "sqli",
   outcome: "no_issue_found",
-  evidence: "intent 17: tested all identified parameters with error-based, blind, and time-based payloads; all returned expected error responses with consistent timing"
+  intent_id: 17,
+  evidence: "tested all identified parameters with error-based, blind, and time-based payloads; all returned expected error responses with consistent timing"
 })
 ```
 
@@ -597,29 +618,25 @@ Claude calls generate_report()
 The tool produces a full Markdown penetration test report:
 
 ```markdown
-# Penetration Test Report: Bug bounty: app.example.com
+# Penetration Test Report — Bug bounty: app.example.com
 
-Generated: 2026-11-21
+- **Task goal**: Bug bounty: app.example.com
+- **Generated at**: 2026-11-21 10:42:17
 
-## Executive Summary
+## Summary
 
-3 findings identified across 2 domains and 6 assets.
-
-| Severity | Count |
-|----------|-------|
-| Critical | 1     |
-| High     | 1     |
-| Medium   | 1     |
+- Confirmed findings: **3**
+- Assets: ip 2, root_domain 1, service 1, subdomain 4
 
 ## Findings
 
-### [CRITICAL] Admin panel accessible with default credentials
+### 1. [CRITICAL] Admin panel accessible with default credentials
 ...
 
-### [HIGH] Unauthenticated IDOR on /api/v2/users/{id}
+### 2. [HIGH] Unauthenticated IDOR on /api/v2/users/{id}
 ...
 
-### [MEDIUM] No rate limiting on /auth/login endpoint
+### 3. [MEDIUM] No rate limiting on /auth/login endpoint
 ...
 ```
 
@@ -632,7 +649,7 @@ Claude calls goal_met({
 ```
 
 ```
-engagement 1 marked complete
+engagement 1 marked complete: 3 findings reported (1 critical, 1 high, 1 medium). Auth bypass and data exposure goals proved. SQL injection testing c…
 ```
 
 ---
@@ -666,14 +683,15 @@ facts, findings, and intents are still there.
 
 When the graph has multiple independent intents, Claude dispatches subagents to
 work them in parallel. Each subagent gets one intent, has access to the same
-MCP tools, and writes its results directly into the graph. The coordinator
-(Claude) reads `graph_overview` after the subagents finish and plans the next
-round.
+MCP tools, claims its intent with `start_intent`, and writes its results
+directly into the graph. The coordinator (Claude) reads `graph_overview` after
+the subagents finish and plans the next round.
 
 The pattern:
 
 1. `graph_overview` to see open intents
-2. Launch one Agent per intent (parallel, in one message)
+2. Launch one Agent per intent (parallel, in one message); each claims its
+   intent, records results, and finishes with `complete_intent`
 3. When agents finish, `graph_overview` again
 4. Plan next intents based on new facts
 5. Repeat
@@ -685,8 +703,10 @@ start a new session:
 
 1. Claude calls `graph_overview`.
 2. It sees all goals, completed and open intents, facts, findings.
-3. Intents in "running" state with no recent progress are stale from the
-   previous session. Claude creates replacements.
+3. Running intents show who holds them (`claimed_by`) and when the claim
+   expires. A claim lapses after 30 minutes without renewal, and the intent is
+   listed as open again (with `claim_expired`) for any session to
+   `start_intent`.
 4. Work continues from where it left off.
 
 You never lose work. Facts, findings, and credentials are persisted the moment

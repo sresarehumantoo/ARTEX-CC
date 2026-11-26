@@ -265,6 +265,7 @@ The rule is scoped to that exact command prefix.
 | `--transport` | `stdio` | `stdio` (one `serve --stdio` per instance) or `http` (one shared `serve --listen`) |
 | `--kill-after` | (none) | Kill one instance after a delay, as `INSTANCE:DURATION` (e.g. `2:3m`) |
 | `--lease` | (server default) | Intent lease passed to every `serve` process as `ARTEX_INTENT_LEASE` |
+| `--env` | (none) | `KEY=VALUE` added to every `claude` instance's environment; repeatable |
 | `--identity` | true | With `--transport http`, give each instance its own `X-Artex-Identity`; `false` keeps the anonymous `owner` argument path |
 
 ## Windows target testing (manual)

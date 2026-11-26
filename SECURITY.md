@@ -27,14 +27,13 @@ intended ability to intercept, record, and replay network traffic.
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Report via one of:
+Report privately via one of:
 
-- **Email:** [security@cc-artex.dev](mailto:security@cc-artex.dev). Encrypt with
-  our PGP key if available (check the repository root or keyservers for
-  `security@cc-artex.dev`).
-- **GitHub Security Advisories:** use the "Report a vulnerability" button on the
-  Security tab of the repository. This creates a private advisory visible only to
-  maintainers.
+- **GitHub Security Advisories (preferred):**
+  [open a new advisory](https://github.com/SREsAreHumanToo/ARTEX-CC/security/advisories/new),
+  or use the "Report a vulnerability" button on the repository's Security tab. The
+  advisory is visible only to you and the maintainers.
+- **Email:** [security@artex-cc.com](mailto:security@artex-cc.com).
 
 Include:
 
