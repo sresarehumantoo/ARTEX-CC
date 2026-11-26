@@ -10,7 +10,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/SREsAreHumanToo/ARTEX-CC/evidence"
 	"github.com/SREsAreHumanToo/ARTEX-CC/mcpserver"
@@ -51,25 +50,13 @@ func startTestServerWithOpts(t *testing.T, reg *tools.Registry, opts ...mcpserve
 	if err != nil {
 		t.Fatal(err)
 	}
-	addr := ln.Addr().String()
-	ln.Close()
 
 	srv := mcpserver.New(reg, opts...)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	go srv.ServeHTTP(ctx, addr)
+	go srv.Serve(ctx, ln)
 
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		conn, err := net.DialTimeout("tcp", addr, 50*time.Millisecond)
-		if err == nil {
-			conn.Close()
-			return addr
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatal("test server did not start in time")
-	return ""
+	return ln.Addr().String()
 }
 
 func TestMCPServerAccessor(t *testing.T) {
