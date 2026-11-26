@@ -47,6 +47,8 @@ var RequireIdentity bool
 const ownerArgDesc = "stable label identifying you as a claim holder, e.g. a random hex string chosen once and passed on every claim call. " +
 	"Required when the transport has no session and no X-Artex-Identity header (MCP HTTP protocol 2026-07-28); otherwise optional, and it splits your session or identity into separate holders"
 
+const renewOwnerArgDesc = "the owner you passed to start_intent, if you claimed with one, so this call renews that claim"
+
 // ErrNoClaimOwner means a claim operation has neither an MCP session nor an
 // owner argument to identify the caller.
 var ErrNoClaimOwner = errors.New("this connection has no MCP session to own intent claims: " +
@@ -209,9 +211,10 @@ func (e *ClaimConflictError) Error() string {
 
 // renewHeldIntents extends the caller's claims on the intents a write was
 // recorded against, so a holder that keeps recording results keeps its
-// claim. Only the holder's own calls renew, and a failed renewal never fails
-// the write.
-func renewHeldIntents(ctx context.Context, store Store, intentIDs []int64) {
+// claim. The holder is resolved from owner as start_intent resolves it, so
+// only the holder's own calls renew, and a failed renewal never fails the
+// write.
+func renewHeldIntents(ctx context.Context, store Store, owner string, intentIDs []int64) {
 	var ids []int64
 	for _, id := range intentIDs {
 		if id > 0 {
@@ -221,7 +224,7 @@ func renewHeldIntents(ctx context.Context, store Store, intentIDs []int64) {
 	if len(ids) == 0 {
 		return
 	}
-	holder, err := ClaimOwner(ctx, "")
+	holder, err := ClaimOwner(ctx, owner)
 	if err != nil {
 		return
 	}

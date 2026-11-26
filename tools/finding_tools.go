@@ -19,7 +19,7 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 		Name:     "report_finding",
 		Category: CategoryFindings,
 		Description: "Record a confirmed finding, with evidence providing verifiable proof such as command output and logs. " +
-			"Pass the current intent_id when in a task context; it also renews your claim on that intent. " +
+			"Pass the current intent_id when in a task context; it also renews your claim on that intent (pass owner too if you claimed with one). " +
 			"After reporting, the coordinator sees this in graph_overview and can use it as evidence for prove_goal.\n" +
 			"Before reporting, especially when other agents work the same engagement, call list_findings (or list_changes) and check for " +
 			"an existing finding with the same vulnclass on the same asset; if it is the same issue, add to it instead of filing a new one. " +
@@ -33,6 +33,7 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 			"intent_id": intp("the current task's intent id"),
 			"asset_ids": arr(map[string]any{"type": "integer"}, "affected asset ids"),
 			"evidence":  str("evidence/PoC text"),
+			"owner":     str(renewOwnerArgDesc),
 		}, "vulnclass", "severity", "summary"),
 		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
 			var a struct {
@@ -43,6 +44,7 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 				Evidence  string            `json:"evidence"`
 				IntentID  json.RawMessage   `json:"intent_id"`
 				AssetIDs  []json.RawMessage `json:"asset_ids"`
+				Owner     string            `json:"owner"`
 			}
 			if err := json.Unmarshal(in, &a); err != nil {
 				return errResult("invalid input: " + err.Error()), nil
@@ -86,7 +88,7 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 			if err != nil {
 				return errResult(err.Error()), nil
 			}
-			renewHeldIntents(ctx, store, []int64{input.IntentID})
+			renewHeldIntents(ctx, store, a.Owner, []int64{input.IntentID})
 
 			resp := map[string]any{"finding_id": findingID, "node_id": nodeID}
 			if len(dupes) > 0 {

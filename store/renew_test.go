@@ -51,6 +51,21 @@ func TestRenewIntentClaimsOnlyForHolder(t *testing.T) {
 		t.Errorf("another holder's claim changed: %s until %v", owner, exp.Time)
 	}
 
+	sibling, err := s.AddNode(ctx, expID, KindIntent, map[string]any{"summary": "sibling"}, 5, "open", "planner", nil)
+	if err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+	if _, err := s.ClaimIntent(ctx, sibling, "sess-a/owner:y", time.Minute); err != nil {
+		t.Fatalf("ClaimIntent: %v", err)
+	}
+	_, siblingBefore := claimExpiry(t, s, sibling)
+	if err := s.RenewIntentClaims(ctx, []int64{sibling}, "sess-a/owner:x", time.Hour); err != nil {
+		t.Fatalf("RenewIntentClaims: %v", err)
+	}
+	if _, exp := claimExpiry(t, s, sibling); !exp.Time.Equal(siblingBefore.Time) {
+		t.Errorf("owner x renewed sibling owner y's claim: %v -> %v", siblingBefore.Time, exp.Time)
+	}
+
 	_, renewed := claimExpiry(t, s, own)
 	if err := s.RenewIntentClaims(ctx, []int64{own}, "sess-a", time.Hour); err != nil {
 		t.Fatalf("RenewIntentClaims: %v", err)

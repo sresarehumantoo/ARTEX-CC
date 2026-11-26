@@ -170,7 +170,7 @@ func makeRecordFact(store Store, explorationID int64) Tool {
 		Name:     "record_fact",
 		Category: CategoryExploration,
 		Description: "Write an exploration fact/conclusion into the exploration graph, linked to the intent that produced it (intent_id). " +
-			"Passing intent_id for an intent you hold also renews your claim on it. " +
+			"Passing intent_id for an intent you hold also renews your claim on it (pass owner too if you claimed with one). " +
 			"Call this IMMEDIATELY when you learn something, do not wait until the end. " +
 			"Facts written here are visible to the coordinator and other subagents via graph_overview and list_facts.\n" +
 			"Used to record both positive conclusions (fingerprinting/enumeration) and negative conclusions ('port closed'/'parameter not injectable').\n" +
@@ -194,6 +194,7 @@ func makeRecordFact(store Store, explorationID int64) Tool {
 					"asset_ids":  arr(map[string]any{"type": "integer"}, "Asset IDs explicitly involved in this fact."),
 				}, "summary"),
 			},
+			"owner": str(renewOwnerArgDesc),
 		}, "facts"),
 		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
 			type factItem struct {
@@ -207,6 +208,7 @@ func makeRecordFact(store Store, explorationID int64) Tool {
 			}
 			var a struct {
 				Facts []factItem `json:"facts"`
+				Owner string     `json:"owner"`
 			}
 			if err := json.Unmarshal(in, &a); err != nil {
 				return errResult("invalid input: " + err.Error()), nil
@@ -260,7 +262,7 @@ func makeRecordFact(store Store, explorationID int64) Tool {
 			}
 
 			ids, errs := runBatch(a.Facts, recordOne)
-			renewHeldIntents(ctx, store, worked)
+			renewHeldIntents(ctx, store, a.Owner, worked)
 			isBatch := len(a.Facts) > 1
 			return singleOrBatchReturn(ids, errs, isBatch, "fact")
 		},
