@@ -71,7 +71,13 @@ if (!reducedMotion.matches && 'IntersectionObserver' in window) {
         observer.unobserve(el);
         el.style.setProperty('--reveal-delay', `${Math.min(i, 6) * 70}ms`);
         el.dataset.revealState = 'shown';
-        el.addEventListener('transitionend', () => el.style.removeProperty('--reveal-delay'), { once: true });
+        const done = (e: TransitionEvent) => {
+          if (e.target !== el || e.propertyName !== 'opacity') return;
+          el.removeEventListener('transitionend', done);
+          el.style.removeProperty('--reveal-delay');
+          el.dataset.revealState = 'done';
+        };
+        el.addEventListener('transitionend', done);
       });
     },
     { rootMargin: '0px 0px -8% 0px' },
