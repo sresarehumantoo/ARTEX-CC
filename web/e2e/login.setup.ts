@@ -9,7 +9,10 @@ export default async function globalSetup(config: FullConfig) {
   const status = await (await ctx.get('/api/auth/status')).json()
   if (status.auth_required) {
     const endpoint = status.initialized ? '/api/auth/login' : '/api/auth/init'
-    const res = await ctx.post(endpoint, { data: { password } })
+    const data = status.initialized
+      ? { password }
+      : { password, setup_token: process.env.E2E_SETUP_TOKEN ?? '' }
+    const res = await ctx.post(endpoint, { data })
     if (!res.ok()) throw new Error(`${endpoint}: ${res.status()} ${await res.text()}`)
   }
   await ctx.storageState({ path: storageState as string })
