@@ -541,6 +541,16 @@ func cmdInit(args []string) {
 		return
 	}
 
+	if err := config.PrepareDataDir(*dataDir); err != nil {
+		slog.Error("failed to create data directory", "path", *dataDir, "err", err)
+		os.Exit(1)
+	}
+
+	certPath, err := generateCA(*dataDir)
+	if err != nil {
+		slog.Warn("failed to generate CA certificate", "err", err)
+	}
+
 	ctx := context.Background()
 
 	s, err := store.Open(ctx, dsn)
@@ -564,12 +574,10 @@ func cmdInit(args []string) {
 	}
 	if err := config.SaveEngagement(*dataDir, engCfg); err != nil {
 		slog.Error("failed to save config", "err", err)
+		if err := s.DeleteEngagement(ctx, taskID); err != nil {
+			slog.Error("failed to remove engagement", "task_id", taskID, "err", err)
+		}
 		os.Exit(1)
-	}
-
-	certPath, err := generateCA(*dataDir)
-	if err != nil {
-		slog.Warn("failed to generate CA certificate", "err", err)
 	}
 
 	if *format == "json" {

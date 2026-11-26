@@ -59,7 +59,7 @@ See [Plugins](/docs/plugins/) for how the plugin directory is scanned and what a
 | `--pg DSN` | PostgreSQL connection string (or `ARTEX_PG`) | none, required |
 | `--goal TEXT` | Engagement goal | |
 | `--description TEXT` | Target description | |
-| `--data DIR` | Where to write `.artex.json` and the proxy CA | `.` |
+| `--data DIR` | Where to write `.artex.json` and the proxy CA. Created 0711 if missing, like `serve` does | `.` |
 | `--dry-run` | Show what would be created without creating it | off |
 | `--format FMT` | Output format, `text` or `json` | `text` |
 
