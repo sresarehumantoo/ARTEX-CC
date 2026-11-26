@@ -29,9 +29,11 @@ if (
   observer.observe(stream);
 }
 
-const hero = document.getElementById('hero');
-if (hero && 'IntersectionObserver' in window) {
-  new IntersectionObserver(([entry]) => hero.toggleAttribute('data-offscreen', !entry.isIntersecting)).observe(hero);
+if ('IntersectionObserver' in window) {
+  const offscreen = new IntersectionObserver((entries) => {
+    for (const entry of entries) entry.target.toggleAttribute('data-offscreen', !entry.isIntersecting);
+  });
+  for (const el of [document.getElementById('hero'), stream]) if (el) offscreen.observe(el);
 }
 
 if (finePointer.matches && !reducedMotion.matches) {
