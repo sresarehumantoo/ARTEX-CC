@@ -308,8 +308,8 @@ same engagement, coordinate through the graph:
   intent_id to record_fact, report_finding or record_coverage, so record
   results as you go. If you work longer than that without recording
   anything for it, call start_intent on the same intent again to renew it.
-  Clients that claim with an owner argument and no session or identity
-  must always renew with start_intent.
+  If you claimed with an owner argument, pass the same owner to those calls
+  too, or they do not renew your claim.
 - Finish with complete_intent, or cancel_intent if it is no longer worth
   doing, so the claim is released. Both are refused on an intent another
   session holds; leave it to its owner. On an open intent both claim it

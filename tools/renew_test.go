@@ -95,6 +95,42 @@ func TestWritesWithoutHolderDoNotRenew(t *testing.T) {
 	}
 }
 
+func TestWritesRenewTheOwnerTheyName(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		tool string
+		in   string
+	}{
+		{"record_fact", `{"facts": [{"summary": "a", "intent_id": 7}], "owner": " x "}`},
+		{"report_finding", `{"vulnclass": "sqli", "severity": "high", "summary": "x", "intent_id": 7, "owner": "x"}`},
+		{"record_coverage", `{"surface": "/login", "risk_area": "sqli", "outcome": "ruled_out", "reason": "no db", "intent_id": 7, "owner": "x"}`},
+	}
+	ctxs := []struct {
+		ctx  context.Context
+		want string
+	}{
+		{context.Background(), "owner:x"},
+		{WithSessionID(context.Background(), "sess-a"), "sess-a/owner:x"},
+		{WithIdentity(context.Background(), "alice"), "id:alice/owner:x"},
+	}
+	for _, c := range cases {
+		for _, cc := range ctxs {
+			ms := newRenewRecorder()
+			reg := NewRegistry()
+			RegisterAll(reg, ms, 1, 1)
+			tool, _ := reg.Lookup(c.tool)
+
+			r, _ := tool.Run(cc.ctx, json.RawMessage(c.in))
+			if r.IsError {
+				t.Fatalf("%s %s: %s", c.tool, c.in, r.Content)
+			}
+			if len(ms.calls) != 1 || ms.calls[0].holder != cc.want || fmt.Sprint(ms.calls[0].ids) != "[7]" {
+				t.Errorf("%s renewed %+v, want [7] for %s", c.tool, ms.calls, cc.want)
+			}
+		}
+	}
+}
+
 func TestClaimTextsExplainRenewal(t *testing.T) {
 	t.Parallel()
 	reg := NewRegistry()

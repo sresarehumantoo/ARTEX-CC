@@ -56,20 +56,25 @@ func makeRecordCoverage(store Store, taskID int64) Tool {
 			"evidence":  str("required for no_issue_found: a fact id, intent id or traffic id that shows the test"),
 			"reason":    str("required for ruled_out and not_applicable: why"),
 			"intent_id": intp("the intent you are working; renews your claim on it"),
+			"owner":     str(renewOwnerArgDesc),
 		}, "surface", "risk_area", "outcome"),
 		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
 			if taskID <= 0 {
 				return errResult("record_coverage requires a task context"), nil
 			}
-			var e CoverageEntry
-			if err := json.Unmarshal(in, &e); err != nil {
+			var a struct {
+				CoverageEntry
+				Owner string `json:"owner"`
+			}
+			if err := json.Unmarshal(in, &a); err != nil {
 				return errResult("invalid input: " + err.Error()), nil
 			}
+			e := a.CoverageEntry
 			e.Outcome = strings.ToLower(strings.TrimSpace(e.Outcome))
 			if err := store.RecordCoverage(ctx, taskID, e); err != nil {
 				return errResult(err.Error()), nil
 			}
-			renewHeldIntents(ctx, store, []int64{e.IntentID})
+			renewHeldIntents(ctx, store, a.Owner, []int64{e.IntentID})
 			return textResult("recorded"), nil
 		},
 	}

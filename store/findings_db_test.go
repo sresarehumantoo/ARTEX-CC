@@ -441,6 +441,12 @@ func TestMergeFindingsMock(t *testing.T) {
 			nil, false, "", now,
 		))
 
+	mock.ExpectExec(`SELECT n.id FROM exploration_nodes n`).
+		WithArgs([]int64{20}).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec(`SELECT g.id FROM exploration_nodes g`).
+		WithArgs([]int64{20}, RelProves, KindGoal).
+		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`UPDATE findings SET merged_into`).
 		WithArgs(int64(10), FindingStatusDuplicate, int64(20)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
