@@ -3,7 +3,7 @@ title: Configuration
 description: Commands, flags, environment variables, credential encryption and proxy CA trust.
 ---
 
-ARTEX reads its PostgreSQL connection string from `--pg` or the `ARTEX_PG` environment variable. The engagement state lives in `.artex.json` in the data directory (`--data`, defaults to `.`). Config files can be JSON or TOML; the file extension picks the parser.
+ARTEX reads its PostgreSQL connection string from `--pg` or the `ARTEX_PG` environment variable. The engagement state lives in `.artex.json` in the data directory (`--data`, defaults to `.`).
 
 ## Commands
 
@@ -12,6 +12,7 @@ ARTEX reads its PostgreSQL connection string from `--pg` or the `ARTEX_PG` envir
 | `artex-cc serve` | Start the MCP tool server (stdio or HTTP) |
 | `artex-cc init` | Create the schema and a new engagement, generate the proxy CA |
 | `artex-cc health` | Check PostgreSQL connectivity |
+| `artex-cc tools` | List the MCP tool catalog, marking the proxy-only tools (`--json` for machine output) |
 | `artex-cc identity` | Issue, rotate or inspect `X-Artex-Identity` tokens for HTTP clients (see [MCP clients](/docs/mcp-clients/#separate-claim-holders)) |
 | `artex-cc completion` | Print a shell completion script (`bash`, `zsh`, `fish`) |
 | `artex-cc version` | Print the version (`--json` for build details) |
@@ -78,8 +79,6 @@ Each variable is a fallback for the matching flag; a flag on the command line wi
 | `ARTEX_REQUIRE_IDENTITY` | `--require-identity` | Refuse intent claims from callers without a verified identity (`1`/`true`). Any value that is not a boolean is a startup error. HTTP only | off |
 | `ARTEX_CLAUDE_BIN` | `--claude-bin` | Path to the `claude` CLI used by the web UI chat | `claude` |
 | `ARTEX_PLUGIN_DIR` | `--plugin-dir` | Plugin directory | `~/.artex/plugins` |
-| `ARTEX_NOISE_PROFILE` | | Egress pacing profile: `off`, `quiet`, `balanced` or `aggressive` | `off` |
-| `ARTEX_TARGET_USER_AGENT` | | User-Agent for outbound requests when the noise profile is not `off` | original header kept |
 
 The Docker image also reads these on startup:
 
@@ -87,6 +86,14 @@ The Docker image also reads these on startup:
 |----------|---------|---------|
 | `ARTEX_GOAL` | Goal for the engagement created on first run | `Pentest engagement` |
 | `ARTEX_PROXY` | Recording proxy listen address | `:8788` |
+
+## Data directory
+
+The data directory holds `.artex.json`, the identity and claim label keys (`identity.key`, `owner-label.key`), captured traffic and the proxy CA under `traffic/`, saved evidence under `evidence/`, and with `--web` the web UI's state (`auth.json`, `mcp-config.json`, conversations, settings, and the [workspace](/docs/web-ui/) under `workspace/`).
+
+ARTEX writes these owner-only: files 0600, directories 0700. When `init` or `serve` has to create the data directory it creates it 0711, so other users can reach the public CA certificate in `traffic/_ca` without listing anything else; an existing directory keeps its mode. On the first start after upgrading from a version that wrote them world-readable, and only in a directory that already holds a file only ARTEX writes (such as `.artex.json` or `owner-label.key`), ARTEX removes group and other access from the files and directories it owns there and leaves everything else alone. In a fresh or unrelated directory, such as a project folder with its own `workspace/`, it changes nothing.
+
+Because the files are owner-only, run `init` and `serve` as the same user. A `serve` running as another user cannot read `.artex.json` and exits with `failed to load engagement config`.
 
 ## Credential encryption
 
