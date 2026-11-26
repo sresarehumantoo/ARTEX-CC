@@ -40,6 +40,7 @@ func Tighten(root string) bool {
 	ok := true
 	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
+			slog.Warn("failed to restrict file permissions", "path", path, "err", err)
 			ok = false
 			return nil
 		}
@@ -48,6 +49,7 @@ func Tighten(root string) bool {
 		}
 		info, err := d.Info()
 		if err != nil {
+			slog.Warn("failed to restrict file permissions", "path", path, "err", err)
 			ok = false
 			return nil
 		}

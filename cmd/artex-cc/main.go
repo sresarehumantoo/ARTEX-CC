@@ -541,6 +541,15 @@ func cmdInit(args []string) {
 		return
 	}
 
+	ctx := context.Background()
+
+	s, err := store.Open(ctx, dsn)
+	if err != nil {
+		slog.Error("failed to open store", "err", err)
+		os.Exit(1)
+	}
+	defer s.Close()
+
 	if err := config.PrepareDataDir(*dataDir); err != nil {
 		slog.Error("failed to create data directory", "path", *dataDir, "err", err)
 		os.Exit(1)
@@ -550,15 +559,6 @@ func cmdInit(args []string) {
 	if err != nil {
 		slog.Warn("failed to generate CA certificate", "err", err)
 	}
-
-	ctx := context.Background()
-
-	s, err := store.Open(ctx, dsn)
-	if err != nil {
-		slog.Error("failed to open store", "err", err)
-		os.Exit(1)
-	}
-	defer s.Close()
 
 	taskID, explorationID, err := s.CreateEngagement(ctx, *goal, *desc)
 	if err != nil {
