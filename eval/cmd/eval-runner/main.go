@@ -486,8 +486,8 @@ func matchFindings(findings []tools.Finding, expected []ExpectedFinding) (matche
 }
 
 func matchesFindingType(f tools.Finding, expectedType string) bool {
-	norm := strings.ToLower(strings.ReplaceAll(expectedType, "_", ""))
-	vulnNorm := strings.ToLower(strings.ReplaceAll(f.VulnClass, "_", ""))
+	norm := tools.NormalizeVulnClass(expectedType)
+	vulnNorm := tools.NormalizeVulnClass(f.VulnClass)
 	summaryNorm := strings.ToLower(f.Summary)
 
 	if strings.Contains(vulnNorm, norm) || strings.Contains(norm, vulnNorm) {
