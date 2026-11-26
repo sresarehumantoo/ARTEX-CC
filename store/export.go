@@ -566,6 +566,7 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 		}
 	}
 
+	findingIDMap := map[int64]int64{}
 	for _, f := range data.Findings {
 		var oldNodeID int64
 		if v, ok := f["node_id"]; ok {
@@ -592,17 +593,33 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 			dismissed, _ = v.(bool)
 		}
 
-		if _, err := tx.ExecContext(ctx,
+		var newID int64
+		if err := tx.QueryRowContext(ctx,
 			`INSERT INTO findings(task_id, node_id, vulnclass, name, severity, summary, evidence, worker, asset_ids, status, report, dismissed, dismiss_reason)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, '', $11, $12)`,
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, '', $11, $12) RETURNING id`,
 			taskID, nullID(newNodeID),
 			exportMapString(f, "vulnclass"), exportMapString(f, "name"),
 			exportMapString(f, "severity"), exportMapString(f, "summary"),
 			exportMapString(f, "evidence"), exportMapString(f, "worker"),
 			assetIDsJSON, exportMapString(f, "status"),
 			dismissed, exportMapString(f, "dismiss_reason"),
-		); err != nil {
+		).Scan(&newID); err != nil {
 			return 0, 0, fmt.Errorf("import finding: %w", err)
+		}
+		if oldID := exportMapInt64(f, "id"); oldID > 0 {
+			findingIDMap[oldID] = newID
+		}
+	}
+
+	for _, f := range data.Findings {
+		newID := findingIDMap[exportMapInt64(f, "id")]
+		newTarget := findingIDMap[exportMapInt64(f, "merged_into")]
+		if newID == 0 || newTarget == 0 {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE findings SET merged_into = $1 WHERE id = $2`, newTarget, newID); err != nil {
+			return 0, 0, fmt.Errorf("import finding merge: %w", err)
 		}
 	}
 
