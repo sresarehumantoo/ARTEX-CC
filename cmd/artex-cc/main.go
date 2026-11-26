@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -600,23 +601,36 @@ func cmdInit(args []string) {
 		fmt.Println("  Windows: certutil -addstore Root " + certPath)
 		fmt.Println()
 	}
-	fmt.Println("Add to your Claude Code MCP config (~/.claude.json or project .mcp.json):")
+	printMCPSnippets(os.Stdout, dsn, *dataDir)
 	fmt.Println()
-	fmt.Println("Minimal (no proxy, data in cwd):")
-	fmt.Println()
-	fmt.Printf(`  {
+	fmt.Println("Flags:")
+	fmt.Println("  --pg        PostgreSQL connection string (or set ARTEX_PG)")
+	fmt.Println("  --data      directory for traffic captures, evidence, and config")
+	fmt.Println("  --proxy     start the MITM recording proxy on ADDR (e.g. :8788)")
+	fmt.Println("  --debug     enable debug-level logging")
+}
+
+// printMCPSnippets never writes the DSN password: init output often lands in
+// logs (docker logs, CI), so a password must be filled in by the reader.
+func printMCPSnippets(w io.Writer, dsn, dataDir string) {
+	shown := store.RedactDSN(dsn)
+	fmt.Fprintln(w, "Add to your Claude Code MCP config (~/.claude.json or project .mcp.json):")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Minimal (no proxy, data in cwd):")
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, `  {
     "mcpServers": {
       "artex": {
         "command": "artex-cc",
         "args": ["serve", "--stdio", "--pg", %q]
       }
     }
-  }`, dsn)
-	fmt.Println()
-	fmt.Println()
-	fmt.Println("Full (recording proxy + explicit data directory):")
-	fmt.Println()
-	fmt.Printf(`  {
+  }`, shown)
+	fmt.Fprintln(w)
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Full (recording proxy + explicit data directory):")
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, `  {
     "mcpServers": {
       "artex": {
         "command": "artex-cc",
@@ -628,14 +642,13 @@ func cmdInit(args []string) {
         ]
       }
     }
-  }`, dsn, *dataDir)
-	fmt.Println()
-	fmt.Println()
-	fmt.Println("Flags:")
-	fmt.Println("  --pg        PostgreSQL connection string (or set ARTEX_PG)")
-	fmt.Println("  --data      directory for traffic captures, evidence, and config")
-	fmt.Println("  --proxy     start the MITM recording proxy on ADDR (e.g. :8788)")
-	fmt.Println("  --debug     enable debug-level logging")
+  }`, shown, dataDir)
+	fmt.Fprintln(w)
+	if shown != dsn {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "The password in --pg is shown as ***. Replace it with the real one, or drop")
+		fmt.Fprintln(w, `--pg and set it through the server's environment: "env": {"ARTEX_PG": "<dsn>"}.`)
+	}
 }
 
 func cmdInitDryRun(dataDir, dsn, goal, desc, format string) {
@@ -666,7 +679,7 @@ func cmdInitDryRun(dataDir, dsn, goal, desc, format string) {
 	if format == "json" {
 		out := map[string]any{
 			"dry_run":     true,
-			"pg_dsn":      dsn,
+			"pg_dsn":      store.RedactDSN(dsn),
 			"goal":        goal,
 			"description": desc,
 			"actions":     actions,

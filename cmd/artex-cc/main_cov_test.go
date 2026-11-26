@@ -627,3 +627,40 @@ func TestSetupURL(t *testing.T) {
 		}
 	}
 }
+
+func TestPrintMCPSnippets_RedactsPassword(t *testing.T) {
+	var buf bytes.Buffer
+	printMCPSnippets(&buf, "postgres://artex:hunter2@db:5432/ccartex", "/app/data")
+	out := buf.String()
+	if strings.Contains(out, "hunter2") {
+		t.Fatalf("password leaked into init output:\n%s", out)
+	}
+	if !strings.Contains(out, `"postgres://artex:***@db:5432/ccartex"`) {
+		t.Errorf("expected redacted DSN in snippet:\n%s", out)
+	}
+	if !strings.Contains(out, "ARTEX_PG") {
+		t.Errorf("expected substitution note:\n%s", out)
+	}
+}
+
+func TestPrintMCPSnippets_NoPasswordUnchanged(t *testing.T) {
+	var buf bytes.Buffer
+	printMCPSnippets(&buf, "postgres://localhost/ccartex", ".")
+	out := buf.String()
+	if !strings.Contains(out, `"postgres://localhost/ccartex"`) {
+		t.Errorf("expected DSN verbatim:\n%s", out)
+	}
+	if strings.Contains(out, "***") {
+		t.Errorf("unexpected redaction note:\n%s", out)
+	}
+}
+
+func TestCmdInit_DryRun_JSONRedactsPassword(t *testing.T) {
+	t.Setenv("ARTEX_PG", "")
+	out := captureStdout(t, func() {
+		cmdInit([]string{"--dry-run", "--pg", "postgres://artex:hunter2@db/ccartex", "--data", t.TempDir(), "--format", "json"})
+	})
+	if strings.Contains(out, "hunter2") {
+		t.Fatalf("password leaked into dry-run output:\n%s", out)
+	}
+}

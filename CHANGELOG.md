@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Fixed
+- `artex-cc init` printed the PostgreSQL DSN, password included, in the MCP config snippet and in `--dry-run --format json`, so in Docker the password ended up in `docker logs`. The password is now shown as `***` with a note to substitute it or pass it via `ARTEX_PG`; DSNs without a password print unchanged.
+
+### Fixed
 - Importing an engagement export dropped each finding's `merged_into`, so merged findings came back live (merged into nothing) while their graph nodes stayed dismissed, and `merge_findings` and goal proofs treated them as live. Import now remaps `merged_into` to the new finding ids. Exports that lack the field import as before, with no finding merged.
 
 ### Fixed
