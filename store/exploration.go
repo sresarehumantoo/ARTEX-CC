@@ -169,6 +169,20 @@ func (s *Store) ClaimIntent(ctx context.Context, nodeID int64, owner string, lea
 	}
 }
 
+// RenewIntentClaims extends the lease on the given intents that are still
+// running under holder or an owner subdividing it, including lapsed claims
+// nobody has taken over. Claims with more than half a lease left are not
+// touched, which keeps each write from bumping the intent in list_changes.
+func (s *Store) RenewIntentClaims(ctx context.Context, nodeIDs []int64, holder string, lease time.Duration) error {
+	_, err := s.ExecContext(ctx,
+		`UPDATE exploration_nodes SET claim_expires_at = now() + make_interval(secs => $3)
+		 WHERE id = ANY($1) AND kind = 'intent' AND state = 'running'
+		   AND (owner = $2 OR starts_with(owner, $2 || '/owner:'))
+		   AND claim_expires_at < now() + make_interval(secs => $3 / 2)`,
+		nodeIDs, holder, lease.Seconds())
+	return err
+}
+
 func (s *Store) UpdateNodeFields(ctx context.Context, nodeID int64, state string, payloadMerge map[string]any) error {
 	if state != "" {
 		if _, err := s.ExecContext(ctx,
