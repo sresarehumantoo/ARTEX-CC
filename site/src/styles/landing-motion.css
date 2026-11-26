@@ -215,6 +215,28 @@
   }
 }
 
+[data-copy-state='copied'] {
+  border-color: oklch(0.77 0.15 163 / 0.45);
+  color: var(--color-emerald-300);
+}
+
+[data-copy-state='failed'] {
+  border-color: oklch(0.7 0.19 22 / 0.45);
+  color: var(--color-red-300);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-copy-state] {
+    animation: copy-pop 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@keyframes copy-pop {
+  40% {
+    transform: scale(0.92);
+  }
+}
+
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
     [data-timeline] {

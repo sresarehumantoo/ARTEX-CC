@@ -578,10 +578,15 @@ const install = [
         try {
           await navigator.clipboard.writeText(button.dataset.copy ?? '');
           button.textContent = 'Copied';
+          button.dataset.copyState = 'copied';
         } catch {
           button.textContent = 'Failed';
+          button.dataset.copyState = 'failed';
         }
-        setTimeout(() => (button.textContent = 'Copy'), 1500);
+        setTimeout(() => {
+          button.textContent = 'Copy';
+          delete button.dataset.copyState;
+        }, 1500);
       });
 
       for (const root of document.querySelectorAll<HTMLElement>('[data-tabs]')) {
