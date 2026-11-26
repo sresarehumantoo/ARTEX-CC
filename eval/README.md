@@ -47,12 +47,26 @@ instance runs with `--output-format stream-json --verbose`, and its transcript i
 saved as `transcripts-<scenario>-<timestamp>/instance-<i>.jsonl` next to the
 scorecard, so every tool call, argument and result is on record.
 
+Each instance also gets its own temp directory,
+`transcripts-<scenario>-<timestamp>/tmp-instance-<i>` (mode 0700), set as
+`TMPDIR`, `TMP` and `TEMP` in its environment, so instances cannot clobber each
+other's helper scripts and nothing lands in your `/tmp`. Because agents often
+hardcode `/tmp` in commands, every prompt (including N=1) ends its base text
+with "Keep scratch files (scripts, payloads, downloads, keys) in $TMPDIR, not
+/tmp." An `--env TMPDIR=...` overrides the directory. The directories are kept
+after the run; each entry in the scorecard's `runs` records `temp_dir` and a
+`scratch` section with the number and total size of files left there, the
+first 50 by path with their sizes, and `private_keys`: files whose first MiB
+holds a PEM `-----BEGIN ... PRIVATE KEY-----` block. The runner also logs a
+warning for those; delete them before sharing or committing results. Files an
+agent writes to `/tmp` anyway are not tracked.
+
 ## Multiple instances
 
 `--instances N` starts N `claude` processes at once on the same engagement, with
 the same goal. When N is above 1, each prompt ends with "You are instance i of
 N; other agents are working this engagement at the same time" and a pointer to
-intent claims and `list_changes`. With N=1 the prompt is unchanged.
+intent claims and `list_changes`. With N=1 that sentence is left out.
 
 `--transport` picks how instances reach ARTEX:
 
@@ -128,7 +142,8 @@ The scorecard (written to stdout and a JSON file) includes:
 
 Additional data: total findings, total assets, coverage records, goals set,
 intents created/finished, wall-clock duration, timeout flag, and per instance
-the transcript path, duration, exit error and kill time.
+the transcript path, duration, exit error, kill time, temp directory and the
+scratch files left in it.
 
 ## Coordination scorecard
 
