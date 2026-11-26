@@ -557,7 +557,7 @@ func TestUnclaimedWork(t *testing.T) {
 	}
 	s := c.Summary()
 	for _, line := range []string{
-		"Work outside a claimed intent: 5 calls, 2 unclaimed intents completed or cancelled",
+		"Work outside a claimed intent: 5 calls, 2 unclaimed intents completed or canceled",
 		"  instance 1: 1 of 3 work calls (1 bash, 0 artex records)\n",
 		"  instance 2: 4 of 5 work calls (2 bash, 2 artex records), finished unclaimed intents [11 12]",
 	} {
@@ -601,8 +601,8 @@ func TestUnclaimedFinishSkipsOwnDuplicateCancel(t *testing.T) {
 	}
 	s := c.Summary()
 	for _, line := range []string{
-		"Work outside a claimed intent: 0 calls, 4 unclaimed intents completed or cancelled, 1 own duplicates cancelled",
-		"  instance 1: 0 of 0 work calls (0 bash, 0 artex records), finished unclaimed intents [30 22], cancelled own duplicates [21]\n",
+		"Work outside a claimed intent: 0 calls, 4 unclaimed intents completed or canceled, 1 own duplicates canceled",
+		"  instance 1: 0 of 0 work calls (0 bash, 0 artex records), finished unclaimed intents [30 22], canceled own duplicates [21]\n",
 		"  instance 2: 0 of 0 work calls (0 bash, 0 artex records), finished unclaimed intents [20 31]\n",
 	} {
 		if !strings.Contains(s, line) {
@@ -615,7 +615,7 @@ func TestUnclaimedFinishSkipsOwnDuplicateCancel(t *testing.T) {
 		call(finish(at(1), "cancel_intent", 40, "intent 40 cancelled"))
 	c = scoreCoordination(CoordinationInput{Transcripts: []*Transcript{onlyOwn.parse(t, 1)}})
 	if c.UnclaimedFinishes != 0 || c.OwnCancels != 1 ||
-		!strings.Contains(c.Summary(), "  instance 1: 0 of 0 work calls (0 bash, 0 artex records), cancelled own duplicates [40]\n") {
+		!strings.Contains(c.Summary(), "  instance 1: 0 of 0 work calls (0 bash, 0 artex records), canceled own duplicates [40]\n") {
 		t.Errorf("own duplicate cancel only:\n%s", c.Summary())
 	}
 }

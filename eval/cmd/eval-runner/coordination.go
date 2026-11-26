@@ -593,7 +593,7 @@ func resolveHolder(label string, claimedBy map[string]int) int {
 
 // conflictHandled reports whether an agent left a claimed intent alone after
 // being told another holder has it. Retrying the same intent, or completing,
-// cancelling or recording work against it within the next conflictWindow
+// canceling or recording work against it within the next conflictWindow
 // calls, is mishandling. Moving to another intent, carrying on with a claim it
 // already holds, or polling and waiting when nothing is left are all fine, as
 // is claiming the intent again once the other holder's lease (until) lapsed.
@@ -702,8 +702,8 @@ var workTools = map[string]bool{
 // and successful workTools calls made while it held no live claim on any
 // intent, out of WorkCalls such calls in all. Calls before the first intent
 // of the run was created are skipped, since nothing could be claimed then.
-// It also lists the intents the instance completed or cancelled without ever
-// having claimed them, except that cancelling an unclaimed intent it created
+// It also lists the intents the instance completed or canceled without ever
+// having claimed them, except that canceling an unclaimed intent it created
 // itself is listed apart as OwnCancels: that is the duplicate cleanup the
 // server asks for when add_intent reports an overlapping open intent.
 func unclaimedWork(t *Transcript, claims []claimEvent, releases []releaseEvent, nodes map[int64]nodeOrigin, firstIntent time.Time) UnclaimedWork {
@@ -1150,7 +1150,7 @@ func (c *Coordination) Summary() string {
 			w.IntentID, w.FirstInstance, w.FirstRecords, w.SecondInstance, w.SecondRecords,
 			w.From.Format(time.RFC3339), w.To.Format(time.RFC3339))
 	}
-	fmt.Fprintf(&b, "Work outside a claimed intent: %d calls, %d unclaimed intents completed or cancelled, %d own duplicates cancelled\n",
+	fmt.Fprintf(&b, "Work outside a claimed intent: %d calls, %d unclaimed intents completed or canceled, %d own duplicates canceled\n",
 		c.UnclaimedWork, c.UnclaimedFinishes, c.OwnCancels)
 	for _, i := range c.Instances {
 		if u := i.Unclaimed; u.Calls > 0 || len(u.Finishes) > 0 || len(u.OwnCancels) > 0 {
@@ -1159,7 +1159,7 @@ func (c *Coordination) Summary() string {
 				fmt.Fprintf(&b, ", finished unclaimed intents %v", u.Finishes)
 			}
 			if len(u.OwnCancels) > 0 {
-				fmt.Fprintf(&b, ", cancelled own duplicates %v", u.OwnCancels)
+				fmt.Fprintf(&b, ", canceled own duplicates %v", u.OwnCancels)
 			}
 			b.WriteString("\n")
 		}
