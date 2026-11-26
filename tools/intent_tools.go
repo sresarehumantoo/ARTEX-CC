@@ -77,7 +77,8 @@ func makeCompleteIntent(store Store) Tool {
 		Category: CategoryExploration,
 		Description: "Mark a running intent as done with a result summary. " +
 			"Call this when you have finished working on an intent and recorded all facts/findings. " +
-			"Refused while another session holds a live claim on the intent.",
+			"Refused while another session holds a live claim on the intent. " +
+			"An open intent you never started is claimed and completed in one step, but start_intent it before working on it so other agents skip it.",
 		Schema: obj(map[string]any{
 			"node_id": intp("intent node id"),
 			"result":  str("brief result summary"),
@@ -110,17 +111,23 @@ func makeCompleteIntent(store Store) Tool {
 			if node.State != "running" && node.State != "open" {
 				return errResult(fmt.Sprintf("intent %d is %q, must be running or open to complete", id, node.State)), nil
 			}
-			if res, ok := claimRunning(ctx, store, node, a.Owner); !ok {
+			neverStarted := node.State == "open"
+			holder, res, ok := claimToClose(ctx, store, node, a.Owner)
+			if !ok {
 				return res, nil
 			}
 
-			var merge map[string]any
+			merge := map[string]any{"completed_by": OwnerLabel(holder)}
 			if result := strings.TrimSpace(a.Result); result != "" {
-				merge = map[string]any{"result": result}
+				merge["result"] = result
 			}
 
 			if err := store.UpdateNodeFields(ctx, id, "done", merge); err != nil {
 				return errResult(err.Error()), nil
+			}
+			if neverStarted {
+				return textResult(fmt.Sprintf("intent %d marked done; it was never started, so it was claimed and completed in one step. "+
+					"Call start_intent before working an intent so other agents skip it.", id)), nil
 			}
 			return textResult(fmt.Sprintf("intent %d marked done", id)), nil
 		},
@@ -167,13 +174,14 @@ func makeCancelIntent(store Store) Tool {
 			if terminalStates[node.State] {
 				return errResult(fmt.Sprintf("intent %d is already %q", id, node.State)), nil
 			}
-			if res, ok := claimRunning(ctx, store, node, a.Owner); !ok {
+			holder, res, ok := claimToClose(ctx, store, node, a.Owner)
+			if !ok {
 				return res, nil
 			}
 
-			var merge map[string]any
+			merge := map[string]any{"cancelled_by": OwnerLabel(holder)}
 			if reason := strings.TrimSpace(a.Reason); reason != "" {
-				merge = map[string]any{"cancel_reason": reason}
+				merge["cancel_reason"] = reason
 			}
 
 			if err := store.UpdateNodeFields(ctx, id, "stopped", merge); err != nil {
@@ -191,22 +199,20 @@ func identityRequiredDesc() string {
 	return " This server requires a verified X-Artex-Identity header for claims; without one, start_intent, complete_intent and cancel_intent are refused."
 }
 
-// claimRunning takes the claim on a running intent before it is closed, which
-// makes the ownership check atomic: it fails only while another holder has a
-// live lease. Open intents have no holder to check.
-func claimRunning(ctx context.Context, store Store, node *Node, owner string) (Result, bool) {
-	if err := CheckIdentity(ctx); err != nil {
-		return errResult(err.Error()), false
-	}
-	if node.State != "running" {
-		return Result{}, true
-	}
+// claimToClose takes the claim on an open or running intent before it is
+// closed, so the caller is its holder when it closes and the ownership check
+// is atomic: it fails only while another holder has a live lease, including
+// one taken on an open intent since the caller last looked.
+func claimToClose(ctx context.Context, store Store, node *Node, owner string) (string, Result, bool) {
 	holder, err := ClaimOwner(ctx, owner)
 	if err != nil {
-		return errResult(err.Error()), false
+		return "", errResult(err.Error()), false
+	}
+	if node.State != "open" && node.State != "running" {
+		return holder, Result{}, true
 	}
 	if _, err := store.ClaimIntent(ctx, node.ID, holder, IntentLease); err != nil {
-		return errResult(err.Error()), false
+		return "", errResult(err.Error()), false
 	}
-	return Result{}, true
+	return holder, Result{}, true
 }
