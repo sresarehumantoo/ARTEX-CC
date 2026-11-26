@@ -94,6 +94,15 @@ func (m *mockStore) ListChanges(context.Context, int64, int64, tools.ChangeCurso
 func (m *mockStore) ListClaims(context.Context, int64, string) ([]tools.HeldClaim, error) {
 	return nil, nil
 }
+func (m *mockStore) RecordTargetChange(context.Context, int64, tools.TargetChangeInput) (*tools.TargetChangeRecord, error) {
+	return nil, nil
+}
+func (m *mockStore) RecordTargetRestore(context.Context, int64, []int64, string, string) ([]tools.TargetRestoreOutcome, error) {
+	return nil, nil
+}
+func (m *mockStore) ListTargetChanges(context.Context, int64, bool) ([]tools.TargetChange, error) {
+	return nil, nil
+}
 func (m *mockStore) ListNodes(_ context.Context, _ int64, _ string, _ int) ([]tools.Node, error) {
 	return m.listNodes, m.listNodesErr
 }

@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Target change journal. `record_target_change` records a change to a target (target, resource, kind, original fingerprint, backup, intent) before it is made; when another unrestored change on the same target and resource exists, it returns a warning naming who recorded it and the baseline, the first recorded original fingerprint, which is what to restore to. `record_target_restore` takes change ids and the fingerprint observed after restoring, and marks changes restored only on an exact match with the baseline; a mismatch is recorded as a failed attempt. `graph_overview` and `list_changes` list `unrestored_target_changes`, `generate_report` has a Target changes section, and engagement export and import carry the journal. The orchestration guide tells agents to record changes before making them and never to report a host restored while unrestored changes remain.
+
 ### Fixed
 - Opening the store (`serve` or any CLI command) skips re-running `schema.sql` when the database already has the same schema, so starting a server or CLI against a database another server is using no longer risks `deadlock detected` errors in either one.
 

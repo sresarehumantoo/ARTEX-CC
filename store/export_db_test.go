@@ -80,6 +80,14 @@ func TestExportEngagementData(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"kind", "domain", "net", "value", "source", "reason"}).
 			AddRow("root_domain", "example.com", "", "", "agent", ""))
 
+	mock.ExpectQuery("FROM target_changes").
+		WithArgs(int64(10), false).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "target", "resource", "kind", "intent_id", "original_fingerprint", "baseline",
+			"baseline_change_id", "backup", "note", "recorded_by", "created_at", "restored_at", "restored_by",
+			"last_observed", "restore_attempts",
+		}))
+
 	export, err := s.ExportEngagementData(ctx(), 1)
 	if err != nil {
 		t.Fatalf("ExportEngagementData: %v", err)

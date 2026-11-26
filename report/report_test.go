@@ -413,3 +413,31 @@ func TestOneLine(t *testing.T) {
 		t.Errorf("oneLine = %q", got)
 	}
 }
+
+func TestMarkdownTargetChanges(t *testing.T) {
+	t.Parallel()
+	in := Input{Title: "T", GeneratedAt: time.Now(), TargetChanges: []TargetChange{
+		{ID: 4, Target: "WIN01", Resource: `C:\ProgramData\x.ps1`, Kind: "modify", Baseline: "sha256:a", RecordedBy: "h-1"},
+	}}
+	out := Markdown(in)
+	for _, want := range []string{
+		"- Target changes: 1, unrestored: **1**",
+		"**1 change(s) were not restored",
+		"- #4 **NOT RESTORED**: `C:\\ProgramData\\x.ps1` on `WIN01` (modify, recorded by h-1), baseline `sha256:a`",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("markdown missing %q:\n%s", want, out)
+		}
+	}
+
+	in.TargetChanges[0].Restored = true
+	in.TargetChanges[0].RestoredBy = "h-2"
+	out = Markdown(in)
+	if strings.Contains(out, "NOT RESTORED") || !strings.Contains(out, "Every recorded change was restored") || !strings.Contains(out, "restored by h-2") {
+		t.Errorf("restored report:\n%s", out)
+	}
+
+	if out := Markdown(Input{GeneratedAt: time.Now()}); strings.Contains(out, "Target changes") {
+		t.Errorf("report without changes has a Target changes section:\n%s", out)
+	}
+}

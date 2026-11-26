@@ -77,6 +77,42 @@ func (s *Store) ExportEngagementData(ctx context.Context, taskID int64) (*tools.
 	}
 	export.Scope = scope
 
+	changes, err := s.ListTargetChanges(ctx, explorationID, false)
+	if err != nil {
+		return nil, fmt.Errorf("export target changes: %w", err)
+	}
+	for _, c := range changes {
+		m := map[string]any{
+			"id":                   c.ID,
+			"target":               c.Target,
+			"resource":             c.Resource,
+			"kind":                 c.Kind,
+			"original_fingerprint": c.OriginalFingerprint,
+			"baseline":             c.Baseline,
+			"baseline_change_id":   c.BaselineChangeID,
+			"recorded_by":          c.RecordedBy,
+			"recorded_at":          c.RecordedAt.UTC().Format(time.RFC3339Nano),
+		}
+		if c.IntentID != 0 {
+			m["intent_id"] = c.IntentID
+		}
+		if c.Backup != "" {
+			m["backup"] = c.Backup
+		}
+		if c.Note != "" {
+			m["note"] = c.Note
+		}
+		if c.RestoredAt != nil {
+			m["restored_at"] = c.RestoredAt.UTC().Format(time.RFC3339Nano)
+			m["restored_by"] = c.RestoredBy
+		}
+		if c.RestoreAttempts > 0 {
+			m["last_observed"] = c.LastObserved
+			m["restore_attempts"] = c.RestoreAttempts
+		}
+		export.TargetChanges = append(export.TargetChanges, m)
+	}
+
 	return export, nil
 }
 
@@ -633,6 +669,43 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 			taskID, kind, domainVal, netVal, valueVal, source, reason,
 		); err != nil {
 			return 0, 0, fmt.Errorf("import scope: %w", err)
+		}
+	}
+
+	changeIDMap := map[int64]int64{}
+	for _, c := range data.TargetChanges {
+		oldID := exportMapInt64(c, "id")
+		var restoredAt, recordedAt any
+		if v := exportMapString(c, "restored_at"); v != "" {
+			restoredAt = v
+		}
+		if v := exportMapString(c, "recorded_at"); v != "" {
+			recordedAt = v
+		}
+		var newID int64
+		if err := tx.QueryRowContext(ctx,
+			`INSERT INTO target_changes (exploration_id, target, resource, kind, intent_id, original_fingerprint,
+				baseline, baseline_change_id, backup, note, recorded_by, created_at, restored_at, restored_by,
+				last_observed, restore_attempts)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, COALESCE($12::timestamptz, now()), $13::timestamptz, $14, $15, $16)
+			 RETURNING id`,
+			explorationID, exportMapString(c, "target"), exportMapString(c, "resource"), exportMapString(c, "kind"),
+			nullID(nodeIDMap[exportMapInt64(c, "intent_id")]), exportMapString(c, "original_fingerprint"),
+			exportMapString(c, "baseline"), nullID(changeIDMap[exportMapInt64(c, "baseline_change_id")]),
+			exportMapString(c, "backup"), exportMapString(c, "note"), exportMapString(c, "recorded_by"),
+			recordedAt, restoredAt, exportMapString(c, "restored_by"),
+			exportMapString(c, "last_observed"), int(exportMapFloat64(c, "restore_attempts")),
+		).Scan(&newID); err != nil {
+			return 0, 0, fmt.Errorf("import target change (old id %d): %w", oldID, err)
+		}
+		if oldID > 0 {
+			changeIDMap[oldID] = newID
+		}
+		if exportMapInt64(c, "baseline_change_id") == oldID {
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE target_changes SET baseline_change_id = id WHERE id = $1`, newID); err != nil {
+				return 0, 0, fmt.Errorf("import target change (old id %d): %w", oldID, err)
+			}
 		}
 	}
 

@@ -75,6 +75,18 @@ func (m *mockStore) ListClaims(_ context.Context, _ int64, _ string) ([]HeldClai
 	return nil, nil
 }
 
+func (m *mockStore) RecordTargetChange(_ context.Context, _ int64, _ TargetChangeInput) (*TargetChangeRecord, error) {
+	return nil, nil
+}
+
+func (m *mockStore) RecordTargetRestore(_ context.Context, _ int64, _ []int64, _, _ string) ([]TargetRestoreOutcome, error) {
+	return nil, nil
+}
+
+func (m *mockStore) ListTargetChanges(_ context.Context, _ int64, _ bool) ([]TargetChange, error) {
+	return nil, nil
+}
+
 func (m *mockStore) ListNodes(_ context.Context, _ int64, _ string, _ int) ([]Node, error) {
 	return nil, nil
 }
