@@ -25,7 +25,7 @@ You do not have to stop the loop to change direction:
 
 - `add_hint` attaches a strategic hint the planner sees on the next `graph_overview`. Ask Claude to add one, or say it directly in the conversation.
 - `set_constraints` adds allow or deny rules for operations.
-- `add_task_scope` sets what is in scope. An engagement with no domain, IP or CIDR entries allows every target, so the first entry restricts it to what is listed and each later entry widens it. `insert_assets`, the enrich tools, `traffic_replay` and `capture_command_output` refuse targets outside that scope, and `check_scope` tests a target against it. The recording proxy records traffic to any host. `add_company_scope` records a company's assets for attribution and does not change what is in scope.
+- `add_task_scope` sets what is in scope. Targets are matched against its domain, IP and CIDR entries and, for each `company` entry, the domain, IP and CIDR lines `add_company_scope` recorded for that company. An engagement with none of those allows every target, so the first one restricts it to what is listed and each later one widens it. A `company` entry whose company has no domain, IP or CIDR lines allows nothing on its own rather than everything. `insert_assets`, the enrich tools, `traffic_replay` and `capture_command_output` refuse targets outside that scope, and `check_scope` tests a target against it. The recording proxy records traffic to any host. `add_company_scope` on its own does not change what is in scope.
 - In the [web UI](/docs/web-ui/), intercept rules can require your approval for specific tool calls.
 
 ## Parallel work
