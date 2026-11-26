@@ -121,6 +121,7 @@ func makeRecordTargetChange(store Store, explorationID int64) Tool {
 		Description: "Record a change to a target BEFORE you make it: a file, registry key, service, scheduled task, account or config you are about to modify, create or delete on a host. " +
 			"Pass original_fingerprint, evidence of the resource's current state (e.g. sha256:<hex> of the file, or absent when you are creating it), and where you keep a backup. " +
 			"If another unrestored change on the same target and resource exists, the result carries warning and existing_changes: the state you observed is NOT the original. " +
+			"Targets match ignoring case; resources match ignoring case only when they are Windows paths or registry keys, so POSIX paths differing in case are different resources. " +
 			"Do not take your own backup as the baseline; restore to the returned baseline (the first recorded original fingerprint) and coordinate with the holders in recorded_by. " +
 			"After undoing the change, call record_target_restore with the fingerprint you observe.",
 		Schema: obj(map[string]any{
