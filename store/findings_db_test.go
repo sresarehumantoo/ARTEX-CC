@@ -322,6 +322,9 @@ func TestDismissFindingMock(t *testing.T) {
 		mock.ExpectExec(`UPDATE exploration_nodes SET state = 'dismissed'`).
 			WithArgs(int64(1)).
 			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec(`SELECT g.id FROM exploration_nodes g`).
+			WithArgs(int64(1), RelProves, KindGoal).
+			WillReturnResult(sqlmock.NewResult(0, 0))
 		mock.ExpectExec(`WITH revoked AS`).
 			WithArgs(int64(1), RelProves, KindGoal).
 			WillReturnResult(sqlmock.NewResult(0, 0))
@@ -440,6 +443,9 @@ func TestMergeFindingsMock(t *testing.T) {
 	mock.ExpectExec(`UPDATE exploration_nodes SET state = 'dismissed'`).
 		WithArgs(int64(20)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`SELECT g.id FROM exploration_nodes g`).
+		WithArgs(int64(20), RelProves, KindGoal).
+		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(`WITH revoked AS`).
 		WithArgs(int64(20), RelProves, KindGoal).
 		WillReturnResult(sqlmock.NewResult(0, 0))

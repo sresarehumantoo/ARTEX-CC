@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
@@ -125,5 +126,39 @@ func TestMergeMovesProofToPrimary(t *testing.T) {
 	}
 	if got := goalState(t, s, goal); got != "open" {
 		t.Errorf("goal state after dismissing primary = %q, want open", got)
+	}
+}
+
+func TestConcurrentDismissOfBothProofsReopensGoal(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "reopen-concurrent")
+
+	for round := range 40 {
+		f1, n1 := addTestFinding(t, s, taskID, expID)
+		f2, n2 := addTestFinding(t, s, taskID, expID)
+		goal := provedGoal(t, s, expID, n1, n2)
+
+		start := make(chan struct{})
+		errs := make(chan error, 2)
+		var wg sync.WaitGroup
+		for _, f := range []int64{f1, f2} {
+			wg.Go(func() {
+				<-start
+				errs <- s.DismissFinding(ctx, f, "false positive")
+			})
+		}
+		close(start)
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			if err != nil {
+				t.Fatalf("round %d: DismissFinding: %v", round, err)
+			}
+		}
+		if got := goalState(t, s, goal); got != "open" {
+			t.Fatalf("round %d: goal state = %q, want open", round, got)
+		}
 	}
 }

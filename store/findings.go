@@ -418,6 +418,18 @@ func moveGoalProofsTx(ctx context.Context, tx *sql.Tx, findingID, toNode int64) 
 // revokeGoalProofsTx removes the proves edges of a finding's node and reopens
 // each met goal it proved that has no other proof from a live node.
 func revokeGoalProofsTx(ctx context.Context, tx *sql.Tx, findingID int64) error {
+	// Locking the goals first serializes concurrent revocations of different
+	// proofs of one goal: the later one waits, then its fresh READ COMMITTED
+	// snapshot sees the earlier one's deleted edge and dismissed node.
+	if _, err := tx.ExecContext(ctx, `
+		SELECT g.id FROM exploration_nodes g
+		WHERE g.kind = $3 AND g.id IN (
+			SELECT e.dst_id FROM exploration_edges e JOIN findings f ON f.node_id = e.src_id
+			WHERE f.id = $1 AND e.rel = $2)
+		ORDER BY g.id FOR NO KEY UPDATE`,
+		findingID, RelProves, KindGoal); err != nil {
+		return fmt.Errorf("lock goals proved by finding %d: %w", findingID, err)
+	}
 	_, err := tx.ExecContext(ctx, `
 		WITH revoked AS (
 			DELETE FROM exploration_edges e USING findings f
