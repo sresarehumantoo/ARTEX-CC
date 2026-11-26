@@ -307,6 +307,11 @@ func cmdServe(args []string) {
 		slog.Warn("ARTEX_CREDENTIAL_KEY is not set; credentials will be stored in plaintext")
 	}
 
+	if err := s.BackfillAssetURLs(ctx); err != nil {
+		slog.Error("failed to backfill asset urls", "err", err)
+		os.Exit(1)
+	}
+
 	if v := os.Getenv("ARTEX_INTENT_LEASE"); v != "" {
 		lease, err := tools.ParseIntentLease(v)
 		if err != nil {
