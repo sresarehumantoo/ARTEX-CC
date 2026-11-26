@@ -26,6 +26,7 @@ type API struct {
 
 	authRequired bool
 	authMu       sync.Mutex
+	setupToken   string
 }
 
 type Option func(*API)

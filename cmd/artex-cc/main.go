@@ -128,6 +128,17 @@ func isLoopbackAddr(addr string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
+func setupURL(listen string) string {
+	host, port, err := net.SplitHostPort(listen)
+	if err != nil {
+		return "http://localhost:9400/setup"
+	}
+	if ip := net.ParseIP(host); host == "" || (ip != nil && ip.IsUnspecified()) {
+		host = "localhost"
+	}
+	return "http://" + net.JoinHostPort(host, port) + "/setup"
+}
+
 // mcpListenToken returns the bearer token /mcp must require on a listener
 // without --web, or "" when none is needed. Only literal loopback addresses
 // may run without one; other hostnames are not resolved and count as exposed.
@@ -432,6 +443,15 @@ func cmdServe(args []string) {
 		mcpHandler := webMCPHandler(srv, mcpToken, webIdentity)
 		handler := loopbackHostOnly(webHandler(mcpHandler, restAPI.Handler()))
 		httpServer := &http.Server{Addr: *listen, Handler: handler}
+		setupToken, err := restAPI.IssueSetupToken()
+		if err != nil {
+			slog.Error("generating setup token failed", "err", err)
+			os.Exit(1)
+		}
+		if setupToken != "" {
+			// Written to stderr directly so the token stays out of the /api/logs buffer.
+			fmt.Fprintf(os.Stderr, "\nNo web UI password is set. Open %s and enter this one-time setup token:\n\n    %s\n\n", setupURL(*listen), setupToken)
+		}
 		errCh := make(chan error, 1)
 		go func() { errCh <- httpServer.ListenAndServe() }()
 

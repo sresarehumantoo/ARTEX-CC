@@ -18,6 +18,15 @@ func authDo(h http.Handler, method, path, body string, cookies ...*http.Cookie) 
 	return w
 }
 
+func initBody(t *testing.T, a *API, password string) string {
+	t.Helper()
+	token, err := a.IssueSetupToken()
+	if err != nil || token == "" {
+		t.Fatalf("setup token %q: %v", token, err)
+	}
+	return `{"password":"` + password + `","setup_token":"` + token + `"}`
+}
+
 func sessionFrom(t *testing.T, w *httptest.ResponseRecorder) *http.Cookie {
 	t.Helper()
 	for _, c := range w.Result().Cookies() {
@@ -39,7 +48,7 @@ func TestAuthFlow(t *testing.T) {
 	if w := authDo(h, "POST", "/api/auth/init", `{"password":"short"}`); w.Code != 400 {
 		t.Fatalf("short password: %d", w.Code)
 	}
-	w := authDo(h, "POST", "/api/auth/init", `{"password":"correct horse"}`)
+	w := authDo(h, "POST", "/api/auth/init", initBody(t, a, "correct horse"))
 	if w.Code != 200 {
 		t.Fatalf("init: %d", w.Code)
 	}
@@ -87,7 +96,7 @@ func TestAuthLogout(t *testing.T) {
 	a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()), WithAuthRequired(true))
 	h := a.Handler()
 
-	w := authDo(h, "POST", "/api/auth/init", `{"password":"correct horse"}`)
+	w := authDo(h, "POST", "/api/auth/init", initBody(t, a, "correct horse"))
 	if w.Code != 200 {
 		t.Fatalf("init: %d", w.Code)
 	}
@@ -123,7 +132,7 @@ func TestAuthLogout_NoAuth(t *testing.T) {
 func TestAuthChangePassword_ShortNew(t *testing.T) {
 	a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()), WithAuthRequired(true))
 	h := a.Handler()
-	w := authDo(h, "POST", "/api/auth/init", `{"password":"correct horse"}`)
+	w := authDo(h, "POST", "/api/auth/init", initBody(t, a, "correct horse"))
 	cookie := sessionFrom(t, w)
 	w = authDo(h, "POST", "/api/auth/change-password", `{"current_password":"correct horse","new_password":"short"}`, cookie)
 	if w.Code != 400 {
@@ -134,7 +143,7 @@ func TestAuthChangePassword_ShortNew(t *testing.T) {
 func TestAuthChangePassword_BadBody(t *testing.T) {
 	a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()), WithAuthRequired(true))
 	h := a.Handler()
-	w := authDo(h, "POST", "/api/auth/init", `{"password":"correct horse"}`)
+	w := authDo(h, "POST", "/api/auth/init", initBody(t, a, "correct horse"))
 	cookie := sessionFrom(t, w)
 	w = authDo(h, "POST", "/api/auth/change-password", "{invalid", cookie)
 	if w.Code != 400 {
@@ -169,29 +178,48 @@ func TestAuthLogin_NotInitialized(t *testing.T) {
 	}
 }
 
-func TestAuthInitRequiresLoopbackHost(t *testing.T) {
+func TestAuthInitSetupToken(t *testing.T) {
 	a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()), WithAuthRequired(true))
 	h := a.Handler()
-	for _, host := range []string{"evil.example:9400", "192.168.1.20:9400", ""} {
-		r := httptest.NewRequest("POST", "/api/auth/init", strings.NewReader(`{"password":"correct horse"}`))
-		r.Host = host
-		w := httptest.NewRecorder()
-		h.ServeHTTP(w, r)
-		if w.Code != http.StatusForbidden {
-			t.Fatalf("Host %q: %d", host, w.Code)
+	if w := authDo(h, "POST", "/api/auth/init", `{"password":"correct horse"}`); w.Code != http.StatusForbidden {
+		t.Fatalf("no token issued: %d", w.Code)
+	}
+	token, err := a.IssueSetupToken()
+	if err != nil || len(token) != 32 {
+		t.Fatalf("token %q: %v", token, err)
+	}
+	for _, body := range []string{
+		`{"password":"correct horse"}`,
+		`{"password":"correct horse","setup_token":""}`,
+		`{"password":"correct horse","setup_token":"` + strings.Repeat("0", 32) + `"}`,
+		`{"password":"correct horse","setup_token":"` + token[:31] + `"}`,
+	} {
+		if w := authDo(h, "POST", "/api/auth/init", body); w.Code != http.StatusForbidden {
+			t.Fatalf("%s: %d", body, w.Code)
 		}
 	}
 	if w := authDo(h, "GET", "/api/auth/status", ""); !strings.Contains(w.Body.String(), `"initialized":false`) {
 		t.Fatalf("status: %s", w.Body.String())
 	}
-	for _, host := range []string{"127.0.0.1:9400", "[::1]:9400", "localhost"} {
-		a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()), WithAuthRequired(true))
-		r := httptest.NewRequest("POST", "/api/auth/init", strings.NewReader(`{"password":"correct horse"}`))
-		r.Host = host
-		w := httptest.NewRecorder()
-		a.Handler().ServeHTTP(w, r)
-		if w.Code != http.StatusOK {
-			t.Fatalf("Host %q: %d", host, w.Code)
-		}
+
+	r := httptest.NewRequest("POST", "/api/auth/init", strings.NewReader(`{"password":"correct horse","setup_token":"`+token+`"}`))
+	r.Host = "artex.example:9400"
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("right token from a remote Host: %d %s", w.Code, w.Body)
+	}
+	if a.setupToken != "" {
+		t.Fatal("setup token still active after init")
+	}
+	if tok, err := a.IssueSetupToken(); err != nil || tok != "" {
+		t.Fatalf("token issued after init: %q %v", tok, err)
+	}
+
+	if err := a.files.Delete(authFile); err != nil {
+		t.Fatal(err)
+	}
+	if w := authDo(h, "POST", "/api/auth/init", `{"password":"another one","setup_token":"`+token+`"}`); w.Code != http.StatusForbidden {
+		t.Fatalf("reused token: %d", w.Code)
 	}
 }

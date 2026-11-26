@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"net/http"
 	"strconv"
@@ -143,17 +144,14 @@ func newAuthConfig(password string) (AuthConfig, error) {
 }
 
 func (a *API) handleAuthInit(w http.ResponseWriter, r *http.Request) {
-	// Docker's port publishing hides whether the client connected via
-	// loopback, so a DNS-rebound page could otherwise claim a fresh server.
-	if !LoopbackHost(r) {
-		writeError(w, http.StatusForbidden, "set the first password from http://localhost (use an SSH tunnel for a remote server)")
-		return
-	}
 	if a.files == nil {
 		writeError(w, http.StatusServiceUnavailable, "data directory not configured")
 		return
 	}
-	var body passwordBody
+	var body struct {
+		Password   string `json:"password"`
+		SetupToken string `json:"setup_token"`
+	}
 	if err := decodeBody(r, &body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -168,10 +166,35 @@ func (a *API) handleAuthInit(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "already initialized")
 		return
 	}
-	a.storeAuth(w, body.Password)
+	if a.authRequired && (a.setupToken == "" || subtle.ConstantTimeCompare([]byte(body.SetupToken), []byte(a.setupToken)) != 1) {
+		writeError(w, http.StatusForbidden, "invalid setup token: the server prints it in its logs at startup while no password is set")
+		return
+	}
+	if a.storeAuth(w, body.Password) {
+		a.setupToken = ""
+	}
 }
 
-func (a *API) storeAuth(w http.ResponseWriter, password string) {
+// IssueSetupToken generates the one-time token that POST /api/auth/init
+// requires, or returns "" when auth is off or a password is already set.
+func (a *API) IssueSetupToken() (string, error) {
+	if !a.authRequired || a.files == nil {
+		return "", nil
+	}
+	a.authMu.Lock()
+	defer a.authMu.Unlock()
+	if _, ok := a.loadAuth(); ok {
+		return "", nil
+	}
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	a.setupToken = hex.EncodeToString(b)
+	return a.setupToken, nil
+}
+
+func (a *API) storeAuth(w http.ResponseWriter, password string) bool {
 	cfg, err := newAuthConfig(password)
 	if err == nil {
 		err = a.files.WriteJSON(authFile, cfg)
@@ -181,9 +204,10 @@ func (a *API) storeAuth(w http.ResponseWriter, password string) {
 	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
-		return
+		return false
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	return true
 }
 
 func (a *API) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
