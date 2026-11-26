@@ -57,7 +57,7 @@ func SaveEngagement(dataDir string, cfg EngagementConfig) error {
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(filepath.Join(dataDir, engagementFile), data, 0644)
+	return os.WriteFile(filepath.Join(dataDir, engagementFile), data, 0o600)
 }
 
 // LoadOrDefault reads a config file at path. Both JSON (.json) and TOML (.toml)
