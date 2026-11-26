@@ -557,7 +557,7 @@ func TestUnclaimedWork(t *testing.T) {
 	}
 	s := c.Summary()
 	for _, line := range []string{
-		"Work outside a claimed intent: 5 calls, 2 unclaimed intents completed or cancelled",
+		"Work outside a claimed intent: 5 calls, 2 unclaimed intents completed or canceled",
 		"  instance 1: 1 of 3 work calls (1 bash, 0 artex records)\n",
 		"  instance 2: 4 of 5 work calls (2 bash, 2 artex records), finished unclaimed intents [11 12]",
 	} {
@@ -570,6 +570,53 @@ func TestUnclaimedWork(t *testing.T) {
 	c = scoreCoordination(CoordinationInput{Transcripts: []*Transcript{bootstrapOnly.parse(t, 1)}})
 	if u := c.Instances[0].Unclaimed; u.WorkCalls != 0 || c.UnclaimedWork != 0 {
 		t.Errorf("work before any intent exists counted: %+v", u)
+	}
+}
+
+func TestUnclaimedFinishSkipsOwnDuplicateCancel(t *testing.T) {
+	one := (&transcript{}).
+		call(addIntent(at(0), 20)).
+		call(addIntent(at(1), 21)).
+		call(addIntent(at(1), 22)).
+		call(finish(at(2), "cancel_intent", 21, "intent 21 cancelled")).
+		call(finish(at(2), "cancel_intent", 30, "intent 30 cancelled")).
+		call(finish(at(3), "complete_intent", 22, "intent 22 marked done"))
+	two := (&transcript{}).
+		call(addIntent(at(0), 30)).
+		call(finish(at(2), "cancel_intent", 20, "intent 20 cancelled")).
+		call(finish(at(3), "cancel_intent", 31, "intent 31 cancelled"))
+
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{one.parse(t, 1), two.parse(t, 2)}})
+	want := []UnclaimedWork{
+		{Finishes: []int64{30, 22}, OwnCancels: []int64{21}},
+		{Finishes: []int64{20, 31}},
+	}
+	for i, w := range want {
+		if got := c.Instances[i].Unclaimed; fmt.Sprint(got) != fmt.Sprint(w) {
+			t.Errorf("instance %d unclaimed work %+v, want %+v", i+1, got, w)
+		}
+	}
+	if c.UnclaimedFinishes != 4 || c.OwnCancels != 1 {
+		t.Errorf("totals: %d finishes, %d own cancels", c.UnclaimedFinishes, c.OwnCancels)
+	}
+	s := c.Summary()
+	for _, line := range []string{
+		"Work outside a claimed intent: 0 calls, 4 unclaimed intents completed or canceled, 1 own duplicates canceled",
+		"  instance 1: 0 of 0 work calls (0 bash, 0 artex records), finished unclaimed intents [30 22], canceled own duplicates [21]\n",
+		"  instance 2: 0 of 0 work calls (0 bash, 0 artex records), finished unclaimed intents [20 31]\n",
+	} {
+		if !strings.Contains(s, line) {
+			t.Errorf("summary lacks %q:\n%s", line, s)
+		}
+	}
+
+	onlyOwn := (&transcript{}).
+		call(addIntent(at(0), 40)).
+		call(finish(at(1), "cancel_intent", 40, "intent 40 cancelled"))
+	c = scoreCoordination(CoordinationInput{Transcripts: []*Transcript{onlyOwn.parse(t, 1)}})
+	if c.UnclaimedFinishes != 0 || c.OwnCancels != 1 ||
+		!strings.Contains(c.Summary(), "  instance 1: 0 of 0 work calls (0 bash, 0 artex records), canceled own duplicates [40]\n") {
+		t.Errorf("own duplicate cancel only:\n%s", c.Summary())
 	}
 }
 
