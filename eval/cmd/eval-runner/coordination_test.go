@@ -691,9 +691,15 @@ func TestImplicitRenewalKeepsWorkClaimed(t *testing.T) {
 	}
 
 	old := scoreCoordination(in)
-	if old.ImplicitRenewal || old.ImplicitRenewals != 0 || old.Instances[0].Unclaimed.Calls != 5 || len(old.Takeovers) != 0 {
+	// Without implicit renewal the claim lapses at at(10), but the holder keeps
+	// working intent 10 over the shell right up to the kill, so the survivor's
+	// later claim is still a takeover of work it was holding.
+	if old.ImplicitRenewal || old.ImplicitRenewals != 0 || old.Instances[0].Unclaimed.Calls != 5 || len(old.Takeovers) != 1 {
 		t.Fatalf("pre-renewal scoring changed: renewal %t (%d), unclaimed %+v, takeovers %+v",
 			old.ImplicitRenewal, old.ImplicitRenewals, old.Instances[0].Unclaimed, old.Takeovers)
+	}
+	if tk := old.Takeovers[0]; tk.IntentID != 10 || tk.TakenBy != 2 || !tk.AfterLeaseLapsed {
+		t.Fatalf("pre-renewal takeover: %+v", tk)
 	}
 	if !strings.Contains(old.Summary(), "Claim replay: start_intent only") {
 		t.Errorf("summary:\n%s", old.Summary())
@@ -886,5 +892,109 @@ func TestServerRenewsClaims(t *testing.T) {
 	}
 	if serverRenewsClaims(context.Background(), filepath.Join(t.TempDir(), "missing")) {
 		t.Error("a missing binary does not renew")
+	}
+}
+
+func TestTakeoverLapsedShortlyBeforeKill(t *testing.T) {
+	const lease = 10 * time.Minute
+	// The killed holder renewed its claim through an ARTEX record, then worked
+	// over the shell while the lease lapsed a short while before the kill.
+	killed := (&transcript{}).
+		call(addIntent(at(0), 10)).
+		claim(at(0), 10, "h-bbb", lease).
+		call(fact(at(6), 500, 10)).
+		call(bash(at(12), "systemctl restart svc")).
+		call(bash(at(16).Add(20*time.Second), "sleep 60"))
+	// Lease renews to at(16); the kill lands 30s after it lapses.
+	killedAt := at(16).Add(30 * time.Second)
+	survivor := (&transcript{}).
+		other(at(17)).
+		claim(at(25), 10, "h-ccc", lease).
+		call(finish(at(27), "complete_intent", 10, "intent 10 marked done"))
+
+	c := scoreCoordination(CoordinationInput{
+		Transcripts: []*Transcript{killed.parse(t, 2), survivor.parse(t, 3)},
+		Kills:       map[int]time.Time{2: killedAt},
+		Lease:       lease,
+		Renewal:     true,
+	})
+	if len(c.Takeovers) != 1 {
+		t.Fatalf("takeovers: %+v", c.Takeovers)
+	}
+	tk := c.Takeovers[0]
+	if tk.IntentID != 10 || tk.KilledInstance != 2 || tk.TakenBy != 3 || tk.TakenAt == nil || !tk.TakenAt.Equal(at(25)) || !tk.AfterLeaseLapsed {
+		t.Fatalf("takeover: %+v", tk)
+	}
+	if !tk.LeaseExpires.Equal(at(16)) {
+		t.Fatalf("lease expiry should reflect the implicit renewal: %+v", tk)
+	}
+	if len(c.DoubleClaims) != 0 {
+		t.Fatalf("a claim after the lapse is not a double claim: %+v", c.DoubleClaims)
+	}
+}
+
+func TestTakeoverStillHeldAtKill(t *testing.T) {
+	const lease = 10 * time.Minute
+	killed := (&transcript{}).
+		call(addIntent(at(0), 10)).
+		claim(at(0), 10, "h-bbb", lease)
+	survivor := (&transcript{}).
+		other(at(5)).
+		claim(at(12), 10, "h-ccc", lease)
+
+	c := scoreCoordination(CoordinationInput{
+		Transcripts: []*Transcript{killed.parse(t, 2), survivor.parse(t, 3)},
+		Kills:       map[int]time.Time{2: at(5)},
+		Lease:       lease,
+	})
+	if len(c.Takeovers) != 1 {
+		t.Fatalf("takeovers: %+v", c.Takeovers)
+	}
+	if tk := c.Takeovers[0]; tk.IntentID != 10 || tk.TakenBy != 3 || tk.TakenAt == nil || !tk.TakenAt.Equal(at(12)) || !tk.AfterLeaseLapsed {
+		t.Fatalf("takeover: %+v", tk)
+	}
+	if len(c.DoubleClaims) != 0 {
+		t.Fatalf("double claims: %+v", c.DoubleClaims)
+	}
+}
+
+func TestTakeoverLapsedNeverReclaimed(t *testing.T) {
+	const lease = 2 * time.Minute
+	// The holder was working the intent right up to the kill, its lease lapsed,
+	// but nobody ever reclaims it: a lapsed candidate is reported only when it
+	// was actually taken over.
+	killed := (&transcript{}).
+		call(addIntent(at(0), 10)).
+		claim(at(0), 10, "h-bbb", lease).
+		call(bash(at(2).Add(30*time.Second), "whoami"))
+	survivor := (&transcript{}).other(at(1)).other(at(4))
+
+	c := scoreCoordination(CoordinationInput{
+		Transcripts: []*Transcript{killed.parse(t, 2), survivor.parse(t, 3)},
+		Kills:       map[int]time.Time{2: at(3)},
+		Lease:       lease,
+	})
+	if len(c.Takeovers) != 0 {
+		t.Fatalf("a lapsed intent nobody reclaimed is not reported: %+v", c.Takeovers)
+	}
+}
+
+func TestTakeoverLapsedAfterGoingIdle(t *testing.T) {
+	const lease = 2 * time.Minute
+	// The holder stopped working the intent well before the kill; a later claim
+	// after the kill is not a takeover of work it was holding at the kill.
+	killed := (&transcript{}).
+		call(addIntent(at(0), 10)).
+		claim(at(0), 10, "h-bbb", lease).
+		call(bash(at(1), "whoami"))
+	survivor := (&transcript{}).other(at(1)).claim(at(12), 10, "h-ccc", lease)
+
+	c := scoreCoordination(CoordinationInput{
+		Transcripts: []*Transcript{killed.parse(t, 2), survivor.parse(t, 3)},
+		Kills:       map[int]time.Time{2: at(10)},
+		Lease:       lease,
+	})
+	if len(c.Takeovers) != 0 {
+		t.Fatalf("an intent gone idle long before the kill is not a takeover: %+v", c.Takeovers)
 	}
 }
