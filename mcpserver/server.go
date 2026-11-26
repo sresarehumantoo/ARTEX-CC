@@ -308,7 +308,10 @@ same engagement, coordinate through the graph:
   again to renew it.
 - Finish with complete_intent, or cancel_intent if it is no longer worth
   doing, so the claim is released. Both are refused on an intent another
-  session holds; leave it to its owner.
+  session holds; leave it to its owner. On an open intent both claim it
+  first, so the intent records who closed it (completed_by, cancelled_by).
+  That is no substitute for start_intent: work you do without claiming
+  looks free to every other session, which may do it too.
 - Claims belong to your identity when your client sends an X-Artex-Identity
   header, otherwise to your MCP session. In the web UI chat your identity is
   chat/<conversation id>, sent for you. An identity keeps its claims across
