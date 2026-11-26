@@ -247,6 +247,7 @@ type Coordination struct {
 	Takeovers          []Takeover          `json:"takeovers,omitempty"`
 	UnclaimedWork      int                 `json:"unclaimed_work_calls"`
 	UnclaimedFinishes  int                 `json:"unclaimed_finishes"`
+	OwnCancels         int                 `json:"own_duplicate_cancels"`
 	ConcurrentWork     []ConcurrentWork    `json:"concurrent_intent_work"`
 	ImplicitRenewal    bool                `json:"implicit_renewal"`
 	ImplicitRenewals   int                 `json:"implicit_renewals"`
@@ -327,11 +328,12 @@ type ConcurrentWork struct {
 }
 
 type UnclaimedWork struct {
-	WorkCalls int     `json:"work_calls"`
-	Calls     int     `json:"calls"`
-	Bash      int     `json:"bash"`
-	Records   int     `json:"artex_records"`
-	Finishes  []int64 `json:"finished_unclaimed_intents,omitempty"`
+	WorkCalls  int     `json:"work_calls"`
+	Calls      int     `json:"calls"`
+	Bash       int     `json:"bash"`
+	Records    int     `json:"artex_records"`
+	Finishes   []int64 `json:"finished_unclaimed_intents,omitempty"`
+	OwnCancels []int64 `json:"own_duplicate_cancels,omitempty"`
 }
 
 type InstanceCoord struct {
@@ -534,10 +536,11 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 	c.DoubleClaims = doubleClaims(claims, releases)
 	c.ConcurrentWork = concurrentWork(in.Transcripts, claims, releases)
 	for ti, t := range in.Transcripts {
-		u := unclaimedWork(t, claims, releases, firstIntent)
+		u := unclaimedWork(t, claims, releases, nodes, firstIntent)
 		perInstance[ti].Unclaimed = u
 		c.UnclaimedWork += u.Calls
 		c.UnclaimedFinishes += len(u.Finishes)
+		c.OwnCancels += len(u.OwnCancels)
 	}
 	if c.Conflicts > 0 {
 		c.ConflictsHandledPc = 100 * float64(c.ConflictsHandled) / float64(c.Conflicts)
@@ -700,8 +703,10 @@ var workTools = map[string]bool{
 // intent, out of WorkCalls such calls in all. Calls before the first intent
 // of the run was created are skipped, since nothing could be claimed then.
 // It also lists the intents the instance completed or cancelled without ever
-// having claimed them.
-func unclaimedWork(t *Transcript, claims []claimEvent, releases []releaseEvent, firstIntent time.Time) UnclaimedWork {
+// having claimed them, except that cancelling an unclaimed intent it created
+// itself is listed apart as OwnCancels: that is the duplicate cleanup the
+// server asks for when add_intent reports an overlapping open intent.
+func unclaimedWork(t *Transcript, claims []claimEvent, releases []releaseEvent, nodes map[int64]nodeOrigin, firstIntent time.Time) UnclaimedWork {
 	var u UnclaimedWork
 	for _, call := range t.Calls {
 		switch {
@@ -711,7 +716,12 @@ func unclaimedWork(t *Transcript, claims []claimEvent, releases []releaseEvent, 
 				continue
 			}
 			id, _ := strconv.ParseInt(m[1], 10, 64)
-			if !claimedBefore(claims, t.Instance, id, call.At) && !slices.Contains(u.Finishes, id) {
+			if claimedBefore(claims, t.Instance, id, call.At) || slices.Contains(u.Finishes, id) || slices.Contains(u.OwnCancels, id) {
+				continue
+			}
+			if n, ok := nodes[id]; ok && call.Tool == "cancel_intent" && n.kind == tools.KindIntent && n.instance == t.Instance {
+				u.OwnCancels = append(u.OwnCancels, id)
+			} else {
 				u.Finishes = append(u.Finishes, id)
 			}
 		case call.Tool == "Bash" || workTools[call.Tool] && !call.IsError:
@@ -1140,12 +1150,16 @@ func (c *Coordination) Summary() string {
 			w.IntentID, w.FirstInstance, w.FirstRecords, w.SecondInstance, w.SecondRecords,
 			w.From.Format(time.RFC3339), w.To.Format(time.RFC3339))
 	}
-	fmt.Fprintf(&b, "Work outside a claimed intent: %d calls, %d unclaimed intents completed or cancelled\n", c.UnclaimedWork, c.UnclaimedFinishes)
+	fmt.Fprintf(&b, "Work outside a claimed intent: %d calls, %d unclaimed intents completed or cancelled, %d own duplicates cancelled\n",
+		c.UnclaimedWork, c.UnclaimedFinishes, c.OwnCancels)
 	for _, i := range c.Instances {
-		if u := i.Unclaimed; u.Calls > 0 || len(u.Finishes) > 0 {
+		if u := i.Unclaimed; u.Calls > 0 || len(u.Finishes) > 0 || len(u.OwnCancels) > 0 {
 			fmt.Fprintf(&b, "  instance %d: %d of %d work calls (%d bash, %d artex records)", i.Instance, u.Calls, u.WorkCalls, u.Bash, u.Records)
 			if len(u.Finishes) > 0 {
 				fmt.Fprintf(&b, ", finished unclaimed intents %v", u.Finishes)
+			}
+			if len(u.OwnCancels) > 0 {
+				fmt.Fprintf(&b, ", cancelled own duplicates %v", u.OwnCancels)
 			}
 			b.WriteString("\n")
 		}
