@@ -290,6 +290,9 @@ func cmdServe(args []string) {
 		slog.Error("failed to load engagement config", "err", err)
 		os.Exit(1)
 	}
+	if err := config.PrepareDataDir(*dataDir); err != nil {
+		slog.Warn("failed to restrict data directory permissions", "path", *dataDir, "err", err)
+	}
 
 	s, err := store.Open(ctx, dsn)
 	if err != nil {

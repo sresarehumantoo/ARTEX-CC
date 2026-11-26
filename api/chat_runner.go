@@ -125,7 +125,7 @@ func WriteMCPConfig(dataDir, listenAddr, token string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+	if err := os.MkdirAll(dataDir, 0o711); err != nil {
 		return "", err
 	}
 	path, err := filepath.Abs(filepath.Join(dataDir, "mcp-config.json"))
