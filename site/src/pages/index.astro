@@ -358,7 +358,7 @@ const install = [
         </div>
       </section>
 
-      <section id="eval" class="relative overflow-hidden border-b border-line">
+      <section id="eval" class="relative overflow-clip border-b border-line">
         <div class="section-glow pointer-events-none absolute inset-0" aria-hidden="true"></div>
         <div class="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28" data-reveal-children>
           <p class="eyebrow">Eval</p>
@@ -386,12 +386,12 @@ const install = [
               <dd class="mt-2 font-mono text-2xl font-medium tracking-tight text-white sm:text-3xl">AD DC</dd>
             </div>
           </dl>
-          <ol class="card mt-4 divide-y divide-line px-5 sm:px-6">
+          <ol class="card mt-4 divide-y divide-line px-5 sm:px-6" data-timeline>
             {
               forest.map((f, i) => (
                 <li class="grid gap-1.5 py-5 sm:grid-cols-[11rem_1fr] sm:gap-6">
                   <span class="flex items-center gap-3 font-mono text-sm text-sky-400">
-                    <span class="text-neutral-600">{String(i + 1).padStart(2, '0')}</span>
+                    <span class="text-neutral-600" data-timeline-step>{String(i + 1).padStart(2, '0')}</span>
                     {f.phase}
                   </span>
                   <span class="text-sm leading-relaxed text-neutral-300">{f.body}</span>

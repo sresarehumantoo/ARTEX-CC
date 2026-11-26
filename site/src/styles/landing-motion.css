@@ -214,3 +214,53 @@
     transition: transform 750ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    [data-timeline] {
+      position: relative;
+      view-timeline: --timeline block;
+      view-timeline-inset: 0 40%;
+    }
+
+    [data-timeline]::before {
+      content: '';
+      position: absolute;
+      top: 0.75rem;
+      bottom: 0.75rem;
+      left: -1px;
+      width: 1px;
+      background: linear-gradient(to bottom, var(--color-sky-400), oklch(0.75 0.14 232 / 0.35));
+      box-shadow: 0 0 8px oklch(0.75 0.14 232 / 0.6);
+      transform-origin: top;
+      animation: timeline-draw linear both;
+      animation-range: entry 0% entry 100%;
+    }
+
+    [data-timeline-step] {
+      animation: timeline-step linear both;
+      animation-range: entry 0% entry 50%;
+    }
+
+    /* Separate rules stop the minifier folding the timeline into the animation shorthand, which browsers reject. */
+    ol[data-timeline]::before {
+      animation-timeline: --timeline;
+    }
+
+    span[data-timeline-step] {
+      animation-timeline: view(block 0 40%);
+    }
+  }
+}
+
+@keyframes timeline-draw {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes timeline-step {
+  to {
+    color: var(--color-sky-300);
+  }
+}
