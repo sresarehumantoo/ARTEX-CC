@@ -350,14 +350,15 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 	}
 	ov.ChangesCursor = tools.ChangeCursor{At: asOf}.String()
 
-	var desc, goal sql.NullString
+	var desc, goal, status sql.NullString
 	if err := s.QueryRowContext(ctx,
-		`SELECT COALESCE(description,''), COALESCE(goal,'') FROM explorations WHERE id = $1`,
-		explorationID).Scan(&desc, &goal); err != nil && err != sql.ErrNoRows {
+		`SELECT COALESCE(description,''), COALESCE(goal,''), status FROM explorations WHERE id = $1`,
+		explorationID).Scan(&desc, &goal, &status); err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
 	ov.Task["description"] = desc.String
 	ov.Task["goal"] = goal.String
+	ov.Task["status"] = status.String
 
 	nodeRows, err := s.QueryContext(ctx,
 		`SELECT `+nodeSelectCols+`
