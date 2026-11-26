@@ -1,0 +1,19 @@
+Monitor Dashboard Changelog
+===========================
+
+v1.3.2 (2026-11-20)
+- Fixed health check interval drift
+- Added audit_log table for compliance
+
+v1.3.1 (2026-11-10)
+- Added /api/search endpoint for quick lookups
+- Added /files endpoint for report access
+
+v1.3.0 (2026-10-01)
+- Rotated all API tokens
+- Added admin panel behind /api/admin
+- Token auth via X-Api-Token header
+
+v1.2.0 (2026-09-15)
+- Initial deployment on winforge
+- SQLite backend for lightweight operation
