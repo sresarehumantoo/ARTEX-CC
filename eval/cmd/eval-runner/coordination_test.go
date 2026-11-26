@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -613,5 +614,230 @@ func TestConcurrentIntentWork(t *testing.T) {
 	if s := c.Summary(); !strings.Contains(s, "Concurrent work on one intent: 2 (FAIL)") ||
 		!strings.Contains(s, "  intent 40: instance 1 (2 records) and instance 2 (1 records) interleaved from") {
 		t.Errorf("summary:\n%s", s)
+	}
+}
+
+func coverage(at time.Time, intent int64) (time.Time, string, any, string, bool) {
+	return at, "record_coverage", map[string]any{"surface": "s", "risk_area": "r", "outcome": "no_issue_found", "intent_id": intent}, "recorded", false
+}
+
+func addIntent(at time.Time, id int64) (time.Time, string, any, string, bool) {
+	return at, "add_intent", map[string]any{"summary": "a"}, fmt.Sprintf("intent created: %d", id), false
+}
+
+func TestImplicitRenewalKeepsWorkClaimed(t *testing.T) {
+	const lease = 10 * time.Minute
+	holder := (&transcript{}).
+		call(addIntent(at(0), 10)).
+		claim(at(0), 10, "h-aaa", lease).
+		call(fact(at(6), 500, 10)).
+		call(bash(at(12), "whoami")).
+		call(coverage(at(13), 10)).
+		call(bash(at(20), "type flag.txt")).
+		call(intentFinding(at(21), 10, 1)).
+		call(bash(at(28), "dir"))
+	survivor := (&transcript{}).claim(at(32), 10, "h-bbb", lease)
+	in := CoordinationInput{
+		Transcripts: []*Transcript{holder.parse(t, 1), survivor.parse(t, 2)},
+		Kills:       map[int]time.Time{1: at(29)},
+		Lease:       lease,
+	}
+
+	old := scoreCoordination(in)
+	if old.ImplicitRenewal || old.ImplicitRenewals != 0 || old.Instances[0].Unclaimed.Calls != 5 || len(old.Takeovers) != 0 {
+		t.Fatalf("pre-renewal scoring changed: renewal %t (%d), unclaimed %+v, takeovers %+v",
+			old.ImplicitRenewal, old.ImplicitRenewals, old.Instances[0].Unclaimed, old.Takeovers)
+	}
+	if !strings.Contains(old.Summary(), "Claim replay: start_intent only") {
+		t.Errorf("summary:\n%s", old.Summary())
+	}
+
+	in.Renewal = true
+	c := scoreCoordination(in)
+	if !c.ImplicitRenewal || c.ImplicitRenewals != 3 {
+		t.Fatalf("renewals: %t %d", c.ImplicitRenewal, c.ImplicitRenewals)
+	}
+	if u := c.Instances[0].Unclaimed; u.Calls != 0 || u.WorkCalls != 6 {
+		t.Fatalf("work after renewals counted unclaimed: %+v", u)
+	}
+	if len(c.Takeovers) != 1 {
+		t.Fatalf("takeovers: %+v", c.Takeovers)
+	}
+	if tk := c.Takeovers[0]; tk.IntentID != 10 || !tk.LeaseExpires.Equal(at(31)) || tk.TakenBy != 2 || !tk.AfterLeaseLapsed {
+		t.Fatalf("takeover: %+v", tk)
+	}
+	if len(c.DoubleClaims) != 0 {
+		t.Fatalf("double claims: %+v", c.DoubleClaims)
+	}
+	if !strings.Contains(c.Summary(), "Claim replay: start_intent plus 3 implicit renewals") {
+		t.Errorf("summary:\n%s", c.Summary())
+	}
+
+	early := (&transcript{}).claim(at(25), 10, "h-bbb", lease)
+	in.Transcripts[1] = early.parse(t, 2)
+	in.Kills = nil
+	c = scoreCoordination(in)
+	if len(c.DoubleClaims) != 1 || !c.DoubleClaims[0].FirstExpires.Equal(at(31)) {
+		t.Fatalf("claim inside the renewed lease is a double claim: %+v", c.DoubleClaims)
+	}
+}
+
+func TestRenewalDetectedFromConflictText(t *testing.T) {
+	holder := (&transcript{}).
+		call(addIntent(at(0), 10)).
+		claim(at(0), 10, "h-aaa", 10*time.Minute).
+		call(fact(at(8), 500, 10)).
+		call(bash(at(12), "whoami"))
+	other := (&transcript{}).call(at(1), "start_intent", map[string]any{"node_id": 10},
+		fmt.Sprintf("intent 10 is claimed by h-aaa until %s (in 9m0s); pick another intent. %s, so do not wait for it to lapse",
+			at(10).Format(time.RFC3339), renewalConflictText), true)
+
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{holder.parse(t, 1), other.parse(t, 2)}, Lease: 10 * time.Minute})
+	if !c.ImplicitRenewal || c.ImplicitRenewals != 1 || c.Instances[0].Unclaimed.Calls != 0 {
+		t.Fatalf("renewal not detected: %t %d %+v", c.ImplicitRenewal, c.ImplicitRenewals, c.Instances[0].Unclaimed)
+	}
+}
+
+func TestRenewalHolderOnly(t *testing.T) {
+	const lease = 10 * time.Minute
+	holder := (&transcript{}).
+		call(addIntent(at(0), 10)).
+		claim(at(0), 10, "h-aaa", lease).
+		call(bash(at(10).Add(30*time.Second), "whoami"))
+	other := (&transcript{}).
+		claim(at(0), 11, "h-bbb", lease).
+		call(fact(at(8), 500, 10)).
+		call(coverage(at(8), 10)).
+		claim(at(11), 10, "h-bbb", lease)
+
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{holder.parse(t, 1), other.parse(t, 2)}, Lease: lease, Renewal: true})
+	if c.ImplicitRenewals != 0 {
+		t.Fatalf("another instance's records renewed the claim: %d", c.ImplicitRenewals)
+	}
+	if len(c.DoubleClaims) != 0 {
+		t.Fatalf("claim after the holder's lease lapsed is not a double claim: %+v", c.DoubleClaims)
+	}
+	if u := c.Instances[0].Unclaimed; u.Calls != 1 {
+		t.Fatalf("holder's work after its lapse: %+v", u)
+	}
+}
+
+func TestRenewalRevivesLapsedClaim(t *testing.T) {
+	const lease = 10 * time.Minute
+	holder := (&transcript{}).
+		call(addIntent(at(0), 10)).
+		claim(at(0), 10, "h-aaa", lease).
+		call(bash(at(12), "whoami")).
+		call(fact(at(13), 500, 10)).
+		call(bash(at(14), "dir"))
+	other := (&transcript{}).
+		call(at(5), "start_intent", map[string]any{"node_id": 10},
+			fmt.Sprintf("intent 10 is claimed by h-aaa until %s (in 5m0s); pick another intent", at(10).Format(time.RFC3339)), true).
+		other(at(6)).
+		call(at(15), "start_intent", map[string]any{"node_id": 10},
+			fmt.Sprintf("intent 10 is claimed by h-aaa until %s (in 8m0s); pick another intent", at(23).Format(time.RFC3339)), true)
+	in := CoordinationInput{Transcripts: []*Transcript{holder.parse(t, 1), other.parse(t, 2)}, Lease: lease}
+
+	old := scoreCoordination(in)
+	if old.Instances[0].Unclaimed.Calls != 3 || old.Conflicts != 2 || old.ConflictsHandled != 2 {
+		t.Fatalf("pre-renewal: unclaimed %+v, conflicts %d handled %d", old.Instances[0].Unclaimed, old.Conflicts, old.ConflictsHandled)
+	}
+
+	in.Renewal = true
+	c := scoreCoordination(in)
+	if c.ImplicitRenewals != 1 {
+		t.Fatalf("lapsed claim not revived: %d", c.ImplicitRenewals)
+	}
+	if u := c.Instances[0].Unclaimed; u.Calls != 1 || u.Bash != 1 {
+		t.Fatalf("only the bash during the lapse is unclaimed: %+v", u)
+	}
+	if c.Conflicts != 2 || c.ConflictsHandled != 1 || len(c.UnhandledConflicts) != 1 || c.UnhandledConflicts[0].Call != 0 {
+		t.Fatalf("retry into the revived claim is mishandling: %d/%d %+v", c.ConflictsHandled, c.Conflicts, c.UnhandledConflicts)
+	}
+
+	sniped := (&transcript{}).claim(at(15), 10, "h-bbb", lease)
+	in.Transcripts[1] = sniped.parse(t, 2)
+	if c := scoreCoordination(in); len(c.DoubleClaims) != 1 || c.DoubleClaims[0].SecondInstance != 2 {
+		t.Fatalf("claim of a revived intent is a double claim: %+v", c.DoubleClaims)
+	}
+}
+
+func TestNoRevivalAfterTakeover(t *testing.T) {
+	const lease = 10 * time.Minute
+	holder := (&transcript{}).
+		call(addIntent(at(0), 10)).
+		claim(at(0), 10, "h-aaa", lease).
+		call(fact(at(12), 500, 10)).
+		call(bash(at(13), "whoami"))
+	taker := (&transcript{}).
+		claim(at(11), 10, "h-bbb", lease).
+		call(fact(at(17), 501, 10)).
+		claim(at(19), 10, "h-bbb", lease)
+
+	c := scoreCoordination(CoordinationInput{
+		Transcripts: []*Transcript{holder.parse(t, 1), taker.parse(t, 2)},
+		Lease:       lease,
+		Renewal:     true,
+		Kills:       map[int]time.Time{1: at(15)},
+	})
+	if c.ImplicitRenewals != 1 {
+		t.Fatalf("only the taker's record renews: %d", c.ImplicitRenewals)
+	}
+	if len(c.DoubleClaims) != 0 {
+		t.Fatalf("double claims: %+v", c.DoubleClaims)
+	}
+	if u := c.Instances[0].Unclaimed; u.Calls != 2 {
+		t.Fatalf("old holder's work after the takeover: %+v", u)
+	}
+	if len(c.Takeovers) != 0 {
+		t.Fatalf("killed instance no longer held the intent: %+v", c.Takeovers)
+	}
+	if len(c.ConcurrentWork) != 1 {
+		t.Fatalf("old holder recording against the taken intent: %+v", c.ConcurrentWork)
+	}
+}
+
+func TestRenewalHalfLeaseSkip(t *testing.T) {
+	const lease = 10 * time.Minute
+	for _, tc := range []struct {
+		name     string
+		recordAt time.Time
+		renewals int
+		doubles  int
+		lapsed   int
+	}{
+		{"more than half left", at(3), 0, 0, 1},
+		{"less than half left", at(6), 1, 1, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			holder := (&transcript{}).
+				call(addIntent(at(0), 10)).
+				claim(at(0), 10, "h-aaa", lease).
+				call(fact(tc.recordAt, 500, 10)).
+				call(bash(at(10).Add(30*time.Second), "whoami"))
+			other := (&transcript{}).claim(at(11), 10, "h-bbb", lease)
+
+			c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{holder.parse(t, 1), other.parse(t, 2)}, Lease: lease, Renewal: true})
+			if c.ImplicitRenewals != tc.renewals || len(c.DoubleClaims) != tc.doubles || c.Instances[0].Unclaimed.Calls != tc.lapsed {
+				t.Fatalf("renewals %d, double claims %+v, unclaimed %+v", c.ImplicitRenewals, c.DoubleClaims, c.Instances[0].Unclaimed)
+			}
+		})
+	}
+}
+
+func TestServerRenewsClaims(t *testing.T) {
+	t.Setenv(fakeEnv, "1")
+	for desc, want := range map[string]bool{
+		"The claim is exclusive for 30 minutes and renews whenever you pass this intent as intent_id to record_fact. ": true,
+		"The claim is exclusive for 30 minutes; call again to renew it on long work. ":                                  false,
+	} {
+		catalog, _ := json.Marshal([]map[string]string{{"name": "record_fact"}, {"name": "start_intent", "description": desc}})
+		t.Setenv(fakeCatalogEnv, string(catalog))
+		if got := serverRenewsClaims(context.Background(), os.Args[0]); got != want {
+			t.Errorf("serverRenewsClaims with %q = %t", desc, got)
+		}
+	}
+	if serverRenewsClaims(context.Background(), filepath.Join(t.TempDir(), "missing")) {
+		t.Error("a missing binary does not renew")
 	}
 }

@@ -15,7 +15,10 @@ import (
 	"time"
 )
 
-const fakeEnv = "EVAL_RUNNER_TEST_FAKE"
+const (
+	fakeEnv        = "EVAL_RUNNER_TEST_FAKE"
+	fakeCatalogEnv = "EVAL_RUNNER_TEST_CATALOG"
+)
 
 // TestMain lets the test binary stand in for artex-cc (serve --listen) and
 // for claude, so runInstances can run end to end without either.
@@ -28,6 +31,10 @@ func TestMain(m *testing.M) {
 }
 
 func fakeMain(args []string) {
+	if len(args) > 0 && args[0] == "tools" {
+		fmt.Print(os.Getenv(fakeCatalogEnv))
+		os.Exit(0)
+	}
 	if len(args) > 0 && args[0] == "serve" {
 		for i, a := range args {
 			if a == "--listen" && i+1 < len(args) {

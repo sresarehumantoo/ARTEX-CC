@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"regexp"
 	"slices"
 	"sort"
@@ -30,6 +31,11 @@ var (
 )
 
 const conflictWindow = 5
+
+// renewalConflictText is in every ClaimConflictError from servers that renew
+// claims implicitly (record_fact, report_finding, record_coverage), and in no
+// earlier server's output.
+const renewalConflictText = "The claim renews while its holder records results against it"
 
 // ToolCall is one tool_use from a stream-json transcript with its result.
 type ToolCall struct {
@@ -222,6 +228,9 @@ type CoordinationInput struct {
 	Edges       []tools.Edge
 	Kills       map[int]time.Time
 	Lease       time.Duration
+	// Renewal says the server renews claims implicitly, as probed from its
+	// tool catalog. Transcripts showing it turn renewal on as well.
+	Renewal bool
 }
 
 type Coordination struct {
@@ -239,6 +248,8 @@ type Coordination struct {
 	UnclaimedWork      int                 `json:"unclaimed_work_calls"`
 	UnclaimedFinishes  int                 `json:"unclaimed_finishes"`
 	ConcurrentWork     []ConcurrentWork    `json:"concurrent_intent_work"`
+	ImplicitRenewal    bool                `json:"implicit_renewal"`
+	ImplicitRenewals   int                 `json:"implicit_renewals"`
 	Instances          []InstanceCoord     `json:"instances"`
 	Total              InstanceCoordTotals `json:"total"`
 }
@@ -352,6 +363,28 @@ type claimEvent struct {
 	at       time.Time
 	expires  time.Time
 	renewed  bool
+	implicit bool
+}
+
+type opKind int
+
+const (
+	opClaim opKind = iota
+	opRelease
+	opRenew
+)
+
+// claimOp is one claim, release or renewing call, in transcript order.
+type claimOp struct {
+	kind opKind
+	claimEvent
+}
+
+type pendingConflict struct {
+	ti, call int
+	intent   int64
+	until    time.Time
+	holder   string
 }
 
 type releaseEvent struct {
@@ -375,6 +408,9 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 
 	var claims []claimEvent
 	var releases []releaseEvent
+	var ops []claimOp
+	var conflicts []pendingConflict
+	renewal := in.Renewal
 	nodes := map[int64]nodeOrigin{}
 	findingOwner := map[int64]int{}
 	commands := map[string]map[int]int{}
@@ -393,6 +429,12 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 		c.Total.CostUSD += t.CostUSD
 
 		for i, call := range t.Calls {
+			if strings.Contains(call.Result, renewalConflictText) {
+				renewal = true
+			}
+			renew := func(intent int64) {
+				ops = append(ops, claimOp{opRenew, claimEvent{instance: t.Instance, call: i, intent: intent, at: call.At}})
+			}
 			switch call.Tool {
 			case "start_intent":
 				if m := claimRe.FindStringSubmatch(call.Result); m != nil && !call.IsError {
@@ -401,7 +443,9 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 					if err != nil {
 						exp = call.At.Add(lease)
 					}
-					claims = append(claims, claimEvent{t.Instance, i, id, m[3], call.At, exp, m[2] == "renewed"})
+					cl := claimEvent{instance: t.Instance, call: i, intent: id, holder: m[3], at: call.At, expires: exp, renewed: m[2] == "renewed"}
+					claims = append(claims, cl)
+					ops = append(ops, claimOp{opClaim, cl})
 					ic.ClaimsTaken++
 					if _, seen := holderInstance[m[3]]; !seen {
 						holderInstance[m[3]] = t.Instance
@@ -417,11 +461,7 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 					until, _ := time.Parse(time.RFC3339, m[3])
 					c.Conflicts++
 					ic.Conflicts++
-					if conflictHandled(t.Calls, i, id, until) {
-						c.ConflictsHandled++
-					} else {
-						c.UnhandledConflicts = append(c.UnhandledConflicts, ConflictRef{Instance: t.Instance, Call: i, IntentID: id, Holder: m[2]})
-					}
+					conflicts = append(conflicts, pendingConflict{ti, i, id, until, m[2]})
 				}
 			case "complete_intent", "cancel_intent":
 				if conflictRe.MatchString(call.Result) {
@@ -429,6 +469,7 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 				} else if m := doneRe.FindStringSubmatch(call.Result); m != nil && !call.IsError {
 					id, _ := strconv.ParseInt(m[1], 10, 64)
 					releases = append(releases, releaseEvent{id, call.At, t.Instance})
+					ops = append(ops, claimOp{opRelease, claimEvent{instance: t.Instance, call: i, intent: id, at: call.At}})
 				}
 			case "list_changes":
 				ic.ListChanges++
@@ -457,11 +498,36 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 					if n.findingID > 0 {
 						findingOwner[n.findingID] = t.Instance
 					}
+					if n.intent > 0 {
+						renew(n.intent)
+					}
+				}
+			case "record_coverage":
+				if id := inputIntentID(call.Input); id > 0 && !call.IsError {
+					renew(id)
 				}
 			}
 		}
 	}
 
+	if renewal {
+		c.ImplicitRenewal = true
+		n := len(claims)
+		claims = replayRenewals(claims, ops, lease)
+		c.ImplicitRenewals = len(claims) - n
+	}
+	for _, pc := range conflicts {
+		t := in.Transcripts[pc.ti]
+		var heldByOther func(time.Time) bool
+		if renewal {
+			heldByOther = func(at time.Time) bool { return heldByOtherInstance(claims, releases, pc.intent, t.Instance, at) }
+		}
+		if conflictHandled(t.Calls, pc.call, pc.intent, pc.until, heldByOther) {
+			c.ConflictsHandled++
+		} else {
+			c.UnhandledConflicts = append(c.UnhandledConflicts, ConflictRef{Instance: t.Instance, Call: pc.call, IntentID: pc.intent, Holder: pc.holder})
+		}
+	}
 	for k, u := range c.UnhandledConflicts {
 		c.UnhandledConflicts[k].HolderInstance = resolveHolder(u.Holder, holderInstance)
 	}
@@ -528,12 +594,15 @@ func resolveHolder(label string, claimedBy map[string]int) int {
 // calls, is mishandling. Moving to another intent, carrying on with a claim it
 // already holds, or polling and waiting when nothing is left are all fine, as
 // is claiming the intent again once the other holder's lease (until) lapsed.
-func conflictHandled(calls []ToolCall, i int, intent int64, until time.Time) bool {
+// With heldByOther, the lease must also have lapsed in the replay, since the
+// holder may have renewed it after the conflict.
+func conflictHandled(calls []ToolCall, i int, intent int64, until time.Time, heldByOther func(time.Time) bool) bool {
 	for j := i + 1; j < len(calls) && j <= i+conflictWindow; j++ {
 		switch calls[j].Tool {
 		case "start_intent":
 			if inputNodeID(calls[j].Input) == intent {
-				return !until.IsZero() && !calls[j].At.Before(until)
+				at := calls[j].At
+				return !until.IsZero() && !at.Before(until) && (heldByOther == nil || !heldByOther(at))
 			}
 		case "complete_intent", "cancel_intent":
 			if inputNodeID(calls[j].Input) == intent {
@@ -551,6 +620,47 @@ func conflictHandled(calls []ToolCall, i int, intent int64, until time.Time) boo
 func releasedBetween(releases []releaseEvent, intent int64, from, to time.Time) bool {
 	for _, r := range releases {
 		if r.intent == intent && !r.at.Before(from) && r.at.Before(to) {
+			return true
+		}
+	}
+	return false
+}
+
+// replayRenewals adds the implicit renewals the server's RenewIntentClaims
+// makes for record_fact, report_finding and record_coverage calls: only when
+// the caller's instance made the intent's latest claim, nothing released it
+// since, and that claim had less than half a lease left. A lapsed claim nobody
+// else took is revived. Each renewal is a claim by the same holder from the
+// call to call time + lease.
+func replayRenewals(claims []claimEvent, ops []claimOp, lease time.Duration) []claimEvent {
+	sorted := append([]claimOp(nil), ops...)
+	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].at.Before(sorted[j].at) })
+	held := map[int64]claimEvent{}
+	out := append([]claimEvent(nil), claims...)
+	for _, op := range sorted {
+		switch op.kind {
+		case opClaim:
+			held[op.intent] = op.claimEvent
+		case opRelease:
+			delete(held, op.intent)
+		case opRenew:
+			h, ok := held[op.intent]
+			if !ok || h.instance != op.instance || !h.expires.Before(op.at.Add(lease/2)) {
+				continue
+			}
+			h = claimEvent{instance: op.instance, call: op.call, intent: op.intent, holder: h.holder,
+				at: op.at, expires: op.at.Add(lease), renewed: true, implicit: true}
+			held[op.intent] = h
+			out = append(out, h)
+		}
+	}
+	return out
+}
+
+func heldByOtherInstance(claims []claimEvent, releases []releaseEvent, intent int64, instance int, at time.Time) bool {
+	for _, cl := range claims {
+		if cl.intent == intent && cl.instance != instance && !cl.at.After(at) && at.Before(cl.expires) &&
+			!releasedBetween(releases, intent, cl.at, at) {
 			return true
 		}
 	}
@@ -941,7 +1051,7 @@ func takeovers(killed int, killedAt time.Time, claims []claimEvent, releases []r
 	for _, id := range ids {
 		tk := Takeover{IntentID: id, KilledInstance: killed, LeaseExpires: last[id].expires}
 		for _, cl := range claims {
-			if cl.intent == id && cl.instance != killed && cl.at.After(killedAt) && (tk.TakenAt == nil || cl.at.Before(*tk.TakenAt)) {
+			if cl.intent == id && cl.instance != killed && !cl.implicit && cl.at.After(killedAt) && (tk.TakenAt == nil || cl.at.Before(*tk.TakenAt)) {
 				at := cl.at
 				tk.TakenBy, tk.TakenAt = cl.instance, &at
 				tk.AfterLeaseLapsed = !at.Before(tk.LeaseExpires)
@@ -1013,6 +1123,11 @@ func (c *Coordination) Summary() string {
 		return "FAIL"
 	}
 	fmt.Fprintf(&b, "Coordination scorecard\n\n")
+	if c.ImplicitRenewal {
+		fmt.Fprintf(&b, "Claim replay: start_intent plus %d implicit renewals from recorded work\n", c.ImplicitRenewals)
+	} else {
+		fmt.Fprintf(&b, "Claim replay: start_intent only (server without implicit renewal)\n")
+	}
 	fmt.Fprintf(&b, "Concurrent double claims: %d (%s)\n", len(c.DoubleClaims), pass(len(c.DoubleClaims) == 0))
 	for _, d := range c.DoubleClaims {
 		fmt.Fprintf(&b, "  intent %d: instance %d (%s) then instance %d (%s) at %s, before %s\n",
@@ -1084,7 +1199,7 @@ func (c *Coordination) Summary() string {
 	return b.String()
 }
 
-func scoreRun(ctx context.Context, s *store.Store, explorationID int64, runs []InstanceRun, lease time.Duration) (*Coordination, error) {
+func scoreRun(ctx context.Context, s *store.Store, explorationID int64, runs []InstanceRun, lease time.Duration, renewal bool) (*Coordination, error) {
 	ts, kills, err := loadTranscripts(runs)
 	if err != nil {
 		return nil, err
@@ -1093,5 +1208,28 @@ func scoreRun(ctx context.Context, s *store.Store, explorationID int64, runs []I
 	if err != nil {
 		return nil, err
 	}
-	return scoreCoordination(CoordinationInput{Transcripts: ts, Findings: findings, Edges: edges, Kills: kills, Lease: lease}), nil
+	return scoreCoordination(CoordinationInput{Transcripts: ts, Findings: findings, Edges: edges, Kills: kills, Lease: lease, Renewal: renewal}), nil
+}
+
+// serverRenewsClaims reports whether the artex-cc binary's start_intent says
+// recorded work renews the claim. Binaries without the tools command, or
+// that fail to run, count as not renewing.
+func serverRenewsClaims(ctx context.Context, artexBin string) bool {
+	out, err := exec.CommandContext(ctx, artexBin, "tools", "--json").Output()
+	if err != nil {
+		return false
+	}
+	var catalog []struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	if json.Unmarshal(out, &catalog) != nil {
+		return false
+	}
+	for _, e := range catalog {
+		if e.Name == "start_intent" {
+			return strings.Contains(e.Description, "renews whenever you pass this intent as intent_id")
+		}
+	}
+	return false
 }
