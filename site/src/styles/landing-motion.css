@@ -362,3 +362,118 @@
     opacity: 1;
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  @media (hover: none), (pointer: coarse) {
+    [data-traces] {
+      display: block;
+    }
+
+    [data-traces] > span {
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: linear-gradient(var(--trace-dir), transparent, oklch(0.8 0.13 232 / 0.55) 80%, oklch(0.9 0.08 232 / 0.9));
+      animation: trace-x 11s linear 1.6s infinite both;
+    }
+
+    [data-traces] > span::after {
+      content: '';
+      position: absolute;
+      right: -2px;
+      bottom: -2px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--color-sky-200);
+      box-shadow: 0 0 10px 2px oklch(0.75 0.14 232 / 0.7);
+    }
+
+    [data-traces] > span:nth-child(odd) {
+      --trace-dir: 90deg;
+      width: 112px;
+      height: 1px;
+    }
+
+    [data-traces] > span:nth-child(even) {
+      --trace-dir: 180deg;
+      width: 1px;
+      height: 112px;
+      animation-name: trace-y;
+    }
+
+    [data-traces] > span:nth-child(1) {
+      top: 96px;
+    }
+
+    [data-traces] > span:nth-child(2) {
+      left: round(down, 25%, 48px);
+      animation-duration: 13s;
+      animation-delay: 4.4s;
+    }
+
+    [data-traces] > span:nth-child(3) {
+      top: 480px;
+      animation-duration: 14s;
+      animation-delay: 7.8s;
+    }
+
+    [data-traces] > span:nth-child(4) {
+      left: round(down, 75%, 48px);
+      animation-duration: 12s;
+      animation-delay: 10.2s;
+    }
+
+    [data-sheen] {
+      position: relative;
+      overflow: hidden;
+    }
+
+    [data-sheen]::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(110deg, transparent 30%, oklch(1 0 0 / 0.45) 50%, transparent 70%);
+      transform: translateX(-110%);
+      pointer-events: none;
+      animation: sheen-idle 8s ease-in-out 2.4s infinite;
+    }
+
+    #hero[data-offscreen] [data-traces] > span,
+    #hero[data-offscreen] [data-sheen]::after {
+      animation-play-state: paused;
+    }
+  }
+}
+
+@keyframes trace-x {
+  from {
+    transform: translateX(-130px);
+  }
+  28%,
+  to {
+    transform: translateX(100vw);
+  }
+}
+
+@keyframes trace-y {
+  from {
+    transform: translateY(-130px);
+    opacity: 1;
+  }
+  34%,
+  to {
+    transform: translateY(640px);
+    opacity: 0;
+  }
+}
+
+@keyframes sheen-idle {
+  from {
+    transform: translateX(-110%);
+  }
+  14%,
+  to {
+    transform: translateX(110%);
+  }
+}
