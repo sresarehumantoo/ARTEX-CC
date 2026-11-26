@@ -143,6 +143,12 @@ func newAuthConfig(password string) (AuthConfig, error) {
 }
 
 func (a *API) handleAuthInit(w http.ResponseWriter, r *http.Request) {
+	// Docker's port publishing hides whether the client connected via
+	// loopback, so a DNS-rebound page could otherwise claim a fresh server.
+	if !LoopbackHost(r) {
+		writeError(w, http.StatusForbidden, "set the first password from http://localhost (use an SSH tunnel for a remote server)")
+		return
+	}
 	if a.files == nil {
 		writeError(w, http.StatusServiceUnavailable, "data directory not configured")
 		return

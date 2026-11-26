@@ -9,6 +9,7 @@ import (
 
 func authDo(h http.Handler, method, path, body string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
+	r.Host = "localhost:9400"
 	for _, c := range cookies {
 		r.AddCookie(c)
 	}
@@ -165,5 +166,32 @@ func TestAuthLogin_NotInitialized(t *testing.T) {
 	w := authDo(h, "POST", "/api/auth/login", `{"password":"anything"}`)
 	if w.Code != 409 {
 		t.Fatalf("not initialized: %d", w.Code)
+	}
+}
+
+func TestAuthInitRequiresLoopbackHost(t *testing.T) {
+	a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()), WithAuthRequired(true))
+	h := a.Handler()
+	for _, host := range []string{"evil.example:9400", "192.168.1.20:9400", ""} {
+		r := httptest.NewRequest("POST", "/api/auth/init", strings.NewReader(`{"password":"correct horse"}`))
+		r.Host = host
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("Host %q: %d", host, w.Code)
+		}
+	}
+	if w := authDo(h, "GET", "/api/auth/status", ""); !strings.Contains(w.Body.String(), `"initialized":false`) {
+		t.Fatalf("status: %s", w.Body.String())
+	}
+	for _, host := range []string{"127.0.0.1:9400", "[::1]:9400", "localhost"} {
+		a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()), WithAuthRequired(true))
+		r := httptest.NewRequest("POST", "/api/auth/init", strings.NewReader(`{"password":"correct horse"}`))
+		r.Host = host
+		w := httptest.NewRecorder()
+		a.Handler().ServeHTTP(w, r)
+		if w.Code != http.StatusOK {
+			t.Fatalf("Host %q: %d", host, w.Code)
+		}
 	}
 }
