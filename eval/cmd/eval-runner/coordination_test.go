@@ -388,7 +388,7 @@ func TestRealStreamJSON(t *testing.T) {
 func TestSummary(t *testing.T) {
 	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{(&transcript{}).other(at(1)).parse(t, 1)}})
 	s := c.Summary()
-	for _, want := range []string{"Concurrent double claims: 0 (pass)", "no conflicts", "Duplicate findings: 0 raw"} {
+	for _, want := range []string{"Concurrent double claims: 0 (pass)", "Concurrent work on one intent: 0 (pass)", "Work outside a claimed intent: 0 calls", "no conflicts", "Duplicate findings: 0 raw"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("summary lacks %q:\n%s", want, s)
 		}
@@ -497,5 +497,121 @@ func TestResultCostIsRunningTotal(t *testing.T) {
 	}
 	if tr.Usage.OutputTokens != 9 || tr.Usage.CacheReadTokens != 2700 {
 		t.Fatalf("usage should sum per-turn result usage: %+v", tr.Usage)
+	}
+}
+
+func fact(at time.Time, id int64, intents ...int64) (time.Time, string, any, string, bool) {
+	var facts []any
+	for _, i := range intents {
+		facts = append(facts, map[string]any{"summary": "s", "intent_id": i})
+	}
+	return at, "record_fact", map[string]any{"facts": facts}, fmt.Sprintf("fact created: %d", id), false
+}
+
+func intentFinding(at time.Time, intent, findingID int64) (time.Time, string, any, string, bool) {
+	return at, "report_finding", map[string]any{"vulnclass": "x", "severity": "high", "summary": "s", "intent_id": intent},
+		fmt.Sprintf(`{"finding_id":%d,"node_id":%d}`, findingID, findingID+1000), false
+}
+
+func finish(at time.Time, tool string, intent int64, result string) (time.Time, string, any, string, bool) {
+	return at, tool, map[string]any{"node_id": intent}, result, false
+}
+
+func TestUnclaimedWork(t *testing.T) {
+	claimed := (&transcript{}).
+		call(bash(at(0), "nmap -sV winforge")).
+		call(at(1), "add_intent", map[string]any{"summary": "a"}, "intent created: 10", false).
+		claim(at(2), 10, "h-aaa", 30*time.Minute).
+		call(bash(at(3), "whoami")).
+		call(fact(at(4), 500, 10)).
+		call(finish(at(5), "complete_intent", 10, "intent 10 marked done")).
+		call(bash(at(6), "cat notes.txt")).
+		call(at(7), "report_finding", map[string]any{"vulnclass": "x"}, "summary is required", true).
+		other(at(8))
+	unclaimed := (&transcript{}).
+		call(bash(at(2), "icacls C:\\ProgramData")).
+		call(at(3), "record_coverage", map[string]any{"surface": "s", "risk_area": "r", "outcome": "reported"}, "recorded", false).
+		call(at(3), "insert_assets", map[string]any{"assets": []any{}}, `{"ids":[7]}`, false).
+		call(finish(at(4), "complete_intent", 11, "intent 11 marked done")).
+		call(finish(at(4), "cancel_intent", 12, "intent 12 cancelled")).
+		call(finish(at(4), "complete_intent", 12, "intent 12 cancelled")).
+		call(at(5), "complete_intent", map[string]any{"node_id": 14},
+			"intent 14 is claimed by h-aaa until 2026-11-25T12:30:00Z (in 25m0s); pick another intent", true).
+		claim(at(10), 13, "h-bbb", 2*time.Minute).
+		call(bash(at(11), "type flag.txt")).
+		call(bash(at(13), "type flag2.txt"))
+
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{claimed.parse(t, 1), unclaimed.parse(t, 2)}})
+	want := []UnclaimedWork{
+		{WorkCalls: 3, Calls: 1, Bash: 1},
+		{WorkCalls: 5, Calls: 4, Bash: 2, Records: 2, Finishes: []int64{11, 12}},
+	}
+	for i, w := range want {
+		if got := c.Instances[i].Unclaimed; fmt.Sprint(got) != fmt.Sprint(w) {
+			t.Errorf("instance %d unclaimed work %+v, want %+v", i+1, got, w)
+		}
+	}
+	if c.UnclaimedWork != 5 || c.UnclaimedFinishes != 2 {
+		t.Errorf("totals: %d calls, %d finishes", c.UnclaimedWork, c.UnclaimedFinishes)
+	}
+	s := c.Summary()
+	for _, line := range []string{
+		"Work outside a claimed intent: 5 calls, 2 unclaimed intents completed or cancelled",
+		"  instance 1: 1 of 3 work calls (1 bash, 0 artex records)\n",
+		"  instance 2: 4 of 5 work calls (2 bash, 2 artex records), finished unclaimed intents [11 12]",
+	} {
+		if !strings.Contains(s, line) {
+			t.Errorf("summary lacks %q:\n%s", line, s)
+		}
+	}
+
+	bootstrapOnly := (&transcript{}).call(bash(at(1), "nmap winforge")).call(fact(at(2), 1))
+	c = scoreCoordination(CoordinationInput{Transcripts: []*Transcript{bootstrapOnly.parse(t, 1)}})
+	if u := c.Instances[0].Unclaimed; u.WorkCalls != 0 || c.UnclaimedWork != 0 {
+		t.Errorf("work before any intent exists counted: %+v", u)
+	}
+}
+
+func TestConcurrentIntentWork(t *testing.T) {
+	one := (&transcript{}).
+		claim(at(0), 40, "h-aaa", time.Minute).
+		claim(at(0), 41, "h-aaa", time.Minute).
+		call(fact(at(1), 500, 40, 41)).
+		call(fact(at(8), 501, 40))
+	two := (&transcript{}).
+		claim(at(3), 40, "h-bbb", time.Minute).
+		call(intentFinding(at(4), 40, 1)).
+		call(finish(at(5), "complete_intent", 40, "intent 40 marked done")).
+		claim(at(3), 41, "h-bbb", time.Minute).
+		call(fact(at(4), 502, 41)).
+		call(finish(at(5), "complete_intent", 41, "intent 41 marked done")).
+		claim(at(10), 42, "h-bbb", 30*time.Minute).
+		call(fact(at(12), 503, 42)).
+		call(finish(at(13), "complete_intent", 42, "intent 42 marked done"))
+	three := (&transcript{}).
+		call(intentFinding(at(11), 42, 2)).
+		call(at(12), "report_finding", map[string]any{"vulnclass": "x", "intent_id": 41}, "summary is required", true).
+		claim(at(20), 43, "h-ccc", time.Minute)
+
+	c := scoreCoordination(CoordinationInput{Transcripts: []*Transcript{one.parse(t, 1), two.parse(t, 2), three.parse(t, 3)}})
+	if len(c.DoubleClaims) != 0 {
+		t.Fatalf("claims never overlapped: %+v", c.DoubleClaims)
+	}
+	want := []ConcurrentWork{
+		{IntentID: 40, FirstInstance: 1, FirstRecords: 2, SecondInstance: 2, SecondRecords: 1, From: at(3), To: at(5)},
+		{IntentID: 42, FirstInstance: 2, FirstRecords: 1, SecondInstance: 3, SecondRecords: 1, From: at(11), To: at(11)},
+	}
+	if len(c.ConcurrentWork) != len(want) {
+		t.Fatalf("concurrent work: %+v", c.ConcurrentWork)
+	}
+	for i, w := range want {
+		if g := c.ConcurrentWork[i]; g.IntentID != w.IntentID || g.FirstInstance != w.FirstInstance || g.FirstRecords != w.FirstRecords ||
+			g.SecondInstance != w.SecondInstance || g.SecondRecords != w.SecondRecords || !g.From.Equal(w.From) || !g.To.Equal(w.To) {
+			t.Errorf("concurrent work[%d] = %+v, want %+v", i, g, w)
+		}
+	}
+	if s := c.Summary(); !strings.Contains(s, "Concurrent work on one intent: 2 (FAIL)") ||
+		!strings.Contains(s, "  intent 40: instance 1 (2 records) and instance 2 (1 records) interleaved from") {
+		t.Errorf("summary:\n%s", s)
 	}
 }
