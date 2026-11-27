@@ -223,3 +223,68 @@ func TestCredentialDomainMigrationMergesCollisions(t *testing.T) {
 		t.Errorf("got %d example.com/admin rows after save, want 1", n)
 	}
 }
+
+func TestBackfillCredentialDomainsFoldsUnicode(t *testing.T) {
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, _ := testEngagement(t, s, "cred-domain-unicode")
+	now := time.Now().Truncate(time.Microsecond)
+
+	insertRawCredential(t, s, taskID, rawCredential{
+		Domain: "ÉXAMPLE.com", Username: "admin", Password: "enc:OLD", Source: "agent", Note: "from config",
+		CreatedAt: now.Add(-3 * time.Hour), UpdatedAt: now.Add(-2 * time.Hour),
+	})
+	newest := insertRawCredential(t, s, taskID, rawCredential{
+		Domain: "éxample.com", Username: "admin", Source: "user", Note: "seen in mail",
+		CreatedAt: now.Add(-1 * time.Hour), UpdatedAt: now.Add(-1 * time.Hour),
+	})
+	other := insertRawCredential(t, s, taskID, rawCredential{
+		Domain: "ÄBC.example.com", Username: "root", Password: "pw", Source: "user", CreatedAt: now, UpdatedAt: now,
+	})
+	var kept []rawCredential
+	for _, d := range []string{"x.", "x", "host ", "host"} {
+		c := rawCredential{Domain: d, Username: "svc", Password: "pw-" + d, Source: "user", CreatedAt: now, UpdatedAt: now}
+		c.ID = insertRawCredential(t, s, taskID, c)
+		kept = append(kept, c)
+	}
+
+	rerun := func() {
+		t.Helper()
+		if _, err := s.ExecContext(ctx, backfillsTable); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.ExecContext(ctx, `DELETE FROM store_backfills WHERE name = $1`, credentialDomainBackfill); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.BackfillCredentialDomains(ctx); err != nil {
+			t.Fatalf("BackfillCredentialDomains: %v", err)
+		}
+	}
+	rerun()
+
+	got := taskCredentials(t, s, taskID)
+	want := []rawCredential{
+		{ID: newest, Domain: "éxample.com", Username: "admin", Password: "enc:OLD", Source: "user",
+			Note: "seen in mail\nfrom config", CreatedAt: now.Add(-3 * time.Hour), UpdatedAt: now.Add(-1 * time.Hour)},
+		{ID: other, Domain: "äbc.example.com", Username: "root", Password: "pw", Source: "user", CreatedAt: now, UpdatedAt: now},
+	}
+	want = append(want, kept...)
+	if len(got) != len(want) {
+		t.Fatalf("got %d credentials, want %d: %+v", len(got), len(want), got)
+	}
+	for i := range want {
+		g, w := got[i], want[i]
+		if !g.CreatedAt.Equal(w.CreatedAt) || !g.UpdatedAt.Equal(w.UpdatedAt) {
+			t.Errorf("credential %d timestamps = %v/%v, want %v/%v", g.ID, g.CreatedAt, g.UpdatedAt, w.CreatedAt, w.UpdatedAt)
+		}
+		g.CreatedAt, g.UpdatedAt, w.CreatedAt, w.UpdatedAt = time.Time{}, time.Time{}, time.Time{}, time.Time{}
+		if g != w {
+			t.Errorf("credential = %+v, want %+v", g, w)
+		}
+	}
+
+	rerun()
+	if after := taskCredentials(t, s, taskID); !reflect.DeepEqual(got, after) {
+		t.Errorf("second run changed credentials:\nbefore %+v\nafter  %+v", got, after)
+	}
+}

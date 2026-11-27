@@ -311,6 +311,11 @@ func cmdServe(args []string) {
 		slog.Warn("ARTEX_CREDENTIAL_KEY is not set; credentials will be stored in plaintext")
 	}
 
+	if err := s.BackfillCredentialDomains(ctx); err != nil {
+		slog.Error("failed to backfill credential domains", "err", err)
+		os.Exit(1)
+	}
+
 	if err := s.BackfillAssetURLs(ctx); err != nil {
 		slog.Error("failed to backfill asset urls", "err", err)
 		os.Exit(1)
