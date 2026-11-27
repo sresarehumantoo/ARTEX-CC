@@ -132,3 +132,44 @@ func TestImportFindingsWithoutMergedInto(t *testing.T) {
 		t.Errorf("B status = %q, want duplicate", got["B"].Status)
 	}
 }
+
+func TestImportRemapsFindingNodePayload(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "finding-node-payload-export")
+
+	oldID, _, err := s.AddFinding(ctx, tools.FindingInput{
+		TaskID: taskID, ExplorationID: expID,
+		VulnClass: "xss", Name: "A", Severity: SeverityHigh, Summary: "a", Evidence: "a evidence",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	export, err := s.ExportEngagementData(ctx, taskID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newTaskID, _, err := s.ImportEngagementData(ctx, export)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newA := importedFindings(t, s, newTaskID)["A"]
+	if newA == nil || newA.NodeID == nil {
+		t.Fatalf("imported finding A = %+v, want one with a node", newA)
+	}
+	if newA.ID == oldID {
+		t.Fatalf("imported A kept old id %d", oldID)
+	}
+	var payloadID int64
+	if err := s.QueryRowContext(ctx,
+		`SELECT (payload->>'finding_id')::bigint FROM exploration_nodes WHERE id = $1`, *newA.NodeID,
+	).Scan(&payloadID); err != nil {
+		t.Fatal(err)
+	}
+	if payloadID != newA.ID {
+		t.Errorf("imported node payload finding_id = %d, want %d (old %d)", payloadID, newA.ID, oldID)
+	}
+}

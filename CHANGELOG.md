@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - `report_finding` rejects an `intent_id` that is not an intent of the active engagement. Before, any node id got a `yields` edge, and an id that did not exist yet could fail with a confusing `ck_edge_noself` error.
+- `import_engagement` kept the exporting database's `finding_id` in finding node payloads, so `graph_overview` listed finding ids that `merge_findings` and `dismiss_finding` did not recognize. Import now rewrites them to the imported findings' ids.
 
 ## [0.7.0] - 2026-11-26
 
