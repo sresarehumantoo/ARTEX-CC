@@ -39,13 +39,9 @@ const intent: Record<string, StatusMeta> = {
 };
 
 const task: Record<string, StatusMeta> = {
-  created: { label: "Created", tone: "slate" },
-  queued: { label: "Queued", tone: "amber" },
-  running: { label: "Running", tone: "blue" },
-  paused: { label: "Paused", tone: "amber" },
-  done: { label: "Done", tone: "green" },
+  open: { label: "Open", tone: "blue" },
+  achieved: { label: "Achieved", tone: "green" },
   failed: { label: "Failed", tone: "red" },
-  timeout: { label: "Timed out", tone: "amber" },
 };
 
 const severity: Record<string, StatusMeta> = {
