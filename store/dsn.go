@@ -10,12 +10,13 @@ import (
 const redactedPassword = "***"
 
 var (
-	urlPasswordParam = regexp.MustCompile(`([?&]password=)[^&#]*`)
-	kvPassword       = regexp.MustCompile(`(?i)(\bpassword\s*=\s*)('(?:\\.|[^'\\])*'|\S+)`)
+	urlPasswordParam = regexp.MustCompile(`([?&](?:ssl)?password=)[^&#]*`)
+	kvPassword       = regexp.MustCompile(`(?i)(\b(?:ssl)?password\s*=\s*)('(?:\\.|[^'\\])*'|\S+)`)
 )
 
-// RedactDSN masks the password in a PostgreSQL connection string, in either
-// URL form (userinfo or ?password=) or key=value form, keeping the rest intact.
+// RedactDSN masks the password and sslpassword in a PostgreSQL connection
+// string, in either URL form (userinfo, ?password= or ?sslpassword=) or
+// key=value form, keeping the rest intact.
 func RedactDSN(dsn string) string {
 	start, _ := tools.URLAuthority(dsn)
 	if start < 0 {

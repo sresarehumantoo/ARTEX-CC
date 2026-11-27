@@ -9,6 +9,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `report_finding` rejects an `intent_id` that is not an intent of the active engagement. Before, any node id got a `yields` edge, and an id that did not exist yet could fail with a confusing `ck_edge_noself` error.
 - `import_engagement` kept the exporting database's `finding_id` in finding node payloads, so `graph_overview` listed finding ids that `merge_findings` and `dismiss_finding` did not recognize. Import now rewrites them to the imported findings' ids.
 
+### Security
+- DSN redaction (`artex-cc init` output) masked `password` but not `sslpassword`, the client key passphrase, so it could still reach `docker logs`. `sslpassword` is now shown as `***` in both URL query and key=value form.
+
 ## [0.7.0] - 2026-11-26
 
 ### Upgrade notes
