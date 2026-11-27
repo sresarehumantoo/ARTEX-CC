@@ -206,6 +206,9 @@ func TestGetEngagement(t *testing.T) {
 	if detail.ID != taskID {
 		t.Errorf("ID = %d, want %d", detail.ID, taskID)
 	}
+	if detail.Status != "open" {
+		t.Errorf("Status = %q, want %q", detail.Status, "open")
+	}
 }
 
 func TestGetEngagementNotFound(t *testing.T) {

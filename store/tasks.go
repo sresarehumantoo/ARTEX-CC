@@ -258,20 +258,17 @@ func (s *Store) EngagementActivity(ctx context.Context, explorationID int64, lim
 }
 
 func (s *Store) GetEngagement(ctx context.Context, id int64) (*tools.EngagementDetail, error) {
-	t, err := s.GetTask(id)
+	var d tools.EngagementDetail
+	err := s.QueryRowContext(ctx, `
+		SELECT t.id, t.goal, t.description, COALESCE(e.status,''), t.exploration_id
+		FROM tasks t LEFT JOIN explorations e ON e.id = t.exploration_id
+		WHERE t.id = $1`, id,
+	).Scan(&d.ID, &d.Goal, &d.Description, &d.Status, &d.ExplorationID)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
-	if t == nil {
-		return nil, nil
-	}
-	return &tools.EngagementDetail{
-		EngagementSummary: tools.EngagementSummary{
-			ID:            t.ID,
-			Goal:          t.Goal,
-			Status:        t.Status,
-			ExplorationID: t.ExplorationID,
-		},
-		Description: t.Description,
-	}, nil
+	return &d, nil
 }

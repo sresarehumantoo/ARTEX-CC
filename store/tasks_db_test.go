@@ -431,12 +431,11 @@ func TestGetEngagement_Found(t *testing.T) {
 	t.Parallel()
 	s, mock := newMockStore(t)
 	ctx := context.Background()
-	now := time.Now()
 
-	mock.ExpectQuery("SELECT .+ FROM tasks WHERE id").
+	mock.ExpectQuery("SELECT .+ FROM tasks t LEFT JOIN explorations e .+ WHERE t.id").
 		WithArgs(int64(1)).
-		WillReturnRows(sqlmock.NewRows(taskCols).
-			AddRow(int64(1), "t1", "the desc", "the goal", int64(10), "open", nil, now, now))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "goal", "description", "status", "exploration_id"}).
+			AddRow(int64(1), "the goal", "the desc", "achieved", int64(10)))
 
 	detail, err := s.GetEngagement(ctx, 1)
 	if err != nil {
@@ -451,6 +450,9 @@ func TestGetEngagement_Found(t *testing.T) {
 	if detail.ExplorationID != 10 {
 		t.Errorf("ExplorationID = %d, want 10", detail.ExplorationID)
 	}
+	if detail.Status != "achieved" {
+		t.Errorf("Status = %q, want %q", detail.Status, "achieved")
+	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
 	}
@@ -461,7 +463,7 @@ func TestGetEngagement_NotFound(t *testing.T) {
 	s, mock := newMockStore(t)
 	ctx := context.Background()
 
-	mock.ExpectQuery("SELECT .+ FROM tasks WHERE id").
+	mock.ExpectQuery("SELECT .+ FROM tasks t LEFT JOIN explorations e .+ WHERE t.id").
 		WithArgs(int64(99)).
 		WillReturnError(sql.ErrNoRows)
 
