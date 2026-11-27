@@ -11,6 +11,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 - DSN redaction (`artex-cc init` output) masked `password` but not `sslpassword`, the client key passphrase, so it could still reach `docker logs`. `sslpassword` is now shown as `***` in both URL query and key=value form.
+- `traffic_search` returned nothing for a `host` given as `host:port` or a URL, the forms its description advertises, because recorded rows store the hostname without the port. Those forms now match the host exactly (ignoring case) and the port against the recorded URL, including captures of default ports (`:80`, `:443`) and WebSockets (`ws://`, `wss://`) whose URLs omit the port. A URL without a port matches the host on any port, and a bare name still matches as a substring. The same applies to the host filter in the web UI traffic list and HAR export.
+- Body search missed request and response bodies the proxy captured with `Content-Encoding` gzip, deflate or br, since it stores bodies as they crossed the wire. The decoded text (bounded to the index limit) is now indexed, and `traffic_get` shows the decoded body of such responses. Stored bytes are unchanged. Captures recorded before this release, and traffic added by HAR import or external ingest, are not decoded.
+- Deleting traffic for a host whose name sanitizes to one of the store's own directories (`_index`, `_blobs`, `_ca`, `_delete_staging`) or to `.`/`..` could move that directory out of the store. Only the host's rows are deleted now.
 
 ## [0.7.0] - 2026-11-26
 
