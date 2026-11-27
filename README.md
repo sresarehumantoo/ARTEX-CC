@@ -40,7 +40,10 @@ You bring the brain. ARTEX brings the hands.
 ## How it works
 
 <div align="center">
-  <img src="docs/architecture.svg" alt="ARTEX architecture" width="800">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/architecture-dark.svg">
+    <img src="docs/architecture-light.svg" alt="Claude Code sessions call ARTEX-CC over MCP; their shell tools reach the target through the ARTEX recording proxy; ARTEX keeps engagement state in PostgreSQL" width="860">
+  </picture>
 </div>
 
 Claude Code decides what to test, what tools to call, and in what order. ARTEX executes the calls: inserting assets, tracking the exploration graph, recording findings and credentials, logging coverage, and capturing HTTP traffic through its built-in recording proxy. The exploration graph keeps Claude oriented across long engagements, so a session you stop today resumes tomorrow with `graph_overview`.
