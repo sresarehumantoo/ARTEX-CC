@@ -26,7 +26,7 @@ func (m *mockTaskStore) GetTask(id int64) (*store.Task, error) {
 
 func TestHandleTasks_OK(t *testing.T) {
 	ms := &mockStore{
-		graphOverview:   &tools.Overview{FindingsTotal: 5},
+		graphOverview:   &tools.Overview{FindingsTotal: 5, Task: map[string]any{"status": "achieved"}},
 		rootGoal:        "hack the planet",
 		listAssets:      []tools.Asset{{ID: 1}},
 		listAssetsTotal: 1,
@@ -49,8 +49,8 @@ func TestHandleTasks_OK(t *testing.T) {
 	if tasks[0].Title != "hack the planet" || tasks[0].Stats.Findings != 5 || tasks[0].Stats.Assets != 1 {
 		t.Fatalf("task: %+v", tasks[0])
 	}
-	if tasks[0].Status != "running" {
-		t.Errorf("status: want running, got %s", tasks[0].Status)
+	if tasks[0].Status != "achieved" {
+		t.Errorf("status: want achieved, got %s", tasks[0].Status)
 	}
 }
 
@@ -101,7 +101,7 @@ func TestHandleTasks_WithTaskGetter(t *testing.T) {
 		task: &store.Task{
 			ID:        1,
 			Name:      "task from db",
-			Status:    "complete",
+			Status:    "created",
 			CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
 	}
@@ -120,7 +120,7 @@ func TestHandleTasks_WithTaskGetter(t *testing.T) {
 	if len(tasks) != 1 {
 		t.Fatalf("want 1 task, got %d", len(tasks))
 	}
-	if tasks[0].Title != "task from db" || tasks[0].Status != "complete" || tasks[0].CreatedAt == "" {
+	if tasks[0].Title != "task from db" || tasks[0].Status != "open" || tasks[0].CreatedAt == "" {
 		t.Fatalf("task: %+v", tasks[0])
 	}
 	if tasks[0].Stats.CoveragePct != 50 {
