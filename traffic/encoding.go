@@ -65,3 +65,29 @@ func indexBody(header http.Header, body []byte) (text string, ok bool) {
 	}
 	return string(dec), true
 }
+
+// DecodedResponse returns the stored head and decoded body of a compressed
+// text response, with ok false for anything else.
+func (t *Traffic) DecodedResponse(id string) (head string, body []byte, ok bool) {
+	// Check the head first so uncompressed exchanges never load their blobs.
+	var respHead string
+	if err := t.db.QueryRow(`SELECT resp_head FROM exchange_bodies WHERE id=?`, id).Scan(&respHead); err != nil {
+		return "", nil, false
+	}
+	_, _, headers := parseStoredResponseHead(respHead)
+	h := http.Header{}
+	h.Set("Content-Encoding", findHeaderValue(headers, "Content-Encoding"))
+	ct := findHeaderValue(headers, "Content-Type")
+	if h.Get("Content-Encoding") == "" || isBinaryBody(ct, nil) {
+		return "", nil, false
+	}
+	_, _, _, respBody, err := t.loadFullExchange(id, "")
+	if err != nil {
+		return "", nil, false
+	}
+	dec, ok := decodeBody(h, respBody, maxIndexBody)
+	if !ok || isBinaryBody(ct, dec) {
+		return "", nil, false
+	}
+	return respHead, dec, true
+}

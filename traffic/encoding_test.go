@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/andybalholm/brotli"
@@ -125,5 +126,64 @@ func TestDecodeBodyRejectsStackedAndUnknown(t *testing.T) {
 		if _, ok := decodeBody(http.Header{"Content-Encoding": {enc}}, []byte("x"), 10); ok {
 			t.Errorf("decodeBody(%q) ok=true, want false", enc)
 		}
+	}
+}
+
+func TestDecodedResponse(t *testing.T) {
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	io.WriteString(gz, compressedPage)
+	gz.Close()
+
+	tr := openTestTraffic(t)
+	recordCompressed(t, tr, "/passwd", "gzip", buf.Bytes())
+	u, _ := url.Parse("http://api.example.com/plain")
+	tr.recordViews(
+		requestView{method: "GET", url: u, proto: "HTTP/1.1", header: http.Header{}},
+		responseView{status: 200, header: http.Header{"Content-Type": {"text/html"}}, body: []byte(compressedPage)},
+		nil,
+	)
+	rows, _, err := tr.Page(PageQuery{Host: "api.example.com", RespMin: -1, RespMax: -1, Sort: "url"}, 0, 10)
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("Page: %d rows, err=%v; want 2", len(rows), err)
+	}
+	byPath := map[string]string{}
+	for _, r := range rows {
+		byPath[r.URLTemplate] = r.ID
+	}
+
+	head, body, ok := tr.DecodedResponse(byPath["/passwd"])
+	if !ok || string(body) != compressedPage || !strings.Contains(head, "Content-Encoding: gzip") {
+		t.Fatalf("DecodedResponse(gzip) = (%q, %q, %v)", head, body, ok)
+	}
+	if _, _, ok := tr.DecodedResponse(byPath["/plain"]); ok {
+		t.Fatal("DecodedResponse on an unencoded body returned ok=true")
+	}
+
+	pu, _ := url.Parse("http://api.example.com/doc.pdf")
+	tr.recordViews(
+		requestView{method: "GET", url: pu, proto: "HTTP/1.1", header: http.Header{}},
+		responseView{status: 200, header: http.Header{"Content-Type": {"application/pdf"}, "Content-Encoding": {"gzip"}}, body: buf.Bytes()},
+		nil,
+	)
+	rows, _, _ = tr.Page(PageQuery{Host: "api.example.com", Path: "/doc.pdf", RespMin: -1, RespMax: -1}, 0, 10)
+	if len(rows) != 1 {
+		t.Fatalf("pdf capture: %d rows, want 1", len(rows))
+	}
+	if _, _, ok := tr.DecodedResponse(rows[0].ID); ok {
+		t.Fatal("DecodedResponse on an application/pdf body returned ok=true")
+	}
+}
+
+func TestDecodeBodyKeepsTextOnBadGzipChecksum(t *testing.T) {
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	io.WriteString(gz, compressedPage)
+	gz.Close()
+	b := buf.Bytes()
+	b[len(b)-8] ^= 0xff
+	out, ok := decodeBody(http.Header{"Content-Encoding": {"gzip"}}, b, maxIndexBody)
+	if !ok || string(out) != compressedPage {
+		t.Fatalf("decodeBody on a bad gzip checksum = (%q, %v), want the decoded text", out, ok)
 	}
 }
