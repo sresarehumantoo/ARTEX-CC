@@ -9,6 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `set_goals`, `add_intent`, `record_target_change` and `record_target_restore` lock the engagement row with `FOR NO KEY UPDATE` instead of `FOR UPDATE`, so they still serialize with each other but no longer block concurrent inserts into tables that reference it, such as graph nodes and edges, activity and target changes.
 
 ### Fixed
+- `traffic_hosts` scanned the whole exchanges table, and exact host lookups sorted every exchange of the host to return the newest few. A `(host, ts)` index replaces the `host` index. It is built once, synchronously, on the first start after upgrading, which delays that start on a large traffic store.
 - Tampering hooks (`traffic/hookvm`) charged a `strings.ReplaceAll`, `bytes.ReplaceAll` or `regexp.ReplaceAllString` result against the memory budget only after building it, so a hook could exhaust process memory before the limit fired. Ranging over a body or collection was not charged at all, and `==` between a float and an integer truncated the float (`1.5 == 1` was true). Hooks are not reachable from any tool yet, so these upstream ARTEX fixes land before they are.
 - `report_finding` rejects an `intent_id` that is not an intent of the active engagement. Before, any node id got a `yields` edge, and an id that did not exist yet could fail with a confusing `ck_edge_noself` error.
 - `import_engagement` kept the exporting database's `finding_id` in finding node payloads, so `graph_overview` listed finding ids that `merge_findings` and `dismiss_finding` did not recognize. Import now rewrites them to the imported findings' ids.
@@ -21,6 +22,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The live demo's Tools page listed 60 tools with stale descriptions and parameters, missing `list_changes`, `record_target_change` and `record_target_restore`. Its fixture is regenerated from the tool catalog, and `go test ./api` now fails when it drifts (`go test ./api -run TestDemoToolsFixture -update-demo-fixture` rewrites it).
 
 ### Security
+- The SOCKS5 listener offered username/password to any client and accepted any credentials, so a non-loopback client got past the loopback-only rule for no-auth by offering method `0x02`. Both methods are now accepted from loopback clients only. The listener is not started by `serve` today, so this closes the gap before it is wired up.
 - Bumped `github.com/andybalholm/brotli` to v1.2.7 for GO-2026-6888, reachable through traffic replay and HAR import.
 - DSN redaction (`artex-cc init` output) masked `password` but not `sslpassword`, the client key passphrase, so it could still reach `docker logs`. `sslpassword` is now shown as `***` in both URL query and key=value form.
 
