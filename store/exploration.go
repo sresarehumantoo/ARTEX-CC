@@ -219,7 +219,9 @@ func (s *Store) AddEdge(ctx context.Context, from int64, rel string, to int64) e
 // ProveGoal links evidenceID to goalID with a proves edge and marks the goal
 // met, refusing evidence that is dismissed or a merged finding. The evidence
 // row lock makes a concurrent dismissal either wait for the edge (and revoke
-// it) or commit first (and be seen here).
+// it) or commit first (and be seen here). Goal nodes are locked after other
+// nodes and in id order, as merges and dismissals lock them, so evidence that
+// is itself a goal is locked alongside goalID rather than before it.
 func (s *Store) ProveGoal(ctx context.Context, goalID, evidenceID int64) error {
 	tx, err := s.BeginTx(ctx, nil)
 	if err != nil {
@@ -227,10 +229,21 @@ func (s *Store) ProveGoal(ctx context.Context, goalID, evidenceID int64) error {
 	}
 	defer tx.Rollback() //nolint:errcheck
 
+	if _, err := tx.ExecContext(ctx,
+		`SELECT id FROM exploration_nodes WHERE id = $1 AND kind <> $2 FOR SHARE`,
+		evidenceID, KindGoal); err != nil {
+		return fmt.Errorf("lock evidence node %d: %w", evidenceID, err)
+	}
+	if _, err := tx.ExecContext(ctx,
+		`SELECT id FROM exploration_nodes WHERE id = $1 OR (id = $2 AND kind = $3)
+		 ORDER BY id FOR NO KEY UPDATE`,
+		goalID, evidenceID, KindGoal); err != nil {
+		return fmt.Errorf("lock goal %d: %w", goalID, err)
+	}
 	var explorationID int64
 	var state string
 	if err := tx.QueryRowContext(ctx,
-		`SELECT exploration_id, state FROM exploration_nodes WHERE id = $1 FOR SHARE`, evidenceID,
+		`SELECT exploration_id, state FROM exploration_nodes WHERE id = $1`, evidenceID,
 	).Scan(&explorationID, &state); err != nil {
 		return fmt.Errorf("evidence node %d: %w", evidenceID, err)
 	}
