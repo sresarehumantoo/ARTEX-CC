@@ -51,22 +51,15 @@ const props = [
 ];
 
 const session = [
-  { phase: 'orient', tool: 'graph_overview', arg: '' },
-  { phase: '', tool: 'set_goals', arg: '' },
-  { phase: 'recon', tool: 'insert_assets', arg: 'domain: example.com' },
-  { phase: '', tool: 'add_intent', arg: 'enumerate subdomains' },
-  { phase: '', tool: 'record_fact', arg: 'found: api.example.com' },
-  { phase: '', tool: 'insert_assets', arg: 'subdomain: api.example.com, service: https/443' },
-  { phase: 'plan', tool: 'add_intent', arg: 'test api.example.com for auth bypass' },
-  { phase: 'test', tool: 'start_intent', arg: 'claim the auth bypass intent' },
-  { phase: '', tool: 'traffic_hosts', arg: '' },
-  { phase: '', tool: 'traffic_search', arg: 'host: api.example.com' },
-  { phase: '', tool: 'traffic_get', arg: 'inspect the auth request' },
-  { phase: '', tool: 'traffic_replay', arg: 'replay with modified auth header' },
-  { phase: 'record', tool: 'record_coverage', arg: 'api /admin, idor, no_issue_found' },
-  { phase: '', tool: 'report_finding', arg: 'severity: high, broken access control on /api/v2/users' },
-  { phase: 'prove', tool: 'prove_goal', arg: 'evidence: finding #1' },
-  { phase: '', tool: 'generate_report', arg: '' },
+  { phase: 'orient', tool: 'graph_overview', arg: '', ms: 38, wait: 420 },
+  { phase: '', tool: 'set_goals', arg: 'admin on api', ms: 21, wait: 360 },
+  { phase: 'recon', tool: 'add_intent', arg: 'enumerate subdomains', ms: 17, wait: 380 },
+  { phase: '', tool: 'record_fact', arg: 'found api.example.com', ms: 19, wait: 1100 },
+  { phase: 'plan', tool: 'add_intent', arg: 'auth bypass on api', ms: 16, wait: 380 },
+  { phase: 'test', tool: 'start_intent', arg: 'claim #4', ms: 12, wait: 420 },
+  { phase: '', tool: 'traffic_replay', arg: 'drop Authorization', ms: 212, wait: 900 },
+  { phase: 'record', tool: 'report_finding', arg: 'high: IDOR /api/v2/users', ms: 27, wait: 700 },
+  { phase: 'prove', tool: 'prove_goal', arg: 'evidence: finding #1', ms: 15, wait: 600 },
 ];
 
 const forest = [
@@ -300,8 +293,8 @@ const install = [
       </section>
 
       <section id="session" class="relative border-b border-line">
-        <div class="mx-auto grid max-w-6xl items-start gap-12 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-5 lg:gap-16">
-          <div class="lg:col-span-2 lg:sticky lg:top-28" data-reveal-children>
+        <div class="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
+          <div class="max-w-2xl" data-reveal-children>
             <p class="eyebrow">Session</p>
             <h2 class="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">What a session looks like</h2>
             <p class="mt-5 leading-relaxed text-neutral-400">
@@ -322,42 +315,89 @@ const install = [
               ></a
             >
           </div>
-          <div
-            data-reveal
-            class="overflow-hidden rounded-xl border border-line bg-[oklch(0.12_0_0)] font-mono text-[12.5px] shadow-2xl shadow-black/50 sm:text-[13px] lg:col-span-3"
-          >
-            <div class="flex items-center gap-4 border-b border-line bg-white/[0.02] px-4 py-3">
-              <div class="flex gap-1.5" aria-hidden="true">
-                <span class="size-2.5 rounded-full bg-neutral-700"></span>
-                <span class="size-2.5 rounded-full bg-neutral-700"></span>
-                <span class="size-2.5 rounded-full bg-neutral-700"></span>
+
+          <div class="mt-12 grid gap-4 lg:grid-cols-[1.15fr_1fr]" data-session data-reveal>
+            <div class="overflow-hidden rounded-xl border border-line bg-[oklch(0.12_0_0)] font-mono shadow-2xl shadow-black/50">
+              <div class="flex items-center gap-4 border-b border-line bg-white/[0.02] px-4 py-3">
+                <div class="flex gap-1.5" aria-hidden="true">
+                  <span class="size-2.5 rounded-full bg-neutral-700"></span>
+                  <span class="size-2.5 rounded-full bg-neutral-700"></span>
+                  <span class="size-2.5 rounded-full bg-neutral-700"></span>
+                </div>
+                <span class="text-xs text-neutral-500">claude</span>
               </div>
-              <span class="text-xs text-neutral-500">claude</span>
-            </div>
-            <div class="border-b border-line px-4 py-3.5 text-neutral-200">
-              <span class="text-sky-400">&gt;</span> Pentest example.com, starting with reconnaissance.
-            </div>
-            <ol class="px-4 py-4" data-stream>
-              {
-                session.map((s, i) => (
-                  <li
-                    class:list={[
-                      'grid grid-cols-[4rem_1fr] gap-x-3 leading-6 sm:grid-cols-[4.5rem_1fr]',
-                      s.phase && i > 0 && 'mt-2.5 border-t border-dashed border-white/[0.06] pt-2.5',
-                    ]}
-                  >
-                    <span class="text-[11px] tracking-wider text-neutral-500 uppercase">{s.phase}</span>
-                    <span class="flex gap-2.5">
-                      <span class="mt-[9px] size-1.5 shrink-0 rounded-full bg-emerald-400/80" aria-hidden="true" data-stream-dot></span>
-                      <span>
-                        <span class="whitespace-nowrap text-sky-300">{s.tool}</span>
-                        {s.arg && <span class="text-neutral-500"> ({s.arg})</span>}
+              <div class="border-b border-line px-4 py-3.5 text-[12.5px] text-neutral-200 sm:text-[13px]">
+                <span class="text-sky-400">&gt;</span> Pentest example.com, starting with reconnaissance.
+              </div>
+              <ol class="session-stream px-4 py-3">
+                {
+                  session.map((s, i) => (
+                    <li data-step={i} data-wait={s.wait}>
+                      <span class="text-neutral-500">{s.phase}</span>
+                      <span class="session-mark" aria-hidden="true"></span>
+                      <span class="truncate">
+                        <span class="text-sky-300">{s.tool}</span>
+                        {s.arg && <span class="text-neutral-500"> {s.arg}</span>}
                       </span>
-                    </span>
-                  </li>
-                ))
-              }
-            </ol>
+                      <span class="session-ms">{s.ms}ms</span>
+                    </li>
+                  ))
+                }
+              </ol>
+            </div>
+
+            <div class="flex h-full flex-col overflow-hidden rounded-xl border border-line bg-[oklch(0.12_0_0)] font-mono shadow-2xl shadow-black/50">
+              <div class="flex items-center border-b border-line bg-white/[0.02] px-4 py-3 text-xs text-neutral-500">
+                <span>exploration graph</span>
+                <button type="button" class="ml-auto rounded transition-colors hover:text-neutral-200" data-session-replay hidden
+                  >replay</button
+                >
+              </div>
+              <svg
+                class="session-graph block h-auto w-full flex-1"
+                viewBox="0 0 460 290"
+                role="img"
+                aria-label="Exploration graph: a goal, two intents, a fact and a high-severity finding that proves the goal"
+              >
+                <path class="edge" data-step="2" pathLength="1" d="M210 52 C210 80 110 72 110 104"></path>
+                <path class="edge" data-step="3" pathLength="1" d="M110 124 V 170"></path>
+                <path class="edge" data-step="4" pathLength="1" d="M118 180 C 180 180 230 150 271 150"></path>
+                <path class="edge" data-step="7" pathLength="1" d="M280 160 V 222"></path>
+                <path class="edge proof" data-step="8" pathLength="1" d="M292 232 C 446 232 446 6 210 6 V 29"></path>
+                <g class="node goal" data-step="1" data-kind="goal">
+                  <circle cx="210" cy="40" r="11"></circle>
+                  <text class="k" x="228" y="31">goal</text>
+                  <text x="228" y="45">admin on api</text>
+                </g>
+                <g class="node intent" data-step="2" data-kind="intent">
+                  <circle cx="110" cy="114" r="9"></circle>
+                  <text class="k" x="126" y="106">intent</text>
+                  <text x="126" y="119">enumerate subdomains</text>
+                </g>
+                <g class="node fact" data-step="3" data-kind="fact">
+                  <rect x="103" y="173" width="14" height="14" rx="2"></rect>
+                  <text class="k" x="38" y="168">fact</text>
+                  <text x="20" y="199">api.example.com</text>
+                </g>
+                <g class="node intent" data-step="4" data-claim-step="5" data-kind="intent">
+                  <circle cx="280" cy="150" r="9"></circle>
+                  <circle class="claim" cx="280" cy="150" r="4.5"></circle>
+                  <text class="k" x="296" y="142">intent</text>
+                  <text x="296" y="155">auth bypass</text>
+                </g>
+                <g class="node finding" data-step="7" data-kind="finding">
+                  <path d="M280 220 L292 232 L280 244 L268 232 Z"></path>
+                  <text class="k" x="258" y="226" text-anchor="end">finding &middot; high</text>
+                  <text x="258" y="240" text-anchor="end">IDOR /api/v2/users</text>
+                </g>
+              </svg>
+              <div class="flex flex-wrap gap-x-4 gap-y-1 border-t border-line px-4 py-2.5 text-[11.5px] text-neutral-500" aria-hidden="true">
+                <span>goals <b class="session-count" data-count="goal">1</b></span>
+                <span>intents <b class="session-count" data-count="intent">2</b></span>
+                <span>facts <b class="session-count" data-count="fact">1</b></span>
+                <span>findings <b class="session-count" data-count="finding">1</b></span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
