@@ -253,6 +253,41 @@ func TestExplorationGraph(t *testing.T) {
 	}
 }
 
+func TestAddFindingValidatesIntentID(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "finding-intent")
+	_, otherExp := testEngagement(t, s, "finding-intent-other")
+
+	fact, err := s.AddNode(ctx, expID, KindFact, map[string]any{"summary": "f"}, 5, "confirmed", "worker", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign, err := s.AddNode(ctx, otherExp, KindIntent, map[string]any{"summary": "i"}, 5, "open", "agent", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, id := range map[string]int64{"fact": fact, "other engagement": foreign, "missing": foreign + 1_000_000} {
+		_, _, err := s.AddFinding(ctx, tools.FindingInput{
+			TaskID: taskID, ExplorationID: expID, IntentID: id, VulnClass: "xss", Severity: SeverityHigh, Summary: "x",
+		})
+		if err == nil || !strings.Contains(err.Error(), "not an intent in this engagement") {
+			t.Errorf("%s intent_id: %v", name, err)
+		}
+	}
+
+	intent, err := s.AddNode(ctx, expID, KindIntent, map[string]any{"summary": "i"}, 5, "open", "agent", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.AddFinding(ctx, tools.FindingInput{
+		TaskID: taskID, ExplorationID: expID, IntentID: intent, VulnClass: "xss", Severity: SeverityHigh, Summary: "x",
+	}); err != nil {
+		t.Fatalf("AddFinding with intent: %v", err)
+	}
+}
+
 func TestFindingLifecycle(t *testing.T) {
 	t.Parallel()
 	s := testDB(t)

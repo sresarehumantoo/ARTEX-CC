@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- `report_finding` rejects an `intent_id` that is not an intent of the active engagement. Before, any node id got a `yields` edge, and an id that did not exist yet could fail with a confusing `ck_edge_noself` error.
+
 ## [0.7.0] - 2026-11-26
 
 ### Upgrade notes

@@ -121,6 +121,22 @@ func TestReportFindingWithDuplicates(t *testing.T) {
 	}
 }
 
+func TestReportFindingRejectsNonIntentIntentID(t *testing.T) {
+	t.Parallel()
+	ms := &findingMockStore{addFindingID: 7, addFindingNodeID: 7}
+	reg := NewRegistry()
+	RegisterFindingTools(reg, ms, 1, 1)
+
+	tool, _ := reg.Lookup("report_finding")
+	r, err := tool.Run(context.Background(), json.RawMessage(`{"vulnclass": "xss", "severity": "high", "summary": "x", "intent_id": 7}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !r.IsError || !strings.Contains(r.Content, "intent_id must be an intent") {
+		t.Errorf("expected intent_id error, got: %s", r.Content)
+	}
+}
+
 func TestNormalizeVulnClass(t *testing.T) {
 	t.Parallel()
 	cases := map[string]string{

@@ -43,6 +43,7 @@ func TestWritesRenewTheCallersClaim(t *testing.T) {
 		{"record_fact", `{"facts": [{"summary": "a", "intent_id": 99}]}`, ""},
 		{"report_finding", `{"vulnclass": "sqli", "severity": "high", "summary": "x", "intent_id": 7}`, "[7]"},
 		{"report_finding", `{"vulnclass": "sqli", "severity": "high", "summary": "x"}`, ""},
+		{"report_finding", `{"vulnclass": "sqli", "severity": "high", "summary": "x", "intent_id": 99}`, ""},
 		{"record_coverage", `{"surface": "/login", "risk_area": "sqli", "outcome": "ruled_out", "reason": "no db", "intent_id": 7}`, "[7]"},
 	}
 	for _, c := range cases {

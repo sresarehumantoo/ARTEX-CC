@@ -17,6 +17,9 @@ func TestAddFindingMock(t *testing.T) {
 	ctx := context.Background()
 
 	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT kind FROM exploration_nodes`).
+		WithArgs(int64(3), int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"kind"}).AddRow(KindIntent))
 	mock.ExpectQuery(`INSERT INTO findings`).
 		WithArgs(int64(1), "xss", "Reflected XSS", "high", "XSS in search", "evidence", "worker1", "[]", FindingStatusPending).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(42))
