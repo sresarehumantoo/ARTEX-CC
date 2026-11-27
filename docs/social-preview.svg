@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
   <defs>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;display=swap');
-      text { font-family: "JetBrains Mono", "SF Mono", "Cascadia Code", "Fira Code", monospace; }
+      @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&amp;display=swap');
+      text { font-family: "IBM Plex Mono", "SF Mono", "Cascadia Code", "Fira Code", monospace; }
     </style>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0d1117"/>
@@ -143,7 +143,7 @@
 
   <!-- Feature highlights -->
   <g fill="#58a6ff" font-size="16" font-weight="400" text-anchor="middle">
-    <text x="280" y="470">65 MCP Tools</text>
+    <text x="280" y="470">MCP Tool Server</text>
     <circle cx="395" cy="466" r="2" fill="#30363d"/>
     <text x="510" y="470">Exploration Graph</text>
     <circle cx="635" cy="466" r="2" fill="#30363d"/>

@@ -129,3 +129,46 @@ writeFileSync(
   resolve(data, 'tool-stats.json'),
   JSON.stringify({ tools: tools.length, categories: order.length, proxyOnly: tools.filter((t) => t.requiresProxy).length }) + '\n',
 );
+
+const diagramRows = 10;
+if (order.length !== diagramRows) {
+  throw new Error(
+    `the architecture diagram lays out ${diagramRows} category rows but the catalog has ${order.length}; adjust scripts/architecture.svg.tmpl and diagramRows`,
+  );
+}
+const tableRows = [...byCategory]
+  .sort((a, b) => b.tools.length - a.tools.length)
+  .map(({ name, tools: list }, i) => {
+    const y = 117 + i * 20;
+    const label = list.every((t) => t.requiresProxy) ? `${name}*` : name;
+    return `    <text x="336" y="${y}" class="b">${label}</text><line x1="528" y1="${y - 3.5}" x2="582" y2="${y - 3.5}" class="lead"/><text x="604" y="${y}" class="r b">${list.length}</text>\n`;
+  })
+  .join('');
+const palettes = {
+  dark: { text: '#8a8a8a', heading: '#ededed', body: '#d4d4d4', dim: '#5e5e5e', accent: '#38bdf8', box: '#141414', boxStroke: '#333', rule: '#2a2a2a', line: '#4a4a4a', leader: '#3a3a3a' },
+  light: { text: '#6b6b6b', heading: '#0a0a0a', body: '#262626', dim: '#8f8f8f', accent: '#0284c7', box: '#ffffff', boxStroke: '#d4d4d4', rule: '#e5e5e5', line: '#a3a3a3', leader: '#c4c4c4' },
+};
+const fontFaces = [400, 600]
+  .map((weight) => {
+    const font = readFileSync(resolve(root, `scripts/fonts/plex-mono-${weight}-ascii.woff2`)).toString('base64');
+    return `    @font-face { font-family: "ArtexMono"; font-weight: ${weight}; src: url(data:font/woff2;base64,${font}) format("woff2"); }\n`;
+  })
+  .join('');
+const template = readFileSync(resolve(root, 'scripts/architecture.svg.tmpl'), 'utf8');
+for (const [theme, palette] of Object.entries(palettes)) {
+  const vars = { ...palette, total: tools.length, rows: tableRows, fontFaces };
+  writeFileSync(
+    resolve(repo, `docs/architecture-${theme}.svg`),
+    template.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k]),
+  );
+}
+
+for (const [file, pattern] of [
+  ['README.md', /(exposed as )\d+( MCP tools)/],
+  ['CLAUDE.md', /(Claude Code\. )\d+( tools,)/],
+]) {
+  const path = resolve(repo, file);
+  const text = readFileSync(path, 'utf8');
+  if (!pattern.test(text)) throw new Error(`tool count phrase ${pattern} not found in ${file}`);
+  writeFileSync(path, text.replace(pattern, `$1${tools.length}$2`));
+}

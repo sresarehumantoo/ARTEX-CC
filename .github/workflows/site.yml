@@ -54,6 +54,8 @@ jobs:
         run: |
           npm ci
           npm run build
+      - name: Check generated tool counts are committed
+        run: git diff --exit-code -- docs/architecture-dark.svg docs/architecture-light.svg README.md CLAUDE.md
       - name: Build live demo
         working-directory: web
         run: |
