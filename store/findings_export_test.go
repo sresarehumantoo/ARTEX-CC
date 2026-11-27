@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
@@ -171,5 +172,56 @@ func TestImportRemapsFindingNodePayload(t *testing.T) {
 	}
 	if payloadID != newA.ID {
 		t.Errorf("imported node payload finding_id = %d, want %d (old %d)", payloadID, newA.ID, oldID)
+	}
+}
+
+func TestImportRemapsIntentAssetIDs(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "intent-asset-ids-export")
+
+	oldAssetID, err := s.InsertAsset(ctx, taskID, tools.AssetInput{Type: "root_domain", Domain: fmt.Sprintf("intent-assets-%d.test", taskID)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.AddIntents(ctx, expID, []tools.IntentInput{{Summary: "probe login", Priority: 5, AssetIDs: []int64{oldAssetID}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	export, err := s.ExportEngagementData(ctx, taskID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Assets dedupe across tasks in one database, so shift the exported ids to
+	// stand in for a different exporting database.
+	const foreignAssetID, unexportedAssetID = 1 << 40, 1<<40 + 1
+	if len(export.Assets) != 1 {
+		t.Fatalf("exported assets = %d, want 1", len(export.Assets))
+	}
+	export.Assets[0]["id"] = float64(foreignAssetID)
+	for _, n := range export.Nodes {
+		if p, _ := n["payload"].(map[string]any); p["summary"] == "probe login" {
+			p["asset_ids"] = []any{float64(foreignAssetID), float64(unexportedAssetID)}
+			n["anchors"] = []any{float64(foreignAssetID)}
+		}
+	}
+	newTaskID, newExpID, err := s.ImportEngagementData(ctx, export)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var newAssetID int64
+	if err := s.QueryRowContext(ctx, `SELECT id FROM assets WHERE $1 = ANY(task_ids)`, newTaskID).Scan(&newAssetID); err != nil {
+		t.Fatal(err)
+	}
+	var payloadIDs string
+	if err := s.QueryRowContext(ctx,
+		`SELECT payload->>'asset_ids' FROM exploration_nodes WHERE exploration_id = $1 AND kind = $2`, newExpID, KindIntent,
+	).Scan(&payloadIDs); err != nil {
+		t.Fatal(err)
+	}
+	if want := fmt.Sprintf("[%d]", newAssetID); payloadIDs != want {
+		t.Errorf("imported intent payload asset_ids = %s, want %s (exported %d)", payloadIDs, want, foreignAssetID)
 	}
 }
