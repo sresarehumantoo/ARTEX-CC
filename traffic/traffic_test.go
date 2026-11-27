@@ -1,6 +1,9 @@
 package traffic
 
 import (
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -290,5 +293,106 @@ func TestPatternsEmpty(t *testing.T) {
 	}
 	if len(p.NewEndpoints) != 0 {
 		t.Errorf("expected no new endpoints, got %d", len(p.NewEndpoints))
+	}
+}
+
+func TestPageHostPortAndDefaultPort(t *testing.T) {
+	tr := openTestTraffic(t)
+	seedExchange(t, tr, "tls", "shop.example.com", "GET", "/login", "https://shop.example.com/login", 200, "", 0, 0, "", nil, "", nil)
+	seedExchange(t, tr, "plain", "shop.example.com", "GET", "/plain", "http://shop.example.com/plain", 200, "", 0, 0, "", nil, "", nil)
+	seedExchange(t, tr, "alt", "shop.example.com", "GET", "/alt", "http://shop.example.com:8443/alt", 200, "", 0, 0, "", nil, "", nil)
+	seedExchange(t, tr, "v6", "2001:db8::1", "GET", "/admin", "https://[2001:db8::1]/admin", 200, "", 0, 0, "", nil, "", nil)
+	seedExchange(t, tr, "ws", "chat.example.com", "GET", "/socket", "wss://chat.example.com/socket", 101, "", 0, 0, "", nil, "", nil)
+	seedExchange(t, tr, "redir", "go.example.com", "GET", "/r", "http://go.example.com/r?next=http://go.example.com:8443/x", 302, "", 0, 0, "", nil, "", nil)
+	seedExchange(t, tr, "caps", "Mixed.Example.com", "GET", "/", "https://Mixed.Example.com/", 200, "", 0, 0, "", nil, "", nil)
+
+	for _, tc := range []struct {
+		host string
+		want []string
+	}{
+		{"shop.example.com:443", []string{"tls"}},
+		{"https://shop.example.com:443/login", []string{"tls"}},
+		{"https://shop.example.com/login", []string{"alt", "plain", "tls"}},
+		{"shop.example.com:80", []string{"plain"}},
+		{"shop.example.com:8443", []string{"alt"}},
+		{"[2001:db8::1]:443", []string{"v6"}},
+		{"chat.example.com:443", []string{"ws"}},
+		{"go.example.com:8443", nil},
+		{"go.example.com:80", []string{"redir"}},
+		{"mixed.example.com:443", []string{"caps"}},
+		{"https://MIXED.example.com/", []string{"caps"}},
+		{"shop.example.com", []string{"alt", "plain", "tls"}},
+	} {
+		rows, _, err := tr.Page(PageQuery{Host: tc.host, RespMin: -1, RespMax: -1, Sort: "id"}, 0, 50)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, r := range rows {
+			got = append(got, r.ID)
+		}
+		slices.Sort(got)
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("Page(host=%q) = %v, want %v", tc.host, got, tc.want)
+		}
+	}
+}
+
+func TestHostDirSkipsStorePaths(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"_index", "_blobs", "_ca", "_delete_staging", "_INDEX", ".", ".."} {
+		if _, ok := hostDir(root, name); ok {
+			t.Fatalf("hostDir(%q) was accepted", name)
+		}
+	}
+	dir, ok := hostDir(root, "api.example.com")
+	if !ok || dir != filepath.Join(root, "api.example.com") {
+		t.Fatalf("hostDir(api.example.com)=%q ok=%v", dir, ok)
+	}
+}
+
+func TestDeleteHostsExactSkipsStoreDirs(t *testing.T) {
+	dir := t.TempDir()
+	tr, err := Open(dir, "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tr.Close()
+	host := "api.example.com"
+	exDir := filepath.Join(dir, host, "GET", "1")
+	if err := os.MkdirAll(exDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tr.DB().Exec(`INSERT INTO exchanges(id,ts,host,method,url_template,url,status,content_type,req_len,resp_len,path)
+VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
+		"1", 1, host, "GET", "/", "http://"+host+"/", 200, "text/html", 0, 0, host+"/GET/1"); err != nil {
+		t.Fatal(err)
+	}
+	keep := filepath.Join(dir, "_delete_staging", "keep.txt")
+	if err := os.MkdirAll(filepath.Dir(keep), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(keep, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	n, err := tr.DeleteHostsExact([]string{host, "_index", "_blobs", "_ca", "_delete_staging", ".", ".."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("deleted=%d, want 1", n)
+	}
+	for _, path := range []string{
+		filepath.Join(dir, "_index", "index.sqlite"),
+		filepath.Join(dir, "_blobs"),
+		filepath.Join(dir, "_ca"),
+		keep,
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("store path %s gone: %v", path, err)
+		}
+	}
+	if _, err := os.Stat(exDir); !os.IsNotExist(err) {
+		t.Fatalf("host tree still exists: %v", err)
 	}
 }

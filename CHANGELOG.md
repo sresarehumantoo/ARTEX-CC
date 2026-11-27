@@ -11,8 +11,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - `report_finding` rejects an `intent_id` that is not an intent of the active engagement. Before, any node id got a `yields` edge, and an id that did not exist yet could fail with a confusing `ck_edge_noself` error.
 - `import_engagement` kept the exporting database's `finding_id` in finding node payloads, so `graph_overview` listed finding ids that `merge_findings` and `dismiss_finding` did not recognize. Import now rewrites them to the imported findings' ids.
+- `traffic_search` returned nothing for a `host` given as `host:port` or a URL, the forms its description advertises, because recorded rows store the hostname without the port. Those forms now match the host exactly (ignoring case) and the port against the recorded URL, including captures of default ports (`:80`, `:443`) and WebSockets (`ws://`, `wss://`) whose URLs omit the port. A URL without a port matches the host on any port, and a bare name still matches as a substring. The same applies to the host filter in the web UI traffic list and HAR export.
+- Body search missed request and response bodies the proxy captured with `Content-Encoding` gzip, deflate or br, since it stores bodies as they crossed the wire. The decoded text (bounded to the index limit) is now indexed, and `traffic_get` shows the decoded body of such responses. Stored bytes are unchanged. Captures recorded before this release, and traffic added by HAR import or external ingest, are not decoded.
+- Deleting traffic for a host whose name sanitizes to one of the store's own directories (`_index`, `_blobs`, `_ca`, `_delete_staging`) or to `.`/`..` could move that directory out of the store. Only the host's rows are deleted now.
 
 ### Security
+- Bumped `github.com/andybalholm/brotli` to v1.2.7 for GO-2026-6888, reachable through traffic replay and HAR import.
 - DSN redaction (`artex-cc init` output) masked `password` but not `sslpassword`, the client key passphrase, so it could still reach `docker logs`. `sslpassword` is now shown as `***` in both URL query and key=value form.
 
 ## [0.7.0] - 2026-11-26

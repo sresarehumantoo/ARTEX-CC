@@ -134,6 +134,14 @@ func makeTrafficGet(t *traffic.Traffic) Tool {
 				return errResult(err.Error()), nil
 			}
 
+			respTitle := "--- RESPONSE ---"
+			if head, dec, ok := t.DecodedResponse(a.ID); ok {
+				// Body search matches decoded text, so show that instead of the
+				// compressed bytes.
+				respTitle = "--- RESPONSE (body decoded from its Content-Encoding) ---"
+				resp = head + "\n" + string(dec)
+			}
+
 			const maxGet = 32 * 1024
 			req = clip(req, maxGet)
 			resp = clip(resp, maxGet)
@@ -144,7 +152,7 @@ func makeTrafficGet(t *traffic.Traffic) Tool {
 			}
 			sb.WriteString("--- REQUEST ---\n")
 			sb.WriteString(req)
-			sb.WriteString("\n\n--- RESPONSE ---\n")
+			sb.WriteString("\n\n" + respTitle + "\n")
 			sb.WriteString(resp)
 			return textResult(sb.String()), nil
 		},

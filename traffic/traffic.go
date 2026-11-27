@@ -751,6 +751,9 @@ const unavailableMarker = "[original request unavailable]\n"
 // so there is never a rewritten exchange without its trace. Without trace
 // lines this is exactly what record always wrote.
 func (t *Traffic) recordViews(rq requestView, rs responseView, lines []rewrite.TraceLine) {
+	// Decode before taking the write lock so concurrent records don't wait on it.
+	reqIdx, reqDecoded := indexBody(rq.header, rq.body)
+	respIdx, respDecoded := indexBody(rs.header, rs.body)
 	// The write lock covers blob + index writes, so DeleteHost (and its blob GC)
 	// can run under the same lock without racing a concurrent record.
 	t.wmu.Lock()
@@ -773,6 +776,12 @@ func (t *Traffic) recordViews(rq requestView, rs responseView, lines []rewrite.T
 	// work and must not sit inside the SQLite write lock.
 	reqB := t.spill(rq.body, rq.header.Get("Content-Type"))
 	respB := t.spill(rs.body, ct)
+	if reqDecoded {
+		reqB.index = reqIdx
+	}
+	if respDecoded {
+		respB.index = respIdx
+	}
 	trace := t.spillTrace(lines)
 
 	// A rewritten exchange is logged by host, step and rule ids only: its URL
@@ -1076,6 +1085,32 @@ func sanitize(s string) string {
 	return out
 }
 
+// storeDir reports whether name is one of the traffic store's own directories.
+func storeDir(name string) bool {
+	switch strings.ToLower(name) {
+	case "_index", "_blobs", "_ca", "_delete_staging":
+		return true
+	default:
+		return false
+	}
+}
+
+// hostDir returns the legacy on-disk tree for a host. A host whose sanitized
+// name lands on the store root, one of its own directories, or outside the
+// traffic root has no tree, though callers still delete its rows.
+func hostDir(root, host string) (string, bool) {
+	name := sanitize(host)
+	if name == "." || name == ".." || storeDir(name) {
+		return "", false
+	}
+	dir := filepath.Join(root, name)
+	rel, err := filepath.Rel(root, dir)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return dir, true
+}
+
 var blobHashRe = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 // blobPath locates a stored blob. Current writes use one bucket level; blobs
@@ -1295,7 +1330,16 @@ func (t *Traffic) pageWhere(f PageQuery) (where string, args []any) {
 		args = append(args, vs...)
 	}
 	if h := strings.TrimSpace(f.Host); h != "" {
-		add("host LIKE ?", "%"+h+"%")
+		// Rows store the hostname without a port, so "host:port" or a URL can
+		// never LIKE-match. Those get an exact match instead, and a bare name
+		// stays a substring match for the web UI filter box.
+		hostName, port, err := normalizeSearchHost(h)
+		if err == nil && (port != "" || strings.Contains(h, "://")) {
+			cond, hargs := hostAuthorityFilter(hostName, port)
+			add(cond, hargs...)
+		} else {
+			add("host LIKE ?", "%"+h+"%")
+		}
 	}
 	if m := strings.TrimSpace(f.Method); m != "" {
 		add("method=?", strings.ToUpper(m))
@@ -1672,7 +1716,9 @@ func (t *Traffic) hostTrees(where string, args ...any) ([]string, error) {
 		if err := rows.Scan(&h); err != nil {
 			return nil, err
 		}
-		dirs = append(dirs, filepath.Join(t.dir, sanitize(h)))
+		if dir, ok := hostDir(t.dir, h); ok {
+			dirs = append(dirs, dir)
+		}
 	}
 	return dirs, rows.Err()
 }
@@ -1905,7 +1951,9 @@ func (t *Traffic) stageDeleteHostsExact(hosts []string, archiveID, taskID int64)
 	// own an orphaned directory that this deletion should take with it.
 	legacy := make([]string, 0, len(unique))
 	for _, h := range unique {
-		legacy = append(legacy, filepath.Join(t.dir, sanitize(h)))
+		if dir, ok := hostDir(t.dir, h); ok {
+			legacy = append(legacy, dir)
+		}
 	}
 
 	tx, err := t.db.Begin()
@@ -2365,20 +2413,9 @@ func (t *Traffic) query(host, contains, bodyContains string, page, limit int) ([
 		if err != nil {
 			return nil, err
 		}
-		q += ` AND host=?`
-		args = append(args, hostName)
-		if port != "" {
-			// Recorded rows historically store URL.Hostname() (without the port),
-			// so constrain the original URL authority as a compatibility fallback.
-			// New and old captures therefore share the same search contract.
-			authority := net.JoinHostPort(hostName, port)
-			q += ` AND (url LIKE ? OR url LIKE ? OR url LIKE ?)`
-			args = append(args,
-				"%://"+authority+"/%",
-				"%://"+authority+"?%",
-				"%://"+authority,
-			)
-		}
+		cond, hargs := hostAuthorityFilter(hostName, port)
+		q += ` AND ` + cond
+		args = append(args, hargs...)
 	}
 	if contains != "" {
 		q += ` AND (url LIKE ? OR url_template LIKE ?)`
@@ -2411,6 +2448,37 @@ func (t *Traffic) query(host, contains, bodyContains string, page, limit int) ([
 		out = append(out, m)
 	}
 	return out, rows.Err()
+}
+
+// hostAuthorityFilter matches hostName exactly and, when port is set, checks
+// the port against the recorded URL.
+func hostAuthorityFilter(hostName, port string) (string, []any) {
+	// Recorded hosts keep the client's case; hostName is already lowercase.
+	if port == "" {
+		return "lower(host)=?", []any{hostName}
+	}
+	authority := net.JoinHostPort(hostName, port)
+	var prefixes []string
+	// Anchored per scheme, so a URL quoted in the query string can't match.
+	for _, scheme := range []string{"http", "https", "ws", "wss"} {
+		prefixes = append(prefixes, scheme+"://"+authority)
+	}
+	// Clients leave a default port out of the Host header, so https://host:443
+	// is recorded as https://host (and wss://host for a WebSocket).
+	bare := strings.TrimSuffix(authority, ":"+port)
+	switch port {
+	case "80":
+		prefixes = append(prefixes, "http://"+bare, "ws://"+bare)
+	case "443":
+		prefixes = append(prefixes, "https://"+bare, "wss://"+bare)
+	}
+	args := []any{hostName}
+	var conds []string
+	for _, p := range prefixes {
+		conds = append(conds, "url LIKE ? OR url LIKE ? OR url LIKE ?")
+		args = append(args, p+"/%", p+"?%", p)
+	}
+	return "lower(host)=? AND (" + strings.Join(conds, " OR ") + ")", args
 }
 
 // normalizeSearchHost accepts the forms agents commonly have at hand while
