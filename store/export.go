@@ -744,6 +744,15 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 		).Scan(&newID); err != nil {
 			return 0, 0, fmt.Errorf("import finding: %w", err)
 		}
+		if newNodeID > 0 {
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE exploration_nodes SET payload = jsonb_set(payload, '{finding_id}', to_jsonb($1::bigint))
+				 WHERE id = $2 AND payload->'finding_id' IS NOT NULL`,
+				newID, newNodeID,
+			); err != nil {
+				return 0, 0, fmt.Errorf("import finding node payload: %w", err)
+			}
+		}
 		if oldID := exportMapInt64(f, "id"); oldID > 0 {
 			findingIDMap[oldID] = newID
 		}
