@@ -655,12 +655,23 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 		if newNodeID == 0 {
 			continue
 		}
-		anchors := n["anchors"]
-		if anchors == nil {
-			continue
+		if payload, _ := n["payload"].(map[string]any); payload["asset_ids"] != nil {
+			newAssetIDs := []int64{}
+			for _, oldAssetID := range exportToInt64Slice(payload["asset_ids"]) {
+				if newAssetID := assetIDMap[oldAssetID]; newAssetID > 0 {
+					newAssetIDs = append(newAssetIDs, newAssetID)
+				}
+			}
+			raw, _ := json.Marshal(newAssetIDs)
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE exploration_nodes SET payload = CASE WHEN $1::jsonb = '[]' THEN payload - 'asset_ids'
+				 ELSE jsonb_set(payload, '{asset_ids}', $1::jsonb) END WHERE id = $2`,
+				string(raw), newNodeID,
+			); err != nil {
+				return 0, 0, fmt.Errorf("import node asset_ids (old id %d): %w", oldNodeID, err)
+			}
 		}
-		anchorList := exportToInt64Slice(anchors)
-		for _, oldAssetID := range anchorList {
+		for _, oldAssetID := range exportToInt64Slice(n["anchors"]) {
 			newAssetID := assetIDMap[oldAssetID]
 			if newAssetID == 0 {
 				continue
