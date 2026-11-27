@@ -62,6 +62,55 @@ const session = [
   { phase: 'prove', tool: 'prove_goal', arg: 'evidence: finding #1', ms: 15, wait: 600 },
 ];
 
+const ledger = [
+  { id: 41, method: 'GET', path: '/api/v2/users/1043', status: 200, ms: 14 },
+  { id: 40, method: 'GET', path: '/api/v2/users/me', status: 200, ms: 11 },
+  { id: 39, method: 'POST', path: '/api/v2/session', status: 200, ms: 63 },
+  { id: 38, method: 'GET', path: '/admin', status: 403, ms: 9 },
+  { id: 37, method: 'GET', path: '/.well-known/openid-configuration', status: 404, ms: 8 },
+];
+const statusTone = (status: number) => (status >= 500 ? 'bad' : status >= 400 ? 'warn' : '');
+
+const coverageAreas = ['authn', 'idor', 'sqli', 'ssrf', 'xss', 'rce', 'logic'];
+const coverageOutcomes = {
+  o: { state: 'ok', label: 'no issue found' },
+  f: { state: 'finding', label: 'reported' },
+  x: { state: 'na', label: 'not applicable' },
+  n: { state: 'open', label: 'not tested' },
+};
+const coverageRows = [
+  ['api /admin', 'ooxoxxo'],
+  ['/api/v2/users', 'offoxon'],
+  ['/api/v2/session', 'oooxoxo'],
+  ['/api/v2/graphql', 'oofoxxo'],
+  ['auth.example.com', 'ooxxoxo'],
+  ['/uploads', 'ofoooon'],
+  ['legacy.example.com', 'nnnnnnn'],
+];
+const testOrder = [1, 0, 2, 4, 3, 5];
+const columnOrder = [2, 0, 5, 1, 6, 3, 4];
+let turn = 0;
+const coverageTurn = new Map<string, number>();
+for (const r of testOrder) {
+  const cells = coverageRows[r][1];
+  for (let i = 0; i < 7; i++) {
+    const c = columnOrder[(i + r * 3) % 7];
+    if (cells[c] === 'o' || cells[c] === 'f') coverageTurn.set(`${r}:${c}`, turn++);
+  }
+}
+const coverageGrid = coverageRows.map(([surface, cells], r) => ({
+  surface,
+  cells: [...cells].map((ch, c) => ({
+    ...coverageOutcomes[ch as keyof typeof coverageOutcomes],
+    area: coverageAreas[c],
+    turn: coverageTurn.get(`${r}:${c}`) ?? 0,
+  })),
+}));
+const coverageCells = coverageGrid.flatMap((row) => row.cells);
+const coverageTotal = coverageCells.filter((c) => c.state !== 'na').length;
+const coverageTested = coverageCells.filter((c) => c.state === 'ok' || c.state === 'finding').length;
+const coverageFindings = coverageCells.filter((c) => c.state === 'finding').length;
+
 const forest = [
   { phase: 'Recon', body: 'nmap found a Windows Server 2016 DC for htb.local. An RPC null session leaked the full user list.' },
   { phase: 'Foothold', body: 'svc-alfresco had Kerberos pre-auth disabled. AS-REP roast, cracked with hashcat, WinRM in, user.txt.' },
@@ -397,6 +446,126 @@ const install = [
                 <span>facts <b class="session-count" data-count="fact">1</b></span>
                 <span>findings <b class="session-count" data-count="finding">1</b></span>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="proxy" class="relative border-b border-line">
+        <div class="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
+          <div class="max-w-2xl" data-reveal-children>
+            <p class="eyebrow">Recording proxy</p>
+            <h2 class="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Every request is on the record</h2>
+            <p class="mt-5 leading-relaxed text-neutral-400">
+              Point your tools at <code class="rounded border border-line bg-white/5 px-1.5 py-0.5 font-mono text-[0.85em] text-neutral-200">:8788</code>
+              and ARTEX captures each request and response. Claude searches them, replays them with changes, and binds
+              them to findings as evidence.
+            </p>
+          </div>
+
+          <div
+            class="mt-12 overflow-hidden rounded-xl border border-line bg-[oklch(0.12_0_0)] font-mono shadow-2xl shadow-black/50"
+            data-proxy
+            data-reveal
+          >
+            <div class="flex items-center gap-4 border-b border-line bg-white/[0.02] px-4 py-3">
+              <div class="flex gap-1.5" aria-hidden="true">
+                <span class="size-2.5 rounded-full bg-neutral-700"></span>
+                <span class="size-2.5 rounded-full bg-neutral-700"></span>
+                <span class="size-2.5 rounded-full bg-neutral-700"></span>
+              </div>
+              <span class="text-xs text-neutral-500">artex-cc serve --proxy :8788</span>
+            </div>
+            <svg class="proxy-flow proxy-wide" viewBox="0 0 760 170" aria-hidden="true">
+              <path class="wire" data-wire="out" d="M168 80 H 300"></path>
+              <path class="wire" data-wire="in" d="M460 80 H 592"></path>
+              <g class="box"><rect x="28" y="56" width="140" height="48" rx="8"></rect><text class="k" x="98" y="72">client</text><text x="98" y="90">claude code</text></g>
+              <g class="box mid"><rect x="300" y="50" width="160" height="60" rx="8"></rect><rect class="tap" x="300" y="50" width="160" height="60" rx="8"></rect><text class="k" x="380" y="70">artex proxy</text><text x="380" y="90">:8788</text></g>
+              <g class="box"><rect x="592" y="56" width="140" height="48" rx="8"></rect><text class="k" x="662" y="72">target</text><text x="662" y="90">api.example.com</text></g>
+              <path class="drop" d="M380 110 V 170"></path>
+              <g data-packets></g>
+            </svg>
+            <svg class="proxy-flow proxy-narrow" viewBox="0 0 340 262" aria-hidden="true" data-vertical>
+              <path class="wire" data-wire="out" d="M170 50 V 106"></path>
+              <path class="wire" data-wire="in" d="M170 156 V 212"></path>
+              <g class="box"><rect x="100" y="8" width="140" height="42" rx="8"></rect><text class="k" x="170" y="25">client</text><text x="170" y="41">claude code</text></g>
+              <g class="box mid"><rect x="95" y="106" width="150" height="50" rx="8"></rect><rect class="tap" x="95" y="106" width="150" height="50" rx="8"></rect><text class="k" x="170" y="126">artex proxy</text><text x="170" y="144">:8788</text></g>
+              <g class="box"><rect x="100" y="212" width="140" height="42" rx="8"></rect><text class="k" x="170" y="229">target</text><text x="170" y="245">api.example.com</text></g>
+              <path class="drop" d="M245 131 H 340"></path>
+              <g data-packets></g>
+            </svg>
+            <div class="border-t border-line text-xs">
+              <div class="flex justify-between gap-4 border-b border-line px-4 py-3 text-neutral-500">
+                <span>traffic_search host:api.example.com</span>
+                <span>captured <b class="font-medium text-neutral-300 tabular-nums" data-proxy-total>{ledger[0].id}</b></span>
+              </div>
+              <div class="proxy-rows-wrap">
+                <ol class="proxy-rows" data-proxy-rows>
+                  {
+                    ledger.map((r) => (
+                      <li>
+                        <span class="text-neutral-600">{r.id}</span>
+                        <span class="text-sky-300">{r.method}</span>
+                        <span class="truncate text-neutral-300">{r.path}</span>
+                        <span class:list={['proxy-status', statusTone(r.status)]}>{r.status}</span>
+                        <span class="proxy-ms">{r.ms}ms</span>
+                      </li>
+                    ))
+                  }
+                </ol>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="coverage" class="relative border-b border-line">
+        <div class="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
+          <div class="max-w-2xl" data-reveal-children>
+            <p class="eyebrow">Coverage</p>
+            <h2 class="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">What was tested, and what wasn't</h2>
+            <p class="mt-5 leading-relaxed text-neutral-400">
+              <code class="rounded border border-line bg-white/5 px-1.5 py-0.5 font-mono text-[0.85em] text-neutral-200">record_coverage</code>
+              marks each surface against each risk area. The empty row is where the next intent comes from.
+            </p>
+          </div>
+
+          <div
+            class="coverage mt-12 overflow-hidden rounded-xl border border-line bg-[oklch(0.12_0_0)] font-mono shadow-2xl shadow-black/50"
+            style={`--done: ${coverageTested}; --cov-total: ${coverageTotal}; --cov-n: ${coverageTested};`}
+          >
+            <div class="flex flex-wrap items-baseline gap-x-6 gap-y-2 border-b border-line px-4 py-3 text-xs text-neutral-500">
+              <span class="coverage-count"> / {coverageTotal} cells tested</span>
+              <span class="coverage-bar" aria-hidden="true"></span>
+              <span>findings <b class="font-medium text-rose-400">{coverageFindings}</b></span>
+            </div>
+            <div
+              class="coverage-matrix"
+              role="img"
+              aria-label={`Coverage matrix: ${coverageTested} of ${coverageTotal} surface and risk-area cells tested, ${coverageFindings} findings reported, one surface not tested yet`}
+            >
+              <span></span>
+              {coverageAreas.map((a) => <span class="coverage-area">{a}</span>)}
+              {
+                coverageGrid.map((row) => (
+                  <>
+                    <span class="truncate self-center text-neutral-400">{row.surface}</span>
+                    {row.cells.map((c) => (
+                      <span class="coverage-cell" data-s={c.state} style={`--o: ${c.turn}`} title={`${row.surface} / ${c.area}: ${c.label}`}></span>
+                    ))}
+                  </>
+                ))
+              }
+            </div>
+            <div class="flex flex-wrap gap-x-5 gap-y-2 px-4 pb-4 text-[11.5px] text-neutral-500" aria-hidden="true">
+              {
+                Object.values(coverageOutcomes).map((o) => (
+                  <span class="inline-flex items-center gap-2">
+                    <span class="coverage-cell coverage-key" data-s={o.state}></span>
+                    {o.label}
+                  </span>
+                ))
+              }
             </div>
           </div>
         </div>
