@@ -79,12 +79,23 @@ func TestListEngagements(t *testing.T) {
 	ctx := context.Background()
 	_, _ = testEngagement(t, s, "list-engagements")
 
+	taskID, _ := testEngagement(t, s, "list-engagements")
+
 	engs, err := s.ListEngagements(ctx)
 	if err != nil {
 		t.Fatalf("ListEngagements: %v", err)
 	}
-	if len(engs) < 1 {
-		t.Error("ListEngagements returned 0 results")
+	found := false
+	for _, e := range engs {
+		if e.ID == taskID {
+			found = true
+			if e.Status != "open" {
+				t.Errorf("Status = %q, want %q", e.Status, "open")
+			}
+		}
+	}
+	if !found {
+		t.Errorf("engagement %d not listed", taskID)
 	}
 }
 
@@ -109,6 +120,16 @@ func TestCompleteEngagement(t *testing.T) {
 	}
 	if ov.Task["status"] != "achieved" {
 		t.Errorf("overview status = %v, want %q", ov.Task["status"], "achieved")
+	}
+
+	engs, err := s.ListEngagements(ctx)
+	if err != nil {
+		t.Fatalf("ListEngagements: %v", err)
+	}
+	for _, e := range engs {
+		if e.ID == taskID && e.Status != "achieved" {
+			t.Errorf("list status = %q, want %q", e.Status, "achieved")
+		}
 	}
 }
 

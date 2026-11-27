@@ -112,7 +112,7 @@ func (s *Store) CompleteEngagement(ctx context.Context, taskID int64, summary st
 
 func (s *Store) ListEngagements(ctx context.Context) ([]tools.EngagementSummary, error) {
 	rows, err := s.QueryContext(ctx, `
-		SELECT t.id, t.goal, t.description, COALESCE(t.status,''), t.exploration_id,
+		SELECT t.id, t.goal, t.description, e.status, t.exploration_id,
 		       t.created_at,
 		       (SELECT COUNT(*) FROM exploration_nodes WHERE exploration_id = t.exploration_id),
 		       (SELECT COUNT(*) FROM findings WHERE task_id = t.id),
@@ -122,7 +122,8 @@ func (s *Store) ListEngagements(ctx context.Context) ([]tools.EngagementSummary,
 		               END
 		        FROM exploration_nodes
 		        WHERE exploration_id = t.exploration_id AND kind = 'goal')
-		FROM tasks t ORDER BY t.created_at DESC`)
+		FROM tasks t JOIN explorations e ON e.id = t.exploration_id
+		ORDER BY t.created_at DESC`)
 	if err != nil {
 		return nil, err
 	}

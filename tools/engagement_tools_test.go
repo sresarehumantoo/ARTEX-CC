@@ -21,6 +21,7 @@ type engagementMockStore struct {
 	activityList []TimelineEntry
 	activityErr  error
 	coverageGaps *CoverageGaps
+	overview     *Overview
 	gapsErr      error
 }
 
@@ -53,6 +54,13 @@ func (m *engagementMockStore) DeleteEngagement(_ context.Context, _ int64) error
 
 func (m *engagementMockStore) EngagementActivity(_ context.Context, _ int64, _ int) ([]TimelineEntry, error) {
 	return m.activityList, m.activityErr
+}
+
+func (m *engagementMockStore) GraphOverview(ctx context.Context, explorationID int64) (*Overview, error) {
+	if m.overview != nil {
+		return m.overview, nil
+	}
+	return m.mockStore.GraphOverview(ctx, explorationID)
 }
 
 func (m *engagementMockStore) ListCoverageGaps(_ context.Context, _, _ int64) (*CoverageGaps, error) {
@@ -140,8 +148,8 @@ func TestListEngagementsHappyPath(t *testing.T) {
 	t.Parallel()
 	ms := &engagementMockStore{
 		engagements: []EngagementSummary{
-			{ID: 1, Goal: "web pentest", Status: "active", ExplorationID: 10},
-			{ID: 2, Goal: "api review", Status: "done", ExplorationID: 20},
+			{ID: 1, Goal: "web pentest", Status: "open", ExplorationID: 10},
+			{ID: 2, Goal: "api review", Status: "achieved", ExplorationID: 20},
 		},
 	}
 	reg := NewRegistry()
@@ -531,6 +539,25 @@ func TestEngagementStatusHappyPath(t *testing.T) {
 	}
 	if !strings.Contains(r.Content, `"findings_total"`) {
 		t.Errorf("expected findings_total, got: %s", r.Content)
+	}
+	if !strings.Contains(r.Content, `"status":"open"`) {
+		t.Errorf("expected open status, got: %s", r.Content)
+	}
+}
+
+func TestEngagementStatusMissingExploration(t *testing.T) {
+	t.Parallel()
+	ms := &engagementMockStore{overview: &Overview{Task: map[string]any{}}}
+	reg := NewRegistry()
+	RegisterEngagementTools(reg, ms, 1, 1)
+
+	tool, _ := reg.Lookup("engagement_status")
+	r, err := tool.Run(context.Background(), json.RawMessage(`{}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !r.IsError || !strings.Contains(r.Content, "engagement 1 not found") {
+		t.Errorf("expected not-found error, got: %s", r.Content)
 	}
 }
 
