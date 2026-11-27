@@ -81,7 +81,9 @@ The `init` command generates a CA certificate at `traffic/_ca/mitmproxy-ca-cert.
 
 **PostgreSQL not running:** `artex-cc serve` exits with "failed to open store". Start PostgreSQL or run `docker compose up -d postgres`.
 
-**No engagement config:** "failed to load engagement config" means `.artex.json` is missing from the data directory. Run `artex-cc init` first, or point `--data` at the directory where you ran init.
+**Engagement config unreadable:** "failed to load engagement config" means `.artex.json` in the data directory exists but could not be read or parsed. It is written owner-only (0600), so the usual cause is running `serve` as a different user than `init`; otherwise check that the file is valid JSON.
+
+**No engagement:** if tools report "requires a task context", `serve` found no `.artex.json` and started without an engagement. Run `artex-cc init` first, or point `--data` at the directory where you ran init.
 
 **Credential key invalid:** "invalid credential key" means `ARTEX_CREDENTIAL_KEY` is set but not valid hex or not 32 bytes. Unset it to skip encryption, or generate a valid key: `openssl rand -hex 32`.
 
