@@ -79,6 +79,14 @@ func (m *statefulMock) AddNode(_ context.Context, _ int64, kind string, payload 
 	return id, nil
 }
 
+func (m *statefulMock) AddFact(ctx context.Context, explorationID, intentID int64, payload map[string]any, anchors []int64) (int64, error) {
+	id, _ := m.AddNode(ctx, explorationID, KindFact, payload, 5, "confirmed", "worker", anchors)
+	if intentID > 0 {
+		m.edges = append(m.edges, Edge{From: intentID, Rel: RelYields, To: id})
+	}
+	return id, nil
+}
+
 func (m *statefulMock) AddIntents(ctx context.Context, explorationID int64, intents []IntentInput) (*IntentsResult, error) {
 	res := &IntentsResult{}
 	seen := map[string]Node{}

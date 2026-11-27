@@ -84,6 +84,9 @@ func (m *mockStore) GraphOverview(_ context.Context, _ int64) (*tools.Overview, 
 func (m *mockStore) AddNode(_ context.Context, _ int64, _ string, _ map[string]any, _ int, _ string, _ string, _ []int64) (int64, error) {
 	return m.addNodeID, m.addNodeErr
 }
+func (m *mockStore) AddFact(context.Context, int64, int64, map[string]any, []int64) (int64, error) {
+	return m.addNodeID, m.addNodeErr
+}
 func (m *mockStore) UpdateNodeState(context.Context, int64, string) error { return nil }
 func (m *mockStore) ClaimIntent(context.Context, int64, string, time.Duration) (*tools.IntentClaim, error) {
 	return nil, nil

@@ -59,6 +59,10 @@ func (m *mockStore) AddNode(_ context.Context, _ int64, _ string, _ map[string]a
 	return 10, nil
 }
 
+func (m *mockStore) AddFact(_ context.Context, _, _ int64, _ map[string]any, _ []int64) (int64, error) {
+	return 10, nil
+}
+
 func (m *mockStore) UpdateNodeState(_ context.Context, _ int64, _ string) error {
 	return nil
 }

@@ -57,6 +57,10 @@ func (m *explorationMockStore) AddNode(_ context.Context, _ int64, _ string, _ m
 	return m.addNodeID, m.addNodeErr
 }
 
+func (m *explorationMockStore) AddFact(_ context.Context, _, _ int64, _ map[string]any, _ []int64) (int64, error) {
+	return m.addNodeID, m.addNodeErr
+}
+
 func (m *explorationMockStore) AddIntents(_ context.Context, _ int64, intents []IntentInput) (*IntentsResult, error) {
 	m.gotIntents = intents
 	if m.intentsResult != nil {

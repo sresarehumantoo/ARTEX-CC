@@ -33,6 +33,7 @@ type Store interface {
 	// Exploration graph
 	GraphOverview(ctx context.Context, explorationID int64) (*Overview, error)
 	AddNode(ctx context.Context, explorationID int64, kind string, payload map[string]any, priority int, state, origin string, anchors []int64) (int64, error)
+	AddFact(ctx context.Context, explorationID, intentID int64, payload map[string]any, anchors []int64) (int64, error)
 	UpdateNodeState(ctx context.Context, nodeID int64, state string) error
 	ClaimIntent(ctx context.Context, nodeID int64, owner string, lease time.Duration) (*IntentClaim, error)
 	RenewIntentClaims(ctx context.Context, nodeIDs []int64, holder string, lease time.Duration) error
