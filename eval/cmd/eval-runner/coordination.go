@@ -564,7 +564,7 @@ func scoreCoordination(in CoordinationInput) *Coordination {
 	c.Instances = perInstance
 
 	for inst, at := range in.Kills {
-		c.Takeovers = append(c.Takeovers, takeovers(inst, at, claims, releases, nodes, in.Edges)...)
+		c.Takeovers = append(c.Takeovers, takeovers(inst, at, lastCallTime(in.Transcripts, inst), claims, releases, nodes, in.Edges, lease)...)
 	}
 	return c
 }
@@ -618,6 +618,34 @@ func conflictHandled(calls []ToolCall, i int, intent int64, until time.Time, hel
 		}
 	}
 	return true
+}
+
+// lastCallTime is the time of the instance's last recorded tool call, the
+// closest proxy for when it was last working before a kill.
+func lastCallTime(ts []*Transcript, instance int) time.Time {
+	var last time.Time
+	for _, t := range ts {
+		if t.Instance != instance {
+			continue
+		}
+		for _, c := range t.Calls {
+			if c.At.After(last) {
+				last = c.At
+			}
+		}
+	}
+	return last
+}
+
+// claimedByOtherBetween reports whether an instance other than the given one
+// claimed the intent after from (exclusive) and at or before to.
+func claimedByOtherBetween(claims []claimEvent, instance int, intent int64, from, to time.Time) bool {
+	for _, cl := range claims {
+		if cl.intent == intent && cl.instance != instance && cl.at.After(from) && !cl.at.After(to) {
+			return true
+		}
+	}
+	return false
 }
 
 func releasedBetween(releases []releaseEvent, intent int64, from, to time.Time) bool {
@@ -1040,20 +1068,39 @@ func redundantRecon(commands map[string]map[int]int) RedundantRecon {
 	return out
 }
 
-// takeovers finds the intents the killed instance still held when it died and
-// whether another instance started each one afterwards.
-func takeovers(killed int, killedAt time.Time, claims []claimEvent, releases []releaseEvent, nodes map[int64]nodeOrigin, edges []tools.Edge) []Takeover {
+// takeovers finds the intents the killed instance was the last to hold going
+// into its death and whether another instance took each one over afterwards. A
+// candidate is an intent the killed instance claimed (with implicit renewals
+// already replayed) and neither it nor anyone else released before the kill. An
+// intent whose lease was still live at the kill is always a candidate. One
+// whose lease had already lapsed is a candidate only when the killed instance
+// was still active within a lease of the kill (lastActivity) and no other
+// instance claimed it since the killed instance's last claim: that covers a
+// holder still working over the shell when its lease lapsed shortly before the
+// kill (shell and target-change work do not renew the claim), without reviving
+// intents it had abandoned. A live-at-kill candidate nobody reclaimed is
+// flagged as never taken over; a lapsed candidate is reported only when it was
+// actually taken over.
+func takeovers(killed int, killedAt, lastActivity time.Time, claims []claimEvent, releases []releaseEvent, nodes map[int64]nodeOrigin, edges []tools.Edge, lease time.Duration) []Takeover {
 	last := map[int64]claimEvent{}
 	for _, cl := range claims {
 		if cl.instance == killed && !cl.at.After(killedAt) && cl.at.After(last[cl.intent].at) {
 			last[cl.intent] = cl
 		}
 	}
+	working := lastActivity.After(killedAt.Add(-lease))
+	live := map[int64]bool{}
 	var ids []int64
 	for id, cl := range last {
-		if cl.expires.After(killedAt) && !releasedBetween(releases, id, cl.at, killedAt) {
-			ids = append(ids, id)
+		if releasedBetween(releases, id, cl.at, killedAt) {
+			continue
 		}
+		if cl.expires.After(killedAt) {
+			live[id] = true
+		} else if !working || claimedByOtherBetween(claims, killed, id, cl.at, killedAt) {
+			continue
+		}
+		ids = append(ids, id)
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 
@@ -1066,6 +1113,9 @@ func takeovers(killed int, killedAt time.Time, claims []claimEvent, releases []r
 				tk.TakenBy, tk.TakenAt = cl.instance, &at
 				tk.AfterLeaseLapsed = !at.Before(tk.LeaseExpires)
 			}
+		}
+		if tk.TakenAt == nil && !live[id] {
+			continue
 		}
 		attached := map[int64]bool{}
 		for _, e := range edges {
