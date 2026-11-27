@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -29,10 +30,11 @@ func TestWriteToolsJSON(t *testing.T) {
 
 func TestWriteToolsText(t *testing.T) {
 	var buf bytes.Buffer
-	writeToolsText(&buf, mcpserver.Catalog())
+	catalog := mcpserver.Catalog()
+	writeToolsText(&buf, catalog)
 	out := buf.String()
 
-	for _, want := range []string{"Exploration graph (", "Traffic (", "graph_overview", "[proxy]", "65 tools"} {
+	for _, want := range []string{"Exploration graph (", "Traffic (", "graph_overview", "[proxy]", fmt.Sprintf("%d tools", len(catalog))} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q", want)
 		}

@@ -89,7 +89,7 @@ The `init` command generates a CA certificate at `traffic/_ca/mitmproxy-ca-cert.
 
 **Proxy CA not trusted:** HTTPS traffic through the proxy fails with certificate errors. Trust the CA cert (see `artex-cc init` output for the command).
 
-**Traffic tools missing:** The eleven `traffic_*` tools and `bind_finding_traffic` only appear when `--proxy` is set on `serve`.
+**Traffic tools missing:** The `traffic_*` tools and `bind_finding_traffic` only appear when `--proxy` is set on `serve`.
 
 ## Shell completion
 

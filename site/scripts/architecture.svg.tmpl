@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 450" width="920" height="450" role="img" aria-label="ARTEX-CC architecture">
+  <style>
+{{fontFaces}}    text { font-family: "ArtexMono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; fill: {{text}}; }
+    .h { font-size: 13px; font-weight: 600; fill: {{heading}}; }
+    .b { font-size: 12px; fill: {{body}}; }
+    .d { fill: {{dim}}; }
+    .a { fill: {{accent}}; }
+    .r { text-anchor: end; }
+    .box { fill: {{box}}; stroke: {{boxStroke}}; }
+    .row { fill: none; stroke: {{rule}}; }
+    .rule { stroke: {{rule}}; }
+    .ln { stroke: {{line}}; fill: none; }
+    .al { stroke: {{accent}}; fill: none; }
+    .lead { stroke: {{leader}}; stroke-dasharray: 1 4; }
+  </style>
+
+  <text x="20" y="22" class="d">you: prompt, hints, approvals</text>
+  <path d="M 118 30 V 52" class="ln"/>
+  <path d="M 114 46 L 118 53 L 122 46" class="ln"/>
+
+  <rect x="20.5" y="56.5" width="196" height="354" rx="5" class="box"/>
+  <text x="36" y="81" class="h">claude code</text>
+  <text x="36" y="99">decides what to test</text>
+  <line x1="21" y1="113.5" x2="216" y2="113.5" class="rule"/>
+
+  <rect x="32.5" y="127.5" width="172" height="44" rx="3" class="row"/>
+  <text x="44" y="146" class="b">main session</text>
+  <text x="44" y="162">orient, plan, prove</text>
+  <rect x="32.5" y="181.5" width="172" height="44" rx="3" class="row"/>
+  <text x="44" y="200" class="b">subagent</text>
+  <text x="44" y="216">claims intent #14</text>
+  <rect x="32.5" y="235.5" width="172" height="44" rx="3" class="row"/>
+  <text x="44" y="254" class="b">subagent</text>
+  <text x="44" y="270">claims intent #17</text>
+  <text x="44" y="301" class="d">claims are leased</text>
+
+  <line x1="21" y1="318.5" x2="216" y2="318.5" class="rule"/>
+  <rect x="32.5" y="332.5" width="172" height="62" rx="3" class="row"/>
+  <text x="44" y="351" class="b">bash tool</text>
+  <text x="44" y="367">nmap, curl, ffuf,</text>
+  <text x="44" y="383">nuclei, netexec ...</text>
+
+  <path d="M 205 150 H 240 M 205 204 H 240 M 205 258 H 240 M 240 150 V 258" class="al"/>
+  <path d="M 240 204 H 318" class="al"/>
+  <path d="M 311 200 L 319 204 L 311 208" class="al"/>
+  <text x="280" y="194" text-anchor="middle" class="a">MCP</text>
+  <text x="280" y="222" text-anchor="middle" class="d" font-size="10">stdio|http</text>
+
+  <path d="M 205 364 H 318" class="al"/>
+  <path d="M 311 360 L 319 364 L 311 368" class="al"/>
+  <text x="262" y="354" text-anchor="middle" class="d">HTTPS_PROXY</text>
+
+  <rect x="320.5" y="36.5" width="300" height="400" rx="5" class="box"/>
+  <text x="336" y="61" class="h">artex-cc serve</text>
+  <text x="604" y="61" class="r">{{total}} tools</text>
+  <text x="336" y="79">no LLM, no API key</text>
+  <line x1="321" y1="93.5" x2="620" y2="93.5" class="rule"/>
+
+  <g>
+{{rows}}  </g>
+  <text x="336" y="321" class="d">* registered with --proxy</text>
+
+  <line x1="321" y1="336.5" x2="620" y2="336.5" class="rule"/>
+  <text x="336" y="368" class="h">recording proxy</text>
+  <text x="604" y="368" class="r a">:8788</text>
+  <text x="336" y="388">MITM and SOCKS5, replay, HAR</text>
+  <text x="336" y="406">captures to traffic/ (SQLite),</text>
+  <text x="336" y="422">read back by traffic_* tools</text>
+
+  <path d="M 622 116 H 702" class="ln"/>
+  <path d="M 629 112 L 621 116 L 629 120" class="ln"/>
+  <path d="M 695 112 L 703 116 L 695 120" class="ln"/>
+
+  <rect x="704.5" y="56.5" width="196" height="150" rx="5" class="box"/>
+  <text x="720" y="81" class="h">postgresql</text>
+  <text x="720" y="99">engagement state</text>
+  <line x1="705" y1="113.5" x2="900" y2="113.5" class="rule"/>
+  <text x="720" y="135" class="b">assets, scope</text>
+  <text x="720" y="153" class="b">exploration graph</text>
+  <text x="720" y="171" class="b">findings, credentials</text>
+  <text x="720" y="189" class="b">coverage, activity</text>
+
+  <path d="M 802 207 V 246" class="ln"/>
+  <path d="M 798 239 L 802 247 L 806 239" class="ln"/>
+  <text x="792" y="230" class="r">LISTEN/NOTIFY</text>
+
+  <rect x="704.5" y="248.5" width="196" height="62" rx="5" class="box"/>
+  <text x="720" y="273" class="h">web ui</text>
+  <text x="884" y="273" class="r">--web</text>
+  <text x="720" y="293">graph, findings, report</text>
+
+  <path d="M 620 364 H 702" class="al"/>
+  <path d="M 695 360 L 703 364 L 695 368" class="al"/>
+  <text x="661" y="354" text-anchor="middle" class="d">recorded</text>
+
+  <rect x="704.5" y="332.5" width="196" height="62" rx="5" class="box"/>
+  <text x="720" y="357" class="h">target</text>
+  <text x="720" y="377">in-scope hosts only</text>
+</svg>

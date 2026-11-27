@@ -29,7 +29,7 @@ The proxy CA is not trusted. Trust `traffic/_ca/mitmproxy-ca-cert.pem` using the
 
 ## Traffic tools are missing
 
-The eleven `traffic_*` tools and `bind_finding_traffic` are only registered when `serve` runs with `--proxy`. Add `"--proxy", ":8788"` to the MCP server args.
+The `traffic_*` tools and `bind_finding_traffic` are only registered when `serve` runs with `--proxy`. Add `"--proxy", ":8788"` to the MCP server args.
 
 If another process already holds the proxy port (for example the Docker container's main process), give the second process a throwaway port such as `127.0.0.1:0`. It still registers the traffic tools and reads the same captured traffic.
 

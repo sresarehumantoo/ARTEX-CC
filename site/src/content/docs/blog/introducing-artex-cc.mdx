@@ -21,7 +21,8 @@ head:
 
 import { Aside } from '@astrojs/starlight/components';
 import { Image } from 'astro:assets';
-import architecture from '../../../../../docs/architecture.svg';
+import architectureDark from '../../../../../docs/architecture-dark.svg';
+import architectureLight from '../../../../../docs/architecture-light.svg';
 import webDemoMp4 from '../../../../../docs/web-demo.mp4?url';
 import webDemoPoster from '../../../../../docs/web-demo-poster.png';
 import graph from '../../../../../docs/screenshots/graph.png';
@@ -42,7 +43,8 @@ ARTEX-CC is an [MCP](https://modelcontextprotocol.io/) server written in Go, wit
 
 There is no agent loop and no LLM client inside it. Claude Code decides what to test and which tools to call; ARTEX executes the calls and remembers the results. So it never needs an API key, and there's no separate token budget to watch: your existing Claude subscription covers the AI side. Here's how Claude Code, the MCP server, PostgreSQL and the recording proxy fit together (the [architecture page](/docs/architecture/) has more):
 
-<Image src={architecture} alt={`Claude Code calls ARTEX-CC over MCP. ARTEX exposes ${toolStats.tools} tools in ${toolStats.categories} categories, stores state in PostgreSQL and captures traffic through its recording proxy.`} />
+<Image src={architectureDark} alt={`Claude Code calls ARTEX-CC over MCP. ARTEX exposes ${toolStats.tools} tools in ${toolStats.categories} categories, stores state in PostgreSQL and captures traffic through its recording proxy.`} class="light:sl-hidden" />
+<Image src={architectureLight} alt={`Claude Code calls ARTEX-CC over MCP. ARTEX exposes ${toolStats.tools} tools in ${toolStats.categories} categories, stores state in PostgreSQL and captures traffic through its recording proxy.`} class="dark:sl-hidden" />
 
 It started as a fork of [ARTEX](https://github.com/BaaRai/ARTEX), which ships its own LLM agent loop. I was already paying for Claude, and running a second agent to do the same job didn't make sense to me, so I removed the loop and kept the data model: the same asset graph, exploration tracking and findings, exposed as tools. It's AGPL-3.0, like upstream.
 
