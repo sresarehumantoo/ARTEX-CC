@@ -1085,6 +1085,32 @@ func sanitize(s string) string {
 	return out
 }
 
+// storeDir reports whether name is one of the traffic store's own directories.
+func storeDir(name string) bool {
+	switch strings.ToLower(name) {
+	case "_index", "_blobs", "_ca", "_delete_staging":
+		return true
+	default:
+		return false
+	}
+}
+
+// hostDir returns the legacy on-disk tree for a host. A host whose sanitized
+// name lands on the store root, one of its own directories, or outside the
+// traffic root has no tree, though callers still delete its rows.
+func hostDir(root, host string) (string, bool) {
+	name := sanitize(host)
+	if name == "." || name == ".." || storeDir(name) {
+		return "", false
+	}
+	dir := filepath.Join(root, name)
+	rel, err := filepath.Rel(root, dir)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return dir, true
+}
+
 var blobHashRe = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 // blobPath locates a stored blob. Current writes use one bucket level; blobs
@@ -1690,7 +1716,9 @@ func (t *Traffic) hostTrees(where string, args ...any) ([]string, error) {
 		if err := rows.Scan(&h); err != nil {
 			return nil, err
 		}
-		dirs = append(dirs, filepath.Join(t.dir, sanitize(h)))
+		if dir, ok := hostDir(t.dir, h); ok {
+			dirs = append(dirs, dir)
+		}
 	}
 	return dirs, rows.Err()
 }
@@ -1923,7 +1951,9 @@ func (t *Traffic) stageDeleteHostsExact(hosts []string, archiveID, taskID int64)
 	// own an orphaned directory that this deletion should take with it.
 	legacy := make([]string, 0, len(unique))
 	for _, h := range unique {
-		legacy = append(legacy, filepath.Join(t.dir, sanitize(h)))
+		if dir, ok := hostDir(t.dir, h); ok {
+			legacy = append(legacy, dir)
+		}
 	}
 
 	tx, err := t.db.Begin()
