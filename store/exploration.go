@@ -680,7 +680,7 @@ func (s *Store) AddGoals(ctx context.Context, explorationID int64, goals []tools
 
 	var locked int64
 	if err := tx.QueryRowContext(ctx,
-		`SELECT id FROM explorations WHERE id = $1 FOR UPDATE`, explorationID,
+		`SELECT id FROM explorations WHERE id = $1 FOR NO KEY UPDATE`, explorationID,
 	).Scan(&locked); err != nil {
 		return nil, fmt.Errorf("lock exploration %d: %w", explorationID, err)
 	}
@@ -775,7 +775,7 @@ func (s *Store) AddIntents(ctx context.Context, explorationID int64, intents []t
 
 	var locked int64
 	if err := tx.QueryRowContext(ctx,
-		`SELECT id FROM explorations WHERE id = $1 FOR UPDATE`, explorationID,
+		`SELECT id FROM explorations WHERE id = $1 FOR NO KEY UPDATE`, explorationID,
 	).Scan(&locked); err != nil {
 		return nil, fmt.Errorf("lock exploration %d: %w", explorationID, err)
 	}

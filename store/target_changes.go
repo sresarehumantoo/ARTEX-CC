@@ -54,7 +54,7 @@ func queryTargetChanges(ctx context.Context, q interface {
 func lockExploration(ctx context.Context, tx *sql.Tx, explorationID int64) error {
 	var locked int64
 	if err := tx.QueryRowContext(ctx,
-		`SELECT id FROM explorations WHERE id = $1 FOR UPDATE`, explorationID,
+		`SELECT id FROM explorations WHERE id = $1 FOR NO KEY UPDATE`, explorationID,
 	).Scan(&locked); err != nil {
 		return fmt.Errorf("lock exploration %d: %w", explorationID, err)
 	}
