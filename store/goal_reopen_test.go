@@ -535,3 +535,33 @@ func TestConcurrentMergeAndProveGoalDoNotDeadlock(t *testing.T) {
 		}
 	}
 }
+
+func TestConcurrentCrossedProveGoalsDoNotDeadlock(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	_, expID := testEngagement(t, s, "crossed-prove-race")
+
+	for round := range 100 {
+		g1 := provedGoal(t, s, expID)
+		g2 := provedGoal(t, s, expID)
+
+		start := make(chan struct{})
+		errs := make(chan error, 2)
+		var wg sync.WaitGroup
+		for _, p := range [][2]int64{{g1, g2}, {g2, g1}} {
+			wg.Go(func() {
+				<-start
+				errs <- s.ProveGoal(ctx, p[0], p[1])
+			})
+		}
+		close(start)
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			if err != nil {
+				t.Fatalf("round %d: ProveGoal: %v", round, err)
+			}
+		}
+	}
+}
