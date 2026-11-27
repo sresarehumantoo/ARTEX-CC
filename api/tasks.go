@@ -46,10 +46,15 @@ func (a *API) handleTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	status, _ := overview.Task["status"].(string)
+	if status == "" {
+		status = "open"
+	}
+
 	t := taskSummary{
 		ID:     a.taskID,
 		Title:  goal,
-		Status: "running",
+		Status: status,
 		Stats: taskStats{
 			Findings:    overview.FindingsTotal,
 			Assets:      assetTotal,
@@ -59,9 +64,6 @@ func (a *API) handleTasks(w http.ResponseWriter, r *http.Request) {
 	if tg, ok := a.store.(taskGetter); ok {
 		if task, err := tg.GetTask(a.taskID); err == nil && task != nil {
 			t.CreatedAt = task.CreatedAt.Format(time.RFC3339)
-			if task.Status != "" {
-				t.Status = task.Status
-			}
 			if t.Title == "" {
 				t.Title = task.Name
 			}
