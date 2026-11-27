@@ -1,6 +1,7 @@
 package traffic
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -290,5 +291,47 @@ func TestPatternsEmpty(t *testing.T) {
 	}
 	if len(p.NewEndpoints) != 0 {
 		t.Errorf("expected no new endpoints, got %d", len(p.NewEndpoints))
+	}
+}
+
+func TestPageHostPortAndDefaultPort(t *testing.T) {
+	tr := openTestTraffic(t)
+	seedExchange(t, tr, "tls", "shop.example.com", "GET", "/login", "https://shop.example.com/login", 200, "", 0, 0, "", nil, "", nil)
+	seedExchange(t, tr, "plain", "shop.example.com", "GET", "/plain", "http://shop.example.com/plain", 200, "", 0, 0, "", nil, "", nil)
+	seedExchange(t, tr, "alt", "shop.example.com", "GET", "/alt", "http://shop.example.com:8443/alt", 200, "", 0, 0, "", nil, "", nil)
+	seedExchange(t, tr, "v6", "2001:db8::1", "GET", "/admin", "https://[2001:db8::1]/admin", 200, "", 0, 0, "", nil, "", nil)
+	seedExchange(t, tr, "ws", "chat.example.com", "GET", "/socket", "wss://chat.example.com/socket", 101, "", 0, 0, "", nil, "", nil)
+	seedExchange(t, tr, "redir", "go.example.com", "GET", "/r", "http://go.example.com/r?next=http://go.example.com:8443/x", 302, "", 0, 0, "", nil, "", nil)
+	seedExchange(t, tr, "caps", "Mixed.Example.com", "GET", "/", "https://Mixed.Example.com/", 200, "", 0, 0, "", nil, "", nil)
+
+	for _, tc := range []struct {
+		host string
+		want []string
+	}{
+		{"shop.example.com:443", []string{"tls"}},
+		{"https://shop.example.com:443/login", []string{"tls"}},
+		{"https://shop.example.com/login", []string{"alt", "plain", "tls"}},
+		{"shop.example.com:80", []string{"plain"}},
+		{"shop.example.com:8443", []string{"alt"}},
+		{"[2001:db8::1]:443", []string{"v6"}},
+		{"chat.example.com:443", []string{"ws"}},
+		{"go.example.com:8443", nil},
+		{"go.example.com:80", []string{"redir"}},
+		{"mixed.example.com:443", []string{"caps"}},
+		{"https://MIXED.example.com/", []string{"caps"}},
+		{"shop.example.com", []string{"alt", "plain", "tls"}},
+	} {
+		rows, _, err := tr.Page(PageQuery{Host: tc.host, RespMin: -1, RespMax: -1, Sort: "id"}, 0, 50)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, r := range rows {
+			got = append(got, r.ID)
+		}
+		slices.Sort(got)
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("Page(host=%q) = %v, want %v", tc.host, got, tc.want)
+		}
 	}
 }

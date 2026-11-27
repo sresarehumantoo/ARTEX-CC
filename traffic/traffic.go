@@ -1295,7 +1295,16 @@ func (t *Traffic) pageWhere(f PageQuery) (where string, args []any) {
 		args = append(args, vs...)
 	}
 	if h := strings.TrimSpace(f.Host); h != "" {
-		add("host LIKE ?", "%"+h+"%")
+		// Rows store the hostname without a port, so "host:port" or a URL can
+		// never LIKE-match. Those get an exact match instead, and a bare name
+		// stays a substring match for the web UI filter box.
+		hostName, port, err := normalizeSearchHost(h)
+		if err == nil && (port != "" || strings.Contains(h, "://")) {
+			cond, hargs := hostAuthorityFilter(hostName, port)
+			add(cond, hargs...)
+		} else {
+			add("host LIKE ?", "%"+h+"%")
+		}
 	}
 	if m := strings.TrimSpace(f.Method); m != "" {
 		add("method=?", strings.ToUpper(m))
@@ -2365,20 +2374,9 @@ func (t *Traffic) query(host, contains, bodyContains string, page, limit int) ([
 		if err != nil {
 			return nil, err
 		}
-		q += ` AND host=?`
-		args = append(args, hostName)
-		if port != "" {
-			// Recorded rows historically store URL.Hostname() (without the port),
-			// so constrain the original URL authority as a compatibility fallback.
-			// New and old captures therefore share the same search contract.
-			authority := net.JoinHostPort(hostName, port)
-			q += ` AND (url LIKE ? OR url LIKE ? OR url LIKE ?)`
-			args = append(args,
-				"%://"+authority+"/%",
-				"%://"+authority+"?%",
-				"%://"+authority,
-			)
-		}
+		cond, hargs := hostAuthorityFilter(hostName, port)
+		q += ` AND ` + cond
+		args = append(args, hargs...)
 	}
 	if contains != "" {
 		q += ` AND (url LIKE ? OR url_template LIKE ?)`
@@ -2411,6 +2409,37 @@ func (t *Traffic) query(host, contains, bodyContains string, page, limit int) ([
 		out = append(out, m)
 	}
 	return out, rows.Err()
+}
+
+// hostAuthorityFilter matches hostName exactly and, when port is set, checks
+// the port against the recorded URL.
+func hostAuthorityFilter(hostName, port string) (string, []any) {
+	// Recorded hosts keep the client's case; hostName is already lowercase.
+	if port == "" {
+		return "lower(host)=?", []any{hostName}
+	}
+	authority := net.JoinHostPort(hostName, port)
+	var prefixes []string
+	// Anchored per scheme, so a URL quoted in the query string can't match.
+	for _, scheme := range []string{"http", "https", "ws", "wss"} {
+		prefixes = append(prefixes, scheme+"://"+authority)
+	}
+	// Clients leave a default port out of the Host header, so https://host:443
+	// is recorded as https://host (and wss://host for a WebSocket).
+	bare := strings.TrimSuffix(authority, ":"+port)
+	switch port {
+	case "80":
+		prefixes = append(prefixes, "http://"+bare, "ws://"+bare)
+	case "443":
+		prefixes = append(prefixes, "https://"+bare, "wss://"+bare)
+	}
+	args := []any{hostName}
+	var conds []string
+	for _, p := range prefixes {
+		conds = append(conds, "url LIKE ? OR url LIKE ? OR url LIKE ?")
+		args = append(args, p+"/%", p+"?%", p)
+	}
+	return "lower(host)=? AND (" + strings.Join(conds, " OR ") + ")", args
 }
 
 // normalizeSearchHost accepts the forms agents commonly have at hand while
