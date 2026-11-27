@@ -3,6 +3,7 @@ package hookvm
 import (
 	"context"
 	"errors"
+	"runtime"
 	"testing"
 )
 
@@ -40,5 +41,56 @@ func OnRequest(req *Request) error {
 	}
 	if got := req.Headers["X-Eq"][0]; got != "FTFTT" {
 		t.Fatalf("X-Eq = %q, want FTFTT", got)
+	}
+}
+
+// Each case replaces 8 KiB of matches with 8 KiB apiece, a 64 MiB result. The
+// budget has to stop the run before that result is built, not after.
+func TestReplaceAllResultStoppedByMemoryBudget(t *testing.T) {
+	srcs := map[string]string{
+		"strings": `package hook
+import "strings"
+func OnRequest(req *Request) error {
+	s := strings.Repeat("a", 8*1024)
+	_ = strings.ReplaceAll(s, "a", strings.Repeat("b", 8*1024))
+	return nil
+}`,
+		"bytes": `package hook
+import "bytes"
+func OnRequest(req *Request) error {
+	b := bytes.Repeat([]byte("a"), 8*1024)
+	_ = bytes.ReplaceAll(b, []byte("a"), bytes.Repeat([]byte("b"), 8*1024))
+	return nil
+}`,
+		"regexp": `package hook
+import (
+	"regexp"
+	"strings"
+)
+func OnRequest(req *Request) error {
+	s := strings.Repeat("a", 8*1024)
+	_ = regexp.ReplaceAllString("a", s, strings.Repeat("b", 8*1024))
+	return nil
+}`,
+	}
+	for name, src := range srcs {
+		t.Run(name, func(t *testing.T) {
+			prog := compile(t, "request", src)
+			var before, after runtime.MemStats
+			runtime.ReadMemStats(&before)
+			err := prog.RunRequest(context.Background(), &Request{}, RunOptions{MaxMemory: 1 << 20})
+			runtime.ReadMemStats(&after)
+			if !errors.Is(err, ErrMemoryLimit) {
+				t.Fatalf("err = %v, want ErrMemoryLimit", err)
+			}
+			// Race builds drop sync.Pool items, so regexp allocates fresh
+			// matcher state for every one of the 8K matches.
+			if name == "regexp" && raceEnabled {
+				return
+			}
+			if got := after.TotalAlloc - before.TotalAlloc; got > 16<<20 {
+				t.Fatalf("the run allocated %d MiB under a 1 MiB budget", got>>20)
+			}
+		})
 	}
 }
