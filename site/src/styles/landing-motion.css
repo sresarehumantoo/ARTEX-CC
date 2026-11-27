@@ -413,3 +413,285 @@
     fill: var(--color-neutral-400);
   }
 }
+
+.proxy-flow {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.proxy-narrow {
+  display: none;
+  max-width: 24rem;
+  margin-inline: auto;
+}
+
+@media (max-width: 40rem) {
+  .proxy-wide {
+    display: none;
+  }
+
+  .proxy-narrow {
+    display: block;
+  }
+}
+
+.proxy-flow .wire {
+  fill: none;
+  stroke: oklch(1 0 0 / 0.14);
+}
+
+.proxy-flow .box rect {
+  fill: var(--color-ink);
+  stroke: oklch(1 0 0 / 0.14);
+}
+
+.proxy-flow .box.mid rect {
+  stroke: oklch(0.75 0.14 232 / 0.5);
+}
+
+.proxy-flow .box .tap {
+  fill: var(--color-sky-400);
+  opacity: 0;
+}
+
+.proxy-flow text {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  fill: var(--color-neutral-300);
+  text-anchor: middle;
+}
+
+.proxy-flow text.k {
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--color-neutral-600);
+}
+
+.proxy-flow .drop {
+  fill: none;
+  stroke: var(--color-sky-400);
+  stroke-dasharray: 2 3;
+}
+
+.proxy-flow .packet {
+  fill: var(--color-sky-300);
+}
+
+.proxy-flow .packet.res {
+  fill: var(--color-neutral-300);
+}
+
+.proxy-flow .packet.res.warn {
+  fill: var(--color-amber-400);
+}
+
+.proxy-flow .packet.res.bad {
+  fill: var(--color-rose-400);
+}
+
+.proxy-rows-wrap {
+  height: 10rem;
+  overflow: hidden;
+}
+
+.proxy-rows > li {
+  display: grid;
+  grid-template-columns: 4ch 7ch minmax(0, 1fr) 4ch 6ch;
+  gap: 1rem;
+  align-items: center;
+  height: 2rem;
+  padding-inline: 1rem;
+  border-bottom: 1px solid oklch(1 0 0 / 0.04);
+  font-variant-numeric: tabular-nums;
+}
+
+.proxy-status {
+  color: var(--color-emerald-400);
+}
+
+.proxy-status.warn {
+  color: var(--color-amber-400);
+}
+
+.proxy-status.bad {
+  color: var(--color-rose-400);
+}
+
+.proxy-ms {
+  text-align: right;
+  color: var(--color-neutral-600);
+}
+
+@media (max-width: 40rem) {
+  .proxy-rows > li {
+    grid-template-columns: 3ch 6ch minmax(0, 1fr) 4ch;
+    gap: 0.75rem;
+  }
+
+  .proxy-ms {
+    display: none;
+  }
+}
+
+@property --done {
+  syntax: '<integer>';
+  inherits: true;
+  initial-value: 0;
+}
+
+.coverage {
+  view-timeline: --coverage block;
+}
+
+.coverage-count {
+  counter-reset: done var(--done);
+  color: var(--color-neutral-300);
+  font-variant-numeric: tabular-nums;
+}
+
+.coverage-count::before {
+  content: counter(done);
+  display: inline-block;
+  min-width: 2ch;
+  text-align: right;
+  font-weight: 500;
+  color: #fff;
+}
+
+.coverage-bar {
+  position: relative;
+  flex: 1 1 8rem;
+  align-self: center;
+  min-width: 6rem;
+  height: 2px;
+  background: oklch(1 0 0 / 0.09);
+}
+
+.coverage-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-sky-400);
+  transform-origin: left;
+  transform: scaleX(calc(var(--done) / var(--cov-total)));
+}
+
+.coverage-matrix {
+  display: grid;
+  grid-template-columns: minmax(7rem, 11rem) repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  padding: 1rem;
+  font-size: 11.5px;
+}
+
+.coverage-area {
+  overflow: hidden;
+  text-align: center;
+  color: var(--color-neutral-500);
+}
+
+@media (max-width: 40rem) {
+  .coverage-matrix {
+    grid-template-columns: minmax(4.75rem, 6rem) repeat(7, minmax(0, 1fr));
+    gap: 3px;
+    padding: 0.75rem;
+    font-size: 9.5px;
+  }
+
+  .coverage-area {
+    font-size: 9px;
+  }
+
+  .coverage-matrix .coverage-cell {
+    min-height: 0;
+    aspect-ratio: 1.25 / 1;
+    border-radius: 3px;
+  }
+}
+
+.coverage-cell {
+  min-height: 18px;
+  aspect-ratio: 2.2 / 1;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+.coverage-key {
+  width: 22px;
+  min-height: 10px;
+}
+
+.coverage-cell[data-s='open'] {
+  border: 1px dashed var(--color-neutral-700);
+}
+
+.coverage-cell[data-s='na'] {
+  background: repeating-linear-gradient(135deg, transparent 0 4px, oklch(1 0 0 / 0.05) 4px 5px);
+  border-color: oklch(1 0 0 / 0.05);
+}
+
+.coverage-cell[data-s='ok'] {
+  background: oklch(0.75 0.14 232 / 0.16);
+  border-color: oklch(0.75 0.14 232 / 0.32);
+}
+
+.coverage-cell[data-s='finding'] {
+  background: oklch(0.72 0.17 12 / 0.28);
+  border-color: var(--color-rose-400);
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .coverage-count,
+    .coverage-bar::after {
+      animation-name: coverage-count;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: --coverage;
+      animation-range: cover 22% cover 58%;
+    }
+
+    .coverage-matrix .coverage-cell:is([data-s='ok'], [data-s='finding']) {
+      animation-name: coverage-land;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: --coverage;
+      animation-range: cover calc(22% + var(--o) * (32% / var(--cov-n))) cover calc(26% + var(--o) * (32% / var(--cov-n)));
+    }
+
+    .coverage-matrix .coverage-cell[data-s='finding'] {
+      animation-name: coverage-land-finding;
+    }
+  }
+}
+
+@keyframes coverage-count {
+  from {
+    --done: 0;
+  }
+}
+
+@keyframes coverage-land {
+  from {
+    background: transparent;
+    border-color: var(--color-neutral-700);
+    border-style: dashed;
+    scale: 0.9;
+  }
+}
+
+@keyframes coverage-land-finding {
+  from {
+    background: transparent;
+    border-color: var(--color-neutral-700);
+    border-style: dashed;
+    scale: 0.9;
+  }
+
+  40% {
+    background: oklch(0.72 0.17 12 / 0.55);
+    scale: 1.06;
+  }
+}
