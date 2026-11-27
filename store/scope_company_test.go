@@ -92,6 +92,23 @@ func TestIsInScopeTaskCompanyID(t *testing.T) {
 	assertInScope(t, s, task.ID, "elsewhere.example", false)
 }
 
+func TestIsInScopeTaskCompanyIDWithoutScopeFailsClosed(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	name := fmt.Sprintf("scope-task-company-empty-%d", time.Now().UnixNano())
+	companyID := addScopedCompany(t, s, name, "only a keyword")
+	task, err := s.CreateTask(ctx, "scope task company empty", "desc", "goal", &companyID)
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+
+	reason := assertInScope(t, s, task.ID, "anything.example", false)
+	if !strings.Contains(reason, name) || !strings.Contains(reason, "add_company_scope") {
+		t.Errorf("reason %q should name the company and add_company_scope", reason)
+	}
+}
+
 func TestListScopeRulesExpandsCompanyEntries(t *testing.T) {
 	t.Parallel()
 	s := testDB(t)

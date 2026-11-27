@@ -316,12 +316,12 @@ func (s *Store) loadCompanyScopeRules(ctx context.Context, taskID int64) ([]scop
 	return out, rows.Err()
 }
 
-// companiesWithoutHostScope names the task's company entries that contribute no
+// companiesWithoutHostScope names the task's companies that contribute no
 // enforceable rule, so IsInScope fails closed instead of treating them as absent.
 func (s *Store) companiesWithoutHostScope(ctx context.Context, taskID int64) ([]string, error) {
 	rows, err := s.QueryContext(ctx, `
 		SELECT c.name FROM companies c
-		WHERE c.id IN (SELECT company_id FROM task_scope WHERE task_id = $1 AND kind = 'company')
+		WHERE c.id IN (`+scopeCompanyIDsSQL+`)
 		  AND NOT EXISTS (
 			SELECT 1 FROM company_scope cs
 			WHERE cs.company_id = c.id AND cs.kind IN ('domain','ip','cidr'))
