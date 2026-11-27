@@ -216,7 +216,7 @@ func (m *statefulMock) ListCoverageGaps(_ context.Context, _ int64, _ int64) (*C
 
 func (m *statefulMock) GraphOverview(_ context.Context, _ int64) (*Overview, error) {
 	return &Overview{
-		Task:          map[string]any{"goal": "test"},
+		Task:          map[string]any{"goal": "test", "status": "open"},
 		FindingsTotal: len(m.findings),
 		Coverage:      map[string]any{"entries": len(m.coverage)},
 	}, nil

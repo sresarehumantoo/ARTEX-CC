@@ -200,10 +200,10 @@ func TestListEngagementsMock(t *testing.T) {
 	now := time.Now()
 
 	cols := []string{"id", "goal", "description", "status", "exploration_id", "created_at", "node_count", "finding_count", "asset_count", "goals_met"}
-	mock.ExpectQuery("SELECT .+ FROM tasks t ORDER BY").
+	mock.ExpectQuery("SELECT .+ FROM tasks t JOIN explorations e .+ ORDER BY").
 		WillReturnRows(sqlmock.NewRows(cols).
 			AddRow(int64(1), "g1", "d1", "open", int64(10), now, 5, 2, 3, false).
-			AddRow(int64(2), "g2", "d2", "done", int64(20), now.Add(-time.Hour), 10, 4, 6, true))
+			AddRow(int64(2), "g2", "d2", "achieved", int64(20), now.Add(-time.Hour), 10, 4, 6, true))
 
 	engagements, err := s.ListEngagements(ctx)
 	if err != nil {
@@ -232,7 +232,7 @@ func TestListEngagementsMock_Empty(t *testing.T) {
 	ctx := context.Background()
 
 	cols := []string{"id", "goal", "description", "status", "exploration_id", "created_at", "node_count", "finding_count", "asset_count", "goals_met"}
-	mock.ExpectQuery("SELECT .+ FROM tasks t ORDER BY").
+	mock.ExpectQuery("SELECT .+ FROM tasks t JOIN explorations e .+ ORDER BY").
 		WillReturnRows(sqlmock.NewRows(cols))
 
 	engagements, err := s.ListEngagements(ctx)

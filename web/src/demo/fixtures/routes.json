@@ -2028,7 +2028,7 @@
   },
   {
    "name": "goal_met",
-   "description": "Mark the entire engagement as complete. Call this when all goals have been proved and the engagement is finished. Sets the task status to done. Provide an optional summary of what was accomplished.",
+   "description": "Mark the entire engagement as complete. Call this when all goals have been proved and the engagement is finished. Sets the engagement status to achieved. Provide an optional summary of what was accomplished.",
    "read_only": false,
    "category": "engagement",
    "schema": {

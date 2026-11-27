@@ -99,7 +99,7 @@ func makeGoalMet(store Store, taskID int64) Tool {
 		Name:     "goal_met",
 		Category: CategoryEngagement,
 		Description: "Mark the entire engagement as complete. Call this when all goals have been proved and the engagement is finished. " +
-			"Sets the task status to done. Provide an optional summary of what was accomplished.",
+			"Sets the engagement status to achieved. Provide an optional summary of what was accomplished.",
 		Schema: obj(map[string]any{
 			"summary": str("optional summary of what was accomplished"),
 		}),
@@ -286,13 +286,18 @@ func makeEngagementStatus(store Store, defaultTaskID, defaultExplorationID int64
 				return errResult(err.Error()), nil
 			}
 
+			status, _ := ov.Task["status"].(string)
+			if status == "" {
+				return errResult(fmt.Sprintf("engagement %d not found", taskID)), nil
+			}
+
 			_, goal, _ := store.Root(ctx, explorationID)
 
 			result := map[string]any{
 				"task_id":        taskID,
 				"exploration_id": explorationID,
 				"goal":           goal,
-				"status":         ov.Task["status"],
+				"status":         status,
 				"findings_total": ov.FindingsTotal,
 				"facts_total":    ov.FactsTotal,
 				"frontier_open":  ov.FrontierOpen,

@@ -48,7 +48,7 @@ func (m *mockStore) FindingExists(_ context.Context, _ int64) (bool, error) {
 
 func (m *mockStore) GraphOverview(_ context.Context, _ int64) (*Overview, error) {
 	return &Overview{
-		Task:          map[string]any{"goal": "test"},
+		Task:          map[string]any{"goal": "test", "status": "open"},
 		FactsTotal:    3,
 		FindingsTotal: 1,
 		Coverage:      map[string]any{},

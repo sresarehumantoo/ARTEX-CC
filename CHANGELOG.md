@@ -16,6 +16,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Deleting traffic for a host whose name sanitizes to one of the store's own directories (`_index`, `_blobs`, `_ca`, `_delete_staging`) or to `.`/`..` could move that directory out of the store. Only the host's rows are deleted now.
 - A company linked to an engagement through `tasks.company_id` (set by `import_engagement` from an export's top-level `company_id`) now fails closed like a `company` scope entry when it has no domain, IP or CIDR lines. Before, it contributed no rules, so an engagement with no other scope entries still allowed every target.
 - Two concurrent `prove_goal` calls that each used the other's goal as evidence could deadlock, and PostgreSQL aborted one with "deadlock detected". When the evidence is itself a goal, `prove_goal` now locks it together with the goal being proved, in id order.
+- `list_engagements` reports the same `open` or `achieved` status as `engagement_status` and `graph_overview`, instead of `created` for every engagement not yet completed. `engagement_status` returns an error for an engagement whose exploration no longer exists, instead of an empty status.
 
 ### Security
 - Bumped `github.com/andybalholm/brotli` to v1.2.7 for GO-2026-6888, reachable through traffic replay and HAR import.
