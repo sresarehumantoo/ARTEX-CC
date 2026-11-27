@@ -80,10 +80,17 @@ jobs:
             --exclude '^https://app\.hackthebox\.com'
             --accept 200,206,429
             'site/dist/**/*.html'
-      - uses: actions/upload-pages-artifact@v4
+      # upload-pages-artifact excludes dot-directories, which would drop .well-known.
+      - name: Archive Pages artifact
+        if: github.event_name != 'pull_request'
+        run: tar --dereference --hard-dereference --directory site/dist -cvf "$RUNNER_TEMP/artifact.tar" .
+      - uses: actions/upload-artifact@v4
         if: github.event_name != 'pull_request'
         with:
-          path: site/dist
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
 
   deploy:
     if: github.event_name != 'pull_request'
