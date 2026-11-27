@@ -54,6 +54,19 @@ func (s *Store) AddFinding(ctx context.Context, f tools.FindingInput) (findingID
 	}
 	defer tx.Rollback() //nolint:errcheck
 
+	if f.IntentID > 0 {
+		var kind string
+		err = tx.QueryRowContext(ctx,
+			`SELECT kind FROM exploration_nodes WHERE id = $1 AND exploration_id = $2`,
+			f.IntentID, f.ExplorationID).Scan(&kind)
+		if err == sql.ErrNoRows || (err == nil && kind != KindIntent) {
+			return 0, 0, fmt.Errorf("intent_id %d is not an intent in this engagement", f.IntentID)
+		}
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+
 	if err = tx.QueryRowContext(ctx, `
 		INSERT INTO findings (task_id, vulnclass, name, severity, summary, evidence, worker, asset_ids, status, report)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, '')

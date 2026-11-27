@@ -70,6 +70,13 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 				return errResult(err.Error()), nil
 			}
 
+			if id := pid(a.IntentID); id > 0 {
+				node, err := store.NodeDetail(ctx, id)
+				if err != nil || node == nil || node.Kind != KindIntent {
+					return errResult("intent_id must be an intent of this task"), nil
+				}
+			}
+
 			input := FindingInput{
 				TaskID:        taskID,
 				ExplorationID: explorationID,
