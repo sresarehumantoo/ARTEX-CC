@@ -45,7 +45,7 @@ jobs:
           fail_ci_if_error: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: web/.nvmrc
       - name: Frontend type-check
         run: cd web && npm ci && npx tsc -b --noEmit
 
