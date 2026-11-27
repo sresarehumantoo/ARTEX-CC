@@ -44,7 +44,7 @@ prints the exact command for your OS). Then start Claude Code:
 claude
 ```
 
-All 65 MCP tools appear automatically (the `traffic_*` tools and
+All the MCP tools appear automatically (the `traffic_*` tools and
 `bind_finding_traffic` only because the config passes `--proxy`). Claude also reads the
 `artex://engagement` resource, which contains the orchestration guide and your
 engagement goal. You are ready to go.
