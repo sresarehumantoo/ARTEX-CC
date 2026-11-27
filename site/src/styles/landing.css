@@ -1,10 +1,12 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/geist';
-@import '@fontsource-variable/geist-mono';
+@import '@fontsource-variable/ibm-plex-sans';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
 
 @theme {
-  --font-sans: 'Geist Variable', system-ui, sans-serif;
-  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+  --font-sans: 'IBM Plex Sans Variable', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --color-ink: oklch(0.145 0 0);
   --color-panel: oklch(0.185 0 0);
   --color-line: oklch(1 0 0 / 0.09);
@@ -32,32 +34,14 @@
 
 .grid-bg {
   background-image:
-    linear-gradient(to right, oklch(1 0 0 / 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, oklch(1 0 0 / 0.04) 1px, transparent 1px);
+    linear-gradient(to right, oklch(1 0 0 / 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(1 0 0 / 0.025) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
 }
 
-.hero-glow {
-  background:
-    radial-gradient(ellipse 60% 50% at 50% 0%, oklch(0.75 0.14 232 / 0.16), transparent 70%),
-    radial-gradient(ellipse 40% 30% at 85% 10%, oklch(0.78 0.13 210 / 0.08), transparent 70%);
-}
-
 .section-glow {
   background: radial-gradient(ellipse 50% 40% at 50% 0%, oklch(0.75 0.14 232 / 0.06), transparent 70%);
-}
-
-.text-gradient {
-  background: linear-gradient(180deg, #fff 30%, oklch(0.8 0 0));
-  background-clip: text;
-  color: transparent;
-}
-
-.text-gradient-muted {
-  background: linear-gradient(90deg, oklch(0.62 0 0), oklch(0.5 0 0));
-  background-clip: text;
-  color: transparent;
 }
 
 @utility card {

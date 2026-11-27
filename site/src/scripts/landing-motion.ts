@@ -33,7 +33,7 @@ if ('IntersectionObserver' in window) {
   const offscreen = new IntersectionObserver((entries) => {
     for (const entry of entries) entry.target.toggleAttribute('data-offscreen', !entry.isIntersecting);
   });
-  for (const el of [document.getElementById('hero'), stream]) if (el) offscreen.observe(el);
+  if (stream) offscreen.observe(stream);
 }
 
 // iOS Safari only applies :active styles once the page has a touchstart listener.
@@ -55,7 +55,7 @@ if (finePointer.matches && !reducedMotion.matches) {
     'pointermove',
     (event) => {
       if (event.pointerType !== 'mouse') return;
-      target = (event.target as Element).closest<HTMLElement>('[data-spotlight], [data-spotlight-area]');
+      target = (event.target as Element).closest<HTMLElement>('[data-spotlight]');
       if (!target) return;
       x = event.clientX;
       y = event.clientY;
