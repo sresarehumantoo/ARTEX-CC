@@ -17,6 +17,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - A company linked to an engagement through `tasks.company_id` (set by `import_engagement` from an export's top-level `company_id`) now fails closed like a `company` scope entry when it has no domain, IP or CIDR lines. Before, it contributed no rules, so an engagement with no other scope entries still allowed every target.
 - Two concurrent `prove_goal` calls that each used the other's goal as evidence could deadlock, and PostgreSQL aborted one with "deadlock detected". When the evidence is itself a goal, `prove_goal` now locks it together with the goal being proved, in id order.
 - `list_engagements` reports the same `open` or `achieved` status as `engagement_status` and `graph_overview`, instead of `created` for every engagement not yet completed. `engagement_status` returns an error for an engagement whose exploration no longer exists, instead of an empty status.
+- The live demo's Tools page listed 60 tools with stale descriptions and parameters, missing `list_changes`, `record_target_change` and `record_target_restore`. Its fixture is regenerated from the tool catalog, and `go test ./api` now fails when it drifts (`go test ./api -run TestDemoToolsFixture -update-demo-fixture` rewrites it).
 
 ### Security
 - Bumped `github.com/andybalholm/brotli` to v1.2.7 for GO-2026-6888, reachable through traffic replay and HAR import.

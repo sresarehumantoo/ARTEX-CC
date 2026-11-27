@@ -1484,7 +1484,7 @@
   },
   {
    "name": "graph_overview",
-   "description": "The task board: goals and their states, open/running/done intents, recent facts, findings, credentials, coverage. Call this FIRST at the start of every planning cycle to understand what has been done, what is in progress, and what needs doing next. After subagents complete work, call it again to see their results and plan the next round. Includes strategic hints from the human/main agent that must be incorporated when generating intents.",
+   "description": "The task board: goals and their states, open/running/done intents, recent facts, findings, credentials, coverage, and unrestored_target_changes (see record_target_change). Call this FIRST at the start of every planning cycle to understand what has been done, what is in progress, and what needs doing next. After subagents complete work, call it again to see their results and plan the next round. Includes strategic hints from the human/main agent that must be incorporated when generating intents.",
    "read_only": true,
    "category": "graph",
    "schema": {
@@ -1494,7 +1494,7 @@
   },
   {
    "name": "add_intent",
-   "description": "Generate exploration directions into the frontier and link them into the exploration graph. An intent is an open exploration direction: describe freely in one summary sentence what to explore/verify/exploit.\nBatch preferred: put multiple new directions into the intents array in a single submission (saves round trips). Returns an ids array, same length and order as intents. For a single intent, omit intents and pass the top-level summary.\nAfter calling graph_overview and identifying gaps, use this to queue new work. Each intent is one exploration direction.",
+   "description": "Generate exploration directions into the frontier and link them into the exploration graph. An intent is an open exploration direction: describe freely in one summary sentence what to explore/verify/exploit.\nBatch preferred: put multiple new directions into the intents array in a single submission (saves round trips). Returns an ids array, same length and order as intents. For a single intent, omit intents and pass the top-level summary.\nAfter calling graph_overview and identifying gaps, use this to queue new work. Each intent is one exploration direction.\nOther agents may plan the same work at the same time. An intent whose summary (ignoring case, punctuation and spacing) and asset_ids match an open or running intent is not added: skipped gives the existing_id to start_intent instead. open_intents lists unclaimed intents that already existed; if one covers the same work as an intent you added, work that one and cancel_intent yours.",
    "read_only": false,
    "category": "graph",
    "schema": {
@@ -1534,7 +1534,7 @@
   },
   {
    "name": "record_fact",
-   "description": "Write an exploration fact/conclusion into the exploration graph, linked to the intent that produced it (intent_id). Call this IMMEDIATELY when you learn something, do not wait until the end. Facts written here are visible to the coordinator and other subagents via graph_overview and list_facts.\nUsed to record both positive conclusions (fingerprinting/enumeration) and negative conclusions ('port closed'/'parameter not injectable').\nMultiple observations from one exploration must be consolidated into ONE fact, not split into many.\nfacts is the preferred parameter: facts:[{...}] with one item per mutually distinct conclusion.\nevidence = one line of key evidence supporting this conclusion.\nconfidence = observed (seen directly) | inferred (inferred from phenomena).\nsource = target_response | tool_output | third_party_intel | operator_input | inference (default).",
+   "description": "Write an exploration fact/conclusion into the exploration graph, linked to the intent that produced it (intent_id). Passing intent_id for an intent you hold also renews your claim on it (pass owner too if you claimed with one). Call this IMMEDIATELY when you learn something, do not wait until the end. Facts written here are visible to the coordinator and other subagents via graph_overview and list_facts.\nUsed to record both positive conclusions (fingerprinting/enumeration) and negative conclusions ('port closed'/'parameter not injectable').\nMultiple observations from one exploration must be consolidated into ONE fact, not split into many.\nfacts is the preferred parameter: facts:[{...}] with one item per mutually distinct conclusion.\nevidence = one line of key evidence supporting this conclusion.\nconfidence = observed (seen directly) | inferred (inferred from phenomena).\nsource = target_response | tool_output | third_party_intel | operator_input | inference (default).",
    "read_only": false,
    "category": "graph",
    "schema": {
@@ -1589,6 +1589,10 @@
       },
       "minItems": 1,
       "type": "array"
+     },
+     "owner": {
+      "description": "the owner you passed to start_intent, if you claimed with one, so this call renews that claim",
+      "type": "string"
      }
     },
     "required": [
@@ -1677,11 +1681,15 @@
   },
   {
    "name": "set_goals",
-   "description": "Add exploration goals to this task. A goal = a final deliverable/verifiable result, not an attack step.\nBatch preferred: put multiple goals in the goals array. For a single goal, pass the top-level text.\nvulnclass is optional: the corresponding vulnerability class.",
+   "description": "Set the exploration goals of this task. A goal = a final deliverable/verifiable result, not an attack step.\nBatch preferred: put multiple goals in the goals array. For a single goal, pass the top-level text.\nvulnclass is optional: the corresponding vulnerability class.\nGoals are set once per engagement. If the engagement already has goals (another agent may have set them), nothing is added and existing_goals lists them: work toward those. Pass append: true only to add goals to an engagement that already has some. A goal whose text matches an existing goal (ignoring case and whitespace) is always skipped.",
    "read_only": false,
    "category": "engagement",
    "schema": {
     "properties": {
+     "append": {
+      "description": "add these goals even though the engagement already has goals",
+      "type": "boolean"
+     },
      "goals": {
       "description": "[Prefer this] array of goals to add",
       "items": {
@@ -1756,7 +1764,7 @@
   },
   {
    "name": "report_finding",
-   "description": "Record a confirmed finding, with evidence providing verifiable proof such as command output and logs. Pass the current intent_id when in a task context. After reporting, the coordinator sees this in graph_overview and can use it as evidence for prove_goal.",
+   "description": "Record a confirmed finding, with evidence providing verifiable proof such as command output and logs. Pass the current intent_id when in a task context; it also renews your claim on that intent (pass owner too if you claimed with one). After reporting, the coordinator sees this in graph_overview and can use it as evidence for prove_goal.\nBefore reporting, especially when other agents work the same engagement, call list_findings (or list_changes) and check for an existing finding with the same vulnclass on the same asset; if it is the same issue, add to it instead of filing a new one. Pass asset_ids so duplicates can be detected. If the response has possible_duplicates, compare them and call merge_findings for any that are the same issue rather than leaving both.",
    "read_only": false,
    "category": "findings",
    "schema": {
@@ -1778,6 +1786,10 @@
      },
      "name": {
       "description": "vulnerability name",
+      "type": "string"
+     },
+     "owner": {
+      "description": "the owner you passed to start_intent, if you claimed with one, so this call renews that claim",
       "type": "string"
      },
      "severity": {
@@ -1819,7 +1831,7 @@
   },
   {
    "name": "merge_findings",
-   "description": "Merge two or more findings into a single primary finding. Evidence and assets from secondary findings are folded into the primary. Secondary findings are marked as duplicates with a pointer to the primary.",
+   "description": "Merge two or more findings into a single primary finding. Evidence and assets from secondary findings are folded into the primary. Secondary findings are marked as duplicates with a pointer to the primary. If primary_id was already merged, the merge goes to the live finding it now points to: the result's id is that finding and requested_primary_id is the one you passed. Secondaries that are already merged or dismissed are left alone and listed in skipped with a reason.",
    "read_only": false,
    "category": "findings",
    "schema": {
@@ -1845,7 +1857,7 @@
   },
   {
    "name": "dismiss_finding",
-   "description": "Mark a finding as dismissed (false positive). Dismissed findings are excluded from generate_report output.",
+   "description": "Mark a finding as dismissed (false positive). Dismissed findings are excluded from generate_report output, and goals they alone proved reopen. Do not dismiss a duplicate of another finding: use merge_findings so its evidence and goal proofs move to the kept finding.",
    "read_only": false,
    "category": "findings",
    "schema": {
@@ -1919,6 +1931,10 @@
       "description": "required for no_issue_found: a fact id, intent id or traffic id that shows the test",
       "type": "string"
      },
+     "intent_id": {
+      "description": "the intent you are working; renews your claim on it",
+      "type": "integer"
+     },
      "outcome": {
       "description": "result for this surface and risk class",
       "enum": [
@@ -1928,6 +1944,10 @@
        "not_applicable",
        "needs_follow_up"
       ],
+      "type": "string"
+     },
+     "owner": {
+      "description": "the owner you passed to start_intent, if you claimed with one, so this call renews that claim",
       "type": "string"
      },
      "reason": {
@@ -1971,7 +1991,7 @@
   },
   {
    "name": "generate_report",
-   "description": "Generate a Markdown penetration test report from the current engagement's findings, assets, and coverage.",
+   "description": "Generate a Markdown penetration test report from the current engagement's findings, assets, and coverage, with a Target changes section listing every recorded change to a target and whether it was restored to its baseline.",
    "read_only": true,
    "category": "engagement",
    "schema": {
@@ -2250,7 +2270,7 @@
   },
   {
    "name": "start_intent",
-   "description": "Mark an open intent as running. Call this when you begin working on an intent.",
+   "description": "Claim an open intent for this session and mark it running. Call this when you begin working on an intent. The claim is exclusive for 30 minutes and renews whenever you pass this intent as intent_id to record_fact, report_finding or record_coverage, with the same owner if you claimed with one. If you go that long without recording anything for it, call start_intent again to renew it, or the intent reopens for other sessions. Fails if another session holds a live claim, so pick a different intent. Pass the same owner on every claim call if you use one.",
    "read_only": false,
    "category": "graph",
    "schema": {
@@ -2258,6 +2278,10 @@
      "node_id": {
       "description": "intent node id",
       "type": "integer"
+     },
+     "owner": {
+      "description": "stable label identifying you as a claim holder, e.g. a random hex string chosen once and passed on every claim call. Required when the transport has no session and no X-Artex-Identity header (MCP HTTP protocol 2026-07-28); otherwise optional, and it splits your session or identity into separate holders",
+      "type": "string"
      }
     },
     "required": [
@@ -2268,7 +2292,7 @@
   },
   {
    "name": "complete_intent",
-   "description": "Mark a running intent as done with a result summary. Call this when you have finished working on an intent and recorded all facts/findings.",
+   "description": "Mark a running intent as done with a result summary. Call this when you have finished working on an intent and recorded all facts/findings. Refused while another session holds a live claim on the intent. An open intent you never started is claimed and completed in one step, but start_intent it before working on it so other agents skip it.",
    "read_only": false,
    "category": "graph",
    "schema": {
@@ -2276,6 +2300,10 @@
      "node_id": {
       "description": "intent node id",
       "type": "integer"
+     },
+     "owner": {
+      "description": "stable label identifying you as a claim holder, e.g. a random hex string chosen once and passed on every claim call. Required when the transport has no session and no X-Artex-Identity header (MCP HTTP protocol 2026-07-28); otherwise optional, and it splits your session or identity into separate holders",
+      "type": "string"
      },
      "result": {
       "description": "brief result summary",
@@ -2290,7 +2318,7 @@
   },
   {
    "name": "cancel_intent",
-   "description": "Cancel an intent that is no longer needed. Use this when an intent is redundant, no longer applicable, or was created in error.",
+   "description": "Cancel an intent that is no longer needed. Use this when an intent is redundant, no longer applicable, or was created in error. Refused while another session holds a live claim on the intent.",
    "read_only": false,
    "category": "graph",
    "schema": {
@@ -2299,6 +2327,10 @@
       "description": "intent node id",
       "type": "integer"
      },
+     "owner": {
+      "description": "stable label identifying you as a claim holder, e.g. a random hex string chosen once and passed on every claim call. Required when the transport has no session and no X-Artex-Identity header (MCP HTTP protocol 2026-07-28); otherwise optional, and it splits your session or identity into separate holders",
+      "type": "string"
+     },
      "reason": {
       "description": "why this intent is being cancelled",
       "type": "string"
@@ -2306,6 +2338,117 @@
     },
     "required": [
      "node_id"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "list_changes",
+   "description": "What changed since you last looked: new or updated findings, facts, intents (with state and claim holder), goals, hints and assets, oldest first. Pass since as the changes_cursor from graph_overview, the cursor from your previous list_changes call, or an RFC 3339 timestamp. Also returns unrestored_target_changes, changes to targets that nobody has restored yet (see record_target_change), and session, your own holder label as it appears in claimed_by, and my_claims, the intents you hold with their expiry; renew one by calling start_intent again. Pass the same owner you pass to start_intent, if any; without a session or owner, session and my_claims are replaced by claims_error. When several agents share an engagement, poll this instead of re-reading graph_overview.",
+   "read_only": true,
+   "category": "other",
+   "schema": {
+    "properties": {
+     "limit": {
+      "description": "max changes to return, default 100, max 500",
+      "type": "integer"
+     },
+     "owner": {
+      "description": "stable label identifying you as a claim holder, e.g. a random hex string chosen once and passed on every claim call. Required when the transport has no session and no X-Artex-Identity header (MCP HTTP protocol 2026-07-28); otherwise optional, and it splits your session or identity into separate holders",
+      "type": "string"
+     },
+     "since": {
+      "description": "cursor from graph_overview (changes_cursor) or a previous list_changes call, or an RFC 3339 timestamp",
+      "type": "string"
+     }
+    },
+    "required": [
+     "since"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "record_target_change",
+   "description": "Record a change to a target BEFORE you make it: a file, registry key, service, scheduled task, account or config you are about to modify, create or delete on a host. Pass original_fingerprint, evidence of the resource's current state (e.g. sha256:<hex> of the file, or absent when you are creating it), and where you keep a backup. If another unrestored change on the same target and resource exists, the result carries warning and existing_changes: the state you observed is NOT the original. Targets match ignoring case; resources match ignoring case only when they are Windows paths or registry keys, so POSIX paths differing in case are different resources. Do not take your own backup as the baseline; restore to the returned baseline (the first recorded original fingerprint) and coordinate with the holders in recorded_by. After undoing the change, call record_target_restore with the fingerprint you observe.",
+   "read_only": false,
+   "category": "other",
+   "schema": {
+    "properties": {
+     "backup": {
+      "description": "where you keep a copy of the original, or the original content when it is short",
+      "type": "string"
+     },
+     "intent_id": {
+      "description": "intent this change is made for",
+      "type": "integer"
+     },
+     "kind": {
+      "description": "kind of change",
+      "enum": [
+       "modify",
+       "create",
+       "delete",
+       "other"
+      ],
+      "type": "string"
+     },
+     "note": {
+      "description": "what you are changing and why",
+      "type": "string"
+     },
+     "original_fingerprint": {
+      "description": "evidence of the original state, e.g. sha256:<hex> of the file, absent for a resource you create, or a value you read",
+      "type": "string"
+     },
+     "owner": {
+      "description": "stable label identifying you as a claim holder, e.g. a random hex string chosen once and passed on every claim call. Required when the transport has no session and no X-Artex-Identity header (MCP HTTP protocol 2026-07-28); otherwise optional, and it splits your session or identity into separate holders",
+      "type": "string"
+     },
+     "resource": {
+      "description": "what changes, e.g. a file path, registry key, service name, account or config setting",
+      "type": "string"
+     },
+     "target": {
+      "description": "host the change is on, written the same way every time (asset label, hostname or IP)",
+      "type": "string"
+     }
+    },
+    "required": [
+     "target",
+     "resource",
+     "kind",
+     "original_fingerprint"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "name": "record_target_restore",
+   "description": "Record that you restored changed resources on a target. Pass the change ids from record_target_change and the fingerprint you observe now, computed the same way as the original. The server compares it with the baseline, the first recorded original fingerprint for that target and resource. Only an exact match marks the change restored, together with every other unrestored change on the same resource; a mismatch is recorded as a failed attempt and the change stays unrestored. Never report a host restored while graph_overview or list_changes lists unrestored_target_changes.",
+   "read_only": false,
+   "category": "other",
+   "schema": {
+    "properties": {
+     "change_ids": {
+      "description": "change ids from record_target_change",
+      "items": {
+       "type": "integer"
+      },
+      "type": "array"
+     },
+     "observed_fingerprint": {
+      "description": "fingerprint of the resource as it is now, after restoring, e.g. sha256:<hex> or absent",
+      "type": "string"
+     },
+     "owner": {
+      "description": "stable label identifying you as a claim holder, e.g. a random hex string chosen once and passed on every claim call. Required when the transport has no session and no X-Artex-Identity header (MCP HTTP protocol 2026-07-28); otherwise optional, and it splits your session or identity into separate holders",
+      "type": "string"
+     }
+    },
+    "required": [
+     "change_ids",
+     "observed_fingerprint"
     ],
     "type": "object"
    }
