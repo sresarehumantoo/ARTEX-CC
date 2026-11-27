@@ -15,6 +15,10 @@ func TestRedactDSN(t *testing.T) {
 		{"kv password", "host=db user=artex password=s3cret dbname=ccartex", "host=db user=artex password=*** dbname=ccartex"},
 		{"kv quoted password", "host=db password='s3 cr\\'et' dbname=ccartex", "host=db password=*** dbname=ccartex"},
 		{"kv spaced password", "host=db password = s3cret dbname=ccartex", "host=db password = *** dbname=ccartex"},
+		{"url query sslpassword", "postgres://artex@db/ccartex?sslmode=verify-full&sslpassword=k3y", "postgres://artex@db/ccartex?sslmode=verify-full&sslpassword=***"},
+		{"url password and sslpassword", "postgres://artex:s3cret@db/ccartex?sslpassword=k3y&password=s3cret#frag", "postgres://artex:***@db/ccartex?sslpassword=***&password=***#frag"},
+		{"kv sslpassword", "host=db sslkey=/k.pem sslpassword=k3y dbname=ccartex", "host=db sslkey=/k.pem sslpassword=*** dbname=ccartex"},
+		{"kv password and sslpassword", "host=db password=s3cret SSLPASSWORD = 'k 3y' dbname=ccartex", "host=db password=*** SSLPASSWORD = *** dbname=ccartex"},
 		{"kv no password", "dbname=ccartex sslmode=disable", "dbname=ccartex sslmode=disable"},
 		{"empty", "", ""},
 	} {
