@@ -16,7 +16,7 @@ require (
 require github.com/DATA-DOG/go-sqlmock v1.5.2
 
 require (
-	github.com/andybalholm/brotli v1.2.1 // indirect
+	github.com/andybalholm/brotli v1.2.1
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect

@@ -751,6 +751,9 @@ const unavailableMarker = "[original request unavailable]\n"
 // so there is never a rewritten exchange without its trace. Without trace
 // lines this is exactly what record always wrote.
 func (t *Traffic) recordViews(rq requestView, rs responseView, lines []rewrite.TraceLine) {
+	// Decode before taking the write lock so concurrent records don't wait on it.
+	reqIdx, reqDecoded := indexBody(rq.header, rq.body)
+	respIdx, respDecoded := indexBody(rs.header, rs.body)
 	// The write lock covers blob + index writes, so DeleteHost (and its blob GC)
 	// can run under the same lock without racing a concurrent record.
 	t.wmu.Lock()
@@ -773,6 +776,12 @@ func (t *Traffic) recordViews(rq requestView, rs responseView, lines []rewrite.T
 	// work and must not sit inside the SQLite write lock.
 	reqB := t.spill(rq.body, rq.header.Get("Content-Type"))
 	respB := t.spill(rs.body, ct)
+	if reqDecoded {
+		reqB.index = reqIdx
+	}
+	if respDecoded {
+		respB.index = respIdx
+	}
 	trace := t.spillTrace(lines)
 
 	// A rewritten exchange is logged by host, step and rule ids only: its URL
