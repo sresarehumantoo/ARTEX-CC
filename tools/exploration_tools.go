@@ -250,12 +250,11 @@ func makeRecordFact(store Store, explorationID int64) Tool {
 					}
 				}
 
-				id, err := store.AddNode(ctx, explorationID, KindFact, payload, 5, "confirmed", "worker", anchors)
+				id, err := store.AddFact(ctx, explorationID, intent, payload, anchors)
 				if err != nil {
 					return 0, err
 				}
 				if intent > 0 {
-					_ = store.AddEdge(ctx, intent, RelYields, id)
 					worked = append(worked, intent)
 				}
 				return id, nil

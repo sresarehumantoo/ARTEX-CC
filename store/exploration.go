@@ -76,13 +76,59 @@ func nodeToTools(n Node) tools.Node {
 }
 
 func (s *Store) AddNode(ctx context.Context, explorationID int64, kind string, payload map[string]any, priority int, state, origin string, anchors []int64) (int64, error) {
-	raw, _ := json.Marshal(payload)
 	tx, err := s.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
 	defer tx.Rollback() //nolint:errcheck
 
+	id, err := addNodeTx(ctx, tx, explorationID, kind, payload, priority, state, origin, anchors)
+	if err != nil {
+		return 0, err
+	}
+	return id, tx.Commit()
+}
+
+// AddFact adds a fact node and, when intentID is set, a yields edge from that
+// intent, which must be an intent of explorationID.
+func (s *Store) AddFact(ctx context.Context, explorationID, intentID int64, payload map[string]any, anchors []int64) (int64, error) {
+	tx, err := s.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	if intentID > 0 {
+		var kind string
+		err = tx.QueryRowContext(ctx,
+			`SELECT kind FROM exploration_nodes WHERE id = $1 AND exploration_id = $2`,
+			intentID, explorationID).Scan(&kind)
+		if err == sql.ErrNoRows || (err == nil && kind != KindIntent) {
+			return 0, fmt.Errorf("intent_id %d is not an intent in this engagement", intentID)
+		}
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	id, err := addNodeTx(ctx, tx, explorationID, KindFact, payload, 5, "confirmed", "worker", anchors)
+	if err != nil {
+		return 0, err
+	}
+	if intentID > 0 {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO exploration_edges(exploration_id, src_id, rel, dst_id)
+			 VALUES ($1, $2, $3, $4)
+			 ON CONFLICT (exploration_id, src_id, rel, dst_id) DO NOTHING`,
+			explorationID, intentID, RelYields, id); err != nil {
+			return 0, fmt.Errorf("link intent to fact: %w", err)
+		}
+	}
+	return id, tx.Commit()
+}
+
+func addNodeTx(ctx context.Context, tx *sql.Tx, explorationID int64, kind string, payload map[string]any, priority int, state, origin string, anchors []int64) (int64, error) {
+	raw, _ := json.Marshal(payload)
 	var id int64
 	if err := tx.QueryRowContext(ctx,
 		`INSERT INTO exploration_nodes(exploration_id, kind, payload, priority, state, origin)
@@ -99,7 +145,7 @@ func (s *Store) AddNode(ctx context.Context, explorationID int64, kind string, p
 			return 0, err
 		}
 	}
-	return id, tx.Commit()
+	return id, nil
 }
 
 func (s *Store) Link(explorationID, from int64, rel string, to int64) error {

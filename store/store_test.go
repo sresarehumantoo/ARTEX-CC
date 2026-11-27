@@ -288,6 +288,55 @@ func TestAddFindingValidatesIntentID(t *testing.T) {
 	}
 }
 
+func TestAddFactValidatesIntentID(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	_, expID := testEngagement(t, s, "fact-intent")
+	_, otherExp := testEngagement(t, s, "fact-intent-other")
+
+	fact, err := s.AddNode(ctx, expID, KindFact, map[string]any{"summary": "f"}, 5, "confirmed", "worker", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign, err := s.AddNode(ctx, otherExp, KindIntent, map[string]any{"summary": "i"}, 5, "open", "agent", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := s.ListNodes(ctx, expID, KindFact, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, id := range map[string]int64{"fact": fact, "other engagement": foreign, "missing": foreign + 1_000_000} {
+		_, err := s.AddFact(ctx, expID, id, map[string]any{"summary": "x"}, nil)
+		if err == nil || !strings.Contains(err.Error(), "not an intent in this engagement") {
+			t.Errorf("%s intent_id: %v", name, err)
+		}
+	}
+	if edges, err := s.Edges(ctx, otherExp, 100); err != nil || len(edges) != 0 {
+		t.Errorf("other engagement edges = %+v, %v", edges, err)
+	}
+	if facts, err := s.ListNodes(ctx, expID, KindFact, 100); err != nil || len(facts) != len(before) {
+		t.Errorf("facts after rejected writes = %d, %v; want %d", len(facts), err, len(before))
+	}
+
+	intent, err := s.AddNode(ctx, expID, KindIntent, map[string]any{"summary": "i"}, 5, "open", "agent", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := s.AddFact(ctx, expID, intent, map[string]any{"summary": "x"}, nil)
+	if err != nil {
+		t.Fatalf("AddFact with intent: %v", err)
+	}
+	edges, err := s.Edges(ctx, expID, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(edges) != 1 || edges[0].From != intent || edges[0].Rel != RelYields || edges[0].To != id {
+		t.Errorf("edges = %+v, want %d yields %d", edges, intent, id)
+	}
+}
+
 func TestFindingLifecycle(t *testing.T) {
 	t.Parallel()
 	s := testDB(t)

@@ -184,10 +184,8 @@ func (s *graphStore) InsertAsset(_ context.Context, _ int64, item tools.AssetInp
 	return int64(len(s.assets)), nil
 }
 
-func (s *graphStore) AddNode(_ context.Context, _ int64, kind string, payload map[string]any, _ int, _, _ string, _ []int64) (int64, error) {
-	if kind == tools.KindFact {
-		s.facts = append(s.facts, payload)
-	}
+func (s *graphStore) AddFact(_ context.Context, _, _ int64, payload map[string]any, _ []int64) (int64, error) {
+	s.facts = append(s.facts, payload)
 	return 100, nil
 }
 
