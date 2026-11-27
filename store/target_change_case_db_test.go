@@ -88,7 +88,10 @@ func TestTargetChangeResourceCase(t *testing.T) {
 	}
 }
 
-func TestTargetChangeCaseMigrationOnExistingRows(t *testing.T) {
+// migrationDB opens a fresh database and returns a migrate func that applies
+// the schema plus the embedded migrations whose names sort below before.
+func migrationDB(t *testing.T) (*Store, func(before string)) {
+	t.Helper()
 	dsn := os.Getenv("ARTEX_TEST_PG")
 	if dsn == "" {
 		t.Skip("ARTEX_TEST_PG not set")
@@ -103,41 +106,39 @@ func TestTargetChangeCaseMigrationOnExistingRows(t *testing.T) {
 	if err := ensureDatabase(u.String()); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		admin := *u
-		admin.Path = "/postgres"
-		db, err := sql.Open("pgx", admin.String())
-		if err != nil {
-			return
-		}
-		defer db.Close()
-		_, _ = db.Exec("DROP DATABASE IF EXISTS " + pgx.Identifier{dbName}.Sanitize() + " WITH (FORCE)")
-	})
-
 	db, err := sql.Open("pgx", u.String())
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
-	s := &Store{DB: db}
-
-	before := fstest.MapFS{}
-	entries, err := fs.ReadDir(migrationsFS(), ".")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range entries {
-		if e.Name() >= "0008" {
-			continue
+	t.Cleanup(func() {
+		db.Close()
+		admin := *u
+		admin.Path = "/postgres"
+		adb, err := sql.Open("pgx", admin.String())
+		if err != nil {
+			return
 		}
-		body, err := fs.ReadFile(migrationsFS(), e.Name())
+		defer adb.Close()
+		_, _ = adb.Exec("DROP DATABASE IF EXISTS " + pgx.Identifier{dbName}.Sanitize() + " WITH (FORCE)")
+	})
+
+	migrate := func(before string) {
+		t.Helper()
+		fsys := fstest.MapFS{}
+		entries, err := fs.ReadDir(migrationsFS(), ".")
 		if err != nil {
 			t.Fatal(err)
 		}
-		before[e.Name()] = &fstest.MapFile{Data: body}
-	}
-	migrate := func(fsys fs.FS) {
-		t.Helper()
+		for _, e := range entries {
+			if e.Name() >= before {
+				continue
+			}
+			body, err := fs.ReadFile(migrationsFS(), e.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			fsys[e.Name()] = &fstest.MapFile{Data: body}
+		}
 		if err := withSchemaMigrationLock(ctx, db, func(conn *sql.Conn) error {
 			if err := applySchema(ctx, conn); err != nil {
 				return err
@@ -147,7 +148,14 @@ func TestTargetChangeCaseMigrationOnExistingRows(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	migrate(before)
+	return &Store{DB: db}, migrate
+}
+
+func TestTargetChangeCaseMigrationOnExistingRows(t *testing.T) {
+	s, migrate := migrationDB(t)
+	db := s.DB
+	ctx := context.Background()
+	migrate("0008")
 
 	_, expID := testEngagement(t, s, "case-migration")
 	insert := func(target, resource, fp string) int64 {
@@ -168,7 +176,7 @@ func TestTargetChangeCaseMigrationOnExistingRows(t *testing.T) {
 	winUpper := insert("WIN01", `C:\Temp\A.txt`, "sha256:a")
 	winLower := insert("win01", `c:\temp\a.txt`, "sha256:b")
 
-	migrate(migrationsFS())
+	migrate("9999")
 
 	var oldIndex, newIndex bool
 	if err := db.QueryRowContext(ctx,
@@ -185,5 +193,80 @@ func TestTargetChangeCaseMigrationOnExistingRows(t *testing.T) {
 	}
 	if r := recordResource(t, s, expID, "WIN01", `C:\TEMP\a.TXT`, "x"); !slices.Equal(existingIDs(r), []int64{winUpper, winLower}) {
 		t.Errorf("Windows existing = %v, want [%d %d]", existingIDs(r), winUpper, winLower)
+	}
+}
+
+func TestTargetChangeBaselineRecomputeMigration(t *testing.T) {
+	s, migrate := migrationDB(t)
+	ctx := context.Background()
+	migrate("0009")
+	_, expID := testEngagement(t, s, "baseline-recompute")
+
+	u1 := recordResource(t, s, expID, "lnx01", "/srv/App.conf", "sha256:upper").Change.ID
+	recordResource(t, s, expID, "lnx01", "/srv/App.conf", "sha256:upper2")
+	if _, err := s.RecordTargetRestore(ctx, expID, []int64{u1}, "sha256:upper", "agent"); err != nil {
+		t.Fatal(err)
+	}
+	u3 := recordResource(t, s, expID, "lnx01", "/srv/App.conf", "sha256:upper3").Change.ID
+	l1 := recordResource(t, s, expID, "LNX01", "/srv/app.conf", "sha256:lower").Change.ID
+	l2 := recordResource(t, s, expID, "lnx01", "/srv/app.conf", "sha256:lower2").Change.ID
+	recordResource(t, s, expID, "WIN01", `C:\Temp\A.txt`, "sha256:a")
+	recordResource(t, s, expID, "win01", `c:\temp\a.txt`, "sha256:b")
+
+	type row struct {
+		baseline   string
+		baselineID int64
+		xmin       string
+	}
+	snapshot := func() map[int64]row {
+		t.Helper()
+		rows, err := s.QueryContext(ctx,
+			`SELECT id, baseline, baseline_change_id, xmin::text FROM target_changes WHERE exploration_id = $1`, expID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		out := map[int64]row{}
+		for rows.Next() {
+			var id int64
+			var r row
+			if err := rows.Scan(&id, &r.baseline, &r.baselineID, &r.xmin); err != nil {
+				t.Fatal(err)
+			}
+			out[id] = r
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	want := snapshot()
+
+	// 0005 folded case, so both /srv/app.conf changes joined /srv/App.conf's live chain.
+	if _, err := s.ExecContext(ctx,
+		`UPDATE target_changes SET baseline = 'sha256:upper3', baseline_change_id = $1 WHERE id IN ($2, $3)`,
+		u3, l1, l2); err != nil {
+		t.Fatal(err)
+	}
+	corrupted := snapshot()
+
+	migrate("9999")
+
+	got := snapshot()
+	for id, w := range want {
+		g := got[id]
+		if g.baseline != w.baseline || g.baselineID != w.baselineID {
+			t.Errorf("change %d baseline = %s (#%d), want %s (#%d)", id, g.baseline, g.baselineID, w.baseline, w.baselineID)
+		}
+		if id != l1 && id != l2 && g.xmin != corrupted[id].xmin {
+			t.Errorf("change %d was rewritten although its baseline was correct", id)
+		}
+	}
+	if got[l2].baselineID != l1 || got[l2].baseline != "sha256:lower" {
+		t.Errorf("/srv/app.conf follow-up baseline = %+v, want sha256:lower (#%d)", got[l2], l1)
+	}
+
+	if r := recordResource(t, s, expID, "lnx01", "/srv/app.conf", "x"); r.Change.BaselineChangeID != l1 || r.Change.Baseline != "sha256:lower" {
+		t.Errorf("new /srv/app.conf change baseline = %s (#%d), want sha256:lower (#%d)", r.Change.Baseline, r.Change.BaselineChangeID, l1)
 	}
 }
