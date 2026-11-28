@@ -22,7 +22,7 @@ import report from '../../../../../docs/screenshots/report.png';
 ## Running it
 
 ```sh
-artex-cc serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --proxy :8788 --web
+artex-cc serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --proxy 127.0.0.1:8788 --web
 ```
 
 Open `http://localhost:9400`. The Docker image runs with `--web` already.
@@ -31,13 +31,45 @@ With `--web`, the HTTP MCP endpoint at `/mcp` requires an `Authorization: Bearer
 
 ## Authentication
 
-On a loopback listener (`localhost`, `127.0.0.1`) the UI is open by default; pass `--auth` or set `ARTEX_AUTH=1` to require a password anyway. On any other listener, including the Docker image's `:9400`, a password is always required.
+On a loopback listener (`localhost`, `127.0.0.1`) the UI is open by default; pass `--auth` or set `ARTEX_AUTH=1` to require a password anyway. On any other listener, including the Docker image's `:9400`, and whenever [allowed hosts](#behind-a-reverse-proxy) are set, a password is always required.
 
 On first visit the UI asks for a setup token and a password (at least 8 characters). While no password is set, the server prints a one-time setup token and the setup URL to its logs at startup; read it with `docker compose logs artex` for the Docker image. The token is kept only in memory, so a restart prints a new one, and it stops working once the password is set. Sessions last seven days. The password hash lives in `auth.json` in the data directory; to reset it, delete that file and restart the server for a new setup token.
 
 <Aside type="caution">
 Do not expose the web UI to an untrusted network. It can run commands through the chat runner and reads everything the engagement has recorded, including credentials.
 </Aside>
+
+## Behind a reverse proxy
+
+A request arriving on a loopback address must carry a `Host` of `localhost` or a loopback IP, and a browser write must come from an `Origin` that matches the `Host`. Both checks stop a DNS-rebinding page from driving the server. To put ARTEX behind a reverse proxy on the same host, list the public name with `--allowed-host` (or `ARTEX_ALLOWED_HOSTS`):
+
+```sh
+artex-cc serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --web --allowed-host artex.example.com
+```
+
+A listed host is accepted as the `Host` of a loopback request and as the `Origin` of a write, whatever `Host` the proxy sends. Matching ignores case. An entry without a port, such as `artex.example.com`, matches that name on any port; an entry with a port, such as `artex.example.com:8443`, matches only that port. `Sec-Fetch-Site: cross-site` or `same-site` is still refused.
+
+Setting allowed hosts turns on password login, since the UI is now reachable from beyond this machine. Without `--web`, `serve` requires `ARTEX_MCP_TOKEN` for the same reason, and `serve --stdio` refuses to start with allowed hosts set. The session cookie is also marked `Secure`, so the proxy must serve the UI over HTTPS, or the browser drops the cookie and login does not stick.
+
+ARTEX does not read `X-Forwarded-Host`. On a loopback listener, a DNS-rebound page is same-origin to the browser and can set any header it likes, so trusting that header would undo the rebinding defense. Have the proxy forward the public `Host` instead. With Caddy:
+
+```
+artex.example.com {
+	reverse_proxy localhost:9400
+}
+```
+
+Or with nginx, inside the `server` block for the public name. `$http_host` forwards the `Host` exactly as the browser sent it, port included, which an entry such as `artex.example.com:8443` needs (`$host` drops the port). HTTP/1.1 with an empty `Connection` header and `proxy_buffering off` keep the UI's live event stream flowing:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:9400;
+    proxy_set_header Host $http_host;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_buffering off;
+}
+```
 
 ## Pages
 
@@ -74,7 +106,7 @@ Besides the engagement views, the UI includes:
 
 - **Chat** with a Claude subprocess runner (uses the `claude` CLI, see `--claude-bin`), with agents and presets.
 - **Tasks**, live **logs** and a **commands** log.
-- **Intercept** approvals for tool calls that match allow, deny or ask rules.
+- **Intercept**, an editor for allow, deny and ask rules on tool calls and an approvals queue. Rules are stored but not enforced yet, and no tool call creates an approval, so the page does not gate anything today.
 - **MCP** server config, the **tool** catalog and **skills**.
 - **Usage** (token usage), a **workspace** browser and **LLM settings**.
 

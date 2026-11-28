@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `serve --allowed-host` (repeatable or comma-separated) and `ARTEX_ALLOWED_HOSTS` let ARTEX sit behind a reverse proxy on the same host. A listed host is accepted as the `Host` of a loopback request, which got 421 before, and as the `Origin` of a web UI write, which got 403 when the proxy rewrote `Host` to `localhost`. Matching ignores case; an entry without a port matches any port. `X-Forwarded-Host` is still not trusted, since a DNS-rebound page can set it. Setting allowed hosts forces web UI password login with `--web` and requires `ARTEX_MCP_TOKEN` without it, and `serve --stdio` refuses to start with them. See [Behind a reverse proxy](https://artex-cc.com/docs/web-ui/#behind-a-reverse-proxy).
+
 ### Changed
 - `set_goals`, `add_intent`, `record_target_change` and `record_target_restore` lock the engagement row with `FOR NO KEY UPDATE` instead of `FOR UPDATE`, so they still serialize with each other but no longer block concurrent inserts into tables that reference it, such as graph nodes and edges, activity and target changes.
 
@@ -29,7 +32,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The SOCKS5 listener offered username/password to any client and accepted any credentials, so a non-loopback client got past the loopback-only rule for no-auth by offering method `0x02`. Both methods are now accepted from loopback clients only. The listener is not started by `serve` today, so this closes the gap before it is wired up.
 - Bumped `github.com/andybalholm/brotli` to v1.2.7 for GO-2026-6888, reachable through traffic replay and HAR import.
 - DSN redaction (`artex-cc init` output) masked `password` but not `sslpassword`, the client key passphrase, so it could still reach `docker logs`. `sslpassword` is now shown as `***` in both URL query and key=value form.
-- The web UI session cookie now carries `Secure` when the request arrived over TLS. Plain-HTTP loopback use is unchanged.
+- The web UI session cookie now carries `Secure` when the request arrived over TLS or allowed hosts are set, since behind a reverse proxy ARTEX sees plain HTTP. Plain-HTTP loopback use without allowed hosts is unchanged, so a reverse proxy in front of ARTEX must serve HTTPS for login to work.
 - The web UI's data directory store (settings, auth, conversations), the permission-tightening walk and the traffic blob sweep now run inside an `os.Root`, so a symlink in the data or traffic directory, or one swapped in mid-walk, can no longer redirect a read, write, chmod or delete outside it.
 
 ## [0.7.0] - 2026-11-26

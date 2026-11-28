@@ -11,7 +11,7 @@ ARTEX reads its PostgreSQL connection string from `--pg` or the `ARTEX_PG` envir
 |---------|--------------|
 | `artex-cc serve` | Start the MCP tool server (stdio or HTTP) |
 | `artex-cc init` | Create the schema and a new engagement, generate the proxy CA |
-| `artex-cc health` | Check PostgreSQL connectivity |
+| `artex-cc health` | Check PostgreSQL, the schema and optionally the traffic database |
 | `artex-cc tools` | List the MCP tool catalog, marking the proxy-only tools (`--json` for machine output) |
 | `artex-cc identity` | Issue, rotate or inspect `X-Artex-Identity` tokens for HTTP clients (see [MCP clients](/docs/mcp-clients/#separate-claim-holders)) |
 | `artex-cc completion` | Print a shell completion script (`bash`, `zsh`, `fish`) |
@@ -22,7 +22,7 @@ ARTEX reads its PostgreSQL connection string from `--pg` or the `ARTEX_PG` envir
 artex-cc serve --stdio --pg "postgres://localhost/ccartex"
 
 # Serve with the recording proxy
-artex-cc serve --stdio --pg "postgres://localhost/ccartex" --proxy :8788
+artex-cc serve --stdio --pg "postgres://localhost/ccartex" --proxy 127.0.0.1:8788
 
 # Serve over HTTP (other clients), with the web UI
 artex-cc serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --web
@@ -40,7 +40,8 @@ artex-cc init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.examp
 | `--listen ADDR` | HTTP listen address (or `ARTEX_LISTEN`). Without `--web`, a non-loopback address requires `ARTEX_MCP_TOKEN` | `localhost:9400` |
 | `--web` | Enable the [web UI](/docs/web-ui/) and REST API | off |
 | `--auth` | Require password login for the web UI on a loopback listener (or `ARTEX_AUTH`) | off |
-| `--proxy ADDR` | Start the recording MITM proxy on `ADDR`, for example `:8788` | off |
+| `--allowed-host HOST` | Accept `HOST` from a same-host reverse proxy, in the `Host` header and in the `Origin` of web UI writes (or `ARTEX_ALLOWED_HOSTS`). Repeat the flag or separate hosts with commas. Forces `--auth` with `--web`, requires `ARTEX_MCP_TOKEN` without it, and `serve --stdio` refuses to start with it. See [Behind a reverse proxy](/docs/web-ui/#behind-a-reverse-proxy) | none |
+| `--proxy ADDR` | Start the recording MITM proxy on `ADDR`. Use an explicit loopback address such as `127.0.0.1:8788`; a bare `:8788` binds all interfaces | off |
 | `--data DIR` | Directory for traffic, evidence and the engagement config | `.` |
 | `--claude-bin PATH` | `claude` CLI used by the web UI chat (or `ARTEX_CLAUDE_BIN`) | `claude` |
 | `--plugin-dir DIR` | Plugin directory (or `ARTEX_PLUGIN_DIR`) | `~/.artex/plugins` |
@@ -64,6 +65,17 @@ See [Plugins](/docs/plugins/) for how the plugin directory is scanned and what a
 | `--dry-run` | Show what would be created without creating it | off |
 | `--format FMT` | Output format, `text` or `json` | `text` |
 
+## `health` flags
+
+`health` pings PostgreSQL, checks that the schema exists and reports its migration version and the number of engagements. With `--data` it also checks the traffic database. It exits non-zero when a check fails.
+
+| Flag | Purpose | Default |
+|------|---------|---------|
+| `--pg DSN` | PostgreSQL connection string (or `ARTEX_PG`) | none, required |
+| `--data DIR` | Data directory whose traffic database to check | none (skipped) |
+| `--format FMT` | Output format, `text` or `json` | `text` |
+| `--timeout D` | Time limit for the checks, as a Go duration such as `10s` | `5s` |
+
 ## Environment variables
 
 Each variable is a fallback for the matching flag; a flag on the command line wins.
@@ -73,7 +85,8 @@ Each variable is a fallback for the matching flag; a flag on the command line wi
 | `ARTEX_PG` | `--pg` | PostgreSQL connection string | none, required |
 | `ARTEX_LISTEN` | `--listen` | HTTP listen address for `serve` | `localhost:9400` |
 | `ARTEX_MCP_TOKEN` | | Bearer token `/mcp` requires when serving HTTP without `--web`. Required for a non-loopback `--listen`; optional on loopback. Ignored with `--web`, which generates its own token. See [MCP clients](/docs/mcp-clients/#generic-stdio) | none |
-| `ARTEX_AUTH` | `--auth` | Require password login for the web UI on a loopback listener (`1`/`true`). Non-loopback listeners always require it. | off |
+| `ARTEX_AUTH` | `--auth` | Require password login for the web UI on a loopback listener (`1`/`true`). Non-loopback listeners, and any server with allowed hosts, always require it. | off |
+| `ARTEX_ALLOWED_HOSTS` | `--allowed-host` | Comma-separated hosts a same-host reverse proxy may send as `Host` or `Origin`. Ignored when `--allowed-host` is given | none |
 | `ARTEX_CREDENTIAL_KEY` | | Hex-encoded 32-byte AES-256-GCM key for encrypting stored credentials | none (plaintext) |
 | `ARTEX_INTENT_LEASE` | | How long a `start_intent` claim stays exclusive, in whole minutes (Go duration such as `2m`). Shorten it only for tests and evals | `30m` |
 | `ARTEX_REQUIRE_IDENTITY` | `--require-identity` | Refuse intent claims from callers without a verified identity (`1`/`true`). Any value that is not a boolean is a startup error. HTTP only | off |
