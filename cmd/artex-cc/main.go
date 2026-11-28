@@ -132,8 +132,8 @@ func allowedHosts(flagVals []string, env string, stdio bool) ([]string, error) {
 			if h == "" {
 				continue
 			}
-			if strings.Contains(h, "/") {
-				return nil, fmt.Errorf("allowed host %q is not a host: give the name the browser uses, optionally with a port, such as artex.example.com or artex.example.com:8443", h)
+			if err := checkAllowedHost(h); err != nil {
+				return nil, err
 			}
 			hosts = append(hosts, h)
 		}
@@ -142,6 +142,34 @@ func allowedHosts(flagVals []string, env string, stdio bool) ([]string, error) {
 		return nil, fmt.Errorf("--allowed-host (or ARTEX_ALLOWED_HOSTS) needs an HTTP transport: stdio has no listener to put behind a reverse proxy; unset it for stdio, or serve with --listen or --web")
 	}
 	return hosts, nil
+}
+
+func checkAllowedHost(h string) error {
+	notHost := fmt.Errorf("allowed host %q is not a host: give the name the browser uses, optionally with a port, such as artex.example.com or artex.example.com:8443", h)
+	if strings.ContainsAny(h, "*@/") {
+		return notHost
+	}
+	host, port, err := net.SplitHostPort(h)
+	if err != nil {
+		host, port = h, ""
+	}
+	if strings.Trim(host, "[]") == "" {
+		return notHost
+	}
+	if strings.HasSuffix(host, ".") {
+		return fmt.Errorf("allowed host %q ends with a dot: browsers send the name without it, so list %q", h, strings.TrimSuffix(host, "."))
+	}
+	if port == "" {
+		return nil
+	}
+	n, err := strconv.Atoi(port)
+	if err != nil || n < 1 || n > 65535 {
+		return notHost
+	}
+	if n == 80 || n == 443 {
+		return fmt.Errorf("allowed host %q has a default port, which browsers leave out of Host and Origin, so it can never match: list the host without the port", h)
+	}
+	return nil
 }
 
 // webAuthReason returns why the web UI requires a password login, or "" when

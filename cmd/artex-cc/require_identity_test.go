@@ -134,6 +134,20 @@ func TestAllowedHostsSetting(t *testing.T) {
 		{name: "repeated flags", flags: []string{"a.example", "b.example,c.example"}, want: []string{"a.example", "b.example", "c.example"}},
 		{name: "flag wins over env", flags: []string{"a.example"}, env: "b.example", want: []string{"a.example"}},
 		{name: "url refused", env: "https://artex.example.com", wantErr: "is not a host"},
+		{name: "ipv6 with port", env: "[::1]:9400", want: []string{"[::1]:9400"}},
+		{name: "port", env: "artex.example.com:8443", want: []string{"artex.example.com:8443"}},
+		{name: "empty host", env: ":8443", wantErr: "is not a host"},
+		{name: "empty brackets", env: "[]:8443", wantErr: "is not a host"},
+		{name: "scheme without slashes", env: "http:artex.example.com", wantErr: "is not a host"},
+		{name: "port out of range", env: "artex.example.com:65536", wantErr: "is not a host"},
+		{name: "port zero", env: "artex.example.com:0", wantErr: "is not a host"},
+		{name: "wildcard", env: "*.example.com", wantErr: "is not a host"},
+		{name: "userinfo", env: "user@artex.example.com", wantErr: "is not a host"},
+		{name: "path", flags: []string{"artex.example.com/ui"}, wantErr: "is not a host"},
+		{name: "trailing dot", env: "artex.example.com.", wantErr: "ends with a dot"},
+		{name: "trailing dot with port", env: "artex.example.com.:8443", wantErr: "ends with a dot"},
+		{name: "default http port", env: "artex.example.com:80", wantErr: "without the port"},
+		{name: "default https port", flags: []string{"a.example,artex.example.com:443"}, wantErr: "without the port"},
 		{name: "stdio refused", flags: []string{"a.example"}, stdio: true, wantErr: "needs an HTTP transport"},
 		{name: "empty on stdio", env: " , ", stdio: true},
 	} {
@@ -173,3 +187,4 @@ func TestWebAuthReason(t *testing.T) {
 		})
 	}
 }
+
