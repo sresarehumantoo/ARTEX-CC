@@ -62,6 +62,7 @@ Claude runs autonomously on a 5-minute loop. You can steer it with `add_hint` or
 | `--listen localhost:9400` | HTTP listen address, the default transport (or `ARTEX_LISTEN`; a non-loopback address needs `ARTEX_MCP_TOKEN` unless `--web` is set) |
 | `--web` | Serve the web UI and REST API alongside `/mcp`, which then uses a generated bearer token written to `mcp-config.json` in the data directory |
 | `--auth` | Require password login for the web UI (or `ARTEX_AUTH`); always on when `--web` listens on a non-loopback address |
+| `--allowed-host HOST` | Accept this Host (and Origin on web UI writes) from a same-host reverse proxy; repeatable or comma-separated (or `ARTEX_ALLOWED_HOSTS`). Forces `--auth` with `--web`, needs `ARTEX_MCP_TOKEN` without it, rejected with `--stdio`. `X-Forwarded-Host` is never trusted |
 | `--require-identity` | Refuse intent claims from callers without a verified `X-Artex-Identity` header (or `ARTEX_REQUIRE_IDENTITY`; HTTP only, rejected with `--stdio`) |
 | `--claude-bin PATH` | Path to the `claude` CLI the web UI runner launches (or `ARTEX_CLAUDE_BIN`, default `claude`) |
 | `--plugin-dir DIR` | Plugin directory (or `ARTEX_PLUGIN_DIR`, default `~/.artex/plugins`) |

@@ -18,22 +18,25 @@ func TestMCPListenToken(t *testing.T) {
 		name    string
 		addr    string
 		token   string
+		allowed []string
 		want    string
 		wantErr bool
 	}{
-		{"loopback without token", "localhost:9400", "", "", false},
-		{"loopback ip without token", "127.0.0.1:9400", "", "", false},
-		{"loopback honors token", "localhost:9400", "s3cret", "s3cret", false},
-		{"all interfaces without token", ":9400", "", "", true},
-		{"unspecified v4 without token", "0.0.0.0:9400", "", "", true},
-		{"unspecified v6 without token", "[::]:9400", "", "", true},
-		{"lan ip without token", "192.168.1.20:9400", "", "", true},
-		{"hostname without token", "artex.internal:9400", "", "", true},
-		{"whitespace token is empty", ":9400", " \n", "", true},
-		{"all interfaces with token", ":9400", "s3cret\n", "s3cret", false},
+		{"loopback without token", "localhost:9400", "", nil, "", false},
+		{"loopback ip without token", "127.0.0.1:9400", "", nil, "", false},
+		{"loopback honors token", "localhost:9400", "s3cret", nil, "s3cret", false},
+		{"all interfaces without token", ":9400", "", nil, "", true},
+		{"unspecified v4 without token", "0.0.0.0:9400", "", nil, "", true},
+		{"unspecified v6 without token", "[::]:9400", "", nil, "", true},
+		{"lan ip without token", "192.168.1.20:9400", "", nil, "", true},
+		{"hostname without token", "artex.internal:9400", "", nil, "", true},
+		{"whitespace token is empty", ":9400", " \n", nil, "", true},
+		{"all interfaces with token", ":9400", "s3cret\n", nil, "s3cret", false},
+		{"loopback with allowed hosts without token", "localhost:9400", "", []string{"artex.example.com"}, "", true},
+		{"loopback with allowed hosts and token", "localhost:9400", "s3cret", []string{"artex.example.com"}, "s3cret", false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := mcpListenToken(tt.addr, tt.token)
+			got, err := mcpListenToken(tt.addr, tt.token, tt.allowed)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
 			}

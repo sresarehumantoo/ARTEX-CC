@@ -70,7 +70,7 @@ func TestWebHandler(t *testing.T) {
 }
 
 func TestLoopbackHostOnly(t *testing.T) {
-	h := loopbackHostOnly(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := loopbackHostOnly(nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	loopback := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 9400}
@@ -105,6 +105,42 @@ func TestLoopbackHostOnly(t *testing.T) {
 		h.ServeHTTP(w, r)
 		if got := w.Code == http.StatusNoContent; got != tt.allowed {
 			t.Errorf("local %v Host %q: status %d, want allowed=%v", tt.local, tt.host, w.Code, tt.allowed)
+		}
+	}
+}
+
+func TestLoopbackHostOnlyAllowedHosts(t *testing.T) {
+	h := loopbackHostOnly([]string{"Artex.Example.com", "ops.example.com:8443"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	loopback := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 9400}
+	for _, tt := range []struct {
+		host      string
+		forwarded string
+		allowed   bool
+	}{
+		{"artex.example.com", "", true},
+		{"ARTEX.EXAMPLE.COM:443", "", true},
+		{"ops.example.com:8443", "", true},
+		{"ops.example.com", "", false},
+		{"localhost:9400", "", true},
+		{"evil.example", "", false},
+		{"evil.example", "artex.example.com", false},
+		{"artex.example.com.evil.example", "", false},
+	} {
+		r := httptest.NewRequest("GET", "/api/findings", nil)
+		r.Host = tt.host
+		if tt.forwarded != "" {
+			r.Header.Set("X-Forwarded-Host", tt.forwarded)
+		}
+		r = r.WithContext(context.WithValue(r.Context(), http.LocalAddrContextKey, loopback))
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if got := w.Code == http.StatusNoContent; got != tt.allowed {
+			t.Errorf("Host %q X-Forwarded-Host %q: status %d, want allowed=%v", tt.host, tt.forwarded, w.Code, tt.allowed)
+		}
+		if !tt.allowed && w.Code != http.StatusMisdirectedRequest {
+			t.Errorf("Host %q: status %d, want 421", tt.host, w.Code)
 		}
 	}
 }

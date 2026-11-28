@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `serve --allowed-host` (repeatable or comma-separated) and `ARTEX_ALLOWED_HOSTS` let ARTEX sit behind a reverse proxy on the same host. A listed host is accepted as the `Host` of a loopback request, which got 421 before, and as the `Origin` of a web UI write, which got 403 when the proxy rewrote `Host` to `localhost`. Matching ignores case; an entry without a port matches any port. `X-Forwarded-Host` is still not trusted, since a DNS-rebound page can set it. Setting allowed hosts forces web UI password login with `--web` and requires `ARTEX_MCP_TOKEN` without it, and `serve --stdio` refuses to start with them. See [Behind a reverse proxy](https://artex-cc.com/docs/web-ui/#behind-a-reverse-proxy).
+
 ### Changed
 - `set_goals`, `add_intent`, `record_target_change` and `record_target_restore` lock the engagement row with `FOR NO KEY UPDATE` instead of `FOR UPDATE`, so they still serialize with each other but no longer block concurrent inserts into tables that reference it, such as graph nodes and edges, activity and target changes.
 

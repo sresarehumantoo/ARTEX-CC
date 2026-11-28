@@ -2,12 +2,16 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/SREsAreHumanToo/ARTEX-CC/api"
 	"github.com/SREsAreHumanToo/ARTEX-CC/identity"
 	"github.com/SREsAreHumanToo/ARTEX-CC/mcpserver"
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
@@ -117,5 +121,104 @@ func TestRequireIdentityOnBothHTTPPaths(t *testing.T) {
 				t.Errorf("legacy session only = %q, want refusal", got)
 			}
 		})
+	}
+}
+
+func TestAllowedHostsSetting(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		flags   []string
+		env     string
+		stdio   bool
+		want    []string
+		wantErr string
+	}{
+		{name: "default empty"},
+		{name: "env list", env: " artex.example.com, ops.example.com:8443 ,", want: []string{"artex.example.com", "ops.example.com:8443"}},
+		{name: "repeated flags", flags: []string{"a.example", "b.example,c.example"}, want: []string{"a.example", "b.example", "c.example"}},
+		{name: "flag wins over env", flags: []string{"a.example"}, env: "b.example", want: []string{"a.example"}},
+		{name: "url refused", env: "https://artex.example.com", wantErr: "is not a host"},
+		{name: "ipv6 with port", env: "[::1]:9400", want: []string{"[::1]:9400"}},
+		{name: "port", env: "artex.example.com:8443", want: []string{"artex.example.com:8443"}},
+		{name: "empty host", env: ":8443", wantErr: "is not a host"},
+		{name: "empty brackets", env: "[]:8443", wantErr: "is not a host"},
+		{name: "scheme without slashes", env: "http:artex.example.com", wantErr: "is not a host"},
+		{name: "port out of range", env: "artex.example.com:65536", wantErr: "is not a host"},
+		{name: "port zero", env: "artex.example.com:0", wantErr: "is not a host"},
+		{name: "wildcard", env: "*.example.com", wantErr: "is not a host"},
+		{name: "userinfo", env: "user@artex.example.com", wantErr: "is not a host"},
+		{name: "path", flags: []string{"artex.example.com/ui"}, wantErr: "is not a host"},
+		{name: "trailing dot", env: "artex.example.com.", wantErr: "ends with a dot"},
+		{name: "trailing dot with port", env: "artex.example.com.:8443", wantErr: "ends with a dot"},
+		{name: "default http port", env: "artex.example.com:80", wantErr: "without the port"},
+		{name: "default https port", flags: []string{"a.example,artex.example.com:443"}, wantErr: "without the port"},
+		{name: "stdio refused", flags: []string{"a.example"}, stdio: true, wantErr: "needs an HTTP transport"},
+		{name: "empty on stdio", env: " , ", stdio: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := allowedHosts(tt.flags, tt.env, tt.stdio)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("err = %v, want %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil || strings.Join(got, "|") != strings.Join(tt.want, "|") {
+				t.Fatalf("= %q, %v, want %q", got, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestWebAuthReason(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		flag    bool
+		listen  string
+		allowed []string
+		want    string
+	}{
+		{name: "loopback default", listen: "localhost:9400"},
+		{name: "flag", flag: true, listen: "localhost:9400", want: "--auth"},
+		{name: "non-loopback", listen: ":9400", want: "non-loopback"},
+		{name: "allowed hosts force it", listen: "localhost:9400", allowed: []string{"artex.example.com"}, want: "reverse proxy"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got := webAuthReason(tt.flag, tt.listen, tt.allowed)
+			if (tt.want == "") != (got == "") || !strings.Contains(got, tt.want) {
+				t.Fatalf("= %q, want containing %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestWebAPIOptionsAllowedHosts(t *testing.T) {
+	opts := webAPIOptions(t.TempDir(), false, "localhost:9400", []string{"artex.example.com"}, nil, "")
+	h := api.New(nil, nil, 1, 1, opts...).Handler()
+
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("GET", "http://localhost:9400/api/auth/status", nil))
+	var status struct {
+		AuthRequired bool `json:"auth_required"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil || !status.AuthRequired {
+		t.Fatalf("auth status %d %s: allowed hosts did not force auth", w.Code, w.Body)
+	}
+
+	for _, tt := range []struct {
+		origin string
+		want   string
+	}{
+		{"https://artex.example.com", "invalid setup token"},
+		{"https://evil.example", "cross-origin request refused"},
+	} {
+		r := httptest.NewRequest("POST", "http://localhost:9400/api/auth/init", strings.NewReader(`{"password":"correct horse battery"}`))
+		r.Header.Set("Origin", tt.origin)
+		r.Header.Set("Sec-Fetch-Site", "same-origin")
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), tt.want) {
+			t.Errorf("Origin %s: %d %s, want 403 %q", tt.origin, w.Code, w.Body, tt.want)
+		}
 	}
 }

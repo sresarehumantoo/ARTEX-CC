@@ -40,6 +40,7 @@ artex-cc init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.examp
 | `--listen ADDR` | HTTP listen address (or `ARTEX_LISTEN`). Without `--web`, a non-loopback address requires `ARTEX_MCP_TOKEN` | `localhost:9400` |
 | `--web` | Enable the [web UI](/docs/web-ui/) and REST API | off |
 | `--auth` | Require password login for the web UI on a loopback listener (or `ARTEX_AUTH`) | off |
+| `--allowed-host HOST` | Accept `HOST` from a same-host reverse proxy, in the `Host` header and in the `Origin` of web UI writes (or `ARTEX_ALLOWED_HOSTS`). Repeat the flag or separate hosts with commas. Forces `--auth` with `--web`, requires `ARTEX_MCP_TOKEN` without it, and `serve --stdio` refuses to start with it. See [Behind a reverse proxy](/docs/web-ui/#behind-a-reverse-proxy) | none |
 | `--proxy ADDR` | Start the recording MITM proxy on `ADDR`, for example `:8788` | off |
 | `--data DIR` | Directory for traffic, evidence and the engagement config | `.` |
 | `--claude-bin PATH` | `claude` CLI used by the web UI chat (or `ARTEX_CLAUDE_BIN`) | `claude` |
@@ -73,7 +74,8 @@ Each variable is a fallback for the matching flag; a flag on the command line wi
 | `ARTEX_PG` | `--pg` | PostgreSQL connection string | none, required |
 | `ARTEX_LISTEN` | `--listen` | HTTP listen address for `serve` | `localhost:9400` |
 | `ARTEX_MCP_TOKEN` | | Bearer token `/mcp` requires when serving HTTP without `--web`. Required for a non-loopback `--listen`; optional on loopback. Ignored with `--web`, which generates its own token. See [MCP clients](/docs/mcp-clients/#generic-stdio) | none |
-| `ARTEX_AUTH` | `--auth` | Require password login for the web UI on a loopback listener (`1`/`true`). Non-loopback listeners always require it. | off |
+| `ARTEX_AUTH` | `--auth` | Require password login for the web UI on a loopback listener (`1`/`true`). Non-loopback listeners, and any server with allowed hosts, always require it. | off |
+| `ARTEX_ALLOWED_HOSTS` | `--allowed-host` | Comma-separated hosts a same-host reverse proxy may send as `Host` or `Origin`. Ignored when `--allowed-host` is given | none |
 | `ARTEX_CREDENTIAL_KEY` | | Hex-encoded 32-byte AES-256-GCM key for encrypting stored credentials | none (plaintext) |
 | `ARTEX_INTENT_LEASE` | | How long a `start_intent` claim stays exclusive, in whole minutes (Go duration such as `2m`). Shorten it only for tests and evals | `30m` |
 | `ARTEX_REQUIRE_IDENTITY` | `--require-identity` | Refuse intent claims from callers without a verified identity (`1`/`true`). Any value that is not a boolean is a startup error. HTTP only | off |
