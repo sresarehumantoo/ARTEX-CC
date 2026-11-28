@@ -120,9 +120,11 @@ func (s *Store) AddFinding(ctx context.Context, f tools.FindingInput) (findingID
 func (s *Store) ListFindings(ctx context.Context, explorationID int64) ([]tools.Finding, error) {
 	rows, err := s.QueryContext(ctx, `
 		SELECT f.id, f.node_id, f.vulnclass, f.severity, f.summary, COALESCE(f.status,''),
-		       f.merged_into, f.dismissed, f.dismiss_reason
+		       f.merged_into, f.dismissed, f.dismiss_reason,
+		       COALESCE((n.payload->>'superseded_by_reopen')::bigint, 0)
 		FROM findings f
 		JOIN tasks t ON t.id = f.task_id
+		LEFT JOIN exploration_nodes n ON n.id = f.node_id
 		WHERE t.exploration_id = $1
 		ORDER BY f.created_at DESC`, explorationID)
 	if err != nil {
@@ -134,7 +136,7 @@ func (s *Store) ListFindings(ctx context.Context, explorationID int64) ([]tools.
 		var f tools.Finding
 		var nodeID, mergedInto sql.NullInt64
 		if err := rows.Scan(&f.ID, &nodeID, &f.VulnClass, &f.Severity, &f.Summary, &f.Status,
-			&mergedInto, &f.Dismissed, &f.DismissReason); err != nil {
+			&mergedInto, &f.Dismissed, &f.DismissReason, &f.SupersededByReopen); err != nil {
 			return nil, err
 		}
 		if nodeID.Valid {
@@ -172,9 +174,11 @@ func (s *Store) SetFindingStatus(id int64, status string) error {
 
 func (s *Store) ListFindingsForReport(ctx context.Context, explorationID int64) ([]tools.ReportFinding, error) {
 	rows, err := s.QueryContext(ctx, `
-		SELECT f.id, f.vulnclass, COALESCE(f.name,''), f.severity, f.summary, COALESCE(f.evidence,''), COALESCE(f.status,'')
+		SELECT f.id, f.vulnclass, COALESCE(f.name,''), f.severity, f.summary, COALESCE(f.evidence,''), COALESCE(f.status,''),
+		       COALESCE((n.payload->>'superseded_by_reopen')::bigint, 0)
 		FROM findings f
 		JOIN tasks t ON t.id = f.task_id
+		LEFT JOIN exploration_nodes n ON n.id = f.node_id
 		WHERE t.exploration_id = $1
 		  AND f.dismissed = false
 		  AND f.merged_into IS NULL
@@ -186,7 +190,7 @@ func (s *Store) ListFindingsForReport(ctx context.Context, explorationID int64) 
 	var out []tools.ReportFinding
 	for rows.Next() {
 		var f tools.ReportFinding
-		if err := rows.Scan(&f.ID, &f.VulnClass, &f.Name, &f.Severity, &f.Summary, &f.Evidence, &f.Status); err != nil {
+		if err := rows.Scan(&f.ID, &f.VulnClass, &f.Name, &f.Severity, &f.Summary, &f.Evidence, &f.Status, &f.SupersededByReopen); err != nil {
 			return nil, err
 		}
 		out = append(out, f)

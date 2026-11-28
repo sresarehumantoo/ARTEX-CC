@@ -183,6 +183,10 @@ func (m *mockStore) UpdateNodeFields(_ context.Context, _ int64, _ string, _ map
 	return nil
 }
 
+func (m *mockStore) ReopenNode(_ context.Context, _, _ int64, _, _ string) (*ReopenResult, error) {
+	return nil, nil
+}
+
 func (m *mockStore) ExportEngagementData(_ context.Context, _ int64) (*EngagementExport, error) {
 	return nil, nil
 }

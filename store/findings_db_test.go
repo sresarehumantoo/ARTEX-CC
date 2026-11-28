@@ -100,9 +100,9 @@ func TestListFindingsMock(t *testing.T) {
 	s, mock := newRegexpMockStore(t)
 	ctx := context.Background()
 
-	rows := sqlmock.NewRows([]string{"id", "node_id", "vulnclass", "severity", "summary", "status", "merged_into", "dismissed", "dismiss_reason"}).
-		AddRow(int64(1), sql.NullInt64{Int64: 5, Valid: true}, "xss", "high", "XSS found", "pending", sql.NullInt64{}, false, "").
-		AddRow(int64(2), sql.NullInt64{}, "sqli", "critical", "SQLi found", "confirmed", sql.NullInt64{Int64: 1, Valid: true}, false, "")
+	rows := sqlmock.NewRows([]string{"id", "node_id", "vulnclass", "severity", "summary", "status", "merged_into", "dismissed", "dismiss_reason", "superseded_by_reopen"}).
+		AddRow(int64(1), sql.NullInt64{Int64: 5, Valid: true}, "xss", "high", "XSS found", "pending", sql.NullInt64{}, false, "", int64(0)).
+		AddRow(int64(2), sql.NullInt64{}, "sqli", "critical", "SQLi found", "confirmed", sql.NullInt64{Int64: 1, Valid: true}, false, "", int64(0))
 
 	mock.ExpectQuery(`SELECT f\.id.*FROM findings f.*JOIN tasks t`).
 		WithArgs(int64(10)).
@@ -229,9 +229,9 @@ func TestListFindingsForReportMock(t *testing.T) {
 	s, mock := newRegexpMockStore(t)
 	ctx := context.Background()
 
-	rows := sqlmock.NewRows([]string{"id", "vulnclass", "name", "severity", "summary", "evidence", "status"}).
-		AddRow(int64(1), "xss", "Reflected XSS", "high", "XSS found", "script tag", "pending").
-		AddRow(int64(2), "sqli", "SQL Injection", "critical", "SQLi found", "", "confirmed")
+	rows := sqlmock.NewRows([]string{"id", "vulnclass", "name", "severity", "summary", "evidence", "status", "superseded_by_reopen"}).
+		AddRow(int64(1), "xss", "Reflected XSS", "high", "XSS found", "script tag", "pending", int64(0)).
+		AddRow(int64(2), "sqli", "SQL Injection", "critical", "SQLi found", "", "confirmed", int64(0))
 
 	mock.ExpectQuery(`SELECT f\.id.*FROM findings f.*JOIN tasks t.*WHERE t\.exploration_id`).
 		WithArgs(int64(10)).

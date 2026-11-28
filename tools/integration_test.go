@@ -136,11 +136,19 @@ func (m *statefulMock) UpdateNodeFields(_ context.Context, id int64, state strin
 				m.nodes[i].Payload = make(map[string]any)
 			}
 			for k, v := range merge {
+				if v == nil {
+					delete(m.nodes[i].Payload, k)
+					continue
+				}
 				m.nodes[i].Payload[k] = v
 			}
 		}
 	}
 	return nil
+}
+
+func (m *statefulMock) ReopenNode(_ context.Context, _, _ int64, _, _ string) (*ReopenResult, error) {
+	return nil, nil
 }
 
 func (m *statefulMock) AddFinding(_ context.Context, f FindingInput) (int64, int64, error) {

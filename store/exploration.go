@@ -307,6 +307,8 @@ func (s *Store) ReleaseHolderClaims(ctx context.Context, holder string) (int64, 
 	return res.RowsAffected()
 }
 
+// UpdateNodeFields sets the node state when state is set and merges
+// payloadMerge into its payload, removing the keys whose value is nil.
 func (s *Store) UpdateNodeFields(ctx context.Context, nodeID int64, state string, payloadMerge map[string]any) error {
 	if state != "" {
 		if _, err := s.ExecContext(ctx,
@@ -316,13 +318,26 @@ func (s *Store) UpdateNodeFields(ctx context.Context, nodeID int64, state string
 		}
 	}
 	if len(payloadMerge) > 0 {
-		merge, err := json.Marshal(payloadMerge)
+		set := map[string]any{}
+		var removed []string
+		for k, v := range payloadMerge {
+			if v == nil {
+				removed = append(removed, k)
+			} else {
+				set[k] = v
+			}
+		}
+		merge, err := json.Marshal(set)
 		if err != nil {
 			return err
 		}
-		if _, err := s.ExecContext(ctx,
-			`UPDATE exploration_nodes SET payload = payload || $1::jsonb WHERE id = $2`,
-			string(merge), nodeID); err != nil {
+		query := `UPDATE exploration_nodes SET payload = payload || $1::jsonb WHERE id = $2`
+		args := []any{string(merge), nodeID}
+		if len(removed) > 0 {
+			query = `UPDATE exploration_nodes SET payload = (payload - $3::text[]) || $1::jsonb WHERE id = $2`
+			args = append(args, removed)
+		}
+		if _, err := s.ExecContext(ctx, query, args...); err != nil {
 			return err
 		}
 	}
@@ -388,7 +403,9 @@ func (s *Store) ProveGoal(ctx context.Context, goalID, evidenceID int64) error {
 		return fmt.Errorf("link proof: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx,
-		`UPDATE exploration_nodes SET state = 'met', blocked_reason = NULL, owner = NULL, claim_expires_at = NULL WHERE id = $1`,
+		`UPDATE exploration_nodes SET state = 'met', blocked_reason = NULL, owner = NULL, claim_expires_at = NULL,
+		     payload = payload - 'reopened_by' - 'reopen_reason' - 'reopened_at'
+		 WHERE id = $1`,
 		goalID); err != nil {
 		return fmt.Errorf("mark goal %d met: %w", goalID, err)
 	}
