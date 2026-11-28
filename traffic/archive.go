@@ -137,7 +137,7 @@ FROM exchange_bodies WHERE id=?`, item.ID).Scan(&item.ReqHead, &item.ReqBody, &r
 			if err != nil {
 				return 0, err
 			}
-			if err := os.WriteFile(filepath.Join(dir, "blobs", hash+".bin"), data, 0o600); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, "blobs", hash+".bin"), data, 0o600); err != nil { //nolint:gosec // hash passed blobHashRe in blobPath, so it is hex and cannot traverse
 				return 0, err
 			}
 		}
@@ -196,7 +196,7 @@ func (t *Traffic) ImportArchive(dir string) (int64, error) {
 			if err := os.MkdirAll(filepath.Dir(destination), 0o700); err != nil {
 				return 0, err
 			}
-			if err := os.WriteFile(destination, data, 0o600); err != nil {
+			if err := os.WriteFile(destination, data, 0o600); err != nil { //nolint:gosec // hash matched blobHashRe and its sha256 checksum above
 				return 0, err
 			}
 		}
