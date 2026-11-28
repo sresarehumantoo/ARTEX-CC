@@ -4,17 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
 
 func RegisterIntentTools(reg *Registry, store Store, explorationID int64) {
-	reg.Register(makeStartIntent(store))
+	reg.Register(makeStartIntent(store, explorationID))
 	reg.Register(makeCompleteIntent(store))
 	reg.Register(makeCancelIntent(store))
 }
 
-func makeStartIntent(store Store) Tool {
+func makeStartIntent(store Store, explorationID int64) Tool {
 	minuteUnit := "minutes"
 	if IntentLease == time.Minute {
 		minuteUnit = "minute"
@@ -26,15 +27,19 @@ func makeStartIntent(store Store) Tool {
 			fmt.Sprintf("The claim is exclusive for %d %s and renews whenever you pass this intent as intent_id to record_fact, report_finding or record_coverage, with the same owner if you claimed with one. ", int(IntentLease.Minutes()), minuteUnit) +
 			"If you go that long without recording anything for it, call start_intent again to renew it, or the intent reopens for other sessions. " +
 			"Fails if another session holds a live claim, so pick a different intent. " +
+			"When you take over an intent whose holder's claim lapsed, the result lists the unrestored target changes you inherit with their baselines: restoring them is now your job. " +
+			"Pass adopt_changes with ids from unowned_target_changes to make this claim own their restoration too. " +
 			"Pass the same owner on every claim call if you use one." + identityRequiredDesc(),
 		Schema: obj(map[string]any{
-			"node_id": intp("intent node id"),
-			"owner":   str(ownerArgDesc),
+			"node_id":       intp("intent node id"),
+			"owner":         str(ownerArgDesc),
+			"adopt_changes": arr(map[string]any{"type": "integer"}, "ids of unrestored target changes with no live owner to move under this intent"),
 		}, "node_id"),
 		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
 			var a struct {
-				NodeID json.RawMessage `json:"node_id"`
-				Owner  string          `json:"owner"`
+				NodeID       json.RawMessage   `json:"node_id"`
+				Owner        string            `json:"owner"`
+				AdoptChanges []json.RawMessage `json:"adopt_changes"`
 			}
 			if err := json.Unmarshal(in, &a); err != nil {
 				return errResult("invalid input: " + err.Error()), nil
@@ -70,9 +75,69 @@ func makeStartIntent(store Store) Tool {
 			if claim.Renewed {
 				verb = "renewed"
 			}
-			return textResult(fmt.Sprintf("intent %d is now running; %s by %s until %s",
-				id, verb, OwnerLabel(claim.Owner), claim.ExpiresAt.UTC().Format(time.RFC3339))), nil
+			msg := fmt.Sprintf("intent %d is now running; %s by %s until %s",
+				id, verb, OwnerLabel(claim.Owner), claim.ExpiresAt.UTC().Format(time.RFC3339))
+			extra := map[string]any{}
+			if claim.TookOver {
+				inheritChanges(ctx, store, explorationID, id, claim.PreviousOwner, extra)
+			}
+			if ids := pidList(a.AdoptChanges); len(ids) > 0 {
+				adoptChanges(ctx, store, explorationID, id, owner, ids, extra)
+			}
+			if len(extra) == 0 {
+				return textResult(msg), nil
+			}
+			b, err := json.Marshal(extra)
+			if err != nil {
+				return errResult(err.Error()), nil
+			}
+			return textResult(msg + "\n" + string(b)), nil
 		},
+	}
+}
+
+// inheritChanges lists the unrestored changes a takeover hands to the new
+// holder. The claim is already taken, so a failure here is reported, not
+// returned.
+func inheritChanges(ctx context.Context, store Store, explorationID, intentID int64, previous string, out map[string]any) {
+	live, err := store.ListTargetChanges(ctx, explorationID, true)
+	if err != nil {
+		out["handoff_error"] = err.Error()
+		return
+	}
+	var inherited []map[string]any
+	for _, c := range live {
+		if c.IntentID == intentID {
+			inherited = append(inherited, c.Handoff())
+		}
+	}
+	if len(inherited) == 0 {
+		return
+	}
+	out["inherited_target_changes"] = inherited
+	out["handoff"] = fmt.Sprintf("You took this intent over from %s, whose claim lapsed with %d unrestored target change(s). "+
+		"Restoring them is now yours: put each resource back to its baseline (not a later change's original_fingerprint), "+
+		"using the backup where one was kept, then call record_target_restore. last_observed and restore_attempts show earlier failed attempts.",
+		OwnerLabel(previous), len(inherited))
+}
+
+func adoptChanges(ctx context.Context, store Store, explorationID, intentID int64, holder string, ids []int64, out map[string]any) {
+	res, err := store.AdoptTargetChanges(ctx, explorationID, intentID, holder, ids)
+	if err != nil {
+		out["adopt_error"] = err.Error()
+		return
+	}
+	adopted := make([]map[string]any, 0, len(res.Adopted))
+	for _, c := range res.Adopted {
+		adopted = append(adopted, c.Handoff())
+	}
+	out["adopted_changes"] = adopted
+	if len(res.Refused) > 0 {
+		refused := map[string]string{}
+		for id, why := range res.Refused {
+			refused[strconv.FormatInt(id, 10)] = why
+		}
+		out["not_adopted"] = refused
 	}
 }
 

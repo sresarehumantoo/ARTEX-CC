@@ -82,3 +82,85 @@ func TestParseUnownedChangeThreshold(t *testing.T) {
 		}
 	}
 }
+
+// splitClaimResult separates start_intent's first line from the JSON it
+// appends when changes were handed off or adopted.
+func splitClaimResult(t *testing.T, content string) (string, map[string]any) {
+	t.Helper()
+	line, rest, ok := strings.Cut(content, "\n")
+	if !ok {
+		return line, nil
+	}
+	var extra map[string]any
+	if err := json.Unmarshal([]byte(rest), &extra); err != nil {
+		t.Fatalf("decode %q: %v", rest, err)
+	}
+	return line, extra
+}
+
+func TestStartIntentTakeoverHandsOffChanges(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "running"}
+	ms.claims[10] = IntentClaim{NodeID: 10, Owner: "sess-dead", ExpiresAt: time.Now().Add(-time.Minute)}
+	mine := unownedChange(7, "claim_lapsed", time.Minute)
+	mine.IntentID, mine.Backup, mine.OriginalFingerprint = 10, `C:\bak\task.ps1`, "sha256:orig"
+	other := unownedChange(8, "claim_lapsed", time.Minute)
+	other.IntentID = 11
+	ms.changes = []TargetChange{mine, other}
+
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+	start, _ := reg.Lookup("start_intent")
+	r, _ := start.Run(WithSessionID(context.Background(), "sess-live"), json.RawMessage(`{"node_id": 10}`))
+	if r.IsError {
+		t.Fatalf("takeover failed: %s", r.Content)
+	}
+	line, extra := splitClaimResult(t, r.Content)
+	if !strings.HasPrefix(line, "intent 10 is now running; claimed by ") {
+		t.Errorf("first line changed: %q", line)
+	}
+	inherited, _ := extra["inherited_target_changes"].([]any)
+	if len(inherited) != 1 {
+		t.Fatalf("inherited = %v, want only intent 10's change", extra["inherited_target_changes"])
+	}
+	c := inherited[0].(map[string]any)
+	if c["id"] != float64(7) || c["baseline"] != "sha256:orig" || c["backup"] != `C:\bak\task.ps1` {
+		t.Errorf("handoff entry = %v, want change 7 with its baseline and backup", c)
+	}
+	if h, _ := extra["handoff"].(string); !strings.Contains(h, OwnerLabel("sess-dead")) {
+		t.Errorf("handoff does not name the previous holder: %q", h)
+	}
+
+	r, _ = start.Run(WithSessionID(context.Background(), "sess-live"), json.RawMessage(`{"node_id": 10}`))
+	if strings.Contains(r.Content, "inherited_target_changes") {
+		t.Errorf("renewal repeated the handoff: %s", r.Content)
+	}
+}
+
+func TestStartIntentAdoptsChanges(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = &Node{ID: 10, Kind: KindIntent, State: "open"}
+	owned := unownedChange(3, "", 0)
+	ms.changes = []TargetChange{unownedChange(2, "intent_done", time.Minute), owned}
+
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+	start, _ := reg.Lookup("start_intent")
+	r, _ := start.Run(WithSessionID(context.Background(), "sess-a"), json.RawMessage(`{"node_id": 10, "adopt_changes": [2, 3]}`))
+	if r.IsError {
+		t.Fatalf("start_intent failed: %s", r.Content)
+	}
+	_, extra := splitClaimResult(t, r.Content)
+	adopted, _ := extra["adopted_changes"].([]any)
+	if len(adopted) != 1 || adopted[0].(map[string]any)["id"] != float64(2) {
+		t.Errorf("adopted = %v, want change 2", extra["adopted_changes"])
+	}
+	if refused, _ := extra["not_adopted"].(map[string]any); refused["3"] == nil {
+		t.Errorf("not_adopted = %v, want change 3", extra["not_adopted"])
+	}
+	if ms.changes[0].IntentID != 10 {
+		t.Errorf("change 2 is on intent %d, want 10", ms.changes[0].IntentID)
+	}
+}

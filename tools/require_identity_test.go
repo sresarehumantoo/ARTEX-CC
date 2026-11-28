@@ -102,7 +102,7 @@ func TestClaimToolsRequireIdentity(t *testing.T) {
 
 func TestStartIntentDescriptionWithoutRequireIdentity(t *testing.T) {
 	setRequireIdentity(t, false)
-	if d := makeStartIntent(newIntentMockStore()).Description; strings.Contains(d, "X-Artex-Identity") {
+	if d := makeStartIntent(newIntentMockStore(), 1).Description; strings.Contains(d, "X-Artex-Identity") {
 		t.Errorf("description mentions identity with the setting off: %s", d)
 	}
 }
