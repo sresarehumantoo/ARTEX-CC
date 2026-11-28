@@ -241,7 +241,7 @@ func main() {
 			scorecard.Coordination = coord
 			summary := coord.Summary()
 			fmt.Fprint(os.Stderr, "\n"+summary+"\n")
-			if err := os.WriteFile(filepath.Join(rc.transcriptsDir, "coordination.txt"), []byte(summary), 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(rc.transcriptsDir, "coordination.txt"), []byte(summary), 0600); err != nil { //nolint:gosec // transcriptsDir is the operator's --output dir plus a sanitized scenario stem
 				slog.Warn("failed to write coordination summary", "err", err)
 			}
 		}
@@ -251,7 +251,7 @@ func main() {
 	fmt.Println(string(out))
 
 	outPath := filepath.Join(*outputDir, "scorecard-"+stem+".json")
-	if err := os.WriteFile(outPath, out, 0644); err != nil {
+	if err := os.WriteFile(outPath, out, 0644); err != nil { //nolint:gosec // outPath is the operator's --output dir plus a sanitized scenario stem
 		slog.Warn("failed to write scorecard file", "path", outPath, "err", err)
 	} else {
 		slog.Info("scorecard written", "path", outPath)

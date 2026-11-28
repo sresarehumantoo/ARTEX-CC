@@ -414,5 +414,5 @@ func parsePathQuery(s string) (*url.URL, bool) {
 // bodyAllowedForStatus is net/http's unexported rule: 1xx, 204 and 304
 // responses carry no body.
 func bodyAllowedForStatus(status int) bool {
-	return !(status >= 100 && status <= 199) && status != 204 && status != 304
+	return (status < 100 || status > 199) && status != 204 && status != 304
 }

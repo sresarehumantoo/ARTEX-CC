@@ -117,7 +117,7 @@ func writeMCPConfigFile(path string, cfg mcpConfigFile) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o600)
+	return os.WriteFile(path, data, 0o600) //nolint:gosec // path is the operator's data dir or a chat-mcp file named by a UUID-validated conversation id
 }
 
 func WriteMCPConfig(dataDir, listenAddr, token string) (string, error) {
@@ -154,7 +154,7 @@ func (r *Runner) conversationMCPConfig(id string) (string, error) {
 		return "", err
 	}
 	var cfg mcpConfigFile
-	data, err := os.ReadFile(r.mcpConfig)
+	data, err := os.ReadFile(r.mcpConfig) //nolint:gosec // mcpConfig is the server's own generated config path
 	if err != nil {
 		return "", err
 	}
@@ -172,7 +172,7 @@ func (r *Runner) conversationMCPConfig(id string) (string, error) {
 	srv.Headers = headers
 	cfg.MCPServers[builtinMCPName] = srv
 	dir := filepath.Join(filepath.Dir(r.mcpConfig), "chat-mcp")
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil { //nolint:gosec // dir sits next to the server's own generated MCP config
 		return "", err
 	}
 	path := filepath.Join(dir, id+".json")
@@ -256,7 +256,7 @@ func (r *Runner) Start(ctx context.Context, id, model, agent, systemPrompt strin
 	started := false
 	defer func() {
 		if !started && mcpConfig != r.mcpConfig {
-			os.Remove(mcpConfig)
+			os.Remove(mcpConfig) //nolint:gosec // mcpConfig was just written by conversationMCPConfig
 		}
 	}()
 
@@ -312,7 +312,7 @@ func (r *Runner) Start(ctx context.Context, id, model, agent, systemPrompt strin
 	}
 
 	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	cmd := exec.CommandContext(runCtx, r.claudeBin, args...)
+	cmd := exec.CommandContext(runCtx, r.claudeBin, args...) //nolint:gosec // claudeBin is the operator's --claude-bin setting
 	cmd.Dir = r.dataDir
 	cmd.Env = append(os.Environ(), env...)
 	setProcessGroup(cmd)

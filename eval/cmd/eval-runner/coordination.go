@@ -1279,7 +1279,7 @@ func scoreRun(ctx context.Context, s *store.Store, explorationID int64, runs []I
 // recorded work renews the claim. Binaries without the tools command, or
 // that fail to run, count as not renewing.
 func serverRenewsClaims(ctx context.Context, artexBin string) bool {
-	out, err := exec.CommandContext(ctx, artexBin, "tools", "--json").Output()
+	out, err := exec.CommandContext(ctx, artexBin, "tools", "--json").Output() //nolint:gosec // artexBin is the operator's --artex flag
 	if err != nil {
 		return false
 	}

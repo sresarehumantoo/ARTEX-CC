@@ -2326,21 +2326,28 @@ func (t *Traffic) gcBlobs() error {
 		return err
 	}
 
-	root := filepath.Join(t.dir, "_blobs", "sha256")
+	root, err := os.OpenRoot(filepath.Join(t.dir, "_blobs", "sha256"))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer root.Close()
 	var buckets []string
-	if err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+	if err := fs.WalkDir(root.FS(), ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d == nil {
 			return nil
 		}
 		if d.IsDir() {
-			if p != root {
+			if p != "." {
 				buckets = append(buckets, p)
 			}
 			return nil
 		}
 		h := strings.TrimSuffix(d.Name(), ".bin")
 		if _, ok := refs[h]; !ok {
-			os.Remove(p)
+			_ = root.Remove(p)
 		}
 		return nil
 	}); err != nil {
@@ -2351,7 +2358,7 @@ func (t *Traffic) gcBlobs() error {
 	// to avoid deleting a bucket that still holds live blobs.
 	sort.Slice(buckets, func(i, j int) bool { return len(buckets[i]) > len(buckets[j]) })
 	for _, b := range buckets {
-		os.Remove(b)
+		_ = root.Remove(b)
 	}
 	return nil
 }
@@ -2370,13 +2377,18 @@ func (t *Traffic) legacyBlobRefs(refs map[string]struct{}) error {
 		return nil
 	}
 	blobRe := regexp.MustCompile(`@blob sha256:([0-9a-f]{64})`)
-	return filepath.WalkDir(t.dir, func(p string, d fs.DirEntry, err error) error {
+	root, err := os.OpenRoot(t.dir)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	return fs.WalkDir(root.FS(), ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d == nil {
 			return nil // skip unreadable entries
 		}
 		if d.IsDir() {
 			// _blobs/_index/_ca never contain references; skip their subtrees.
-			if p != t.dir && strings.HasPrefix(d.Name(), "_") {
+			if p != "." && strings.HasPrefix(d.Name(), "_") {
 				return filepath.SkipDir
 			}
 			return nil
@@ -2384,7 +2396,7 @@ func (t *Traffic) legacyBlobRefs(refs map[string]struct{}) error {
 		if nm := d.Name(); nm != "request.http" && nm != "response.http" {
 			return nil
 		}
-		b, err := os.ReadFile(p)
+		b, err := root.ReadFile(p)
 		if err != nil {
 			return nil
 		}

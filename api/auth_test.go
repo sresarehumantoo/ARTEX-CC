@@ -223,3 +223,35 @@ func TestAuthInitSetupToken(t *testing.T) {
 		t.Fatalf("reused token: %d", w.Code)
 	}
 }
+
+func TestSessionCookieSecureOverTLS(t *testing.T) {
+	a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()), WithAuthRequired(true))
+	h := a.Handler()
+
+	w := authDo(h, "POST", "/api/auth/init", initBody(t, a, "correct horse"))
+	if w.Code != 200 {
+		t.Fatalf("init: %d", w.Code)
+	}
+	if sessionFrom(t, w).Secure {
+		t.Fatal("plain-HTTP session cookie must not be Secure")
+	}
+
+	r := httptest.NewRequest("POST", "https://localhost:9400/api/auth/login", strings.NewReader(`{"password":"correct horse"}`))
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != 200 {
+		t.Fatalf("login: %d", w.Code)
+	}
+	session := sessionFrom(t, w)
+	if !session.Secure {
+		t.Fatal("TLS session cookie must be Secure")
+	}
+
+	r = httptest.NewRequest("POST", "https://localhost:9400/api/auth/logout", nil)
+	r.AddCookie(session)
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if !sessionFrom(t, w).Secure {
+		t.Fatal("TLS logout cookie must be Secure")
+	}
+}

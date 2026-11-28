@@ -106,7 +106,7 @@ func tokenize(input string) []token {
 			runes[i] != '=' && runes[i] != '!' &&
 			runes[i] != '>' && runes[i] != '<' &&
 			runes[i] != '\'' && runes[i] != '"' &&
-			!(runes[i] == '|' && i+1 < len(runes) && runes[i+1] == '|') {
+			(runes[i] != '|' || i+1 >= len(runes) || runes[i+1] != '|') {
 			sb.WriteRune(runes[i])
 			i++
 		}
