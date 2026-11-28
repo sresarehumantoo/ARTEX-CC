@@ -167,11 +167,8 @@ func TestUpdateNodeFields_Both(t *testing.T) {
 	s, mock := newRegexpMockStore(t)
 	ctx := context.Background()
 
-	mock.ExpectExec(`UPDATE exploration_nodes SET state = \$1, owner = NULL, claim_expires_at = NULL WHERE id = \$2`).
-		WithArgs("done", int64(7)).
-		WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectExec(`UPDATE exploration_nodes SET payload = payload`).
-		WithArgs(`{"result":"ok"}`, int64(7)).
+	mock.ExpectExec(`UPDATE exploration_nodes SET state = \$1, owner = NULL, claim_expires_at = NULL, payload = payload \|\| \$2::jsonb WHERE id = \$3`).
+		WithArgs("done", `{"result":"ok"}`, int64(7)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	err := s.UpdateNodeFields(ctx, 7, "done", map[string]any{"result": "ok"})

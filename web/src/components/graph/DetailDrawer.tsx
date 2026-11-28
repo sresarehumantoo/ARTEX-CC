@@ -1,6 +1,13 @@
-import { X, ExternalLink, ArrowRight } from 'lucide-react'
+import { useState } from 'react'
+import { X, ExternalLink, ArrowRight, RotateCcw } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { StatusBadge } from '../StatusBadge'
+import { Button } from '../ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog'
+import { Textarea } from '../ui/textarea'
+import { reopenNode } from '../../lib/api'
 import type { GraphNode, GraphEdge } from '../../lib/types'
 
 const kindColors: Record<string, string> = {
@@ -40,6 +47,67 @@ function nodeLabel(node: GraphNode): string {
   return `Node #${node.id}`
 }
 
+function canReopen(node: GraphNode): boolean {
+  return (node.kind === 'intent' && (node.state === 'done' || node.state === 'stopped')) ||
+    (node.kind === 'goal' && node.state === 'met')
+}
+
+function ReopenDialog({ node, open, onOpenChange }: { node: GraphNode; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const qc = useQueryClient()
+  const [reason, setReason] = useState('')
+  const reopen = useMutation({
+    mutationFn: (r: string) => reopenNode(node.id, r),
+    onSuccess: (res) => {
+      for (const key of ['graph', 'engagement', 'findings']) qc.invalidateQueries({ queryKey: [key] })
+      const goals = res.reopened_goals ?? []
+      toast.success(
+        goals.length > 0
+          ? `${node.kind === 'goal' ? 'Goal' : 'Intent'} #${node.id} reopened, along with goal ${goals.map((g) => `#${g}`).join(', ')}`
+          : `${node.kind === 'goal' ? 'Goal' : 'Intent'} #${node.id} reopened`,
+      )
+      setReason('')
+      onOpenChange(false)
+    },
+    onError: (err: Error) => toast.error(`Failed to reopen: ${err.message}`),
+  })
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const r = reason.trim()
+            if (r) reopen.mutate(r)
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Reopen {node.kind} #{node.id}?</DialogTitle>
+            <DialogDescription>
+              {node.kind === 'intent'
+                ? 'The intent goes back to open so an agent redoes it. Its result moves into its history, and the facts and findings it yielded are kept but marked superseded. A goal only this intent proved reopens too.'
+                : 'The goal goes back to open so agents prove it again. Its proofs are kept.'}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            autoFocus
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="What was wrong, so the next agent knows what to redo"
+            aria-label="Reason"
+          />
+          <DialogFooter>
+            <Button type="submit" disabled={!reason.trim() || reopen.isPending}>
+              Reopen
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 interface Neighbor {
   node: GraphNode
   rel: string
@@ -47,6 +115,7 @@ interface Neighbor {
 }
 
 export function DetailDrawer({ node, edges, allNodes, onClose, onSelectNode }: Props) {
+  const [reopening, setReopening] = useState(false)
   const payload = node.payload
   const priorityKeys = ['text', 'summary', 'name', 'title', 'severity', 'evidence', 'description']
   const shownKeys = new Set(priorityKeys)
@@ -96,6 +165,17 @@ export function DetailDrawer({ node, edges, allNodes, onClose, onSelectNode }: P
         </button>
       </div>
       <div className="flex-1 overflow-y-auto p-3">
+        {typeof payload.superseded_by_reopen === 'number' && (
+          <p className="mb-3 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-600 dark:text-amber-400">
+            Superseded: intent #{payload.superseded_by_reopen} was reopened for a redo.
+          </p>
+        )}
+        {canReopen(node) && (
+          <Button variant="outline" size="sm" className="mb-3" onClick={() => setReopening(true)}>
+            <RotateCcw />
+            Reopen
+          </Button>
+        )}
         <dl>
           {priorityKeys.map((key) => (
             <PayloadField key={key} label={key} value={payload[key]} />
@@ -156,6 +236,7 @@ export function DetailDrawer({ node, edges, allNodes, onClose, onSelectNode }: P
           </div>
         )}
       </div>
+      <ReopenDialog key={node.id} node={node} open={reopening} onOpenChange={setReopening} />
     </div>
   )
 }

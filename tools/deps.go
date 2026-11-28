@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -93,6 +94,7 @@ type Store interface {
 
 	// Intent lifecycle
 	UpdateNodeFields(ctx context.Context, nodeID int64, state string, payloadMerge map[string]any) error
+	ReopenNode(ctx context.Context, explorationID, nodeID int64, by, reason string) (*ReopenResult, error)
 
 	// Target change journal
 	RecordTargetChange(ctx context.Context, explorationID int64, in TargetChangeInput) (*TargetChangeRecord, error)
@@ -204,16 +206,17 @@ type FindingInput struct {
 
 // Finding is a stored vulnerability finding.
 type Finding struct {
-	ID            int64  `json:"id"`
-	NodeID        int64  `json:"node_id,omitempty"`
-	VulnClass     string `json:"vulnclass,omitempty"`
-	Severity      string `json:"severity,omitempty"`
-	Summary       string `json:"summary"`
-	State         string `json:"state,omitempty"`
-	Status        string `json:"status,omitempty"`
-	MergedInto    int64  `json:"merged_into,omitempty"`
-	Dismissed     bool   `json:"dismissed,omitempty"`
-	DismissReason string `json:"dismiss_reason,omitempty"`
+	ID                 int64  `json:"id"`
+	NodeID             int64  `json:"node_id,omitempty"`
+	VulnClass          string `json:"vulnclass,omitempty"`
+	Severity           string `json:"severity,omitempty"`
+	Summary            string `json:"summary"`
+	State              string `json:"state,omitempty"`
+	Status             string `json:"status,omitempty"`
+	MergedInto         int64  `json:"merged_into,omitempty"`
+	Dismissed          bool   `json:"dismissed,omitempty"`
+	DismissReason      string `json:"dismiss_reason,omitempty"`
+	SupersededByReopen int64  `json:"superseded_by_reopen,omitempty"`
 }
 
 // MergedFinding is the result of merging multiple findings into one.
@@ -270,6 +273,22 @@ type Node struct {
 	Payload map[string]any `json:"payload,omitempty"`
 	Origin  string         `json:"origin,omitempty"`
 }
+
+// ReopenResult reports what reopening an intent or goal changed: the goals
+// that lost their only live proof and the yielded facts and findings marked
+// superseded.
+type ReopenResult struct {
+	ID            int64   `json:"id"`
+	Kind          string  `json:"kind"`
+	ReopenedGoals []int64 `json:"reopened_goals,omitempty"`
+	Superseded    []int64 `json:"superseded,omitempty"`
+}
+
+// ErrNodeNotFound means the node does not exist in the engagement.
+var ErrNodeNotFound = errors.New("node not found")
+
+// ErrNotReopenable means the node is not a done or stopped intent or a met goal.
+var ErrNotReopenable = errors.New("only done or stopped intents and met goals can be reopened")
 
 // NodeFilter holds query parameters for listing exploration nodes.
 type NodeFilter struct {
@@ -436,6 +455,8 @@ type ReportFinding struct {
 	Summary   string `json:"summary"`
 	Evidence  string `json:"evidence"`
 	Status    string `json:"status"`
+
+	SupersededByReopen int64 `json:"superseded_by_reopen,omitempty"`
 }
 
 // TrafficBinding links a finding to a captured traffic exchange used as evidence.

@@ -674,6 +674,15 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 				return 0, 0, fmt.Errorf("import node asset_ids (old id %d): %w", oldNodeID, err)
 			}
 		}
+		if payload, _ := n["payload"].(map[string]any); payload["superseded_by_reopen"] != nil {
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE exploration_nodes SET payload = CASE WHEN $1::bigint = 0 THEN payload - 'superseded_by_reopen'
+				 ELSE jsonb_set(payload, '{superseded_by_reopen}', to_jsonb($1::bigint)) END WHERE id = $2`,
+				nodeIDMap[exportToInt64(payload["superseded_by_reopen"])], newNodeID,
+			); err != nil {
+				return 0, 0, fmt.Errorf("import node superseded_by_reopen (old id %d): %w", oldNodeID, err)
+			}
+		}
 		for _, oldAssetID := range exportToInt64Slice(n["anchors"]) {
 			newAssetID := assetIDMap[oldAssetID]
 			if newAssetID == 0 {

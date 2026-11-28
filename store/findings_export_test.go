@@ -225,3 +225,41 @@ func TestImportRemapsIntentAssetIDs(t *testing.T) {
 		t.Errorf("imported intent payload asset_ids = %s, want %s (exported %d)", payloadIDs, want, foreignAssetID)
 	}
 }
+
+func TestImportRemapsSupersededByReopen(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "superseded-export")
+	intent := doneIntent(t, s, expID, "r")
+	if _, err := s.AddFact(ctx, expID, intent, map[string]any{"text": "old fact"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ReopenNode(ctx, expID, intent, "web-ui", "redo"); err != nil {
+		t.Fatal(err)
+	}
+
+	export, err := s.ExportEngagementData(ctx, taskID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, newExpID, err := s.ImportEngagementData(ctx, export)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var newIntent, marker int64
+	if err := s.QueryRowContext(ctx,
+		`SELECT id FROM exploration_nodes WHERE exploration_id = $1 AND kind = $2`, newExpID, KindIntent,
+	).Scan(&newIntent); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.QueryRowContext(ctx,
+		`SELECT (payload->>'superseded_by_reopen')::bigint FROM exploration_nodes
+		 WHERE exploration_id = $1 AND payload->>'text' = 'old fact'`, newExpID,
+	).Scan(&marker); err != nil {
+		t.Fatal(err)
+	}
+	if marker != newIntent || newIntent == intent {
+		t.Errorf("imported superseded_by_reopen = %d, want the imported intent %d (old %d)", marker, newIntent, intent)
+	}
+}

@@ -307,26 +307,46 @@ func (s *Store) ReleaseHolderClaims(ctx context.Context, holder string) (int64, 
 	return res.RowsAffected()
 }
 
+// UpdateNodeFields sets the node state when state is set and merges
+// payloadMerge into its payload, removing the keys whose value is nil, in one
+// statement so a concurrent reopen sees either none or all of the change.
 func (s *Store) UpdateNodeFields(ctx context.Context, nodeID int64, state string, payloadMerge map[string]any) error {
+	var sets []string
+	var args []any
 	if state != "" {
-		if _, err := s.ExecContext(ctx,
-			`UPDATE exploration_nodes SET state = $1, owner = NULL, claim_expires_at = NULL WHERE id = $2`,
-			state, nodeID); err != nil {
-			return err
-		}
+		args = append(args, state)
+		sets = append(sets, fmt.Sprintf("state = $%d, owner = NULL, claim_expires_at = NULL", len(args)))
 	}
 	if len(payloadMerge) > 0 {
-		merge, err := json.Marshal(payloadMerge)
+		set := map[string]any{}
+		var removed []string
+		for k, v := range payloadMerge {
+			if v == nil {
+				removed = append(removed, k)
+			} else {
+				set[k] = v
+			}
+		}
+		merge, err := json.Marshal(set)
 		if err != nil {
 			return err
 		}
-		if _, err := s.ExecContext(ctx,
-			`UPDATE exploration_nodes SET payload = payload || $1::jsonb WHERE id = $2`,
-			string(merge), nodeID); err != nil {
-			return err
+		args = append(args, string(merge))
+		expr := fmt.Sprintf("payload || $%d::jsonb", len(args))
+		if len(removed) > 0 {
+			args = append(args, removed)
+			expr = fmt.Sprintf("(payload - $%d::text[]) || $%d::jsonb", len(args), len(args)-1)
 		}
+		sets = append(sets, "payload = "+expr)
 	}
-	return nil
+	if len(sets) == 0 {
+		return nil
+	}
+	args = append(args, nodeID)
+	_, err := s.ExecContext(ctx,
+		fmt.Sprintf("UPDATE exploration_nodes SET %s WHERE id = $%d", strings.Join(sets, ", "), len(args)),
+		args...)
+	return err
 }
 
 func (s *Store) AddEdge(ctx context.Context, from int64, rel string, to int64) error {
@@ -388,7 +408,9 @@ func (s *Store) ProveGoal(ctx context.Context, goalID, evidenceID int64) error {
 		return fmt.Errorf("link proof: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx,
-		`UPDATE exploration_nodes SET state = 'met', blocked_reason = NULL, owner = NULL, claim_expires_at = NULL WHERE id = $1`,
+		`UPDATE exploration_nodes SET state = 'met', blocked_reason = NULL, owner = NULL, claim_expires_at = NULL,
+		     payload = payload - 'reopened_by' - 'reopen_reason' - 'reopened_at'
+		 WHERE id = $1`,
 		goalID); err != nil {
 		return fmt.Errorf("mark goal %d met: %w", goalID, err)
 	}
@@ -521,6 +543,7 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 		for k, v := range payload {
 			m[k] = v
 		}
+		delete(m, "history")
 
 		switch n.Kind {
 		case KindGoal:

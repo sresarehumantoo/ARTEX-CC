@@ -39,6 +39,23 @@ func TestMarkdownReport(t *testing.T) {
 	}
 }
 
+func TestMarkdownMarksSupersededFinding(t *testing.T) {
+	t.Parallel()
+	out := Markdown(Input{
+		GeneratedAt: time.Now(),
+		Findings: []ReportFinding{
+			{ID: 1, Name: "XSS", Severity: "high", Summary: "Reflected XSS", SupersededByReopen: 12},
+			{ID: 2, Name: "SQLi", Severity: "low", Summary: "Blind SQLi"},
+		},
+	})
+	if !strings.Contains(out, "Confirmed findings: **2**") {
+		t.Error("superseded finding should still be listed")
+	}
+	if n := strings.Count(out, "_Superseded: intent #12 "); n != 1 {
+		t.Errorf("superseded marker count = %d, want 1:\n%s", n, out)
+	}
+}
+
 func TestEmptyReport(t *testing.T) {
 	t.Parallel()
 	in := Input{

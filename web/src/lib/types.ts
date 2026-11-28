@@ -53,6 +53,13 @@ export interface GraphEdge {
   to: number
 }
 
+export interface ReopenResult {
+  id: number
+  kind: string
+  reopened_goals?: number[]
+  superseded?: number[]
+}
+
 export interface GraphData {
   nodes: GraphNode[]
   edges: GraphEdge[]
@@ -71,6 +78,7 @@ export interface Finding {
   merged_into: number
   dismissed: boolean
   dismiss_reason: string
+  superseded_by_reopen?: number
 }
 
 export interface TrafficBinding {

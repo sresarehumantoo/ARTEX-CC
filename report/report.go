@@ -85,6 +85,9 @@ func Markdown(in Input) string {
 		sort.SliceStable(fs, func(i, j int) bool { return sevRank[fs[i].Severity] < sevRank[fs[j].Severity] })
 		for i, f := range fs {
 			fmt.Fprintf(&b, "### %d. [%s] %s\n\n", i+1, strings.ToUpper(nz(f.Severity, "info")), nz(f.Name, nz(f.VulnClass, "Uncategorized")))
+			if f.SupersededByReopen != 0 {
+				fmt.Fprintf(&b, "_Superseded: intent #%d that produced this finding was reopened for a redo._\n\n", f.SupersededByReopen)
+			}
 			if f.Summary != "" {
 				fmt.Fprintf(&b, "%s\n\n", f.Summary)
 			}

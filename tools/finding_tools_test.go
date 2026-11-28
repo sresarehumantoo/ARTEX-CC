@@ -119,6 +119,25 @@ func TestReportFindingWithDuplicates(t *testing.T) {
 	if !strings.Contains(r.Content, "merge_findings") {
 		t.Errorf("expected a merge hint, got: %s", r.Content)
 	}
+	if strings.Contains(r.Content, "superseded_by_reopen") {
+		t.Errorf("superseded note without a superseded match: %s", r.Content)
+	}
+}
+
+func TestReportFindingNotesSupersededDuplicate(t *testing.T) {
+	t.Parallel()
+	ms := &findingMockStore{addFindingID: 8, dupes: []Finding{{ID: 3, VulnClass: "SQLi", Severity: "high", Summary: "old", SupersededByReopen: 12}}}
+	reg := NewRegistry()
+	RegisterFindingTools(reg, ms, 1, 1)
+
+	tool, _ := reg.Lookup("report_finding")
+	r, _ := tool.Run(context.Background(), json.RawMessage(`{"vulnclass": "sqli", "severity": "high", "summary": "new", "asset_ids": [1]}`))
+	if r.IsError {
+		t.Fatalf("report_finding: %s", r.Content)
+	}
+	if !strings.Contains(r.Content, `"superseded_by_reopen":12`) || !strings.Contains(r.Content, "reopened for a redo") {
+		t.Errorf("want the superseded match marked and noted, got: %s", r.Content)
+	}
 }
 
 func TestReportFindingRejectsNonIntentIntentID(t *testing.T) {

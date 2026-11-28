@@ -26,11 +26,13 @@ const unownedReason = `CASE
 // never had one. NULL while owned or restored. An imported intent has no
 // claim and was created at import, so the node's own times keep time before
 // the import from counting; an imported change with no intent still counts
-// from its recorded time.
+// from its recorded time. A reopened intent not yet claimed again counts from
+// when it closed (payload closed_at), since reopening gives its changes no
+// owner.
 const unownedSince = `CASE
 		WHEN tc.restored_at IS NOT NULL THEN NULL
 		WHEN n.id IS NULL THEN tc.created_at
-		WHEN n.state = 'open' THEN GREATEST(tc.created_at, n.created_at)
+		WHEN n.state = 'open' THEN GREATEST(tc.created_at, n.created_at, (n.payload->>'closed_at')::timestamptz)
 		WHEN n.state = 'running' AND n.claim_expires_at > now() THEN NULL
 		WHEN n.state = 'running' THEN GREATEST(tc.created_at, COALESCE(n.claim_expires_at, n.updated_at))
 		ELSE GREATEST(tc.created_at, n.updated_at)

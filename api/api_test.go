@@ -198,6 +198,9 @@ func (m *mockStore) ListFindingsForReport(context.Context, int64) ([]tools.Repor
 func (m *mockStore) UpdateNodeFields(context.Context, int64, string, map[string]any) error {
 	return nil
 }
+func (m *mockStore) ReopenNode(_ context.Context, _, id int64, _, _ string) (*tools.ReopenResult, error) {
+	return &tools.ReopenResult{ID: id}, nil
+}
 func (m *mockStore) ExportEngagementData(context.Context, int64) (*tools.EngagementExport, error) {
 	return nil, nil
 }

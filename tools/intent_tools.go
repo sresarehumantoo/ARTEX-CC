@@ -79,6 +79,9 @@ func makeStartIntent(store Store, explorationID int64) Tool {
 			msg := fmt.Sprintf("intent %d is now running; %s by %s until %s",
 				id, verb, OwnerLabel(claim.Owner), claim.ExpiresAt.UTC().Format(time.RFC3339))
 			extra := map[string]any{}
+			if reason, _ := node.Payload["reopen_reason"].(string); reason != "" {
+				extra["reopen_reason"] = reason
+			}
 			if !claim.Renewed && claim.PreviousOwner != claim.Owner {
 				inheritChanges(ctx, store, explorationID, id, claim.PreviousOwner, extra)
 			}
@@ -218,6 +221,7 @@ func makeCompleteIntent(store Store, explorationID int64) Tool {
 			}
 
 			merge := map[string]any{"completed_by": OwnerLabel(holder)}
+			clearReopenFields(merge)
 			if result := strings.TrimSpace(a.Result); result != "" {
 				merge["result"] = result
 			}
@@ -281,6 +285,7 @@ func makeCancelIntent(store Store, explorationID int64) Tool {
 			}
 
 			merge := map[string]any{"cancelled_by": OwnerLabel(holder)}
+			clearReopenFields(merge)
 			if reason := strings.TrimSpace(a.Reason); reason != "" {
 				merge["cancel_reason"] = reason
 			}
@@ -314,6 +319,14 @@ func closedWithChangesWarning(ctx context.Context, store Store, explorationID, i
 		"Restore each to its baseline and call record_target_restore, or start_intent another intent with adopt_changes to keep owning them. "+
 		"They stay listed in unowned_target_changes until restored.",
 		intentID, len(ids), changeIDList(ids))
+}
+
+// clearReopenFields drops the reason a reopened intent carries for its next
+// worker; the reopen history entry keeps it.
+func clearReopenFields(merge map[string]any) {
+	for _, k := range []string{"reopened_by", "reopen_reason", "reopened_at", "closed_at"} {
+		merge[k] = nil
+	}
 }
 
 func identityRequiredDesc() string {

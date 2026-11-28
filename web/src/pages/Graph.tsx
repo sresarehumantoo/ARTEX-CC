@@ -374,7 +374,7 @@ export function GraphPage() {
       />
       {selectedNode && (
         <DetailDrawer
-          node={selectedNode}
+          node={data?.nodes.find((n) => n.id === selectedNode.id) ?? selectedNode}
           edges={data?.edges ?? []}
           allNodes={data?.nodes ?? []}
           onClose={() => setSelectedNode(null)}

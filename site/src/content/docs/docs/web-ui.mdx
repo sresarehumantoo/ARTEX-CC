@@ -102,6 +102,10 @@ location / {
 
 When several agents work one engagement, the Dashboard's Active Intents card shows who holds each running intent's claim and how long it has left, and flags intents whose claim lapsed. Changes made by other `artex-cc` processes on the same database show up live too. Chat conversations hold their claims as the identity `chat/<conversation id>`, so a resumed conversation keeps them across a server restart.
 
+## Reopening work
+
+When an intent was marked done but the work was wrong, or a goal was met on weak evidence, select it in the graph and click **Reopen** in the node drawer. It works on intents that are done or stopped and on goals that are met, and asks for a reason of up to 2000 characters. The intent goes back to open with its claim cleared, and the next agent sees the reason in `graph_overview`, `list_changes` and `start_intent` until it completes or cancels the intent. Nothing is deleted: the old result and who completed or canceled the intent move into a `history` entry on the node, and the facts and findings it yielded stay. The graph dims them, and the node drawer, the findings list and the report mark them superseded. A superseded fact or finding no longer counts as proof, so a met goal whose live proofs all came from reopened intents reopens too, and a completed engagement goes back to running when any goal reopens. The UI calls `POST /api/nodes/{id}/reopen` with a JSON body `{"reason": "..."}`.
+
 Besides the engagement views, the UI includes:
 
 - **Chat** with a Claude subprocess runner (uses the `claude` CLI, see `--claude-bin`), with agents and presets.

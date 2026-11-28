@@ -129,6 +129,7 @@ func (s *Store) changedNodes(ctx context.Context, ids []int64) (map[int64]map[st
 		if len(n.Payload) > 0 {
 			_ = json.Unmarshal(n.Payload, &m)
 		}
+		delete(m, "history")
 		m["id"] = n.ID
 		m["state"] = n.State
 		if n.Kind == KindIntent && n.State == "running" {
@@ -180,7 +181,28 @@ func (s *Store) changedFindings(ctx context.Context, ids []int64) (map[int64]map
 		}
 		out[f.ID] = m
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	sup, err := s.QueryContext(ctx,
+		`SELECT f.id, (n.payload->>'superseded_by_reopen')::bigint
+		 FROM findings f JOIN exploration_nodes n ON n.id = f.node_id
+		 WHERE f.id = ANY($1) AND n.payload ? 'superseded_by_reopen'`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer sup.Close()
+	for sup.Next() {
+		var id, intent int64
+		if err := sup.Scan(&id, &intent); err != nil {
+			return nil, err
+		}
+		if m, ok := out[id]; ok {
+			m["superseded_by_reopen"] = intent
+		}
+	}
+	return out, sup.Err()
 }
 
 func (s *Store) changedAssets(ctx context.Context, ids []int64) (map[int64]map[string]any, error) {
@@ -229,6 +251,7 @@ func (s *Store) ListClaims(ctx context.Context, explorationID int64, owner strin
 		}
 		if len(n.Payload) > 0 {
 			_ = json.Unmarshal(n.Payload, &c.Payload)
+			delete(c.Payload, "history")
 		}
 		out = append(out, c)
 	}
