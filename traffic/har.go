@@ -748,7 +748,7 @@ func (t *Traffic) ExportHAR(f PageQuery, opts HARExportOptions) (HAR, HARExportM
 
 	// Reserve envelope overhead (~512 bytes) for the outer log object + metadata.
 	const harEnvelopeMargin int64 = 512
-	var encodedJSONBytes int64 = harEnvelopeMargin
+	encodedJSONBytes := harEnvelopeMargin
 
 	entries := make([]HAREntry, 0, len(matched))
 	for _, r := range matched {

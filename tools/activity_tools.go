@@ -130,10 +130,10 @@ func activityToCSV(entries []Activity) string {
 	var b strings.Builder
 	b.WriteString("id,exploration_id,node_id,worker,kind,tool,is_error,summary,detail,created_at\n")
 	for _, e := range entries {
-		b.WriteString(fmt.Sprintf("%d,%d,%d,%s,%s,%s,%t,%s,%s,%s\n",
+		fmt.Fprintf(&b, "%d,%d,%d,%s,%s,%s,%t,%s,%s,%s\n",
 			e.ID, e.ExplorationID, e.NodeID,
 			csvQuote(e.Worker), csvQuote(e.Kind), csvQuote(e.Tool),
-			e.IsError, csvQuote(e.Summary), csvQuote(e.Detail), csvQuote(e.CreatedAt)))
+			e.IsError, csvQuote(e.Summary), csvQuote(e.Detail), csvQuote(e.CreatedAt))
 	}
 	return b.String()
 }
