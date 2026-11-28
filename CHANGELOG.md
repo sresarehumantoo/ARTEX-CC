@@ -5,8 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-28
+
 ### Upgrade notes
+- Migration 0009 applies at the first start against an existing database. It recomputes target change journal baselines and changes nothing on databases that only ran released versions.
 - Migration 0010 adds `target_changes.max_unowned_seconds` and `exploration_nodes.claim_renewed_at`, and sets `claim_renewed_at` on running claimed intents to their expiry minus the default 30 minute lease (never later than now). Other rows are not rewritten.
+- At the first `serve` after upgrading, stored credential domains are lowercased once more in Go and rows that then collide are merged (see Fixed). If this pass fails, `serve` exits instead of starting.
+- The traffic store's `host` index is replaced by a `(host, ts)` index, built synchronously at the first start after upgrading. On a large traffic store that start takes longer.
+- `GET /api/tasks` reports the engagement's status (`open` or `achieved`) instead of `running` or the task row's status (`created`).
 
 ### Added
 - `serve --allowed-host` (repeatable or comma-separated) and `ARTEX_ALLOWED_HOSTS` let ARTEX sit behind a reverse proxy on the same host. A listed host is accepted as the `Host` of a loopback request, which got 421 before, and as the `Origin` of a web UI write, which got 403 when the proxy rewrote `Host` to `localhost`. Matching ignores case; an entry without a port matches any port. `X-Forwarded-Host` is still not trusted, since a DNS-rebound page can set it. Setting allowed hosts forces web UI password login with `--web` and requires `ARTEX_MCP_TOKEN` without it, and `serve --stdio` refuses to start with them. See [Behind a reverse proxy](https://artex-cc.com/docs/web-ui/#behind-a-reverse-proxy).
@@ -36,11 +42,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `list_engagements` reports the same `open` or `achieved` status as `engagement_status` and `graph_overview`, instead of `created` for every engagement not yet completed. `engagement_status` returns an error for an engagement whose exploration no longer exists, instead of an empty status.
 - Migration 0007 lowercased credential domains with PostgreSQL `lower()`, which under a C or POSIX ctype folds only ASCII letters, so a domain with non-ASCII capitals (`ÉXAMPLE.com`) could be stored apart from the form new writes use (`éxample.com`). At the first `serve` after upgrading, stored credential domains are lowercased once more in Go and rows that then collide are merged with 0007's rules. Passwords are copied as stored, never decrypted. If this pass fails, `serve` exits instead of starting.
 - The live demo's Tools page listed 60 tools with stale descriptions and parameters, missing `list_changes`, `record_target_change` and `record_target_restore`. Its fixture is regenerated from the tool catalog, and `go test ./api` now fails when it drifts (`go test ./api -run TestDemoToolsFixture -update-demo-fixture` rewrites it).
+- `GET /api/tasks`, and so the web UI task badge, reported `running` or the task row's `created` status whatever the engagement's progress. It now reports the same status as `engagement_status`, and the badge shows open, achieved and failed.
+- The `start_intent` description said "1 minutes" when `ARTEX_INTENT_LEASE` was one minute.
+- Eval runner: expected finding types are matched through the same vulnerability class normalization the product uses, so `privilege_escalation` matches a recorded `privilege-escalation`. A takeover is also counted when the killed instance's lease lapsed shortly before the kill and another instance reclaimed the intent.
 - Migration 0009 recomputes target change journal baselines per target and resource. Databases that ran unreleased main between migrations 0005 and 0008 could keep a POSIX path's baseline from another path differing only in case (`/srv/App.conf` for `/srv/app.conf`), since 0008 only rebuilt the index. This only affects dev and eval databases; on others the migration changes nothing.
 
 ### Security
 - The SOCKS5 listener offered username/password to any client and accepted any credentials, so a non-loopback client got past the loopback-only rule for no-auth by offering method `0x02`. Both methods are now accepted from loopback clients only. The listener is not started by `serve` today, so this closes the gap before it is wired up.
-- Bumped `github.com/andybalholm/brotli` to v1.2.7 for GO-2026-6888, reachable through traffic replay and HAR import.
+- Bumped `github.com/andybalholm/brotli` to v1.3.0 for GO-2026-6888, reachable through traffic replay and HAR import.
 - DSN redaction (`artex-cc init` output) masked `password` but not `sslpassword`, the client key passphrase, so it could still reach `docker logs`. `sslpassword` is now shown as `***` in both URL query and key=value form.
 - The web UI session cookie now carries `Secure` when the request arrived over TLS or allowed hosts are set, since behind a reverse proxy ARTEX sees plain HTTP. Plain-HTTP loopback use without allowed hosts is unchanged, so a reverse proxy in front of ARTEX must serve HTTPS for login to work.
 - The web UI's data directory store (settings, auth, conversations), the permission-tightening walk and the traffic blob sweep now run inside an `os.Root`, so a symlink in the data or traffic directory, or one swapped in mid-walk, can no longer redirect a read, write, chmod or delete outside it.
@@ -326,7 +335,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dockerfile for container deployments
 - GitHub Actions CI with PostgreSQL service container
 
-[Unreleased]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/SREsAreHumanToo/ARTEX-CC/compare/v0.5.1...v0.6.0
