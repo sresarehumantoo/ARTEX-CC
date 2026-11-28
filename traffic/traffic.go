@@ -257,7 +257,7 @@ const TrafficSearchDescription = "Query the target traffic the recording proxy h
 
 // TrafficGetDescription is the traffic_get description, kept here for the same
 // reason as TrafficSearchDescription.
-const TrafficGetDescription = "Fetch the raw request/response of one captured traffic record by id (truncated when too large). Use together with traffic_search to avoid re-curling. A WebSocket (status 101) or SSE (text/event-stream) record shows only its handshake here; read its messages with traffic_messages. When proxy rewrite rules changed the exchange, the result starts with a REWRITTEN line naming the rule ids, and shows the request as the client sent it and the response as the target sent it. traffic_search searches only these original values: it never finds a value a rewrite rule wrote."
+const TrafficGetDescription = "Fetch the raw request/response of one captured traffic record by id (truncated when too large). Use together with traffic_search to avoid re-curling. A WebSocket (status 101) or SSE (text/event-stream) record shows only its handshake here; read its messages with traffic_messages."
 
 // Traffic runs the recording proxy and owns the file tree + index.
 type Traffic struct {
