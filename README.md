@@ -106,7 +106,7 @@ Add the server to Claude Code (`~/.claude.json` or a project `.mcp.json`):
   "mcpServers": {
     "artex": {
       "command": "artex-cc",
-      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
+      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", "127.0.0.1:8788"]
     }
   }
 }

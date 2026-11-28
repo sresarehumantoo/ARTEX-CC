@@ -23,7 +23,7 @@ Add to `~/.claude.json` (or project `.mcp.json`):
       "args": [
         "serve", "--stdio",
         "--pg", "postgres://localhost/ccartex",
-        "--proxy", ":8788"
+        "--proxy", "127.0.0.1:8788"
       ]
     }
   }
@@ -54,7 +54,7 @@ Claude runs autonomously on a 5-minute loop. You can steer it with `add_hint` or
 
 | Flag | Purpose |
 |------|---------|
-| `--proxy :8788` | Start the recording MITM proxy for traffic capture |
+| `--proxy 127.0.0.1:8788` | Start the recording MITM proxy for traffic capture. Prefer an explicit loopback address; a bare `:port` binds all interfaces |
 | `--data ./pentest` | Set the directory for traffic, evidence, and config |
 | `--debug` | Enable debug-level logging (verbose) |
 | `--pg DSN` | PostgreSQL connection string (or set `ARTEX_PG` env var) |

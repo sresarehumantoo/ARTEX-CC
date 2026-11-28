@@ -35,7 +35,7 @@ Add to `.mcp.json` in the working directory (or `~/.claude.json` globally):
         "serve", "--stdio",
         "--pg", "postgres://localhost/ccartex_htb",
         "--data", "/path/to/htb/management",
-        "--proxy", ":8788"
+        "--proxy", "127.0.0.1:8788"
       ]
     }
   }
@@ -338,7 +338,7 @@ add a multi-company box or synthetic test if needed).
   via `export_engagement`/`import_engagement`.
 - Run boxes in order. Management validates the basics; later boxes assume those
   tools already work and focus on what is new.
-- The proxy (`--proxy :8788`) is required for boxes 2-5. Box 1 can run without
+- The proxy (`--proxy 127.0.0.1:8788`) is required for boxes 2-5. Box 1 can run without
   it but should include it to verify proxy startup.
 - Blood times are from the HTB API and indicate relative complexity. A
   6-minute blood on Management means a skilled human solves it fast; ARTEX

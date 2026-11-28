@@ -22,7 +22,7 @@ ARTEX reads its PostgreSQL connection string from `--pg` or the `ARTEX_PG` envir
 artex-cc serve --stdio --pg "postgres://localhost/ccartex"
 
 # Serve with the recording proxy
-artex-cc serve --stdio --pg "postgres://localhost/ccartex" --proxy :8788
+artex-cc serve --stdio --pg "postgres://localhost/ccartex" --proxy 127.0.0.1:8788
 
 # Serve over HTTP (other clients), with the web UI
 artex-cc serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --web
@@ -41,7 +41,7 @@ artex-cc init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.examp
 | `--web` | Enable the [web UI](/docs/web-ui/) and REST API | off |
 | `--auth` | Require password login for the web UI on a loopback listener (or `ARTEX_AUTH`) | off |
 | `--allowed-host HOST` | Accept `HOST` from a same-host reverse proxy, in the `Host` header and in the `Origin` of web UI writes (or `ARTEX_ALLOWED_HOSTS`). Repeat the flag or separate hosts with commas. Forces `--auth` with `--web`, requires `ARTEX_MCP_TOKEN` without it, and `serve --stdio` refuses to start with it. See [Behind a reverse proxy](/docs/web-ui/#behind-a-reverse-proxy) | none |
-| `--proxy ADDR` | Start the recording MITM proxy on `ADDR`, for example `:8788` | off |
+| `--proxy ADDR` | Start the recording MITM proxy on `ADDR`. Use an explicit loopback address such as `127.0.0.1:8788`; a bare `:8788` binds all interfaces | off |
 | `--data DIR` | Directory for traffic, evidence and the engagement config | `.` |
 | `--claude-bin PATH` | `claude` CLI used by the web UI chat (or `ARTEX_CLAUDE_BIN`) | `claude` |
 | `--plugin-dir DIR` | Plugin directory (or `ARTEX_PLUGIN_DIR`) | `~/.artex/plugins` |

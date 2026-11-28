@@ -31,7 +31,7 @@ The init command prints MCP config and CA trust instructions. Add the config to
   "mcpServers": {
     "artex": {
       "command": "artex-cc",
-      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
+      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", "127.0.0.1:8788"]
     }
   }
 }
@@ -422,7 +422,7 @@ recorded
 
 Claude (or a subagent working intent 14) discovers that the API returns user
 records without authorization checks. It has been proxying requests through the
-recording proxy on `:8788`, so the traffic is captured.
+recording proxy on `127.0.0.1:8788`, so the traffic is captured.
 
 ```
 Claude calls traffic_search({host: "api.example.com", query: "/api/v2/users"})

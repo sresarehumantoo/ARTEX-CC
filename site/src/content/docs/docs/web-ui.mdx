@@ -22,7 +22,7 @@ import report from '../../../../../docs/screenshots/report.png';
 ## Running it
 
 ```sh
-artex-cc serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --proxy :8788 --web
+artex-cc serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --proxy 127.0.0.1:8788 --web
 ```
 
 Open `http://localhost:9400`. The Docker image runs with `--web` already.
