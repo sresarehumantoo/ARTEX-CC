@@ -10,13 +10,13 @@ require (
 	golang.org/x/crypto v0.59.0
 	golang.org/x/net v0.63.0
 	gopkg.in/yaml.v3 v3.0.1
-	modernc.org/sqlite v1.62.0
+	modernc.org/sqlite v1.63.0
 )
 
 require github.com/DATA-DOG/go-sqlmock v1.5.2
 
 require (
-	github.com/andybalholm/brotli v1.2.7
+	github.com/andybalholm/brotli v1.3.0
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
