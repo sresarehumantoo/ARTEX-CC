@@ -255,3 +255,22 @@ func TestSessionCookieSecureOverTLS(t *testing.T) {
 		t.Fatal("TLS logout cookie must be Secure")
 	}
 }
+
+func TestSessionCookieSecureWithAllowedHosts(t *testing.T) {
+	a := New(nil, nil, 1, 1, WithDataDir(t.TempDir()), WithAuthRequired(true), WithAllowedHosts([]string{"artex.example.com"}))
+	h := a.Handler()
+
+	w := authDo(h, "POST", "/api/auth/init", initBody(t, a, "correct horse"))
+	if w.Code != 200 {
+		t.Fatalf("init: %d", w.Code)
+	}
+	session := sessionFrom(t, w)
+	if !session.Secure {
+		t.Fatal("session cookie behind a reverse proxy must be Secure")
+	}
+
+	w = authDo(h, "POST", "/api/auth/logout", "", session)
+	if !sessionFrom(t, w).Secure {
+		t.Fatal("logout cookie behind a reverse proxy must be Secure")
+	}
+}

@@ -58,17 +58,24 @@ func (a *API) setSession(w http.ResponseWriter, r *http.Request, cfg AuthConfig)
 	if err != nil {
 		return err
 	}
-	http.SetCookie(w, &http.Cookie{ //nolint:gosec // Secure follows r.TLS so plain-HTTP loopback still works
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // Secure is off only for plain-HTTP access without allowed hosts, so http://localhost login works
 		Name:     sessionCookie,
 		Value:    expiry + "." + sig,
 		Path:     "/",
 		Expires:  exp,
 		MaxAge:   int(sessionTTL.Seconds()),
-		Secure:   r.TLS != nil,
+		Secure:   a.secureCookie(r),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
 	return nil
+}
+
+// secureCookie reports whether the session cookie should be Secure. Behind a
+// reverse proxy ARTEX sees plain HTTP on loopback, so allowed hosts stand in
+// for TLS there.
+func (a *API) secureCookie(r *http.Request) bool {
+	return r.TLS != nil || len(a.allowedHosts) > 0
 }
 
 func validSession(r *http.Request, cfg AuthConfig) bool {
@@ -265,12 +272,12 @@ func (a *API) handleAuthChangePassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) handleAuthLogout(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{ //nolint:gosec // Secure follows r.TLS so plain-HTTP loopback still works
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // Secure is off only for plain-HTTP access without allowed hosts, so http://localhost login works
 		Name:     sessionCookie,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
-		Secure:   r.TLS != nil,
+		Secure:   a.secureCookie(r),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
