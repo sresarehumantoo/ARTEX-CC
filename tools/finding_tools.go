@@ -103,6 +103,13 @@ func makeReportFinding(store Store, taskID, explorationID int64) Tool {
 				resp["duplicate_note"] = fmt.Sprintf("Open findings that may be the same issue: same vulnclass, or same severity on an overlapping asset. "+
 					"If one is the same issue, call merge_findings with finding_ids including %d and primary_id set to the best-evidenced one; "+
 					"if they are distinct issues, leave them.", findingID)
+				for _, d := range dupes {
+					if d.SupersededByReopen != 0 {
+						resp["duplicate_note"] = resp["duplicate_note"].(string) +
+							" A match with superseded_by_reopen came from an intent the user reopened for a redo; prefer the new finding as primary_id."
+						break
+					}
+				}
 			}
 			return jsonResult(resp)
 		},

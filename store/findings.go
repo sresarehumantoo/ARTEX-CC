@@ -240,9 +240,11 @@ func (s *Store) FindingTrafficCount(ctx context.Context, findingID int64) (int, 
 // side of listing a candidate rather than missing one.
 func (s *Store) FindPotentialDuplicates(ctx context.Context, explorationID int64, vulnclass, severity string, assetIDs []int64) ([]tools.Finding, error) {
 	rows, err := s.QueryContext(ctx, `
-		SELECT f.id, f.vulnclass, f.severity, f.summary, f.asset_ids
+		SELECT f.id, f.vulnclass, f.severity, f.summary, f.asset_ids,
+		       COALESCE((n.payload->>'superseded_by_reopen')::bigint, 0)
 		FROM findings f
 		JOIN tasks t ON t.id = f.task_id
+		LEFT JOIN exploration_nodes n ON n.id = f.node_id
 		WHERE t.exploration_id = $1
 		  AND f.dismissed = false
 		  AND f.merged_into IS NULL
@@ -255,7 +257,7 @@ func (s *Store) FindPotentialDuplicates(ctx context.Context, explorationID int64
 	for rows.Next() {
 		var f tools.Finding
 		var rawAssets []byte
-		if err := rows.Scan(&f.ID, &f.VulnClass, &f.Severity, &f.Summary, &rawAssets); err != nil {
+		if err := rows.Scan(&f.ID, &f.VulnClass, &f.Severity, &f.Summary, &rawAssets, &f.SupersededByReopen); err != nil {
 			return nil, err
 		}
 		var assets []int64
