@@ -533,6 +533,7 @@ func cmdServe(args []string) {
 		webIdentity = loadIdentitySigner(*dataDir)
 		runner = api.NewRunner(*claudeBin, mcpConfig, *dataDir, 0)
 		runner.SetIdentitySigner(webIdentity)
+		runner.SetClaimReleaser(s.ReleaseHolderClaims)
 		apiOpts = append(apiOpts, api.WithRunner(runner))
 		restAPI = api.New(s, t, engCfg.TaskID, engCfg.ExplorationID, apiOpts...)
 	}

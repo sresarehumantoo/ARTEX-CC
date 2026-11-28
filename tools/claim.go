@@ -123,6 +123,12 @@ func IdentityName(ctx context.Context) string {
 
 const identityHolderPrefix = "id:"
 
+// IdentityHolder is the claim holder for calls made under a verified
+// identity name with no owner argument.
+func IdentityHolder(name string) string {
+	return identityHolderPrefix + name
+}
+
 // ClaimOwner resolves who holds claims for this call. A verified identity
 // takes precedence and leaves the session out, so the same identity keeps
 // its claims across reconnects and protocol eras. Without one, a session

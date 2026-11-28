@@ -335,3 +335,33 @@ func TestRenewIntentClaimsForHost(t *testing.T) {
 		t.Errorf("traffic extended a claim %v out, past a lease beyond the holder's last renewal", until)
 	}
 }
+func TestReleaseHolderClaims(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	_, expID := testEngagement(t, s, "release-holder")
+	a := addIntent(t, s, expID, "a")
+	b := addIntent(t, s, expID, "b")
+	c := addIntent(t, s, expID, "c")
+	for id, owner := range map[int64]string{a: "id:chat/1", b: "id:chat/1/owner:x", c: "id:chat/10"} {
+		if _, err := s.ClaimIntent(ctx, id, owner, time.Hour); err != nil {
+			t.Fatalf("ClaimIntent: %v", err)
+		}
+	}
+	n, err := s.ReleaseHolderClaims(ctx, "id:chat/1")
+	if err != nil || n != 2 {
+		t.Fatalf("ReleaseHolderClaims = %d, %v, want 2", n, err)
+	}
+	for _, id := range []int64{a, b} {
+		if owner, exp := claimExpiry(t, s, id); owner == "" || exp.Time.After(time.Now()) {
+			t.Errorf("intent %d still held (%s until %v)", id, owner, exp.Time)
+		}
+	}
+	if time.Until(claimUntil(t, s, c)) < 50*time.Minute {
+		t.Error("another identity's claim was released")
+	}
+	claim, err := s.ClaimIntent(ctx, a, "id:chat/2", time.Hour)
+	if err != nil || !claim.TookOver {
+		t.Errorf("released intent not taken over at once: %+v, %v", claim, err)
+	}
+}

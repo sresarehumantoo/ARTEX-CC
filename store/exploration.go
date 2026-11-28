@@ -286,6 +286,21 @@ func (s *Store) RenewIntentClaimsForHost(ctx context.Context, explorationID int6
 	return ids, rows.Err()
 }
 
+// ReleaseHolderClaims ends the live claims of holder and of owners
+// subdividing it now, as if their lease had run out, so other sessions can
+// take the intents over at once. The owner is kept, so the intents show
+// claim_expired with their previous_owner. It returns how many it released.
+func (s *Store) ReleaseHolderClaims(ctx context.Context, holder string) (int64, error) {
+	res, err := s.ExecContext(ctx,
+		`UPDATE exploration_nodes SET claim_expires_at = now()
+		 WHERE kind = 'intent' AND state = 'running' AND claim_expires_at > now()
+		   AND (owner = $1 OR starts_with(owner, $1 || '/owner:'))`, holder)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 func (s *Store) UpdateNodeFields(ctx context.Context, nodeID int64, state string, payloadMerge map[string]any) error {
 	if state != "" {
 		if _, err := s.ExecContext(ctx,
