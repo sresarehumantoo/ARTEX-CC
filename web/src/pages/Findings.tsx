@@ -574,8 +574,16 @@ function SummaryCard({
 }
 
 function StatusText({ finding }: { finding: Finding }) {
-  if (finding.dismissed) return <StatusBadge domain="finding" value="ignored" />
-  return <StatusBadge domain="finding" value={(finding.status || finding.state || '').toLowerCase()} />
+  const badge = finding.dismissed
+    ? <StatusBadge domain="finding" value="ignored" />
+    : <StatusBadge domain="finding" value={(finding.status || finding.state || '').toLowerCase()} />
+  if (!finding.superseded_by_reopen) return badge
+  return (
+    <span className="inline-flex items-center gap-1">
+      {badge}
+      <Badge variant="medium" title={`Intent #${finding.superseded_by_reopen} was reopened for a redo`}>superseded</Badge>
+    </span>
+  )
 }
 
 function DetailPanel({
@@ -682,6 +690,19 @@ function DetailPanel({
             <p className="text-sm text-muted-foreground">{detail.dismiss_reason || 'No reason given'}</p>
           </div>
         )}
+
+        {detail.superseded_by_reopen ? (
+          <div>
+            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Superseded</h3>
+            <p className="text-sm text-muted-foreground">
+              Intent{' '}
+              <Link to={`/graph?focus=${detail.superseded_by_reopen}`} className="font-mono hover:text-emerald-500">
+                #{detail.superseded_by_reopen}
+              </Link>{' '}
+              that produced this finding was reopened for a redo.
+            </p>
+          </div>
+        ) : null}
 
         {detail.merged_into > 0 && (
           <div>

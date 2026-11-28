@@ -42,6 +42,7 @@ export function generateReport(findings: Finding[], engagementData?: EngagementD
     md += `- **Status:** ${f.status}\n`
     if (f.node_id) md += `- **Node:** ${f.node_id}\n`
     if (f.dismissed) md += `- **Dismissed**\n`
+    if (f.superseded_by_reopen) md += `- **Superseded:** intent #${f.superseded_by_reopen} was reopened for a redo\n`
     if (f.merged_into) md += `- **Merged into:** #${f.merged_into}\n`
     md += `\n---\n\n`
   }
@@ -135,6 +136,7 @@ export function generateFullReport(
     md += `${f.summary}\n\n`
     md += `- **Status:** ${f.status}\n`
     if (f.node_id) md += `- **Node:** ${f.node_id}\n`
+    if (f.superseded_by_reopen) md += `- **Superseded:** intent #${f.superseded_by_reopen} was reopened for a redo\n`
     md += `\n`
   }
 

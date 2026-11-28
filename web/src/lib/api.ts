@@ -1,5 +1,5 @@
 import { AUTH_REQUIRED_EVENT } from './auth'
-import type { EngagementData, GraphData, Finding, FindingDetail, Asset, TrafficPage, TrafficDetail, Activity, CoverageStats, CoverageGaps, Credential, Constraint } from './types'
+import type { EngagementData, GraphData, ReopenResult, Finding, FindingDetail, Asset, TrafficPage, TrafficDetail, Activity, CoverageStats, CoverageGaps, Credential, Constraint } from './types'
 
 export type { Asset } from './types'
 
@@ -28,6 +28,20 @@ export function getEngagement() {
 
 export function getGraph() {
   return fetchJSON<GraphData>(`${BASE}/graph`)
+}
+
+export async function reopenNode(id: number, reason: string): Promise<ReopenResult> {
+  const res = await fetch(`${BASE}/nodes/${id}/reopen`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  })
+  notifyUnauthorized(res)
+  if (!res.ok) {
+    const body = await res.json().catch(() => null)
+    throw new Error(body?.error ?? `${res.status} ${res.statusText}`)
+  }
+  return res.json()
 }
 
 export function getFindings() {

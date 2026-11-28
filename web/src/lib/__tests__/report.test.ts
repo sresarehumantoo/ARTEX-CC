@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { generateFullReport } from '../report'
-import type { Activity, EngagementData } from '../types'
+import { generateFullReport, generateReport } from '../report'
+import type { Activity, EngagementData, Finding } from '../types'
 
 describe('generateFullReport', () => {
   it('handles activity entries the server sent without a summary', () => {
@@ -31,5 +31,17 @@ describe('generateFullReport', () => {
     ]
     const md = generateFullReport(engagement, [], [], activity)
     expect(md).toContain('nmap \\| top ports')
+  })
+})
+
+describe('generateReport', () => {
+  it('keeps a superseded finding and marks it', () => {
+    const findings: Finding[] = [
+      { id: 1, node_id: 11, vulnclass: 'xss', severity: 'high', summary: 'Reflected XSS', state: 'confirmed', status: 'confirmed', merged_into: 0, dismissed: false, dismiss_reason: '', superseded_by_reopen: 7 },
+      { id: 2, node_id: 12, vulnclass: 'sqli', severity: 'low', summary: 'Blind SQLi', state: 'confirmed', status: 'confirmed', merged_into: 0, dismissed: false, dismiss_reason: '' },
+    ]
+    const md = generateReport(findings)
+    expect(md).toContain('Reflected XSS')
+    expect(md.match(/\*\*Superseded:\*\* intent #7 was reopened for a redo/g)).toHaveLength(1)
   })
 })
