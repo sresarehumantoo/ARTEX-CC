@@ -49,7 +49,7 @@ artex-cc serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --web
 
 A listed host is accepted as the `Host` of a loopback request and as the `Origin` of a write, whatever `Host` the proxy sends. Matching ignores case. An entry without a port, such as `artex.example.com`, matches that name on any port; an entry with a port, such as `artex.example.com:8443`, matches only that port. `Sec-Fetch-Site: cross-site` or `same-site` is still refused.
 
-Setting allowed hosts turns on password login, since the UI is now reachable from beyond this machine. Without `--web`, `serve` requires `ARTEX_MCP_TOKEN` for the same reason, and `serve --stdio` refuses to start with allowed hosts set.
+Setting allowed hosts turns on password login, since the UI is now reachable from beyond this machine. Without `--web`, `serve` requires `ARTEX_MCP_TOKEN` for the same reason, and `serve --stdio` refuses to start with allowed hosts set. The session cookie is also marked `Secure`, so the proxy must serve the UI over HTTPS, or the browser drops the cookie and login does not stick.
 
 ARTEX does not read `X-Forwarded-Host`. On a loopback listener, a DNS-rebound page is same-origin to the browser and can set any header it likes, so trusting that header would undo the rebinding defense. Have the proxy forward the public `Host` instead. With Caddy:
 
