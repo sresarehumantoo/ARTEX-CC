@@ -1,0 +1,49 @@
+---
+title: 'Watching the agents: a preview of ARTEX-CC integrations for SIEM and observability tools'
+description: ARTEX-CC is getting an egress audit stream. New integration guides show how to ship it, and ARTEX's own logs and metrics, to Splunk, Elastic, CrowdStrike, Dynatrace, Datadog, Sentinel, Google SecOps, AWS and syslog SIEMs, using only standard shippers.
+date: 2026-11-28
+lastUpdated: 2026-11-28
+authors: artex
+tags:
+  - integrations
+  - observability
+  - security
+excerpt: ARTEX-CC is getting an egress audit stream, and a new Integrations section shows how to ship it to the SIEM or observability backend you already run. ARTEX writes JSONL, OTLP and plain HTTP; your shipper does the rest. The guides are a preview against a draft schema.
+head:
+  - tag: link
+    attrs:
+      rel: canonical
+      href: https://artex-cc.com/blog/siem-and-observability-integrations-preview/
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Preview">
+The audit stream described here is planned, not released. The integration guides are written against its draft `artex.audit/v1` schema and will change with it.
+</Aside>
+
+When Claude runs a pentest through ARTEX-CC, the engagement record says what the agents found. It does not say much about what they did on the way: which hosts they contacted, whether any of that was out of scope, or whether text on a target page talked one of them into sending something somewhere it should not go. Agents still need a person checking their work, and that person needs a record to check.
+
+The [egress audit plan](https://github.com/SREsAreHumanToo/ARTEX-CC/blob/main/docs/EGRESS_AUDIT_PLAN.md) adds one. ARTEX will write every proxied request, every MCP tool call and every Claude Code hook event as an append-only record, in three streams (`target`, `agent` and `anthropic`), and raise alerts for injection-shaped behavior: out-of-scope hosts, paste and webhook services, stored credentials heading for the wrong host. Out-of-scope traffic is allowed with an alert by default; blocking is opt-in.
+
+## No vendor code in ARTEX
+
+The records have to end up where a security or operations team already looks, and that is a long list. Rather than grow a client for each product, ARTEX writes three standard outputs:
+
+- JSONL files, one per stream, rotated so file tailers never read a line twice.
+- OTLP logs, opt-in, using OpenTelemetry semantic conventions.
+- A plain HTTP sink with static headers, which doubles as the alert webhook.
+
+ARTEX's own logs and metrics (proxy throughput, tool call errors, intent claims, database latency, export drops) go out the same way, with the same resource attributes, so the server and the agents show up side by side.
+
+Everything vendor-specific lives in the shipper: the vendor's own agent, an OpenTelemetry Collector, Vector or Fluent Bit.
+
+## The guides
+
+The new [Integrations](/docs/integrations/) section has a page for each route: the OpenTelemetry Collector, Vector and Fluent Bit as generic pipelines, then Splunk, Elastic, CrowdStrike (Falcon Next-Gen SIEM and LogScale, and why Falcon Complete is a service rather than a destination), Dynatrace, Datadog, Microsoft Sentinel, Google SecOps, AWS, and syslog SIEMs with CEF or LEEF. A [field mapping](/docs/integrations/field-mappings/) page lines the record names up with ECS, Splunk CIM, OCSF, CrowdStrike CPS and Google SecOps UDM.
+
+Each page says how its examples were checked. The Collector, Vector, Fluent Bit and Filebeat configs pass their own validators (`otelcol validate`, `vector validate`, `fluent-bit --dry-run`, `filebeat test config`), and the Collector, Vector and Fluent Bit pipelines were also run against sample records. Running them turned up a real bug: a redaction statement in our own draft Collector config silently dropped the value it was meant to mask. Everything else, including vendor query languages and parser formats, is written from vendor documentation and marked that way. None of it has been run against a live vendor account yet.
+
+A Grafana, Loki and Alloy example is being built as a separate repository and will be linked from the overview when it is published.
+
+If you run one of these products and want to try the configs once the stream lands, or spot something wrong now, open an issue.
