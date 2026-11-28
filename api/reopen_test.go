@@ -30,6 +30,13 @@ func TestHandleReopenNode_ReasonRequired(t *testing.T) {
 			t.Errorf("body %s: got %d %s, want 400 reason is required", body, rec.Code, rec.Body.String())
 		}
 	}
+	long := `{"reason":"` + strings.Repeat("é", maxReopenReason+1) + `"}`
+	if rec := reopenRequest(h, 5, long); rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "longer than") {
+		t.Errorf("long reason: got %d %s, want 400", rec.Code, rec.Body.String())
+	}
+	if rec := reopenRequest(h, 5, `{"reason":"`+strings.Repeat("é", maxReopenReason)+`"}`); rec.Code == http.StatusBadRequest {
+		t.Errorf("reason at the limit refused: %s", rec.Body.String())
+	}
 }
 
 func TestHandleReopenNode_Store(t *testing.T) {

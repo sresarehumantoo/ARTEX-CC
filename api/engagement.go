@@ -3,10 +3,12 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
@@ -63,6 +65,8 @@ func (a *API) handleGraph(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+const maxReopenReason = 2000
+
 func (a *API) handleReopenNode(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(r)
 	if !ok {
@@ -79,6 +83,10 @@ func (a *API) handleReopenNode(w http.ResponseWriter, r *http.Request) {
 	reason := strings.TrimSpace(body.Reason)
 	if reason == "" {
 		writeError(w, http.StatusBadRequest, "reason is required")
+		return
+	}
+	if utf8.RuneCountInString(reason) > maxReopenReason {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("reason is longer than %d characters", maxReopenReason))
 		return
 	}
 	res, err := a.store.ReopenNode(r.Context(), a.explorationID, id, "web-ui", reason)
