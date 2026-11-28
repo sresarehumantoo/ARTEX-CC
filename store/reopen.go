@@ -14,6 +14,14 @@ import (
 
 var reopenOutcomeKeys = []string{"result", "completed_by", "cancelled_by", "cancel_reason"}
 
+const historyFieldLimit = 2000
+
+// liveProofSource holds for a proves edge source src that still supports a
+// goal: not dismissed, not yielded by an intent since reopened, and, for an
+// intent used as its own evidence, still done.
+const liveProofSource = `src.state <> 'dismissed' AND NOT (src.payload ? 'superseded_by_reopen')
+	AND (src.kind <> 'intent' OR src.state = 'done')`
+
 // ReopenNode moves a done or stopped intent, or a met goal, back to open so
 // agents redo it. The old outcome moves into a payload history entry. An
 // intent's yielded facts and findings are kept and marked superseded, and a
@@ -119,7 +127,7 @@ func reopenIntentTx(ctx context.Context, tx *sql.Tx, res *tools.ReopenResult, by
 			SELECT 1 FROM exploration_edges pe
 			JOIN exploration_nodes src ON src.id = pe.src_id
 			WHERE pe.dst_id = g.id AND pe.rel = $2
-			  AND pe.src_id <> ALL($1) AND src.state <> 'dismissed')
+			  AND pe.src_id <> ALL($1) AND `+liveProofSource+`)
 		ORDER BY g.id`,
 		sources, RelProves, KindGoal)
 	if err != nil {

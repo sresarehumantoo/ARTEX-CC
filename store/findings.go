@@ -598,7 +598,7 @@ func revokeGoalProofsTx(ctx context.Context, tx *sql.Tx, findingID int64) error 
 			SELECT 1 FROM exploration_edges pe
 			JOIN exploration_nodes src ON src.id = pe.src_id
 			WHERE pe.dst_id = g.id AND pe.rel = $2
-			  AND pe.src_id <> r.src_id AND src.state <> 'dismissed')`,
+			  AND pe.src_id <> r.src_id AND `+liveProofSource+`)`,
 		findingID, RelProves, KindGoal)
 	if err != nil {
 		return fmt.Errorf("revoke goal proofs of finding %d: %w", findingID, err)
