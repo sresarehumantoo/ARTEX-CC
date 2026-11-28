@@ -96,6 +96,10 @@ func (m *intentMockStore) UpdateNodeFields(_ context.Context, id int64, state st
 		if n.Payload == nil {
 			n.Payload = map[string]any{}
 		}
+		if v == nil {
+			delete(n.Payload, k)
+			continue
+		}
 		n.Payload[k] = v
 	}
 	delete(m.claims, id)
@@ -904,5 +908,65 @@ func TestCancelOpenIntentRecordsCanceller(t *testing.T) {
 	n := ms.nodes[10]
 	if n.State != "stopped" || n.Payload["cancelled_by"] != OwnerLabel("sess-a") || n.Payload["cancel_reason"] != "duplicate" {
 		t.Errorf("node = %+v", n)
+	}
+}
+
+func reopenedIntent() *Node {
+	return &Node{ID: 10, Kind: KindIntent, State: "open", Payload: map[string]any{
+		"summary":       "test login",
+		"reopen_reason": "the test missed the second form",
+		"reopened_by":   "web-ui",
+		"reopened_at":   "2026-11-28T10:00:00Z",
+		"history":       []any{map[string]any{"state": "done", "reason": "the test missed the second form"}},
+	}}
+}
+
+func TestStartIntentPrintsReopenReason(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = reopenedIntent()
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+	start, _ := reg.Lookup("start_intent")
+
+	r, _ := start.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
+	if r.IsError {
+		t.Fatalf("start_intent: %s", r.Content)
+	}
+	first, rest, _ := strings.Cut(r.Content, "\n")
+	if !strings.HasPrefix(first, "intent 10 is now running; claimed by ") {
+		t.Errorf("first line = %q, want the claim line unchanged", first)
+	}
+	var extra map[string]any
+	if err := json.Unmarshal([]byte(rest), &extra); err != nil || extra["reopen_reason"] != "the test missed the second form" {
+		t.Errorf("second line = %q (%v), want JSON with the reopen reason", rest, err)
+	}
+}
+
+func TestCloseIntentClearsReopenFields(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ tool, in string }{
+		{"complete_intent", `{"node_id": 10, "result": "found it"}`},
+		{"cancel_intent", `{"node_id": 10, "reason": "redundant"}`},
+	} {
+		ms := newIntentMockStore()
+		ms.nodes[10] = reopenedIntent()
+		reg := NewRegistry()
+		RegisterIntentTools(reg, ms, 1)
+		tool, _ := reg.Lookup(tc.tool)
+
+		r, _ := tool.Run(testSessionCtx, json.RawMessage(tc.in))
+		if r.IsError {
+			t.Fatalf("%s: %s", tc.tool, r.Content)
+		}
+		p := ms.nodes[10].Payload
+		for _, k := range []string{"reopen_reason", "reopened_by", "reopened_at"} {
+			if _, ok := p[k]; ok {
+				t.Errorf("%s left %s in the payload: %v", tc.tool, k, p)
+			}
+		}
+		if h, _ := p["history"].([]any); len(h) != 1 {
+			t.Errorf("%s changed the history: %v", tc.tool, p["history"])
+		}
 	}
 }
