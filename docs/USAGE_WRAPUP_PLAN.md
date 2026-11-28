@@ -1,6 +1,6 @@
 # Usage wrap-up plan
 
-Status: proposal for maintainer review. No code yet. Citations are against `main` at `4fe8063b`. Claude Code and Agent SDK documentation was checked on 2026-11-28.
+Status: proposal for maintainer review. No code yet. Citations are against `main` at `4fe8063b`. Claude Code and Agent SDK documentation was checked on 2026-11-28. Tracking issue: #356.
 
 ## Summary
 
@@ -106,12 +106,12 @@ If the reset is only minutes away, pause (refuse new claims) rather than wrap up
 
 | PR | Scope |
 |----|-------|
-| 1 | `release_intent` and its `list_changes` visibility |
-| 2 | Runner parsing of `rate_limit_event` and usage-limit results, usage event, UI meter |
-| 3 | Wrap-up state, handler notice, `graph_overview.wrapup`, `request_wrapup` / `clear_wrapup`, `hard` claim refusal |
-| 4 | Runner thresholds, queued message, grace stop, optional auto-resume |
-| 5 | `artex-cc wrapup signal`, statusline sample, docs |
-| 6 | Budget fallback |
+| 1 | `release_intent` and its `list_changes` visibility (#405) |
+| 2 | Runner parsing of `rate_limit_event` and usage-limit results, usage event, UI meter (#406) |
+| 3 | Wrap-up state, handler notice, `graph_overview.wrapup`, `request_wrapup` / `clear_wrapup`, `hard` claim refusal (#407) |
+| 4 | Runner thresholds, queued message, grace stop, optional auto-resume (#408) |
+| 5 | `artex-cc wrapup signal`, statusline sample, docs (#409) |
+| 6 | Budget fallback (#410) |
 
 ## 6. Limits
 

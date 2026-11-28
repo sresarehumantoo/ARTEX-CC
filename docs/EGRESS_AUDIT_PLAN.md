@@ -1,6 +1,6 @@
 # Egress audit and prompt-injection visibility plan
 
-Status: proposal for maintainer review. No code yet. Citations are against `main` at `4fe8063b`. Vendor and standards facts were checked against their documentation on 2026-11-28. Tracking issues will be linked here once they are filed.
+Status: proposal for maintainer review. No code yet. Citations are against `main` at `4fe8063b`. Vendor and standards facts were checked against their documentation on 2026-11-28. Tracking issue: #355, with one child issue per piece of work (linked in section 11).
 
 ## Summary
 
@@ -215,28 +215,29 @@ No MCP tool changes redaction, retention, policy or export settings.
 
 ## 11. Phases
 
-| Phase | Scope | Depends on |
-|---|---|---|
-| 1. Audit core | Record type, schema file and fixtures, JSONL writer with rotation and retention, `agent` stream from the MCP handler, `target` stream from the proxy, tunnel records, heartbeat, `redact` package with `builtin.artex` | none |
-| 2. Attribution and the Anthropic stream | Proxy credential parsing and new exchange columns, runner sets proxy and CA environment per conversation, Anthropic stream store and capture masking, stdio session id, trust fields | 1 |
-| 3. Detections and operator alerts | Scope snapshot in the proxy, detectors, alert records, policy table, alert feed, HTTP sink and webhook, opt-in block mode, full redaction rule sets and `redact` CLI | 1, 2 |
-| 4. OTLP and ARTEX telemetry | OTLP logs exporter, slog bridge and JSON stderr, metrics over OTLP and `/metrics`, shared resource, runner environment hygiene | 1 |
-| 5. Hooks and agent notices | `PreToolUse`/`PostToolUse` HTTP hook endpoint, per-conversation hook settings in the runner, subagent attribution, trace context extraction, agent notices, quarantine | 2, 3 |
-| 6. Agent process isolation and enforcement | Run agents apart from the server (separate user or container), route agent egress only through the proxy, wire the SOCKS5 and transparent listeners, route `capture_command_output`, plugins and enrich through the proxy | 2 |
+| Phase | Scope | Depends on | Issues |
+|---|---|---|---|
+| 1. Audit core | Record type, schema file and fixtures, JSONL writer with rotation and retention, `agent` stream from the MCP handler, `target` stream from the proxy, tunnel records, heartbeat, `redact` package with `builtin.artex` | none | #357, #358, #360, #361, #369, #370 |
+| 2. Attribution and the Anthropic stream | Proxy credential parsing and new exchange columns, runner sets proxy and CA environment per conversation, Anthropic stream store and capture masking, stdio session id, trust fields | 1 | #362, #363, #364, #365, #366, #367, #368, #371 |
+| 3. Detections and operator alerts | Scope snapshot in the proxy, detectors, alert records, policy table, alert feed, HTTP sink and webhook, opt-in block mode, full redaction rule sets and `redact` CLI | 1, 2 | #372, #373, #374, #375, #377, #378, #379, #380, #381, #382, #383, #384, #385, #386 |
+| 4. OTLP and ARTEX telemetry | OTLP logs exporter, slog bridge and JSON stderr, metrics over OTLP and `/metrics`, shared resource, runner environment hygiene | 1 | #394, #395, #396, #397, #398, #399, #392, #400, #401 |
+| 5. Hooks and agent notices | `PreToolUse`/`PostToolUse` HTTP hook endpoint, per-conversation hook settings in the runner, subagent attribution, trace context extraction, agent notices, quarantine | 2, 3 | #390, #391, #393, #387, #388, #389 |
+| 6. Agent process isolation and enforcement | Run agents apart from the server (separate user or container), route agent egress only through the proxy, wire the SOCKS5 and transparent listeners, route `capture_command_output`, plugins and enrich through the proxy | 2 | #402, #403, #404 |
 
 Phase 1 is useful alone: a durable record of tool calls and proxied traffic with no new dependency. Mapping tables and the vendor example repos follow phase 1, and the integration docs on artex-cc.com stay marked as illustrative until the stream ships.
 
 ## 12. Open questions
 
-1. OTel Go SDK or a hand-rolled OTLP/HTTP protobuf poster. The SDK with HTTP log and metric exporters adds about 9 MB to the stripped binary and pulls in gRPC packages; the log exporters and the slog bridge are still pre-1.0. A hand-rolled poster adds about 1.5 MB but means owning batching and retry.
-2. Whether alerts should also go to a dedicated `alerts.jsonl` for receivers that only want alerts, or whether the HTTP sink filter is enough.
-3. Hash correlation leaks equality (two accounts with one password hash the same). Keep per-install keyed hashes as the default, or salt per record unless correlation is asked for?
-4. Whether `builtin.credentials` should mask usernames as well as passwords, and the minimum length below which known values are not masked.
-5. Whether to ship a broad third-party secret rule set as `builtin.secrets` or as a separate, off-by-default set.
-6. JSON path support in rules: is a small subset (`$.a.b`, `$..key`, `[*]`) enough for v1?
-7. Defaults for dedup windows, notice caps, heartbeat interval and the `body.large` threshold, to be set from eval runs rather than guessed.
-8. Trace-context joins depend on Claude Code's tracing, which is in beta. Confirm whether `traceparent` reaches HTTP MCP servers without it.
-9. Whether an OCSF output mode is worth building for OCSF-native lakes, and which OCSF version to pin.
+Redaction questions (2 to 5) are tracked in #378.
+
+1. Whether alerts should also go to a dedicated `alerts.jsonl` for receivers that only want alerts, or whether the HTTP sink filter is enough.
+2. Hash correlation leaks equality (two accounts with one password hash the same). Keep per-install keyed hashes as the default, or salt per record unless correlation is asked for?
+3. Whether `builtin.credentials` should mask usernames as well as passwords, and the minimum length below which known values are not masked.
+4. Whether to ship a broad third-party secret rule set as `builtin.secrets` or as a separate, off-by-default set.
+5. JSON path support in rules: is a small subset (`$.a.b`, `$..key`, `[*]`) enough for v1?
+6. Defaults for dedup windows, notice caps, heartbeat interval and the `body.large` threshold, to be set from eval runs rather than guessed.
+7. Trace-context joins depend on Claude Code's tracing, which is in beta. Confirm whether `traceparent` reaches HTTP MCP servers without it.
+8. Whether an OCSF output mode is worth building for OCSF-native lakes, and which OCSF version to pin.
 
 ## Decisions
 
@@ -253,6 +254,7 @@ Recorded 2026-11-28 by the maintainer.
 - Per-agent tagging is implemented where feasible; spoofable labels are marked as claimed.
 - Agents see only low-severity, mistake-shaped notices; the operator sees everything.
 - OpenTelemetry semantic conventions are canonical: `server.address`/`server.port` for the target host, stable HTTP semconv names, `gen_ai.*` where applicable, ARTEX-only fields under `artex.*`. ECS, Splunk CIM, OCSF, CrowdStrike CPS and Google SecOps UDM get published mapping tables, with no alias fields in v1.
+- OTLP export uses the official OpenTelemetry Go SDK, with `http/protobuf` as the default protocol, enabled with `ARTEX_AUDIT_OTLP`. Audit records are OTel log events, and the JSONL files are the source of truth.
 - ARTEX's own logs and metrics are part of the observability story: an OTel log bridge with optional JSON output, operational metrics over OTLP and `/metrics`, and one shared resource across all signals.
 
 Usage wrap-up, which shares the runner's `rate_limit_event` parsing with phase 4's runner metrics, is planned separately in `docs/USAGE_WRAPUP_PLAN.md`.
