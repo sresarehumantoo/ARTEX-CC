@@ -129,7 +129,7 @@ func ensureDatabase(dsn string) error {
 	var exists bool
 	_ = admin.QueryRow(`SELECT true FROM pg_database WHERE datname=$1`, dbName).Scan(&exists)
 	if !exists {
-		if _, err := admin.Exec("CREATE DATABASE " + pgx.Identifier{dbName}.Sanitize()); err != nil {
+		if _, err := admin.Exec("CREATE DATABASE " + pgx.Identifier{dbName}.Sanitize()); err != nil { //nolint:gosec // dbName is quoted with pgx.Identifier.Sanitize; DDL cannot take bind parameters
 			return fmt.Errorf("create database %q: %w", dbName, err)
 		}
 	}
