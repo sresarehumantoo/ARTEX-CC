@@ -251,6 +251,8 @@ type Coordination struct {
 	ConcurrentWork     []ConcurrentWork    `json:"concurrent_intent_work"`
 	ImplicitRenewal    bool                `json:"implicit_renewal"`
 	ImplicitRenewals   int                 `json:"implicit_renewals"`
+	UnownedChanges     []UnownedChange     `json:"unowned_target_changes,omitempty"`
+	UnownedThreshold   string              `json:"unowned_threshold,omitempty"`
 	Instances          []InstanceCoord     `json:"instances"`
 	Total              InstanceCoordTotals `json:"total"`
 }
@@ -313,6 +315,36 @@ type Takeover struct {
 	AfterLeaseLapsed bool       `json:"after_lease_lapsed"`
 	FactsRecorded    int        `json:"facts_recorded"`
 	FactsAttached    int        `json:"facts_attached"`
+}
+
+// UnownedChange is a target change that spent time with no live claim on its
+// restoration, as the journal measured it, with the window still open at
+// scoring counted up to then.
+type UnownedChange struct {
+	ChangeID         int64   `json:"change_id"`
+	IntentID         int64   `json:"intent_id,omitempty"`
+	RecordedBy       string  `json:"recorded_by"`
+	RecordedInstance int     `json:"recorded_instance,omitempty"`
+	Restored         bool    `json:"restored"`
+	Unowned          string  `json:"unowned,omitempty"`
+	LongestSeconds   float64 `json:"longest_unowned_seconds"`
+	PastThreshold    bool    `json:"past_threshold"`
+}
+
+func unownedChanges(changes []tools.TargetChange, now time.Time, threshold time.Duration) []UnownedChange {
+	var out []UnownedChange
+	for _, c := range changes {
+		d := c.LongestUnowned(now)
+		if d <= 0 {
+			continue
+		}
+		out = append(out, UnownedChange{
+			ChangeID: c.ID, IntentID: c.IntentID, RecordedBy: c.RecordedBy, RecordedInstance: evalHolderInstance(c.RecordedBy),
+			Restored: c.RestoredAt != nil, Unowned: c.Unowned, LongestSeconds: d.Round(time.Second).Seconds(),
+			PastThreshold: d >= threshold,
+		})
+	}
+	return out
 }
 
 // ConcurrentWork is two instances whose work windows on one intent overlap
@@ -1250,6 +1282,18 @@ func (c *Coordination) Summary() string {
 		fmt.Fprintf(&b, "Takeover: intent %d from instance %d taken by instance %d at %s (lease lapsed: %t), facts attached %d/%d\n",
 			tk.IntentID, tk.KilledInstance, tk.TakenBy, tk.TakenAt.Format(time.RFC3339), tk.AfterLeaseLapsed, tk.FactsAttached, tk.FactsRecorded)
 	}
+	for _, u := range c.UnownedChanges {
+		status := "restored"
+		if !u.Restored {
+			status = "NOT restored, " + u.Unowned
+		}
+		verdict := "pass"
+		if u.PastThreshold {
+			verdict = "FAIL"
+		}
+		fmt.Fprintf(&b, "Unowned target change: #%d (intent %d, recorded by %s) sat %s with no live owner, %s (%s, threshold %s)\n",
+			u.ChangeID, u.IntentID, u.RecordedBy, time.Duration(u.LongestSeconds)*time.Second, status, verdict, c.UnownedThreshold)
+	}
 	fmt.Fprintf(&b, "\n%-9s %6s %5s %12s %7s %9s %6s %7s %10s %9s %9s\n",
 		"instance", "calls", "bash", "list_changes", "claims", "conflicts", "nodes", "x-par", "in+cache", "out", "cost")
 	for _, i := range c.Instances {
@@ -1272,7 +1316,20 @@ func scoreRun(ctx context.Context, s *store.Store, explorationID int64, runs []I
 	if err != nil {
 		return nil, err
 	}
-	return scoreCoordination(CoordinationInput{Transcripts: ts, Findings: findings, Edges: edges, Kills: kills, Lease: lease, Renewal: renewal}), nil
+	c := scoreCoordination(CoordinationInput{Transcripts: ts, Findings: findings, Edges: edges, Kills: kills, Lease: lease, Renewal: renewal})
+	changes, err := s.ListTargetChanges(ctx, explorationID, false)
+	if err != nil {
+		return nil, err
+	}
+	threshold := tools.DefaultUnownedChangeThreshold
+	if v := os.Getenv("ARTEX_UNOWNED_CHANGE_THRESHOLD"); v != "" {
+		if threshold, err = tools.ParseUnownedChangeThreshold(v); err != nil {
+			return nil, err
+		}
+	}
+	c.UnownedThreshold = threshold.String()
+	c.UnownedChanges = unownedChanges(changes, time.Now(), threshold)
+	return c, nil
 }
 
 // serverRenewsClaims reports whether the artex-cc binary's start_intent says
