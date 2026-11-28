@@ -246,31 +246,56 @@ func (e *ClaimConflictError) Error() string {
 // often the proxy queries it.
 const trafficRenewInterval = time.Minute
 
+// maxTrafficHosts bounds the per-host throttle map; past it, entries older
+// than the interval are dropped, so brute forcing subdomains cannot grow it
+// without bound.
+const maxTrafficHosts = 1024
+
 // HostClaimRenewer renews intent claims from recorded proxy traffic (see
-// RenewIntentClaimsForHost). Touch is cheap and never blocks the proxy.
+// RenewIntentClaimsForHost). Touch is cheap and never blocks the proxy: at
+// most one renewal query runs at a time, and traffic arriving while one runs
+// is dropped and retried on that host's next exchange.
 type HostClaimRenewer struct {
-	renew func(ctx context.Context, host string, lease time.Duration) ([]int64, error)
-	mu    sync.Mutex
-	last  map[string]time.Time
+	renew    func(ctx context.Context, host string, lease time.Duration) ([]int64, error)
+	now      func() time.Time
+	mu       sync.Mutex
+	last     map[string]time.Time
+	inflight bool
+	wg       sync.WaitGroup
 }
 
 func NewHostClaimRenewer(renew func(ctx context.Context, host string, lease time.Duration) ([]int64, error)) *HostClaimRenewer {
-	return &HostClaimRenewer{renew: renew, last: map[string]time.Time{}}
+	return &HostClaimRenewer{renew: renew, now: time.Now, last: map[string]time.Time{}}
 }
 
 // Touch records traffic to host and, at most once per interval for that
 // host, renews in the background.
 func (r *HostClaimRenewer) Touch(host string) {
-	host = strings.ToLower(host)
-	now := time.Now()
+	host = strings.TrimSuffix(strings.ToLower(host), ".")
+	now := r.now()
 	r.mu.Lock()
-	if now.Sub(r.last[host]) < trafficRenewInterval {
+	if r.inflight || now.Sub(r.last[host]) < trafficRenewInterval {
 		r.mu.Unlock()
 		return
 	}
+	if len(r.last) >= maxTrafficHosts {
+		for h, at := range r.last {
+			if now.Sub(at) >= trafficRenewInterval {
+				delete(r.last, h)
+			}
+		}
+	}
 	r.last[host] = now
+	r.inflight = true
+	r.wg.Add(1)
 	r.mu.Unlock()
 	go func() {
+		defer r.wg.Done()
+		defer func() {
+			r.mu.Lock()
+			r.inflight = false
+			r.mu.Unlock()
+		}()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		ids, err := r.renew(ctx, host, IntentLease)
