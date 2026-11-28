@@ -5,11 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Upgrade notes
+- Migration 0010 adds `target_changes.max_unowned_seconds` and `exploration_nodes.claim_renewed_at`, and sets `claim_renewed_at` on running claimed intents to their expiry minus the default 30 minute lease (never later than now). Other rows are not rewritten.
+
 ### Added
 - `serve --allowed-host` (repeatable or comma-separated) and `ARTEX_ALLOWED_HOSTS` let ARTEX sit behind a reverse proxy on the same host. A listed host is accepted as the `Host` of a loopback request, which got 421 before, and as the `Origin` of a web UI write, which got 403 when the proxy rewrote `Host` to `localhost`. Matching ignores case; an entry without a port matches any port. `X-Forwarded-Host` is still not trusted, since a DNS-rebound page can set it. Setting allowed hosts forces web UI password login with `--web` and requires `ARTEX_MCP_TOKEN` without it, and `serve --stdio` refuses to start with them. See [Behind a reverse proxy](https://artex-cc.com/docs/web-ui/#behind-a-reverse-proxy).
+- Unrestored target changes whose intent has no live claim (the claim lapsed, the intent was closed, or it has none) are marked `unowned` with `unowned_since` in `unrestored_target_changes`, and `graph_overview` and `list_changes` add a compact `unowned_target_changes` notice (count, up to 20 ids, the ids past the threshold and one action line). The notice drops a change once it is restored or a live claim owns it again, so it does not repeat for work already handled.
+- `start_intent` that takes over a lapsed claim, or claims an open intent that already has changes, lists the unrestored changes on that intent with their baselines, backups and earlier failed attempts (at most 20, with backup and note cut to 300 characters), so the new holder inherits the cleanup. Its new `adopt_changes` argument moves unowned changes under the claimed intent; changes another live claim owns are refused.
+- The journal records how long each change went without a live owner, and the report and the eval coordination scorecard flag changes past `ARTEX_UNOWNED_CHANGE_THRESHOLD` (whole minutes, default `10m`, two 5 minute `/loop` cycles), including changes restored after the fact.
+- Recorded proxy traffic to an asset a running intent is anchored to renews that intent's live claim when exactly one holder has live claims on that host. It never revives a lapsed claim and never extends one more than a lease past when it would otherwise have expired, which is two leases after the holder's own last claim or renewal (by the renewing server's lease), so a dead holder's intent still reopens. Claims taken before migration 0010 get a renewal time derived from the default lease, and a claim without one is never renewed from traffic. At most one renewal query runs at a time. `record_target_change` still does not renew claims.
+- When a web UI conversation's `claude` process exits, the runner ends that conversation's intent claims at once, so other agents can take its intents and changes over without waiting out the lease.
 
 ### Changed
 - `set_goals`, `add_intent`, `record_target_change` and `record_target_restore` lock the engagement row with `FOR NO KEY UPDATE` instead of `FOR UPDATE`, so they still serialize with each other but no longer block concurrent inserts into tables that reference it, such as graph nodes and edges, activity and target changes.
+- `complete_intent`, `cancel_intent` and `goal_met` append a warning naming any target changes still unrestored. They still succeed; the changes stay listed as unowned and in the report until restored.
+- A `not_restored` result from `record_target_restore` now carries `baseline_backup`, `recorded_by`, `previous_observed` and `restore_attempts`, so a retry starts from what the recorder left.
 
 ### Fixed
 - `traffic_hosts` scanned the whole exchanges table, and exact host lookups sorted every exchange of the host to return the newest few. A `(host, ts)` index replaces the `host` index. It is built once, synchronously, on the first start after upgrading, which delays that start on a large traffic store.
