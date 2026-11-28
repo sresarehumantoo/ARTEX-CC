@@ -238,6 +238,54 @@ func (s *Store) RenewIntentClaims(ctx context.Context, nodeIDs []int64, holder s
 	return err
 }
 
+// RenewIntentClaimsForHost extends live claims on running intents anchored
+// to an asset at host, when exactly one holder has such claims, because
+// recorded proxy traffic to host is then attributable to it. It never
+// revives a lapsed claim and never extends one past a lease beyond the
+// holder's own last claim or renewal, so a dead holder's claim still lapses.
+// It returns the intents it renewed.
+func (s *Store) RenewIntentClaimsForHost(ctx context.Context, explorationID int64, host string, lease time.Duration) ([]int64, error) {
+	host = strings.ToLower(strings.Trim(strings.TrimSpace(host), "[]"))
+	if host == "" {
+		return nil, nil
+	}
+	rows, err := s.QueryContext(ctx,
+		`WITH matched AS (
+			SELECT DISTINCT n.id, n.owner
+			FROM exploration_nodes n
+			JOIN exploration_anchors an ON an.node_id = n.id
+			JOIN assets a ON a.id = an.asset_id
+			WHERE n.exploration_id = $1 AND n.kind = 'intent' AND n.state = 'running'
+			  AND n.claim_expires_at > now() AND COALESCE(n.owner, '') <> ''
+			  AND (lower(a.domain) = $2 OR lower(btrim(a.ip, '[]')) = $2
+			    OR lower(btrim(substring(a.url FROM '^[A-Za-z][A-Za-z0-9+.-]*://(?:[^@/?#]*@)?(\[[^]]*\]|[^:/?#]*)'), '[]')) = $2)
+		)
+		UPDATE exploration_nodes n
+		SET claim_expires_at = LEAST(now() + make_interval(secs => $3),
+			COALESCE(n.claim_renewed_at, n.claim_expires_at - make_interval(secs => $3)) + make_interval(secs => $3 * 2))
+		FROM matched
+		WHERE n.id = matched.id
+		  AND (SELECT count(DISTINCT owner) FROM matched) = 1
+		  AND n.claim_expires_at < now() + make_interval(secs => $3 / 2)
+		  AND LEAST(now() + make_interval(secs => $3),
+			COALESCE(n.claim_renewed_at, n.claim_expires_at - make_interval(secs => $3)) + make_interval(secs => $3 * 2)) > n.claim_expires_at
+		RETURNING n.id`,
+		explorationID, host, lease.Seconds())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 func (s *Store) UpdateNodeFields(ctx context.Context, nodeID int64, state string, payloadMerge map[string]any) error {
 	if state != "" {
 		if _, err := s.ExecContext(ctx,

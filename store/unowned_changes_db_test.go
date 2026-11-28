@@ -2,6 +2,9 @@ package store
 
 import (
 	"context"
+	"fmt"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -255,5 +258,80 @@ func TestAdoptTargetChanges(t *testing.T) {
 	}
 	if c := changeByID(t, s, expID, owned.ID); c.IntentID != other {
 		t.Errorf("refused change moved to intent %d", c.IntentID)
+	}
+}
+func insertAsset(t *testing.T, s *Store, column, value string) int64 {
+	t.Helper()
+	typ := map[string]string{"domain": "subdomain", "ip": "ip", "url": "endpoint"}[column]
+	var id int64
+	if err := s.QueryRowContext(context.Background(),
+		`INSERT INTO assets (type, `+column+`) VALUES ($1, $2) RETURNING id`, typ, value).Scan(&id); err != nil {
+		t.Fatalf("insert asset: %v", err)
+	}
+	return id
+}
+
+func claimUntil(t *testing.T, s *Store, id int64) time.Time {
+	t.Helper()
+	_, exp := claimExpiry(t, s, id)
+	return exp.Time
+}
+
+func TestRenewIntentClaimsForHost(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	_, expID := testEngagement(t, s, "traffic-renew")
+	const lease = 30 * time.Minute
+	// Assets are global, so each run uses its own hosts.
+	run := fmt.Sprintf("r%d", time.Now().UnixNano())
+	webHost, sharedHost := "app."+run+".example.test", "shared."+run+".example.test"
+	ipHost := fmt.Sprintf("10.%d.%d.%d", time.Now().UnixNano()%250, time.Now().UnixNano()/7%250, time.Now().UnixNano()/13%250)
+	web := insertAsset(t, s, "url", "https://user@"+strings.ToUpper(webHost)+":8443/login")
+	shared := insertAsset(t, s, "domain", sharedHost)
+	ip := insertAsset(t, s, "ip", ipHost)
+
+	solo := addIntent(t, s, expID, "web app", web)
+	viaIP := addIntent(t, s, expID, "by ip", ip)
+	first := addIntent(t, s, expID, "shared a", shared)
+	second := addIntent(t, s, expID, "shared b", shared)
+	for id, owner := range map[int64]string{solo: "sess-a", viaIP: "sess-a", first: "sess-a", second: "sess-b"} {
+		if _, err := s.ClaimIntent(ctx, id, owner, lease); err != nil {
+			t.Fatalf("ClaimIntent: %v", err)
+		}
+	}
+	for _, id := range []int64{solo, viaIP, first, second} {
+		lapseClaim(t, s, id, -5*time.Minute)
+	}
+
+	ids, err := s.RenewIntentClaimsForHost(ctx, expID, webHost, lease)
+	if err != nil {
+		t.Fatalf("RenewIntentClaimsForHost: %v", err)
+	}
+	if !slices.Equal(ids, []int64{solo}) || time.Until(claimUntil(t, s, solo)) < 25*time.Minute {
+		t.Errorf("renewed %v until %v, want intent %d about a lease out", ids, claimUntil(t, s, solo), solo)
+	}
+	if ids, _ := s.RenewIntentClaimsForHost(ctx, expID, ipHost, lease); !slices.Equal(ids, []int64{viaIP}) {
+		t.Errorf("ip host renewed %v, want %d", ids, viaIP)
+	}
+	if ids, _ := s.RenewIntentClaimsForHost(ctx, expID, sharedHost, lease); len(ids) != 0 {
+		t.Errorf("a host two holders work on renewed %v", ids)
+	}
+
+	lapseClaim(t, s, solo, time.Minute)
+	if ids, _ := s.RenewIntentClaimsForHost(ctx, expID, webHost, lease); len(ids) != 0 {
+		t.Errorf("traffic revived a lapsed claim: %v", ids)
+	}
+
+	if _, err := s.ExecContext(ctx,
+		`UPDATE exploration_nodes SET claim_renewed_at = now() - interval '55 minutes', claim_expires_at = now() + interval '2 minutes'
+		 WHERE id = $1`, solo); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.RenewIntentClaimsForHost(ctx, expID, webHost, lease); err != nil {
+		t.Fatal(err)
+	}
+	if until := time.Until(claimUntil(t, s, solo)); until > 6*time.Minute {
+		t.Errorf("traffic extended a claim %v out, past a lease beyond the holder's last renewal", until)
 	}
 }

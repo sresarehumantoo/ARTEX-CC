@@ -26,6 +26,7 @@ func makeStartIntent(store Store, explorationID int64) Tool {
 		Description: "Claim an open intent for this session and mark it running. Call this when you begin working on an intent. " +
 			fmt.Sprintf("The claim is exclusive for %d %s and renews whenever you pass this intent as intent_id to record_fact, report_finding or record_coverage, with the same owner if you claimed with one. ", int(IntentLease.Minutes()), minuteUnit) +
 			"If you go that long without recording anything for it, call start_intent again to renew it, or the intent reopens for other sessions. " +
+			"Proxy traffic to an asset the intent is anchored to also keeps a live claim alive while you are the only holder on that host, but for at most one more lease. " +
 			"Fails if another session holds a live claim, so pick a different intent. " +
 			"When you take over an intent whose holder's claim lapsed, the result lists the unrestored target changes you inherit with their baselines: restoring them is now your job. " +
 			"Pass adopt_changes with ids from unowned_target_changes to make this claim own their restoration too. " +

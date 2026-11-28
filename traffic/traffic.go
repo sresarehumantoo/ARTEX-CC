@@ -304,6 +304,9 @@ type Traffic struct {
 	// replaced by SetTamperHooks. Nil when ARTEX_TAMPER_HOOKS_ENABLED is off or
 	// no hooks are enabled.
 	tamperHooks atomic.Pointer[HookSet]
+	// onExchange, when set, is called with the host of every exchange
+	// recorded. It runs under the write lock, so it must not block.
+	onExchange atomic.Pointer[func(host string)]
 	// snaps keeps the original of each request a rule rewrote until its
 	// exchange is recorded (rewrite_flow.go). Nil on the zero value.
 	snaps *snapTable
@@ -474,6 +477,16 @@ func (t *Traffic) SetTamperHooks(hs *HookSet) {
 		return
 	}
 	t.tamperHooks.Store(hs)
+}
+
+// OnExchange sets the function called with the host of each recorded
+// exchange, or clears it when fn is nil. fn must return quickly.
+func (t *Traffic) OnExchange(fn func(host string)) {
+	if fn == nil {
+		t.onExchange.Store(nil)
+		return
+	}
+	t.onExchange.Store(&fn)
 }
 
 // TamperHooks returns the currently active HookSet, or nil when disabled.
@@ -866,6 +879,9 @@ VALUES(?,?,?,?,?,?,?)`,
 		return
 	}
 	slog.Debug("exchange recorded", "host", host, "method", method, "url", url)
+	if fn := t.onExchange.Load(); fn != nil && host != "" {
+		(*fn)(host)
+	}
 }
 
 // appliedRules reports whether a trace rewrote its exchange, with the ids of

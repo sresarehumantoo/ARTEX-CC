@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -232,6 +233,49 @@ func (e *ClaimConflictError) Error() string {
 		"The claim renews while its holder records results against it, so do not wait for it to lapse",
 		e.NodeID, OwnerLabel(e.Owner), e.ExpiresAt.UTC().Format(time.RFC3339),
 		time.Until(e.ExpiresAt).Round(time.Second))
+}
+
+// trafficRenewInterval spaces renewal attempts per host. The store only
+// extends claims with less than half a lease left, so this only bounds how
+// often the proxy queries it.
+const trafficRenewInterval = time.Minute
+
+// HostClaimRenewer renews intent claims from recorded proxy traffic (see
+// RenewIntentClaimsForHost). Touch is cheap and never blocks the proxy.
+type HostClaimRenewer struct {
+	renew func(ctx context.Context, host string, lease time.Duration) ([]int64, error)
+	mu    sync.Mutex
+	last  map[string]time.Time
+}
+
+func NewHostClaimRenewer(renew func(ctx context.Context, host string, lease time.Duration) ([]int64, error)) *HostClaimRenewer {
+	return &HostClaimRenewer{renew: renew, last: map[string]time.Time{}}
+}
+
+// Touch records traffic to host and, at most once per interval for that
+// host, renews in the background.
+func (r *HostClaimRenewer) Touch(host string) {
+	host = strings.ToLower(host)
+	now := time.Now()
+	r.mu.Lock()
+	if now.Sub(r.last[host]) < trafficRenewInterval {
+		r.mu.Unlock()
+		return
+	}
+	r.last[host] = now
+	r.mu.Unlock()
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		ids, err := r.renew(ctx, host, IntentLease)
+		if err != nil {
+			slog.Warn("renew intent claims from traffic", "host", host, "err", err)
+			return
+		}
+		if len(ids) > 0 {
+			slog.Debug("intent claims renewed from traffic", "host", host, "intents", ids)
+		}
+	}()
 }
 
 // renewHeldIntents extends the caller's claims on the intents a write was

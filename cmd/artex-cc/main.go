@@ -550,6 +550,16 @@ func cmdServe(args []string) {
 	}))
 	srvOpts = append(srvOpts, mcpserver.WithVersion(strings.TrimPrefix(version, "v")))
 	srv = mcpserver.New(reg, srvOpts...)
+	if t != nil {
+		renewer := tools.NewHostClaimRenewer(func(ctx context.Context, host string, lease time.Duration) ([]int64, error) {
+			_, expID := srv.ActiveEngagement()
+			if expID <= 0 {
+				return nil, nil
+			}
+			return s.RenewIntentClaimsForHost(ctx, expID, host, lease)
+		})
+		t.OnExchange(renewer.Touch)
+	}
 	if restAPI != nil {
 		webExploration := func() int64 { return engCfg.ExplorationID }
 		go store.ListenChanges(ctx, dsn, changeOrigin, webExploration, func(c store.Change) {
