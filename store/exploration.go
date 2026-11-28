@@ -308,14 +308,14 @@ func (s *Store) ReleaseHolderClaims(ctx context.Context, holder string) (int64, 
 }
 
 // UpdateNodeFields sets the node state when state is set and merges
-// payloadMerge into its payload, removing the keys whose value is nil.
+// payloadMerge into its payload, removing the keys whose value is nil, in one
+// statement so a concurrent reopen sees either none or all of the change.
 func (s *Store) UpdateNodeFields(ctx context.Context, nodeID int64, state string, payloadMerge map[string]any) error {
+	var sets []string
+	var args []any
 	if state != "" {
-		if _, err := s.ExecContext(ctx,
-			`UPDATE exploration_nodes SET state = $1, owner = NULL, claim_expires_at = NULL WHERE id = $2`,
-			state, nodeID); err != nil {
-			return err
-		}
+		args = append(args, state)
+		sets = append(sets, fmt.Sprintf("state = $%d, owner = NULL, claim_expires_at = NULL", len(args)))
 	}
 	if len(payloadMerge) > 0 {
 		set := map[string]any{}
@@ -331,17 +331,22 @@ func (s *Store) UpdateNodeFields(ctx context.Context, nodeID int64, state string
 		if err != nil {
 			return err
 		}
-		query := `UPDATE exploration_nodes SET payload = payload || $1::jsonb WHERE id = $2`
-		args := []any{string(merge), nodeID}
+		args = append(args, string(merge))
+		expr := fmt.Sprintf("payload || $%d::jsonb", len(args))
 		if len(removed) > 0 {
-			query = `UPDATE exploration_nodes SET payload = (payload - $3::text[]) || $1::jsonb WHERE id = $2`
 			args = append(args, removed)
+			expr = fmt.Sprintf("(payload - $%d::text[]) || $%d::jsonb", len(args), len(args)-1)
 		}
-		if _, err := s.ExecContext(ctx, query, args...); err != nil {
-			return err
-		}
+		sets = append(sets, "payload = "+expr)
 	}
-	return nil
+	if len(sets) == 0 {
+		return nil
+	}
+	args = append(args, nodeID)
+	_, err := s.ExecContext(ctx,
+		fmt.Sprintf("UPDATE exploration_nodes SET %s WHERE id = $%d", strings.Join(sets, ", "), len(args)),
+		args...)
+	return err
 }
 
 func (s *Store) AddEdge(ctx context.Context, from int64, rel string, to int64) error {
