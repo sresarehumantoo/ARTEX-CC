@@ -1992,7 +1992,7 @@
   },
   {
    "name": "generate_report",
-   "description": "Generate a Markdown penetration test report from the current engagement's findings, assets, and coverage, with a Target changes section listing every recorded change to a target and whether it was restored to its baseline.",
+   "description": "Generate a Markdown penetration test report from the current engagement's findings, assets, and coverage, with a Target changes section listing every recorded change to a target, whether it was restored to its baseline, and how long it went with no live owner.",
    "read_only": true,
    "category": "engagement",
    "schema": {
