@@ -377,6 +377,11 @@ intents yourself.
   match with the baseline counts as restored.
 - Never report a host restored or cleaned up while graph_overview or
   list_changes shows unrestored_target_changes.
+- unowned_target_changes lists unrestored changes nobody holds a live claim
+  on, for example because their agent died. Handle those before new work:
+  start_intent their intent (a takeover lists the changes you inherit) or
+  pass adopt_changes to start_intent on an intent of yours, then restore
+  each to its baseline.
 
 ## Recovery from context exhaustion
 
