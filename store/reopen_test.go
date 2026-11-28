@@ -557,3 +557,51 @@ func lastEntry(history []any) (map[string]any, bool) {
 	e, ok := history[len(history)-1].(map[string]any)
 	return e, ok
 }
+
+func TestReopenRestartsUnownedWindowOfTargetChanges(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	_, expID := testEngagement(t, s, "reopen-unowned")
+	intent := addIntent(t, s, expID, "change the config")
+	if _, err := s.ClaimIntent(ctx, intent, "sess-a", time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	change := recordOn(t, s, expID, intent, `C:\app.conf`)
+	if err := s.UpdateNodeFields(ctx, intent, "done", map[string]any{"result": "changed"}); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(1100 * time.Millisecond)
+
+	if _, err := s.ReopenNode(ctx, expID, intent, "web-ui", "redo"); err != nil {
+		t.Fatal(err)
+	}
+	n, _ := s.NodeDetail(ctx, intent)
+	reopenedAt, err := time.Parse(time.RFC3339, n.Payload["reopened_at"].(string))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := changeByID(t, s, expID, change.ID)
+	if c.Unowned != "intent_open" || c.UnownedSince == nil || !c.UnownedSince.Equal(reopenedAt) {
+		t.Errorf("after reopen: unowned %q since %v, want intent_open since the reopen at %v", c.Unowned, c.UnownedSince, reopenedAt)
+	}
+	if c.MaxUnownedSeconds < 1 {
+		t.Errorf("max_unowned_seconds = %d, want the window spent done recorded", c.MaxUnownedSeconds)
+	}
+
+	ov, err := s.GraphOverview(ctx, expID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w := ov.UnownedTargetChanges; w == nil || w.Count != 1 || !slices.Equal(w.ChangeIDs, []int64{change.ID}) ||
+		w.OldestSince != reopenedAt.UTC().Format(time.RFC3339) {
+		t.Errorf("unowned_target_changes = %+v, want change %d unowned since the reopen", w, change.ID)
+	}
+
+	if _, err := s.ClaimIntent(ctx, intent, "sess-b", time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if c := changeByID(t, s, expID, change.ID); c.Unowned != "" || c.UnownedSince != nil {
+		t.Errorf("after claiming the reopened intent: unowned %q since %v, want owned", c.Unowned, c.UnownedSince)
+	}
+}

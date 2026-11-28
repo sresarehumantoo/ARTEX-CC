@@ -27,8 +27,9 @@ const liveProofSource = `src.state <> 'dismissed' AND NOT (src.payload ? 'supers
 // intent's yielded facts and findings are kept and marked superseded, and a
 // met goal whose live proofs all came from the intent or its yields reopens
 // too. When a goal reopens, an achieved engagement goes back to running.
-// Locks are taken as merges and dismissals take them: non-goal nodes, then
-// goals in id order, then the exploration row.
+// The exploration row is locked first, as target change adoption and restore
+// lock it, then nodes as merges and dismissals take them: non-goal nodes,
+// then goals in id order.
 func (s *Store) ReopenNode(ctx context.Context, explorationID, nodeID int64, by, reason string) (*tools.ReopenResult, error) {
 	tx, err := s.BeginTx(ctx, nil)
 	if err != nil {
@@ -47,8 +48,15 @@ func (s *Store) ReopenNode(ctx context.Context, explorationID, nodeID int64, by,
 		return nil, err
 	}
 
+	if err := lockExploration(ctx, tx, explorationID); err != nil {
+		return nil, err
+	}
+	var now time.Time
+	if err := tx.QueryRowContext(ctx, `SELECT now()`).Scan(&now); err != nil {
+		return nil, err
+	}
 	res := &tools.ReopenResult{ID: nodeID, Kind: kind}
-	at := time.Now().UTC().Format(time.RFC3339)
+	at := now.UTC().Format(time.RFC3339)
 	switch kind {
 	case KindIntent:
 		err = reopenIntentTx(ctx, tx, res, by, reason, at)
@@ -66,9 +74,6 @@ func (s *Store) ReopenNode(ctx context.Context, explorationID, nodeID int64, by,
 	}
 
 	if kind == KindGoal || len(res.ReopenedGoals) > 0 {
-		if err := lockExploration(ctx, tx, explorationID); err != nil {
-			return nil, err
-		}
 		if _, err := tx.ExecContext(ctx,
 			`UPDATE explorations SET status = 'open' WHERE id = $1 AND status = 'achieved'`, explorationID); err != nil {
 			return nil, fmt.Errorf("reopen exploration %d: %w", explorationID, err)
@@ -112,6 +117,11 @@ func reopenIntentTx(ctx context.Context, tx *sql.Tx, res *tools.ReopenResult, by
 		return fmt.Errorf("lock goals proved by intent %d: %w", res.ID, err)
 	}
 
+	// The intent's unrestored target changes have been unowned since it
+	// closed. Record that window now; reopened_at starts the next one.
+	if _, err := tx.ExecContext(ctx, closeUnownedWindows(`tc.intent_id = $1 AND n.state IN ('done', 'stopped')`), res.ID); err != nil {
+		return fmt.Errorf("close unowned windows of intent %d: %w", res.ID, err)
+	}
 	if err := reopenNodeTx(ctx, tx, res.ID, []string{"done", "stopped"}, by, reason, at); err != nil {
 		return err
 	}
