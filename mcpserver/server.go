@@ -323,6 +323,10 @@ same engagement, coordinate through the graph:
   first, so the intent records who closed it (completed_by, cancelled_by).
   That is no substitute for start_intent: work you do without claiming
   looks free to every other session, which may do it too.
+- An intent the user reopened is open again and carries reopen_reason,
+  which start_intent also prints. Read it before redoing the work: the old
+  result is in its history, and the facts and findings it yielded carry
+  superseded_by_reopen.
 - Claims belong to your identity when your client sends an X-Artex-Identity
   header, otherwise to your MCP session. In the web UI chat your identity is
   chat/<conversation id>, sent for you. An identity keeps its claims across
