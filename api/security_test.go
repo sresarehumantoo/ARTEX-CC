@@ -138,8 +138,8 @@ func TestHandlerAcceptsAllowedOriginWrite(t *testing.T) {
 	r.Header.Set("Sec-Fetch-Site", "same-origin")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
-	if w.Code == http.StatusForbidden {
-		t.Fatalf("allowed-origin write refused: %s", w.Body)
+	if w.Code != http.StatusOK {
+		t.Fatalf("allowed-origin write: %d %s, want 200", w.Code, w.Body)
 	}
 }
 
