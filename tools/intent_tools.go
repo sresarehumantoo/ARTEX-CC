@@ -79,7 +79,7 @@ func makeStartIntent(store Store, explorationID int64) Tool {
 			msg := fmt.Sprintf("intent %d is now running; %s by %s until %s",
 				id, verb, OwnerLabel(claim.Owner), claim.ExpiresAt.UTC().Format(time.RFC3339))
 			extra := map[string]any{}
-			if claim.TookOver {
+			if !claim.Renewed && claim.PreviousOwner != claim.Owner {
 				inheritChanges(ctx, store, explorationID, id, claim.PreviousOwner, extra)
 			}
 			if ids := pidList(a.AdoptChanges); len(ids) > 0 {
@@ -97,29 +97,58 @@ func makeStartIntent(store Store, explorationID int64) Tool {
 	}
 }
 
-// inheritChanges lists the unrestored changes a takeover hands to the new
-// holder. The claim is already taken, so a failure here is reported, not
-// returned.
+// inheritChanges lists the unrestored changes a new holder of the intent
+// takes on, whether it took a lapsed claim over or claimed an open intent
+// that already had changes. The claim is already taken, so a failure here is
+// reported, not returned.
 func inheritChanges(ctx context.Context, store Store, explorationID, intentID int64, previous string, out map[string]any) {
 	live, err := store.ListTargetChanges(ctx, explorationID, true)
 	if err != nil {
 		out["handoff_error"] = err.Error()
 		return
 	}
-	var inherited []map[string]any
+	var mine []TargetChange
 	for _, c := range live {
 		if c.IntentID == intentID {
-			inherited = append(inherited, c.Handoff())
+			mine = append(mine, c)
 		}
 	}
-	if len(inherited) == 0 {
+	if len(mine) == 0 {
 		return
 	}
-	out["inherited_target_changes"] = inherited
-	out["handoff"] = fmt.Sprintf("You took this intent over from %s, whose claim lapsed with %d unrestored target change(s). "+
+	out["inherited_target_changes"] = handoffList(mine)
+	if len(mine) > maxWarningIDs {
+		out["inherited_total"] = len(mine)
+	}
+	from := "This intent already had"
+	if previous != "" {
+		from = fmt.Sprintf("You took this intent over from %s, whose claim lapsed with", OwnerLabel(previous))
+	}
+	out["handoff"] = fmt.Sprintf("%s %d unrestored target change(s). "+
 		"Restoring them is now yours: put each resource back to its baseline (not a later change's original_fingerprint), "+
 		"using the backup where one was kept, then call record_target_restore. last_observed and restore_attempts show earlier failed attempts.",
-		OwnerLabel(previous), len(inherited))
+		from, len(mine))
+}
+
+// handoffList is the handoff form of at most maxWarningIDs changes.
+func handoffList(changes []TargetChange) []map[string]any {
+	out := make([]map[string]any, 0, min(len(changes), maxWarningIDs))
+	for _, c := range changes[:min(len(changes), maxWarningIDs)] {
+		out = append(out, c.Handoff())
+	}
+	return out
+}
+
+// changeIDList names at most maxWarningIDs changes, then how many more.
+func changeIDList(ids []int64) string {
+	parts := make([]string, 0, min(len(ids), maxWarningIDs)+1)
+	for _, id := range ids[:min(len(ids), maxWarningIDs)] {
+		parts = append(parts, fmt.Sprintf("#%d", id))
+	}
+	if len(ids) > maxWarningIDs {
+		parts = append(parts, fmt.Sprintf("and %d more", len(ids)-maxWarningIDs))
+	}
+	return strings.Join(parts, ", ")
 }
 
 func adoptChanges(ctx context.Context, store Store, explorationID, intentID int64, holder string, ids []int64, out map[string]any) {
@@ -128,11 +157,10 @@ func adoptChanges(ctx context.Context, store Store, explorationID, intentID int6
 		out["adopt_error"] = err.Error()
 		return
 	}
-	adopted := make([]map[string]any, 0, len(res.Adopted))
-	for _, c := range res.Adopted {
-		adopted = append(adopted, c.Handoff())
+	out["adopted_changes"] = handoffList(res.Adopted)
+	if len(res.Adopted) > maxWarningIDs {
+		out["adopted_total"] = len(res.Adopted)
 	}
-	out["adopted_changes"] = adopted
 	if len(res.Refused) > 0 {
 		refused := map[string]string{}
 		for id, why := range res.Refused {
@@ -273,10 +301,10 @@ func closedWithChangesWarning(ctx context.Context, store Store, explorationID, i
 	if err != nil {
 		return ""
 	}
-	var ids []string
+	var ids []int64
 	for _, c := range live {
 		if c.IntentID == intentID {
-			ids = append(ids, fmt.Sprintf("#%d", c.ID))
+			ids = append(ids, c.ID)
 		}
 	}
 	if len(ids) == 0 {
@@ -285,7 +313,7 @@ func closedWithChangesWarning(ctx context.Context, store Store, explorationID, i
 	return fmt.Sprintf("\nWARNING: intent %d closed with %d unrestored target change(s) (%s), which now have no live owner. "+
 		"Restore each to its baseline and call record_target_restore, or start_intent another intent with adopt_changes to keep owning them. "+
 		"They stay listed in unowned_target_changes until restored.",
-		intentID, len(ids), strings.Join(ids, ", "))
+		intentID, len(ids), changeIDList(ids))
 }
 
 func identityRequiredDesc() string {

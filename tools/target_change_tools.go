@@ -104,16 +104,20 @@ func (c TargetChange) Summary() map[string]any {
 	return m
 }
 
+// maxHandoffText bounds backup and note in a handoff. A backup is usually a
+// path; one kept inline that runs longer is in full in export_engagement.
+const maxHandoffText = 300
+
 // Handoff is the form given to an agent taking over the cleanup: the summary
 // plus what it needs to restore without starting from scratch.
 func (c TargetChange) Handoff() map[string]any {
 	m := c.Summary()
 	m["original_fingerprint"] = c.OriginalFingerprint
 	if c.Backup != "" {
-		m["backup"] = c.Backup
+		m["backup"] = truncRunes(c.Backup, maxHandoffText)
 	}
 	if c.Note != "" {
-		m["note"] = c.Note
+		m["note"] = truncRunes(c.Note, maxHandoffText)
 	}
 	return m
 }

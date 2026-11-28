@@ -122,12 +122,12 @@ func makeGoalMet(store Store, taskID, explorationID int64) Tool {
 				msg += ": " + firstLine(a.Summary, 120)
 			}
 			if live, err := store.ListTargetChanges(ctx, explorationID, true); err == nil && len(live) > 0 {
-				ids := make([]string, len(live))
+				ids := make([]int64, len(live))
 				for i, c := range live {
-					ids[i] = fmt.Sprintf("#%d", c.ID)
+					ids[i] = c.ID
 				}
 				msg += fmt.Sprintf("\nWARNING: %d target change(s) are still unrestored (%s), so the hosts are not back in their original state. "+
-					"Restore them and call record_target_restore; generate_report lists them as not restored.", len(live), strings.Join(ids, ", "))
+					"Restore them and call record_target_restore; generate_report lists them as not restored.", len(live), changeIDList(ids))
 			}
 			return textResult(msg), nil
 		},
