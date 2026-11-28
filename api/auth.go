@@ -51,19 +51,20 @@ func signExpiry(key, expiry string) (string, error) {
 	return hex.EncodeToString(m.Sum(nil)), nil
 }
 
-func (a *API) setSession(w http.ResponseWriter, cfg AuthConfig) error {
+func (a *API) setSession(w http.ResponseWriter, r *http.Request, cfg AuthConfig) error {
 	exp := time.Now().Add(sessionTTL)
 	expiry := strconv.FormatInt(exp.Unix(), 10)
 	sig, err := signExpiry(cfg.HMACKey, expiry)
 	if err != nil {
 		return err
 	}
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // Secure follows r.TLS so plain-HTTP loopback still works
 		Name:     sessionCookie,
 		Value:    expiry + "." + sig,
 		Path:     "/",
 		Expires:  exp,
 		MaxAge:   int(sessionTTL.Seconds()),
+		Secure:   r.TLS != nil,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
@@ -106,7 +107,7 @@ func (a *API) authMiddleware(next http.Handler) http.Handler {
 			writeError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
-		a.setSession(w, cfg) //nolint:errcheck
+		a.setSession(w, r, cfg) //nolint:errcheck
 		next.ServeHTTP(w, r)
 	})
 }
@@ -170,7 +171,7 @@ func (a *API) handleAuthInit(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "invalid setup token: the server prints it in its logs at startup while no password is set")
 		return
 	}
-	if a.storeAuth(w, body.Password) {
+	if a.storeAuth(w, r, body.Password) {
 		a.setupToken = ""
 	}
 }
@@ -194,13 +195,13 @@ func (a *API) IssueSetupToken() (string, error) {
 	return a.setupToken, nil
 }
 
-func (a *API) storeAuth(w http.ResponseWriter, password string) bool {
+func (a *API) storeAuth(w http.ResponseWriter, r *http.Request, password string) bool {
 	cfg, err := newAuthConfig(password)
 	if err == nil {
 		err = a.files.WriteJSON(authFile, cfg)
 	}
 	if err == nil {
-		err = a.setSession(w, cfg)
+		err = a.setSession(w, r, cfg)
 	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -225,7 +226,7 @@ func (a *API) handleAuthLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "invalid password")
 		return
 	}
-	if err := a.setSession(w, cfg); err != nil {
+	if err := a.setSession(w, r, cfg); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -260,15 +261,16 @@ func (a *API) handleAuthChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "password must be at least 8 characters")
 		return
 	}
-	a.storeAuth(w, body.NewPassword)
+	a.storeAuth(w, r, body.NewPassword)
 }
 
 func (a *API) handleAuthLogout(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // Secure follows r.TLS so plain-HTTP loopback still works
 		Name:     sessionCookie,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
+		Secure:   r.TLS != nil,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
