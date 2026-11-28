@@ -186,7 +186,7 @@ func reopenNodeTx(ctx context.Context, tx *sql.Tx, id int64, allowed []string, b
 	for _, k := range reopenOutcomeKeys {
 		if v, ok := payload[k]; ok {
 			if s := string(v); s != `""` && s != "null" {
-				entry[k] = v
+				entry[k] = truncateJSONString(v, historyFieldLimit)
 			}
 			delete(payload, k)
 		}
@@ -236,4 +236,19 @@ func queryIDList(ctx context.Context, tx *sql.Tx, query string, args ...any) ([]
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+// truncateJSONString shortens a JSON string value to at most limit runes and
+// returns any other JSON value unchanged.
+func truncateJSONString(v json.RawMessage, limit int) json.RawMessage {
+	var str string
+	if json.Unmarshal(v, &str) != nil {
+		return v
+	}
+	r := []rune(str)
+	if len(r) <= limit {
+		return v
+	}
+	out, _ := json.Marshal(string(r[:limit]) + "...")
+	return out
 }
