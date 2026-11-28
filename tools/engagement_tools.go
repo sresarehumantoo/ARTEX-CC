@@ -11,7 +11,7 @@ func RegisterEngagementTools(reg *Registry, store Store, taskID, explorationID i
 	reg.Register(makeCreateEngagement(store))
 	reg.Register(makeListEngagements(store, taskID))
 	reg.Register(makeEngagementStatus(store, taskID, explorationID))
-	reg.Register(makeGoalMet(store, taskID))
+	reg.Register(makeGoalMet(store, taskID, explorationID))
 	reg.Register(makeUpdateEngagement(store, taskID))
 	reg.Register(makeDeleteEngagement(store))
 	reg.Register(makeEngagementActivity(store, explorationID))
@@ -94,12 +94,13 @@ func makeListEngagements(store Store, activeTaskID int64) Tool {
 	}
 }
 
-func makeGoalMet(store Store, taskID int64) Tool {
+func makeGoalMet(store Store, taskID, explorationID int64) Tool {
 	return Tool{
 		Name:     "goal_met",
 		Category: CategoryEngagement,
 		Description: "Mark the entire engagement as complete. Call this when all goals have been proved and the engagement is finished. " +
-			"Sets the engagement status to achieved. Provide an optional summary of what was accomplished.",
+			"Sets the engagement status to achieved. Provide an optional summary of what was accomplished. " +
+			"Restore every recorded target change first; the result warns about any still unrestored.",
 		Schema: obj(map[string]any{
 			"summary": str("optional summary of what was accomplished"),
 		}),
@@ -119,6 +120,14 @@ func makeGoalMet(store Store, taskID int64) Tool {
 			msg := fmt.Sprintf("engagement %d marked complete", taskID)
 			if a.Summary != "" {
 				msg += ": " + firstLine(a.Summary, 120)
+			}
+			if live, err := store.ListTargetChanges(ctx, explorationID, true); err == nil && len(live) > 0 {
+				ids := make([]string, len(live))
+				for i, c := range live {
+					ids[i] = fmt.Sprintf("#%d", c.ID)
+				}
+				msg += fmt.Sprintf("\nWARNING: %d target change(s) are still unrestored (%s), so the hosts are not back in their original state. "+
+					"Restore them and call record_target_restore; generate_report lists them as not restored.", len(live), strings.Join(ids, ", "))
 			}
 			return textResult(msg), nil
 		},

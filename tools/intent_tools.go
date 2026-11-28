@@ -11,8 +11,8 @@ import (
 
 func RegisterIntentTools(reg *Registry, store Store, explorationID int64) {
 	reg.Register(makeStartIntent(store, explorationID))
-	reg.Register(makeCompleteIntent(store))
-	reg.Register(makeCancelIntent(store))
+	reg.Register(makeCompleteIntent(store, explorationID))
+	reg.Register(makeCancelIntent(store, explorationID))
 }
 
 func makeStartIntent(store Store, explorationID int64) Tool {
@@ -141,14 +141,15 @@ func adoptChanges(ctx context.Context, store Store, explorationID, intentID int6
 	}
 }
 
-func makeCompleteIntent(store Store) Tool {
+func makeCompleteIntent(store Store, explorationID int64) Tool {
 	return Tool{
 		Name:     "complete_intent",
 		Category: CategoryExploration,
 		Description: "Mark a running intent as done with a result summary. " +
 			"Call this when you have finished working on an intent and recorded all facts/findings. " +
 			"Refused while another session holds a live claim on the intent. " +
-			"An open intent you never started is claimed and completed in one step, but start_intent it before working on it so other agents skip it.",
+			"An open intent you never started is claimed and completed in one step, but start_intent it before working on it so other agents skip it. " +
+			"Restore the target changes you recorded for it first: closing it with changes unrestored succeeds with a warning, and they stay listed as unowned until someone restores them.",
 		Schema: obj(map[string]any{
 			"node_id": intp("intent node id"),
 			"result":  str("brief result summary"),
@@ -195,16 +196,17 @@ func makeCompleteIntent(store Store) Tool {
 			if err := store.UpdateNodeFields(ctx, id, "done", merge); err != nil {
 				return errResult(err.Error()), nil
 			}
+			msg := fmt.Sprintf("intent %d marked done", id)
 			if neverStarted {
-				return textResult(fmt.Sprintf("intent %d marked done; it was never started, so it was claimed and completed in one step. "+
-					"Call start_intent before working an intent so other agents skip it.", id)), nil
+				msg += "; it was never started, so it was claimed and completed in one step. " +
+					"Call start_intent before working an intent so other agents skip it."
 			}
-			return textResult(fmt.Sprintf("intent %d marked done", id)), nil
+			return textResult(msg + closedWithChangesWarning(ctx, store, explorationID, id)), nil
 		},
 	}
 }
 
-func makeCancelIntent(store Store) Tool {
+func makeCancelIntent(store Store, explorationID int64) Tool {
 	return Tool{
 		Name:     "cancel_intent",
 		Category: CategoryExploration,
@@ -257,9 +259,32 @@ func makeCancelIntent(store Store) Tool {
 			if err := store.UpdateNodeFields(ctx, id, "stopped", merge); err != nil {
 				return errResult(err.Error()), nil
 			}
-			return textResult(fmt.Sprintf("intent %d cancelled", id)), nil
+			return textResult(fmt.Sprintf("intent %d cancelled", id) + closedWithChangesWarning(ctx, store, explorationID, id)), nil
 		},
 	}
+}
+
+// closedWithChangesWarning is said once, to whoever closes an intent with
+// unrestored changes. Nothing depends on it being heeded: the changes stay
+// in unowned_target_changes and the report until they are restored.
+func closedWithChangesWarning(ctx context.Context, store Store, explorationID, intentID int64) string {
+	live, err := store.ListTargetChanges(ctx, explorationID, true)
+	if err != nil {
+		return ""
+	}
+	var ids []string
+	for _, c := range live {
+		if c.IntentID == intentID {
+			ids = append(ids, fmt.Sprintf("#%d", c.ID))
+		}
+	}
+	if len(ids) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\nWARNING: intent %d closed with %d unrestored target change(s) (%s), which now have no live owner. "+
+		"Restore each to its baseline and call record_target_restore, or start_intent another intent with adopt_changes to keep owning them. "+
+		"They stay listed in unowned_target_changes until restored.",
+		intentID, len(ids), strings.Join(ids, ", "))
 }
 
 func identityRequiredDesc() string {
