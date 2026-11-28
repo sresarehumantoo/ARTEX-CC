@@ -8,6 +8,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - The web UI graph drawer has a **Reopen** button for done or stopped intents and met goals, backed by `POST /api/nodes/{id}/reopen` with a required `reason` of up to 2000 characters. The node goes back to open with its claim cleared, and its old result and completer or canceler move into a payload `history` entry, which `node_detail` shows and `graph_overview` and `list_changes` leave out. Facts and findings the intent yielded are kept and marked `superseded_by_reopen`: the graph dims them, and the node drawer, findings list, `list_changes` and both reports mark them. A superseded node no longer counts as a goal's proof, so a met goal whose live proofs all came from reopened intents reopens too, and so does an achieved engagement when any goal reopens. Agents see `reopen_reason` in `graph_overview`, `list_changes` and in the JSON line `start_intent` appends until `complete_intent` or `cancel_intent` clears it. A reopened intent's unrestored target changes stay unowned in one window from when it closed until the next claim, which `max_unowned_seconds` then records; the close time is kept as `closed_at` in the payload until the intent closes again. See [Reopening work](https://artex-cc.com/docs/web-ui/#reopening-work).
 
+### Fixed
+- The `traffic_get` description said a result could start with a REWRITTEN line for exchanges changed by proxy rewrite rules, but `serve` never sets rewrite rules, so no exchange is rewritten. That part is removed.
+
 ## [0.7.1] - 2026-11-28
 
 ### Upgrade notes
