@@ -10,11 +10,11 @@ import toolStats from '../../data/tool-stats.json';
 ARTEX is a working MCP tool server for penetration testing. It exposes ARTEX's
 data model as tools Claude Code calls directly, with no separate LLM API key.
 
-**Lines of code:** ~36,000 Go, excluding tests.
+**Lines of code:** ~37,000 Go, excluding tests.
 
 **Tool count:** {toolStats.tools} registered tools in {toolStats.categories} categories.
 
-**Test count:** 1,700+ Go test functions across all packages.
+**Test count:** 1,800+ Go test functions across all packages.
 
 **What works today:**
 
@@ -33,24 +33,18 @@ data model as tools Claude Code calls directly, with no separate LLM API key.
 - **Engagement management:** Update and delete engagements, activity timeline view.
 - **Activity log:** `list_activity` and `log_activity` tools for audit trail access.
 - **Traffic recording proxy:** Full MITM proxy with SQLite index (WAL mode, busy-timeout), blob storage, body spill for large payloads, WebSocket/SSE stream capture, URL path templating, host listing, paginated search (including body full-text search), HAR 1.2 export, request replay with modifications. Graceful shutdown with connection draining.
-- **Traffic rewrite engine:** Rule-based request/response rewriting with a custom hook VM (eval.go, stdlib, validation). Rewrite flow with match/transform pipeline.
-- **Egress governor:** Rate limiting with profiles (quiet/balanced/aggressive/off), per-host and global concurrency caps, jitter, 429/503 backoff, GET cache/coalescing, configurable user agent.
-- **External traffic ingest:** Browser-extension capture endpoint.
-- **SOCKS5 proxy:** SOCKS5 with UDP relay support.
-- **Raw TCP/UDP capture.**
-- **Transparent proxy (Linux):** iptables-based transparent interception.
-- **Intercept rules:** Tool-call interception with allow/deny/ask actions and timeout policy.
-- **Web UI:** `serve --web` serves a dashboard on the MCP port: exploration graph, findings with bound traffic, assets, coverage, credentials, traffic explorer, report, plus chat with a Claude subprocess runner, agents and presets, intercept approvals, and password auth.
+- **Web UI:** `serve --web` serves a dashboard on the MCP port: exploration graph, findings with bound traffic, assets, coverage, credentials, traffic explorer, report, plus chat with a Claude subprocess runner, agents and presets, and password auth.
 - **Multi-client MCP:** Per-client session state over the HTTP transport, with the `list_sessions` tool.
 - **Multi-agent coordination:** Intent claims with a 30-minute lease that renews whenever the holder records results, claim-on-close for `complete_intent` and `cancel_intent`, duplicate intent skipping in `add_intent`, cross-process change notifications, and `list_changes` for polling what other agents recorded. HTTP clients can hold claims under a signed `X-Artex-Identity` that survives reconnects and restarts, and `serve --require-identity` makes it mandatory for claims.
 - **Plugins:** Exec-based plugin system. Executables in the plugin directory describe their tools with `--manifest` and are registered as MCP tools. Results can include assets, facts and findings, which are written into the graph with scope enforcement.
 - **Traffic analysis:** `traffic_patterns` for temporal analysis, `traffic_stats` with request size statistics, `traffic_clear` to delete captured traffic by host.
 - **MCP resource:** `artex://engagement` resource serves the orchestration guide with live engagement context.
-- **Structured logging:** slog-based JSON logging across all packages.
+- **Logging:** `log/slog` text logs on stderr across all packages, also streamed to the web UI Logs page.
 - **CI:** GitHub Actions with fmt-check, golangci-lint, `go build`, `go vet`, `go test`, `govulncheck`, a frontend type-check, Codecov coverage reporting, and store tests against a real PostgreSQL instance.
 - **Distribution:** v0.7.0 released with cross-platform binaries (goreleaser), .deb packaging, a Homebrew cask, and a Docker image that ships the web UI, the Claude CLI and a pentest tooling layer (nmap, impacket, evil-winrm, nuclei, ffuf and more).
 - **Documentation:** Project site at [artex-cc.com](https://artex-cc.com) with docs, evals, a blog, a [tool reference](/docs/tools/) generated from `artex-cc tools --json`, [MCP client configs](/docs/mcp-clients/) and a [live demo](/demo/) of the web UI. AGENTS.md contributor guide.
-- **Community files:** AGPL-3.0 license, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, example engagement walkthrough, godoc comments on all exported types. Zero open issues, 220+ PRs merged.
+- **Ported but not wired up yet:** code ported from upstream ARTEX that `serve` does not start or call today, so none of it is reachable from a tool or flag: the traffic rewrite engine and its hook VM, the egress governor (rate-limit profiles, concurrency caps, backoff), external traffic ingest, the SOCKS5 listener with UDP relay, raw TCP/UDP capture, the Linux transparent proxy, and enforcement of the web UI's intercept rules (the rule editor and approvals queue exist, but nothing consults the rules or creates approvals).
+- **Community files:** AGPL-3.0 license, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, example engagement walkthrough, godoc comments on all exported types.
 
 
 ## 2. P0: Ship blockers (all complete)
@@ -131,7 +125,7 @@ Done. Standardized error format across all tools.
 
 ### ✅ 4.3 Structured logging
 
-Done. `slog`-based JSON logging across all packages. Only `log.Fatal` calls remain in `eval/` entry points.
+Done. `log/slog` across all packages, written as text to stderr. Only `log.Fatal` calls remain in `eval/` entry points.
 
 ### ✅ 4.4 README accuracy
 

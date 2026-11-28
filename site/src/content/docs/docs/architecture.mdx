@@ -50,14 +50,14 @@ ARTEX-CC/
 ├── config/            Configuration loading and engagement state (.artex.json)
 ├── identity/          Signed X-Artex-Identity tokens for HTTP clients
 ├── plugin/            Exec plugin discovery and registration
-├── traffic/           Recording MITM proxy, SOCKS5, replay, HAR export, rewrite engine
+├── traffic/           Recording MITM proxy, replay, HAR export; SOCKS5 and rewrite engine not wired up yet
 │   ├── rewrite/       Rule-based request/response rewriting
 │   └── hookvm/        Sandboxed expression evaluator for rewrite hooks
 ├── evidence/          Evidence capture and storage
 ├── enrich/            DNS and HTTP enrichment
 ├── ingest/            Scanner output parsers (nmap, nuclei, httpx, ffuf, masscan)
 ├── report/            Markdown report generation with quality analysis
-├── egress/            Rate-limiting governor for outbound requests
+├── egress/            Rate-limiting governor for outbound requests (not wired up yet)
 └── eval/              Eval runner, scenarios and targets
 ```
 
