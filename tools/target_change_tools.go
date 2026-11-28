@@ -361,9 +361,9 @@ type UnownedWarning struct {
 	Action           string  `json:"action"`
 }
 
-const unownedAction = "Nobody holds a live claim on these unrestored changes. Restore each to the baseline listed in unrestored_target_changes and call record_target_restore. " +
-	"To own the cleanup first, start_intent its intent when it is claim_lapsed or intent_open (you inherit its changes), or start_intent an intent of yours with adopt_changes. " +
-	"A change drops out of this list once it is restored or owned again."
+// unownedAction is repeated on every call while the notice lasts, so it only
+// points at the tools; their descriptions and the engagement guide explain.
+const unownedAction = "over_threshold first: start_intent the intent or pass adopt_changes, then restore to the baseline."
 
 // NewUnownedWarning builds the notice from unrestored changes, or returns nil
 // when every one of them has a live owner.
