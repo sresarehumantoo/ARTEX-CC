@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -30,7 +31,18 @@ func (fs *FileStore) resolve(path string) (string, error) {
 			return "", fmt.Errorf("path traversal not allowed: %q", path)
 		}
 	}
-	return filepath.Join(fs.root, filepath.FromSlash(path)), nil
+	return filepath.FromSlash(path), nil
+}
+
+// openRoot confines every operation to the data directory, so a symlink
+// inside it cannot redirect a read or write elsewhere.
+func (fs *FileStore) openRoot(create bool) (*os.Root, error) {
+	if create {
+		if err := os.MkdirAll(fs.root, 0o700); err != nil { //nolint:gosec // fs.root is the operator's --data directory
+			return nil, err
+		}
+	}
+	return os.OpenRoot(fs.root)
 }
 
 func (fs *FileStore) ReadJSON(path string, v any) error {
@@ -40,7 +52,12 @@ func (fs *FileStore) ReadJSON(path string, v any) error {
 	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	data, err := os.ReadFile(p)
+	root, err := fs.openRoot(false)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	data, err := root.ReadFile(p)
 	if err != nil {
 		return err
 	}
@@ -58,15 +75,20 @@ func (fs *FileStore) WriteJSON(path string, v any) error {
 	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+	root, err := fs.openRoot(true)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	if err := root.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		return err
 	}
 	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+	if err := root.WriteFile(tmp, data, 0o600); err != nil {
 		return err
 	}
-	if err := os.Rename(tmp, p); err != nil {
-		os.Remove(tmp)
+	if err := root.Rename(tmp, p); err != nil {
+		_ = root.Remove(tmp)
 		return err
 	}
 	return nil
@@ -83,10 +105,15 @@ func (fs *FileStore) AppendJSONL(path string, v any) error {
 	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+	root, err := fs.openRoot(true)
+	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	defer root.Close()
+	if err := root.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+		return err
+	}
+	f, err := root.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -105,7 +132,15 @@ func (fs *FileStore) ReadJSONL(path string, after int64) ([]json.RawMessage, err
 	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	f, err := os.Open(p)
+	root, err := fs.openRoot(false)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	f, err := root.Open(p)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
@@ -138,10 +173,21 @@ func (fs *FileStore) ListDir(path string) ([]string, error) {
 	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	entries, err := os.ReadDir(p)
+	root, err := fs.openRoot(false)
 	if err != nil {
 		return nil, err
 	}
+	defer root.Close()
+	dir, err := root.Open(p)
+	if err != nil {
+		return nil, err
+	}
+	defer dir.Close()
+	entries, err := dir.ReadDir(-1)
+	if err != nil {
+		return nil, err
+	}
+	slices.SortFunc(entries, func(a, b os.DirEntry) int { return strings.Compare(a.Name(), b.Name()) })
 	names := make([]string, 0, len(entries))
 	for _, e := range entries {
 		names = append(names, e.Name())
@@ -156,5 +202,13 @@ func (fs *FileStore) Delete(path string) error {
 	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	return os.RemoveAll(p)
+	root, err := fs.openRoot(false)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	return root.RemoveAll(p)
 }

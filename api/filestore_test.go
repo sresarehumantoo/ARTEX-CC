@@ -35,3 +35,25 @@ func TestFileStoreWritesOwnerOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestFileStoreRefusesSymlinkEscape(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "secret.json"), []byte(`{"k":"v"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "link")); err != nil {
+		t.Skipf("symlink: %v", err)
+	}
+	fs := NewFileStore(root)
+	var v map[string]string
+	if err := fs.ReadJSON("link/secret.json", &v); err == nil {
+		t.Fatalf("read through symlink escaped the root: %v", v)
+	}
+	if err := fs.WriteJSON("link/new.json", v); err == nil {
+		t.Fatal("write through symlink escaped the root")
+	}
+	if _, err := os.Stat(filepath.Join(outside, "new.json")); err == nil {
+		t.Fatal("file created outside the root")
+	}
+}
