@@ -187,6 +187,18 @@ func webAuthReason(authFlag bool, listen string, allowed []string) string {
 	return ""
 }
 
+func webAPIOptions(dataDir string, authFlag bool, listen string, hosts []string, toolList []tools.Tool, claudeBin string) []api.Option {
+	authReason := webAuthReason(authFlag, listen, hosts)
+	if authReason != "" {
+		slog.Info("web UI password login required", "reason", authReason)
+	}
+	opts := []api.Option{api.WithDataDir(dataDir), api.WithAuthRequired(authReason != ""), api.WithAllowedHosts(hosts), api.WithToolList(toolList)}
+	if claudeBin != "" {
+		opts = append(opts, api.WithClaudeBin(claudeBin))
+	}
+	return opts
+}
+
 func isLoopbackAddr(addr string) bool {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -497,14 +509,7 @@ func cmdServe(args []string) {
 	var mcpToken string
 	var webIdentity *identity.Signer
 	if *webUI {
-		authReason := webAuthReason(*authFlag || envEnabled("ARTEX_AUTH"), *listen, hosts)
-		if authReason != "" {
-			slog.Info("web UI password login required", "reason", authReason)
-		}
-		apiOpts := []api.Option{api.WithDataDir(*dataDir), api.WithAuthRequired(authReason != ""), api.WithAllowedHosts(hosts), api.WithToolList(reg.Tools())}
-		if *claudeBin != "" {
-			apiOpts = append(apiOpts, api.WithClaudeBin(*claudeBin))
-		}
+		apiOpts := webAPIOptions(*dataDir, *authFlag || envEnabled("ARTEX_AUTH"), *listen, hosts, reg.Tools(), *claudeBin)
 		tokenBytes := make([]byte, 32)
 		if _, err := rand.Read(tokenBytes); err != nil {
 			slog.Error("generating mcp token failed", "err", err)

@@ -2,12 +2,16 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/SREsAreHumanToo/ARTEX-CC/api"
 	"github.com/SREsAreHumanToo/ARTEX-CC/identity"
 	"github.com/SREsAreHumanToo/ARTEX-CC/mcpserver"
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
@@ -188,3 +192,33 @@ func TestWebAuthReason(t *testing.T) {
 	}
 }
 
+func TestWebAPIOptionsAllowedHosts(t *testing.T) {
+	opts := webAPIOptions(t.TempDir(), false, "localhost:9400", []string{"artex.example.com"}, nil, "")
+	h := api.New(nil, nil, 1, 1, opts...).Handler()
+
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("GET", "http://localhost:9400/api/auth/status", nil))
+	var status struct {
+		AuthRequired bool `json:"auth_required"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &status); err != nil || !status.AuthRequired {
+		t.Fatalf("auth status %d %s: allowed hosts did not force auth", w.Code, w.Body)
+	}
+
+	for _, tt := range []struct {
+		origin string
+		want   string
+	}{
+		{"https://artex.example.com", "invalid setup token"},
+		{"https://evil.example", "cross-origin request refused"},
+	} {
+		r := httptest.NewRequest("POST", "http://localhost:9400/api/auth/init", strings.NewReader(`{"password":"correct horse battery"}`))
+		r.Header.Set("Origin", tt.origin)
+		r.Header.Set("Sec-Fetch-Site", "same-origin")
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), tt.want) {
+			t.Errorf("Origin %s: %d %s, want 403 %q", tt.origin, w.Code, w.Body, tt.want)
+		}
+	}
+}
