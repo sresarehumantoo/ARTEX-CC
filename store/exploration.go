@@ -538,6 +538,7 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 		for k, v := range payload {
 			m[k] = v
 		}
+		delete(m, "history")
 
 		switch n.Kind {
 		case KindGoal:

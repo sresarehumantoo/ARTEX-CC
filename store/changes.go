@@ -129,6 +129,7 @@ func (s *Store) changedNodes(ctx context.Context, ids []int64) (map[int64]map[st
 		if len(n.Payload) > 0 {
 			_ = json.Unmarshal(n.Payload, &m)
 		}
+		delete(m, "history")
 		m["id"] = n.ID
 		m["state"] = n.State
 		if n.Kind == KindIntent && n.State == "running" {
@@ -250,6 +251,7 @@ func (s *Store) ListClaims(ctx context.Context, explorationID int64, owner strin
 		}
 		if len(n.Payload) > 0 {
 			_ = json.Unmarshal(n.Payload, &c.Payload)
+			delete(c.Payload, "history")
 		}
 		out = append(out, c)
 	}
