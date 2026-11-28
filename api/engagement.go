@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,6 +15,7 @@ func (a *API) registerEngagementRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/engagement", a.handleEngagement)
 	mux.HandleFunc("GET /api/graph", a.handleGraph)
 	mux.HandleFunc("GET /api/search", a.handleSearch)
+	mux.HandleFunc("POST /api/nodes/{id}/reopen", a.handleReopenNode)
 }
 
 func (a *API) handleEngagement(w http.ResponseWriter, r *http.Request) {
@@ -58,6 +61,44 @@ func (a *API) handleGraph(w http.ResponseWriter, r *http.Request) {
 		"nodes": nodes,
 		"edges": edges,
 	})
+}
+
+func (a *API) handleReopenNode(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(r)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "invalid node id")
+		return
+	}
+	var body struct {
+		Reason string `json:"reason"`
+	}
+	if err := decodeBody(r, &body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	reason := strings.TrimSpace(body.Reason)
+	if reason == "" {
+		writeError(w, http.StatusBadRequest, "reason is required")
+		return
+	}
+	res, err := a.store.ReopenNode(r.Context(), a.explorationID, id, "web-ui", reason)
+	switch {
+	case errors.Is(err, tools.ErrNodeNotFound):
+		writeError(w, http.StatusNotFound, "node not found")
+		return
+	case errors.Is(err, tools.ErrNotReopenable):
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	case err != nil:
+		slog.Error("reopen node", "node", id, "err", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	a.Broadcast(eventGraphChanged, map[string]any{"action": "reopen", "node_id": id})
+	if len(res.Superseded) > 0 {
+		a.Broadcast(eventFindingsChanged, map[string]any{"action": "reopen", "node_id": id})
+	}
+	writeJSON(w, http.StatusOK, res)
 }
 
 type searchResult struct {
