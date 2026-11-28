@@ -30,6 +30,10 @@ func TestTargetChangesExportImport(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if _, err := s.ExecContext(ctx, `UPDATE target_changes SET max_unowned_seconds = 321 WHERE id = $1`, first.Change.ID); err != nil {
+		t.Fatal(err)
+	}
+
 	export, err := s.ExportEngagementData(ctx, taskID)
 	if err != nil {
 		t.Fatal(err)
@@ -54,6 +58,9 @@ func TestTargetChangesExportImport(t *testing.T) {
 	}
 	if got[0].Backup != first.Change.Backup || got[0].Note != "append" || got[0].RecordedBy != "agent-a" || got[0].IntentID == 0 || got[0].IntentID == intentID {
 		t.Errorf("first imported change = %+v", got[0])
+	}
+	if got[0].MaxUnownedSeconds != 321 || got[1].MaxUnownedSeconds != 0 {
+		t.Errorf("max_unowned_seconds not carried through export: %d, %d", got[0].MaxUnownedSeconds, got[1].MaxUnownedSeconds)
 	}
 	if got[1].Baseline != "sha256:orig" || got[1].RestoredAt != nil || got[2].RestoredAt == nil {
 		t.Errorf("imported states = %+v / %+v", got[1], got[2])
