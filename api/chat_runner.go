@@ -149,7 +149,9 @@ func WriteMCPConfig(dataDir, listenAddr, token string) (string, error) {
 
 // conversationMCPConfig writes a copy of the runner's MCP config whose artex
 // server also sends a freshly minted chat/<id> identity, so the conversation
-// holds its own claims and keeps them when it resumes after a server restart.
+// holds its own claims. They end when its process exits, including at
+// shutdown through StopAll; resumed under the same identity, it can renew
+// any that nobody took over in the meantime.
 func (r *Runner) conversationMCPConfig(id string) (string, error) {
 	token, err := r.signer.Issue(conversationIdentity(id), identity.DefaultTTL)
 	if err != nil {
