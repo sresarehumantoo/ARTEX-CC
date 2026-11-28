@@ -236,7 +236,7 @@ export function DetailDrawer({ node, edges, allNodes, onClose, onSelectNode }: P
           </div>
         )}
       </div>
-      <ReopenDialog node={node} open={reopening} onOpenChange={setReopening} />
+      <ReopenDialog key={node.id} node={node} open={reopening} onOpenChange={setReopening} />
     </div>
   )
 }

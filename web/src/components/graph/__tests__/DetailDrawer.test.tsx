@@ -64,6 +64,27 @@ describe('DetailDrawer reopen', () => {
     expect(JSON.parse(init.body)).toEqual({ reason: 'missed the second form' })
   })
 
+  it('does not carry an abandoned reason to another node', async () => {
+    const user = userEvent.setup()
+    const client = new QueryClient()
+    const drawer = (node: GraphNode) => (
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <DetailDrawer node={node} edges={[]} allNodes={[node]} onClose={() => {}} onSelectNode={() => {}} />
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+    const { rerender } = render(drawer({ id: 1, kind: 'intent', state: 'done', payload: {} }))
+    await user.click(screen.getByRole('button', { name: 'Reopen' }))
+    await user.type(within(await screen.findByRole('dialog')).getByLabelText('Reason'), 'half typed')
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    rerender(drawer({ id: 2, kind: 'intent', state: 'done', payload: {} }))
+    await user.click(screen.getByRole('button', { name: 'Reopen' }))
+    expect(within(await screen.findByRole('dialog')).getByLabelText('Reason')).toHaveValue('')
+  })
+
   it('marks a superseded fact', () => {
     renderDrawer({ id: 8, kind: 'fact', state: 'confirmed', payload: { text: 'f', superseded_by_reopen: 7 } })
     expect(screen.getByText(/Superseded: intent #7 was reopened/)).toBeInTheDocument()
