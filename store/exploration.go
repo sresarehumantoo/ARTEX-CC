@@ -567,6 +567,7 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 	}
 	if len(unrestored) > 0 {
 		ov.UnrestoredTargetChanges = tools.UnrestoredSummaries(unrestored)
+		ov.UnownedTargetChanges = tools.NewUnownedWarning(unrestored, time.Now())
 	}
 
 	return ov, nil

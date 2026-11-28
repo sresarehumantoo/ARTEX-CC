@@ -28,12 +28,33 @@ var IntentLease = DefaultIntentLease
 // ParseIntentLease parses an ARTEX_INTENT_LEASE value. Only whole minutes are
 // accepted since agents are told the lease in minutes.
 func ParseIntentLease(v string) (time.Duration, error) {
+	return parseWholeMinutes("intent lease", v)
+}
+
+// DefaultUnownedChangeThreshold is how long an unrestored target change may
+// go without a live owner before it is flagged, when
+// ARTEX_UNOWNED_CHANGE_THRESHOLD is unset. Two 5 minute /loop cycles: a
+// lapsed change should be picked up on the first look, so missing two means
+// nothing is driving its restoration.
+const DefaultUnownedChangeThreshold = 10 * time.Minute
+
+// UnownedChangeThreshold is the flagging threshold in effect. serve sets it
+// from ARTEX_UNOWNED_CHANGE_THRESHOLD.
+var UnownedChangeThreshold = DefaultUnownedChangeThreshold
+
+// ParseUnownedChangeThreshold parses an ARTEX_UNOWNED_CHANGE_THRESHOLD value,
+// in whole minutes like the lease.
+func ParseUnownedChangeThreshold(v string) (time.Duration, error) {
+	return parseWholeMinutes("unowned change threshold", v)
+}
+
+func parseWholeMinutes(what, v string) (time.Duration, error) {
 	d, err := time.ParseDuration(strings.TrimSpace(v))
 	if err != nil {
-		return 0, fmt.Errorf("intent lease %q: %w", v, err)
+		return 0, fmt.Errorf("%s %q: %w", what, v, err)
 	}
 	if d < time.Minute || d%time.Minute != 0 {
-		return 0, fmt.Errorf("intent lease %q must be a whole number of minutes, at least 1m", v)
+		return 0, fmt.Errorf("%s %q must be a whole number of minutes, at least 1m", what, v)
 	}
 	return d, nil
 }

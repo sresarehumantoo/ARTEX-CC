@@ -259,6 +259,7 @@ type Overview struct {
 	ChangesCursor     string           `json:"changes_cursor,omitempty"`
 
 	UnrestoredTargetChanges []map[string]any `json:"unrestored_target_changes,omitempty"`
+	UnownedTargetChanges    *UnownedWarning  `json:"unowned_target_changes,omitempty"`
 }
 
 // Node is a vertex in the exploration graph (goal, hint, intent, fact, or finding).

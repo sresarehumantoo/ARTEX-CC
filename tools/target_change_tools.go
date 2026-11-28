@@ -332,6 +332,54 @@ func makeRecordTargetRestore(store Store, explorationID int64) Tool {
 	}
 }
 
+// maxWarningIDs bounds the ids a warning repeats on every graph_overview.
+const maxWarningIDs = 20
+
+// UnownedWarning is the compact notice for unrestored changes with no live
+// owner. It names ids only; their baselines are in unrestored_target_changes.
+// A change leaves it once it is restored or a live claim owns it again.
+type UnownedWarning struct {
+	Count            int     `json:"count"`
+	ChangeIDs        []int64 `json:"change_ids"`
+	OverThreshold    []int64 `json:"over_threshold,omitempty"`
+	ThresholdMinutes int     `json:"threshold_minutes"`
+	OldestSince      string  `json:"oldest_unowned_since"`
+	Action           string  `json:"action"`
+}
+
+const unownedAction = "Nobody holds a live claim on these unrestored changes. Restore each to the baseline listed in unrestored_target_changes and call record_target_restore. " +
+	"To own the cleanup first, start_intent its intent when it is claim_lapsed or intent_open (you inherit its changes), or start_intent an intent of yours with adopt_changes. " +
+	"A change drops out of this list once it is restored or owned again."
+
+// NewUnownedWarning builds the notice from unrestored changes, or returns nil
+// when every one of them has a live owner.
+func NewUnownedWarning(changes []TargetChange, now time.Time) *UnownedWarning {
+	w := &UnownedWarning{ThresholdMinutes: int(UnownedChangeThreshold.Minutes()), ChangeIDs: []int64{}, Action: unownedAction}
+	var oldest time.Time
+	for _, c := range changes {
+		if c.Unowned == "" || c.RestoredAt != nil {
+			continue
+		}
+		w.Count++
+		if len(w.ChangeIDs) < maxWarningIDs {
+			w.ChangeIDs = append(w.ChangeIDs, c.ID)
+		}
+		if c.UnownedFor(now) >= UnownedChangeThreshold && len(w.OverThreshold) < maxWarningIDs {
+			w.OverThreshold = append(w.OverThreshold, c.ID)
+		}
+		if c.UnownedSince != nil && (oldest.IsZero() || c.UnownedSince.Before(oldest)) {
+			oldest = *c.UnownedSince
+		}
+	}
+	if w.Count == 0 {
+		return nil
+	}
+	if !oldest.IsZero() {
+		w.OldestSince = oldest.UTC().Format(time.RFC3339)
+	}
+	return w
+}
+
 // UnrestoredSummaries is the compact list shown in graph_overview and list_changes.
 func UnrestoredSummaries(changes []TargetChange) []map[string]any {
 	out := make([]map[string]any, 0, len(changes))

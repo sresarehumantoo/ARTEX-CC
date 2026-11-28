@@ -115,6 +115,13 @@ func TestTakeoverClosesUnownedWindow(t *testing.T) {
 	}
 	change := recordOn(t, s, expID, intent, "task.ps1")
 	lapseClaim(t, s, intent, 7*time.Minute)
+	ov, err := s.GraphOverview(ctx, expID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w := ov.UnownedTargetChanges; w == nil || w.Count != 1 || w.ChangeIDs[0] != change.ID {
+		t.Errorf("graph_overview warning = %+v, want change %d", w, change.ID)
+	}
 
 	claim, err := s.ClaimIntent(ctx, intent, "sess-live", time.Hour)
 	if err != nil {
@@ -129,6 +136,9 @@ func TestTakeoverClosesUnownedWindow(t *testing.T) {
 	}
 	if c.MaxUnownedSeconds < 6*60 || c.MaxUnownedSeconds > 8*60 {
 		t.Errorf("max_unowned_seconds = %d, want about 420", c.MaxUnownedSeconds)
+	}
+	if ov, err := s.GraphOverview(ctx, expID); err != nil || ov.UnownedTargetChanges != nil {
+		t.Errorf("graph_overview still warns after the takeover: %+v, %v", ov.UnownedTargetChanges, err)
 	}
 
 	again, err := s.ClaimIntent(ctx, intent, "sess-live", time.Hour)

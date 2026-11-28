@@ -433,6 +433,15 @@ func cmdServe(args []string) {
 		tools.IntentLease = lease
 		slog.Info("intent claim lease set", "lease", lease)
 	}
+	if v := os.Getenv("ARTEX_UNOWNED_CHANGE_THRESHOLD"); v != "" {
+		threshold, err := tools.ParseUnownedChangeThreshold(v)
+		if err != nil {
+			slog.Error("invalid unowned change threshold", "err", err)
+			os.Exit(1)
+		}
+		tools.UnownedChangeThreshold = threshold
+		slog.Info("unowned target change threshold set", "threshold", threshold)
+	}
 	if identityRequired {
 		tools.RequireIdentity = true
 		slog.Info("intent claims require a verified identity")
