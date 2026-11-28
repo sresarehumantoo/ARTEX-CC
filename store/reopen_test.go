@@ -3,7 +3,10 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -140,6 +143,15 @@ func TestReopenIntentMovesResultToHistory(t *testing.T) {
 		"cancelled_by": "sess-b", "reopen_reason": nil, "reopened_by": nil, "reopened_at": nil,
 	}); err != nil {
 		t.Fatal(err)
+	}
+	n, _ = s.NodeDetail(ctx, intent)
+	for _, k := range []string{"reopen_reason", "reopened_by", "reopened_at"} {
+		if _, ok := n.Payload[k]; ok {
+			t.Errorf("UpdateNodeFields left %s: %v", k, n.Payload)
+		}
+	}
+	if n.State != "stopped" || n.Payload["cancelled_by"] != "sess-b" {
+		t.Errorf("after cancel: %+v", n)
 	}
 	if _, err := s.ReopenNode(ctx, expID, intent, "web-ui", "again"); err != nil {
 		t.Fatalf("second ReopenNode: %v", err)
@@ -292,4 +304,256 @@ func TestReopenRefusesOtherStates(t *testing.T) {
 	if _, err := s.ReopenNode(ctx, expID, 1<<40, "web-ui", "why"); !errors.Is(err, tools.ErrNodeNotFound) {
 		t.Errorf("missing node: err = %v, want ErrNodeNotFound", err)
 	}
+}
+
+func TestReopenBothYieldersReopensSharedGoal(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	_, expID := testEngagement(t, s, "reopen-both-yielders")
+	a := doneIntent(t, s, expID, "a")
+	b := doneIntent(t, s, expID, "b")
+	fa, err := s.AddFact(ctx, expID, a, map[string]any{"text": "fa"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fb, err := s.AddFact(ctx, expID, b, map[string]any{"text": "fb"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	goal := provedGoal(t, s, expID, fa, fb)
+
+	if _, err := s.ReopenNode(ctx, expID, a, "web-ui", "wrong"); err != nil {
+		t.Fatal(err)
+	}
+	if got := goalState(t, s, goal); got != "met" {
+		t.Fatalf("goal after reopening a = %q, want met on fb", got)
+	}
+	res, err := s.ReopenNode(ctx, expID, b, "web-ui", "wrong too")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(res.ReopenedGoals, []int64{goal}) || goalState(t, s, goal) != "open" {
+		t.Errorf("after reopening b: reopened %v, goal %q; want the goal open", res.ReopenedGoals, goalState(t, s, goal))
+	}
+}
+
+func TestReopenIgnoresDismissedProof(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	_, expID := testEngagement(t, s, "reopen-dismissed-proof")
+	intent := doneIntent(t, s, expID, "r")
+	fact, err := s.AddFact(ctx, expID, intent, map[string]any{"text": "f"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dead, err := s.AddFact(ctx, expID, 0, map[string]any{"text": "dead"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	goal := provedGoal(t, s, expID, fact, dead)
+	if err := s.UpdateNodeState(ctx, dead, "dismissed"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ReopenNode(ctx, expID, intent, "web-ui", "redo"); err != nil {
+		t.Fatal(err)
+	}
+	if got := goalState(t, s, goal); got != "open" {
+		t.Errorf("goal state = %q, want open: its other proof is dismissed", got)
+	}
+}
+
+func TestDismissAfterReopenReopensGoal(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "reopen-then-dismiss")
+	intent := doneIntent(t, s, expID, "r")
+	fact, err := s.AddFact(ctx, expID, intent, map[string]any{"text": "f"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, otherNode := addTestFinding(t, s, taskID, expID)
+	goal := provedGoal(t, s, expID, fact, intent, otherNode)
+
+	if _, err := s.ReopenNode(ctx, expID, intent, "web-ui", "redo"); err != nil {
+		t.Fatal(err)
+	}
+	if got := goalState(t, s, goal); got != "met" {
+		t.Fatalf("goal after reopen = %q, want met on the other finding", got)
+	}
+	if err := s.DismissFinding(ctx, other, "false positive"); err != nil {
+		t.Fatal(err)
+	}
+	if got := goalState(t, s, goal); got != "open" {
+		t.Errorf("goal after dismissing its last live proof = %q, want open", got)
+	}
+}
+
+func TestReopenGoalLeavesFailedEngagement(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "reopen-failed")
+	_, node := addTestFinding(t, s, taskID, expID)
+	goal := provedGoal(t, s, expID, node)
+	if _, err := s.ExecContext(ctx, `UPDATE explorations SET status = 'failed' WHERE id = $1`, expID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ExecContext(ctx, `UPDATE tasks SET status = 'failed' WHERE id = $1`, taskID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ReopenNode(ctx, expID, goal, "web-ui", "weak"); err != nil {
+		t.Fatal(err)
+	}
+	if task, exp := engagementStatus(t, s, taskID); task != "failed" || exp != "failed" {
+		t.Errorf("engagement status = %s/%s, want failed/failed", task, exp)
+	}
+}
+
+func TestReopenHistoryOmitsEmptyAndTruncatesLongOutcome(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	_, expID := testEngagement(t, s, "reopen-history-fields")
+
+	empty := doneIntent(t, s, expID, "")
+	if _, err := s.ReopenNode(ctx, expID, empty, "web-ui", "redo"); err != nil {
+		t.Fatal(err)
+	}
+	n, _ := s.NodeDetail(ctx, empty)
+	history, _ := n.Payload["history"].([]any)
+	entry, _ := history[0].(map[string]any)
+	if _, ok := entry["result"]; ok {
+		t.Errorf("history entry kept an empty result: %v", entry)
+	}
+
+	long := doneIntent(t, s, expID, strings.Repeat("x", historyFieldLimit+500))
+	if _, err := s.ReopenNode(ctx, expID, long, "web-ui", "redo"); err != nil {
+		t.Fatal(err)
+	}
+	n, _ = s.NodeDetail(ctx, long)
+	history, _ = n.Payload["history"].([]any)
+	entry, _ = history[0].(map[string]any)
+	if r, _ := entry["result"].(string); len(r) != historyFieldLimit+len("...") {
+		t.Errorf("history result length = %d, want %d", len(r), historyFieldLimit+len("..."))
+	}
+}
+
+func TestReopenShowsInChangesWithoutHistory(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	taskID, expID := testEngagement(t, s, "reopen-changes")
+	intent := doneIntent(t, s, expID, "r")
+	findingID, _, err := s.AddFinding(ctx, tools.FindingInput{
+		TaskID: taskID, ExplorationID: expID, IntentID: intent, VulnClass: "xss", Severity: "low", Summary: "xss",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cursor := overviewCursor(t, s, expID)
+	if _, err := s.ReopenNode(ctx, expID, intent, "web-ui", "redo"); err != nil {
+		t.Fatal(err)
+	}
+
+	changes, err := s.ListChanges(ctx, expID, taskID, cursor, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := changesByKind(changes)
+	if len(got["finding"]) != 1 || got["finding"][0]["id"] != findingID || got["finding"][0]["superseded_by_reopen"] != intent {
+		t.Errorf("finding changes = %v, want finding %d superseded by %d", got["finding"], findingID, intent)
+	}
+	if len(got["intent"]) != 1 || got["intent"][0]["reopen_reason"] != "redo" {
+		t.Fatalf("intent changes = %v", got["intent"])
+	}
+	if _, ok := got["intent"][0]["history"]; ok {
+		t.Errorf("list_changes intent carries history: %v", got["intent"][0])
+	}
+
+	ov, err := s.GraphOverview(ctx, expID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ov.OpenIntents) != 1 || ov.OpenIntents[0]["reopen_reason"] != "redo" {
+		t.Fatalf("open intents = %v", ov.OpenIntents)
+	}
+	if _, ok := ov.OpenIntents[0]["history"]; ok {
+		t.Errorf("graph_overview intent carries history: %v", ov.OpenIntents[0])
+	}
+	if n, _ := s.NodeDetail(ctx, intent); n.Payload["history"] == nil {
+		t.Error("node detail lost the history")
+	}
+}
+
+func TestReopenRacesComplete(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	_, expID := testEngagement(t, s, "reopen-race")
+
+	for round := range 40 {
+		id, err := s.AddNode(ctx, expID, KindIntent, map[string]any{"summary": "race"}, 0, "open", "agent", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.ClaimIntent(ctx, id, "sess-a", time.Hour); err != nil {
+			t.Fatal(err)
+		}
+		result := fmt.Sprintf("result %d", round)
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		var completeErr, reopenErr error
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			<-start
+			completeErr = s.UpdateNodeFields(ctx, id, "done", map[string]any{
+				"completed_by": "sess-a", "result": result, "reopen_reason": nil, "reopened_by": nil, "reopened_at": nil,
+			})
+		}()
+		go func() {
+			defer wg.Done()
+			<-start
+			for range 20 {
+				if _, reopenErr = s.ReopenNode(ctx, expID, id, "web-ui", "redo"); !errors.Is(reopenErr, tools.ErrNotReopenable) {
+					return
+				}
+			}
+		}()
+		close(start)
+		wg.Wait()
+		if completeErr != nil {
+			t.Fatalf("round %d: complete: %v", round, completeErr)
+		}
+
+		n, err := s.NodeDetail(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		switch n.State {
+		case "open":
+			history, _ := n.Payload["history"].([]any)
+			entry, _ := lastEntry(history)
+			if _, ok := n.Payload["result"]; ok || n.Payload["reopen_reason"] != "redo" || entry["result"] != result {
+				t.Fatalf("round %d: reopened intent = %v", round, n.Payload)
+			}
+		case "done":
+			if !errors.Is(reopenErr, tools.ErrNotReopenable) || n.Payload["result"] != result {
+				t.Fatalf("round %d: done intent = %v, reopen err %v", round, n.Payload, reopenErr)
+			}
+		default:
+			t.Fatalf("round %d: state %q", round, n.State)
+		}
+	}
+}
+
+func lastEntry(history []any) (map[string]any, bool) {
+	if len(history) == 0 {
+		return nil, false
+	}
+	e, ok := history[len(history)-1].(map[string]any)
+	return e, ok
 }
