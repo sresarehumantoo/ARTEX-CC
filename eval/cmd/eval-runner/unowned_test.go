@@ -17,7 +17,7 @@ func TestUnownedChangesScoring(t *testing.T) {
 		{ID: 2, IntentID: 5, RecordedBy: "eval/run/i1", Unowned: "claim_lapsed", UnownedSince: &since},
 		{ID: 3, IntentID: 6, RecordedBy: "eval/run/i1"},
 	}
-	got := unownedChanges(changes, now, 10*time.Minute)
+	got := unownedChanges(changes, 10*time.Minute)
 	if len(got) != 2 {
 		t.Fatalf("scored %+v, want changes 1 and 2", got)
 	}

@@ -331,10 +331,10 @@ type UnownedChange struct {
 	PastThreshold    bool    `json:"past_threshold"`
 }
 
-func unownedChanges(changes []tools.TargetChange, now time.Time, threshold time.Duration) []UnownedChange {
+func unownedChanges(changes []tools.TargetChange, threshold time.Duration) []UnownedChange {
 	var out []UnownedChange
 	for _, c := range changes {
-		d := c.LongestUnowned(now)
+		d := c.LongestUnowned()
 		if d <= 0 {
 			continue
 		}
@@ -1328,7 +1328,7 @@ func scoreRun(ctx context.Context, s *store.Store, explorationID int64, runs []I
 		}
 	}
 	c.UnownedThreshold = threshold.String()
-	c.UnownedChanges = unownedChanges(changes, time.Now(), threshold)
+	c.UnownedChanges = unownedChanges(changes, threshold)
 	return c, nil
 }
 

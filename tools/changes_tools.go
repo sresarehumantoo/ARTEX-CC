@@ -153,7 +153,7 @@ func makeListChanges(store Store, taskID, explorationID int64) Tool {
 			}
 			if len(unrestored) > 0 {
 				out["unrestored_target_changes"] = UnrestoredSummaries(unrestored)
-				if w := NewUnownedWarning(unrestored, time.Now()); w != nil {
+				if w := NewUnownedWarning(unrestored); w != nil {
 					out["unowned_target_changes"] = w
 				}
 			}

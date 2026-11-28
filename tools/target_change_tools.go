@@ -50,20 +50,30 @@ type TargetChange struct {
 	Unowned           string     `json:"unowned,omitempty"`
 	UnownedSince      *time.Time `json:"unowned_since,omitempty"`
 	MaxUnownedSeconds int        `json:"max_unowned_seconds,omitempty"`
+	// AsOf is the database clock when the change was read, so durations
+	// measured from UnownedSince use the clock that set it.
+	AsOf time.Time `json:"-"`
+}
+
+func (c TargetChange) asOf() time.Time {
+	if c.AsOf.IsZero() {
+		return time.Now()
+	}
+	return c.AsOf
 }
 
 // UnownedFor is how long the change has been without a live owner, or 0.
-func (c TargetChange) UnownedFor(now time.Time) time.Duration {
+func (c TargetChange) UnownedFor() time.Duration {
 	if c.Unowned == "" || c.UnownedSince == nil {
 		return 0
 	}
-	return max(now.Sub(*c.UnownedSince), 0)
+	return max(c.asOf().Sub(*c.UnownedSince), 0)
 }
 
 // LongestUnowned is the longest window the change spent without a live
 // owner, counting the one still open.
-func (c TargetChange) LongestUnowned(now time.Time) time.Duration {
-	return max(time.Duration(c.MaxUnownedSeconds)*time.Second, c.UnownedFor(now))
+func (c TargetChange) LongestUnowned() time.Duration {
+	return max(time.Duration(c.MaxUnownedSeconds)*time.Second, c.UnownedFor())
 }
 
 // Summary is the compact form shown in graph_overview and list_changes.
@@ -353,7 +363,7 @@ const unownedAction = "Nobody holds a live claim on these unrestored changes. Re
 
 // NewUnownedWarning builds the notice from unrestored changes, or returns nil
 // when every one of them has a live owner.
-func NewUnownedWarning(changes []TargetChange, now time.Time) *UnownedWarning {
+func NewUnownedWarning(changes []TargetChange) *UnownedWarning {
 	w := &UnownedWarning{ThresholdMinutes: int(UnownedChangeThreshold.Minutes()), ChangeIDs: []int64{}, Action: unownedAction}
 	var oldest time.Time
 	for _, c := range changes {
@@ -364,7 +374,7 @@ func NewUnownedWarning(changes []TargetChange, now time.Time) *UnownedWarning {
 		if len(w.ChangeIDs) < maxWarningIDs {
 			w.ChangeIDs = append(w.ChangeIDs, c.ID)
 		}
-		if c.UnownedFor(now) >= UnownedChangeThreshold && len(w.OverThreshold) < maxWarningIDs {
+		if c.UnownedFor() >= UnownedChangeThreshold && len(w.OverThreshold) < maxWarningIDs {
 			w.OverThreshold = append(w.OverThreshold, c.ID)
 		}
 		if c.UnownedSince != nil && (oldest.IsZero() || c.UnownedSince.Before(oldest)) {

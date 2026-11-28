@@ -69,7 +69,7 @@ func makeGenerateReport(store Store, taskID, explorationID int64) Tool {
 					LastObserved:    c.LastObserved,
 					RestoreAttempts: c.RestoreAttempts,
 					Unowned:         c.Unowned,
-					LongestUnowned:  c.LongestUnowned(now),
+					LongestUnowned:  c.LongestUnowned(),
 				}
 				if c.RestoredAt != nil {
 					rc.Restored = true

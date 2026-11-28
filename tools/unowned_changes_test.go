@@ -19,7 +19,7 @@ func unownedChange(id int64, reason string, ago time.Duration) TargetChange {
 }
 
 func TestNewUnownedWarning(t *testing.T) {
-	if w := NewUnownedWarning([]TargetChange{unownedChange(1, "", 0)}, time.Now()); w != nil {
+	if w := NewUnownedWarning([]TargetChange{unownedChange(1, "", 0)}); w != nil {
 		t.Fatalf("owned changes produced a warning: %+v", w)
 	}
 	changes := []TargetChange{
@@ -27,7 +27,7 @@ func TestNewUnownedWarning(t *testing.T) {
 		unownedChange(2, "claim_lapsed", 2*time.Minute),
 		unownedChange(3, "intent_done", UnownedChangeThreshold+time.Minute),
 	}
-	w := NewUnownedWarning(changes, time.Now())
+	w := NewUnownedWarning(changes)
 	if w == nil || w.Count != 2 || !slices.Equal(w.ChangeIDs, []int64{2, 3}) || !slices.Equal(w.OverThreshold, []int64{3}) {
 		t.Fatalf("warning = %+v, want changes 2 and 3 with 3 over the threshold", w)
 	}
@@ -39,7 +39,7 @@ func TestNewUnownedWarning(t *testing.T) {
 	for i := range 50 {
 		many = append(many, unownedChange(int64(i+1), "no_intent", time.Minute))
 	}
-	if w := NewUnownedWarning(many, time.Now()); w.Count != 50 || len(w.ChangeIDs) != maxWarningIDs {
+	if w := NewUnownedWarning(many); w.Count != 50 || len(w.ChangeIDs) != maxWarningIDs {
 		t.Errorf("50 unowned changes: count %d with %d ids, want 50 with %d", w.Count, len(w.ChangeIDs), maxWarningIDs)
 	}
 }

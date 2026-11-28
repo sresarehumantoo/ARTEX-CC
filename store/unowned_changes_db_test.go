@@ -90,7 +90,6 @@ func TestTargetChangeOwnership(t *testing.T) {
 		t.Fatalf("UpdateNodeFields: %v", err)
 	}
 
-	now := time.Now()
 	for id, want := range cases {
 		c := changeByID(t, s, expID, id)
 		if c.Unowned != want {
@@ -100,7 +99,7 @@ func TestTargetChangeOwnership(t *testing.T) {
 			t.Errorf("change %d unowned_since = %v with reason %q", id, c.UnownedSince, want)
 		}
 		if want == "claim_lapsed" {
-			if d := c.UnownedFor(now); d < 4*time.Minute || d > 6*time.Minute {
+			if d := c.UnownedFor(); d < 4*time.Minute || d > 6*time.Minute {
 				t.Errorf("lapsed change unowned for %v, want about 5m", d)
 			}
 		}

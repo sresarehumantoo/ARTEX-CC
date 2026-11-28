@@ -24,18 +24,22 @@ const unownedReason = `CASE
 
 // unownedSince is when the change lost its live owner: when the intent's
 // claim lapsed or it stopped running, or when the change was recorded if it
-// never had one. NULL while owned or restored.
+// never had one. NULL while owned or restored. An imported intent has no
+// claim and was created at import, so the node's own times keep time before
+// the import from counting; an imported change with no intent still counts
+// from its recorded time.
 const unownedSince = `CASE
 		WHEN tc.restored_at IS NOT NULL THEN NULL
-		WHEN n.id IS NULL OR n.state = 'open' THEN tc.created_at
+		WHEN n.id IS NULL THEN tc.created_at
+		WHEN n.state = 'open' THEN GREATEST(tc.created_at, n.created_at)
 		WHEN n.state = 'running' AND n.claim_expires_at > now() THEN NULL
-		WHEN n.state = 'running' THEN GREATEST(tc.created_at, COALESCE(n.claim_expires_at, tc.created_at))
+		WHEN n.state = 'running' THEN GREATEST(tc.created_at, COALESCE(n.claim_expires_at, n.updated_at))
 		ELSE GREATEST(tc.created_at, n.updated_at)
 	END`
 
 const targetChangeCols = `tc.id, tc.target, tc.resource, tc.kind, COALESCE(tc.intent_id, 0), tc.original_fingerprint, tc.baseline,
 	COALESCE(tc.baseline_change_id, tc.id), tc.backup, tc.note, tc.recorded_by, tc.created_at, tc.restored_at, tc.restored_by,
-	tc.last_observed, tc.restore_attempts, ` + unownedReason + `, ` + unownedSince + `, tc.max_unowned_seconds`
+	tc.last_observed, tc.restore_attempts, ` + unownedReason + `, ` + unownedSince + `, tc.max_unowned_seconds, now()`
 
 const sameResource = `lower(btrim(target)) = lower(btrim($2)) AND target_change_resource_key(resource) = target_change_resource_key($3)`
 
@@ -65,7 +69,7 @@ func scanTargetChange(r rowScanner) (tools.TargetChange, error) {
 	var restoredAt, unownedAt sql.NullTime
 	err := r.Scan(&c.ID, &c.Target, &c.Resource, &c.Kind, &c.IntentID, &c.OriginalFingerprint, &c.Baseline,
 		&c.BaselineChangeID, &c.Backup, &c.Note, &c.RecordedBy, &c.RecordedAt, &restoredAt, &c.RestoredBy,
-		&c.LastObserved, &c.RestoreAttempts, &c.Unowned, &unownedAt, &c.MaxUnownedSeconds)
+		&c.LastObserved, &c.RestoreAttempts, &c.Unowned, &unownedAt, &c.MaxUnownedSeconds, &c.AsOf)
 	if restoredAt.Valid {
 		t := restoredAt.Time
 		c.RestoredAt = &t
