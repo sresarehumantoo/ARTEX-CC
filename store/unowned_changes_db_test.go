@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -258,7 +259,61 @@ func TestAdoptTargetChanges(t *testing.T) {
 	if c := changeByID(t, s, expID, owned.ID); c.IntentID != other {
 		t.Errorf("refused change moved to intent %d", c.IntentID)
 	}
+
+	loose := recordOn(t, s, expID, 0, "loose")
+	if _, err := s.ExecContext(ctx,
+		`UPDATE target_changes SET created_at = now() - interval '9 minutes' WHERE id = $1`, loose.ID); err != nil {
+		t.Fatal(err)
+	}
+	res, err = s.AdoptTargetChanges(ctx, expID, mine, "sess-a", []int64{loose.ID})
+	if err != nil || len(res.Adopted) != 1 {
+		t.Fatalf("adopting a change with no intent: %+v, %v", res, err)
+	}
+	if got := res.Adopted[0].MaxUnownedSeconds; got < 8*60 || got > 10*60 {
+		t.Errorf("adoption recorded max_unowned_seconds = %d, want about 540", got)
+	}
 }
+
+func TestAdoptRacesTakeover(t *testing.T) {
+	t.Parallel()
+	s := testDB(t)
+	ctx := context.Background()
+	_, expID := testEngagement(t, s, "adopt-race")
+	for round := range 10 {
+		mine := addIntent(t, s, expID, fmt.Sprintf("cleanup %d", round))
+		source := addIntent(t, s, expID, fmt.Sprintf("source %d", round))
+		for id, owner := range map[int64]string{mine: "sess-a", source: "sess-dead"} {
+			if _, err := s.ClaimIntent(ctx, id, owner, time.Hour); err != nil {
+				t.Fatal(err)
+			}
+		}
+		change := recordOn(t, s, expID, source, fmt.Sprintf("raced-%d", round))
+		lapseClaim(t, s, source, time.Minute)
+
+		var wg sync.WaitGroup
+		var res *tools.AdoptResult
+		var adoptErr, claimErr error
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			res, adoptErr = s.AdoptTargetChanges(ctx, expID, mine, "sess-a", []int64{change.ID})
+		}()
+		go func() {
+			defer wg.Done()
+			_, claimErr = s.ClaimIntent(ctx, source, "sess-b", time.Hour)
+		}()
+		wg.Wait()
+		if adoptErr != nil || claimErr != nil {
+			t.Fatalf("round %d: adopt %v, claim %v", round, adoptErr, claimErr)
+		}
+		final := changeByID(t, s, expID, change.ID)
+		adopted := len(res.Adopted) == 1
+		if adopted != (final.IntentID == mine) {
+			t.Errorf("round %d: adopt reported %v but the change is on intent %d", round, adopted, final.IntentID)
+		}
+	}
+}
+
 func insertAsset(t *testing.T, s *Store, column, value string) int64 {
 	t.Helper()
 	typ := map[string]string{"domain": "subdomain", "ip": "ip", "url": "endpoint"}[column]

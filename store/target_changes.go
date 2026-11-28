@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
@@ -298,6 +297,11 @@ func (s *Store) RecordTargetRestore(ctx context.Context, explorationID int64, ch
 // AdoptTargetChanges moves unrestored changes that have no live owner under
 // intentID, which holder must hold a live claim on, so that claim owns their
 // restoration. Changes another live claim owns are refused, not moved.
+//
+// The target and source intents are locked in id order before the changes,
+// the order a claim takes them in, so a concurrent takeover of a source
+// intent either commits first and the change is refused, or waits and never
+// lists a change this moved.
 func (s *Store) AdoptTargetChanges(ctx context.Context, explorationID, intentID int64, holder string, changeIDs []int64) (*tools.AdoptResult, error) {
 	tx, err := s.BeginTx(ctx, nil)
 	if err != nil {
@@ -308,10 +312,19 @@ func (s *Store) AdoptTargetChanges(ctx context.Context, explorationID, intentID 
 	if err := lockExploration(ctx, tx, explorationID); err != nil {
 		return nil, err
 	}
+	locked, err := queryIDs(ctx, tx,
+		`SELECT id FROM exploration_nodes
+		 WHERE kind <> 'goal' AND (id = $1 OR id IN (
+			SELECT intent_id FROM target_changes WHERE exploration_id = $2 AND id = ANY($3)))
+		 ORDER BY id FOR NO KEY UPDATE`, intentID, explorationID, changeIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	var held bool
 	err = tx.QueryRowContext(ctx,
 		`SELECT state = 'running' AND owner = $3 AND claim_expires_at > now()
-		 FROM exploration_nodes WHERE id = $1 AND exploration_id = $2 AND kind = 'intent' FOR UPDATE`,
+		 FROM exploration_nodes WHERE id = $1 AND exploration_id = $2 AND kind = 'intent'`,
 		intentID, explorationID, holder).Scan(&held)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
@@ -322,7 +335,7 @@ func (s *Store) AdoptTargetChanges(ctx context.Context, explorationID, intentID 
 
 	changes, err := queryTargetChanges(ctx, tx,
 		`SELECT `+targetChangeCols+` FROM `+targetChangeFrom+`
-		 WHERE tc.exploration_id = $1 AND tc.id = ANY($2) ORDER BY tc.id`, explorationID, changeIDs)
+		 WHERE tc.exploration_id = $1 AND tc.id = ANY($2) ORDER BY tc.id FOR UPDATE OF tc`, explorationID, changeIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -341,6 +354,8 @@ func (s *Store) AdoptTargetChanges(ctx context.Context, explorationID, intentID 
 			res.Refused[id] = "already restored"
 		case c.IntentID == intentID:
 			keep = append(keep, id)
+		case c.IntentID != 0 && !locked[c.IntentID]:
+			res.Refused[id] = "moved to another intent while adopting; try again"
 		case c.Unowned == "":
 			res.Refused[id] = fmt.Sprintf("owned by intent %d, whose claim is live", c.IntentID)
 		default:
@@ -351,18 +366,47 @@ func (s *Store) AdoptTargetChanges(ctx context.Context, explorationID, intentID 
 		if _, err := tx.ExecContext(ctx, closeUnownedWindows(`tc.id = ANY($1)`), move); err != nil {
 			return nil, err
 		}
-		if _, err := tx.ExecContext(ctx,
-			`UPDATE target_changes SET intent_id = $1 WHERE id = ANY($2)`, intentID, move); err != nil {
+		moved, err := queryIDs(ctx, tx,
+			`UPDATE target_changes tc SET intent_id = $1
+			 WHERE tc.id = ANY($2) AND tc.restored_at IS NULL AND NOT EXISTS (
+				SELECT 1 FROM exploration_nodes n
+				WHERE n.id = tc.intent_id AND n.state = 'running' AND n.claim_expires_at > now())
+			 RETURNING tc.id`, intentID, move)
+		if err != nil {
 			return nil, err
 		}
+		for _, id := range move {
+			if moved[id] {
+				keep = append(keep, id)
+			} else {
+				res.Refused[id] = "gained a live owner while adopting"
+			}
+		}
 	}
-	if ids := slices.Concat(move, keep); len(ids) > 0 {
+	if len(keep) > 0 {
 		if res.Adopted, err = queryTargetChanges(ctx, tx,
-			`SELECT `+targetChangeCols+` FROM `+targetChangeFrom+` WHERE tc.id = ANY($1) ORDER BY tc.id`, ids); err != nil {
+			`SELECT `+targetChangeCols+` FROM `+targetChangeFrom+` WHERE tc.id = ANY($1) ORDER BY tc.id`, keep); err != nil {
 			return nil, err
 		}
 	}
 	return res, tx.Commit()
+}
+
+func queryIDs(ctx context.Context, tx *sql.Tx, query string, args ...any) (map[int64]bool, error) {
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := map[int64]bool{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids[id] = true
+	}
+	return ids, rows.Err()
 }
 
 func (s *Store) ListTargetChanges(ctx context.Context, explorationID int64, unrestoredOnly bool) ([]tools.TargetChange, error) {
