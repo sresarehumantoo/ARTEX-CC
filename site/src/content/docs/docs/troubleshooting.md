@@ -61,6 +61,10 @@ A request that arrives on a loopback address must carry a `Host` of `localhost`,
 
 A browser write (POST, PUT, PATCH, DELETE) must come from an `Origin` that matches the request's `Host` or is listed with `--allowed-host`, and must not carry `Sec-Fetch-Site: cross-site` or `same-site`. A reverse proxy that rewrites `Host` to `localhost` makes every write from the public name fail this check, while page loads keep working. Start `serve` with `--allowed-host` set to the name in the browser's address bar, or have the proxy forward the original `Host` and list it. See [Behind a reverse proxy](/docs/web-ui/#behind-a-reverse-proxy).
 
+## `serve --stdio` refuses to start: `--allowed-host (or ARTEX_ALLOWED_HOSTS) needs an HTTP transport`
+
+`ARTEX_ALLOWED_HOSTS` is set in the environment, often exported from a shell profile for an HTTP server, and stdio MCP clients inherit it. Unset it for stdio configs (for example `"env": {"ARTEX_ALLOWED_HOSTS": ""}` in the MCP server entry), or set it only in the environment of the HTTP `serve`.
+
 ## Claude repeats work or forgets what it did
 
 Make sure it calls `graph_overview` at the start of each planning cycle. Clients that do not read MCP resources (Zed, for example) never receive the `artex://engagement` workflow guide, so start the conversation with "call `graph_overview`".
