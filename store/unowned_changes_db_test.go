@@ -332,9 +332,32 @@ func TestRenewIntentClaimsForHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	if until := time.Until(claimUntil(t, s, solo)); until > 6*time.Minute {
-		t.Errorf("traffic extended a claim %v out, past a lease beyond the holder's last renewal", until)
+		t.Errorf("traffic extended a claim %v out, past two leases after the holder's last renewal", until)
+	}
+
+	// A claim from before migration 0010 has no renewal time to cap against.
+	if _, err := s.ExecContext(ctx,
+		`UPDATE exploration_nodes SET claim_renewed_at = NULL, claim_expires_at = now() + interval '2 minutes' WHERE id = $1`, solo); err != nil {
+		t.Fatal(err)
+	}
+	for range 3 {
+		if ids, err := s.RenewIntentClaimsForHost(ctx, expID, webHost+".", lease); err != nil || len(ids) != 0 {
+			t.Fatalf("a claim without claim_renewed_at was renewed: %v, %v", ids, err)
+		}
+	}
+	if until := time.Until(claimUntil(t, s, solo)); until > 3*time.Minute {
+		t.Errorf("claim without claim_renewed_at extended to %v out", until)
+	}
+
+	if _, err := s.ExecContext(ctx,
+		`UPDATE exploration_nodes SET claim_renewed_at = now(), claim_expires_at = now() + interval '2 minutes' WHERE id = $1`, solo); err != nil {
+		t.Fatal(err)
+	}
+	if ids, _ := s.RenewIntentClaimsForHost(ctx, expID, strings.ToUpper(webHost)+".", lease); !slices.Equal(ids, []int64{solo}) {
+		t.Errorf("host with a trailing dot renewed %v, want %d", ids, solo)
 	}
 }
+
 func TestReleaseHolderClaims(t *testing.T) {
 	t.Parallel()
 	s := testDB(t)

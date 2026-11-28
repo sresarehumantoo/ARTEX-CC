@@ -241,14 +241,20 @@ func (s *Store) RenewIntentClaims(ctx context.Context, nodeIDs []int64, holder s
 // RenewIntentClaimsForHost extends live claims on running intents anchored
 // to an asset at host, when exactly one holder has such claims, because
 // recorded proxy traffic to host is then attributable to it. It never
-// revives a lapsed claim and never extends one past a lease beyond the
-// holder's own last claim or renewal, so a dead holder's claim still lapses.
+// revives a lapsed claim, skips claims with no claim_renewed_at, and never
+// extends one past two leases after the holder's own last claim or renewal,
+// which is one lease past when the claim would otherwise have expired, so a
+// dead holder's claim still lapses. lease is the renewing server's, so
+// servers with different leases on one database bound it by their own.
 // It returns the intents it renewed.
 func (s *Store) RenewIntentClaimsForHost(ctx context.Context, explorationID int64, host string, lease time.Duration) ([]int64, error) {
-	host = strings.ToLower(strings.Trim(strings.TrimSpace(host), "[]"))
+	host = strings.TrimSuffix(strings.ToLower(strings.Trim(strings.TrimSpace(host), "[]")), ".")
 	if host == "" {
 		return nil, nil
 	}
+	const capped = `LEAST(now() + make_interval(secs => $3), n.claim_renewed_at + make_interval(secs => $3 * 2))`
+	// The outer WHERE repeats the liveness and owner checks, so a claim
+	// released or taken over after matched was read is left alone.
 	rows, err := s.QueryContext(ctx,
 		`WITH matched AS (
 			SELECT DISTINCT n.id, n.owner
@@ -257,18 +263,18 @@ func (s *Store) RenewIntentClaimsForHost(ctx context.Context, explorationID int6
 			JOIN assets a ON a.id = an.asset_id
 			WHERE n.exploration_id = $1 AND n.kind = 'intent' AND n.state = 'running'
 			  AND n.claim_expires_at > now() AND COALESCE(n.owner, '') <> ''
-			  AND (lower(a.domain) = $2 OR lower(btrim(a.ip, '[]')) = $2
-			    OR lower(btrim(substring(a.url FROM '^[A-Za-z][A-Za-z0-9+.-]*://(?:[^@/?#]*@)?(\[[^]]*\]|[^:/?#]*)'), '[]')) = $2)
+			  AND (rtrim(lower(a.domain), '.') = $2 OR lower(btrim(a.ip, '[]')) = $2
+			    OR rtrim(lower(btrim(substring(a.url FROM '^[A-Za-z][A-Za-z0-9+.-]*://(?:[^@/?#]*@)?(\[[^]]*\]|[^:/?#]*)'), '[]')), '.') = $2)
 		)
 		UPDATE exploration_nodes n
-		SET claim_expires_at = LEAST(now() + make_interval(secs => $3),
-			COALESCE(n.claim_renewed_at, n.claim_expires_at - make_interval(secs => $3)) + make_interval(secs => $3 * 2))
+		SET claim_expires_at = `+capped+`
 		FROM matched
 		WHERE n.id = matched.id
 		  AND (SELECT count(DISTINCT owner) FROM matched) = 1
+		  AND n.state = 'running' AND n.claim_expires_at > now() AND n.owner = matched.owner
+		  AND n.claim_renewed_at IS NOT NULL
 		  AND n.claim_expires_at < now() + make_interval(secs => $3 / 2)
-		  AND LEAST(now() + make_interval(secs => $3),
-			COALESCE(n.claim_renewed_at, n.claim_expires_at - make_interval(secs => $3)) + make_interval(secs => $3 * 2)) > n.claim_expires_at
+		  AND `+capped+` > n.claim_expires_at
 		RETURNING n.id`,
 		explorationID, host, lease.Seconds())
 	if err != nil {
