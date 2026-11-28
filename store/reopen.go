@@ -82,6 +82,15 @@ func (s *Store) ReopenNode(ctx context.Context, explorationID, nodeID int64, by,
 }
 
 func reopenIntentTx(ctx context.Context, tx *sql.Tx, res *tools.ReopenResult, by, reason, at string) error {
+	findings, err := queryIDList(ctx, tx, `
+		SELECT id FROM findings
+		WHERE node_id IN (SELECT dst_id FROM exploration_edges WHERE src_id = $1 AND rel = $2)
+		ORDER BY id FOR NO KEY UPDATE`,
+		res.ID, RelYields)
+	if err != nil {
+		return fmt.Errorf("lock findings of intent %d: %w", res.ID, err)
+	}
+
 	sources, err := queryIDList(ctx, tx, `
 		SELECT id FROM exploration_nodes
 		WHERE kind <> $3 AND (id = $1 OR id IN (
@@ -118,6 +127,9 @@ func reopenIntentTx(ctx context.Context, tx *sql.Tx, res *tools.ReopenResult, by
 	}
 	slices.Sort(superseded)
 	res.Superseded = superseded
+	if _, err := tx.ExecContext(ctx, `UPDATE findings SET updated_at = now() WHERE id = ANY($1)`, findings); err != nil {
+		return fmt.Errorf("touch findings of intent %d: %w", res.ID, err)
+	}
 
 	goals, err := queryIDList(ctx, tx, `
 		SELECT g.id FROM exploration_nodes g

@@ -180,7 +180,28 @@ func (s *Store) changedFindings(ctx context.Context, ids []int64) (map[int64]map
 		}
 		out[f.ID] = m
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	sup, err := s.QueryContext(ctx,
+		`SELECT f.id, (n.payload->>'superseded_by_reopen')::bigint
+		 FROM findings f JOIN exploration_nodes n ON n.id = f.node_id
+		 WHERE f.id = ANY($1) AND n.payload ? 'superseded_by_reopen'`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer sup.Close()
+	for sup.Next() {
+		var id, intent int64
+		if err := sup.Scan(&id, &intent); err != nil {
+			return nil, err
+		}
+		if m, ok := out[id]; ok {
+			m["superseded_by_reopen"] = intent
+		}
+	}
+	return out, sup.Err()
 }
 
 func (s *Store) changedAssets(ctx context.Context, ids []int64) (map[int64]map[string]any, error) {
