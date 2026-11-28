@@ -324,7 +324,7 @@ func closedWithChangesWarning(ctx context.Context, store Store, explorationID, i
 // clearReopenFields drops the reason a reopened intent carries for its next
 // worker; the reopen history entry keeps it.
 func clearReopenFields(merge map[string]any) {
-	for _, k := range []string{"reopened_by", "reopen_reason", "reopened_at"} {
+	for _, k := range []string{"reopened_by", "reopen_reason", "reopened_at", "closed_at"} {
 		merge[k] = nil
 	}
 }

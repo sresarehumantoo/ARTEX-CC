@@ -558,7 +558,7 @@ func lastEntry(history []any) (map[string]any, bool) {
 	return e, ok
 }
 
-func TestReopenRestartsUnownedWindowOfTargetChanges(t *testing.T) {
+func TestReopenKeepsOneUnownedWindowFromCloseToClaim(t *testing.T) {
 	t.Parallel()
 	s := testDB(t)
 	ctx := context.Background()
@@ -571,37 +571,43 @@ func TestReopenRestartsUnownedWindowOfTargetChanges(t *testing.T) {
 	if err := s.UpdateNodeFields(ctx, intent, "done", map[string]any{"result": "changed"}); err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(1100 * time.Millisecond)
+	closed := changeByID(t, s, expID, change.ID)
+	if closed.Unowned != "intent_done" || closed.UnownedSince == nil {
+		t.Fatalf("after close: unowned %q since %v, want intent_done", closed.Unowned, closed.UnownedSince)
+	}
+	time.Sleep(1500 * time.Millisecond)
 
 	if _, err := s.ReopenNode(ctx, expID, intent, "web-ui", "redo"); err != nil {
 		t.Fatal(err)
 	}
-	n, _ := s.NodeDetail(ctx, intent)
-	reopenedAt, err := time.Parse(time.RFC3339, n.Payload["reopened_at"].(string))
-	if err != nil {
-		t.Fatal(err)
-	}
 	c := changeByID(t, s, expID, change.ID)
-	if c.Unowned != "intent_open" || c.UnownedSince == nil || !c.UnownedSince.Equal(reopenedAt) {
-		t.Errorf("after reopen: unowned %q since %v, want intent_open since the reopen at %v", c.Unowned, c.UnownedSince, reopenedAt)
+	if c.Unowned != "intent_open" || c.UnownedSince == nil || !c.UnownedSince.Equal(*closed.UnownedSince) {
+		t.Errorf("after reopen: unowned %q since %v, want intent_open since the close at %v", c.Unowned, c.UnownedSince, closed.UnownedSince)
 	}
-	if c.MaxUnownedSeconds < 1 {
-		t.Errorf("max_unowned_seconds = %d, want the window spent done recorded", c.MaxUnownedSeconds)
+	if c.MaxUnownedSeconds != 0 {
+		t.Errorf("max_unowned_seconds = %d after reopen, want the window still open", c.MaxUnownedSeconds)
 	}
-
 	ov, err := s.GraphOverview(ctx, expID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if w := ov.UnownedTargetChanges; w == nil || w.Count != 1 || !slices.Equal(w.ChangeIDs, []int64{change.ID}) ||
-		w.OldestSince != reopenedAt.UTC().Format(time.RFC3339) {
-		t.Errorf("unowned_target_changes = %+v, want change %d unowned since the reopen", w, change.ID)
+		w.OldestSince != closed.UnownedSince.UTC().Format(time.RFC3339) {
+		t.Errorf("unowned_target_changes = %+v, want change %d unowned since the close", w, change.ID)
 	}
+	time.Sleep(1500 * time.Millisecond)
 
 	if _, err := s.ClaimIntent(ctx, intent, "sess-b", time.Hour); err != nil {
 		t.Fatal(err)
 	}
-	if c := changeByID(t, s, expID, change.ID); c.Unowned != "" || c.UnownedSince != nil {
+	c = changeByID(t, s, expID, change.ID)
+	if c.Unowned != "" || c.UnownedSince != nil {
 		t.Errorf("after claiming the reopened intent: unowned %q since %v, want owned", c.Unowned, c.UnownedSince)
+	}
+	if c.MaxUnownedSeconds < 3 {
+		t.Errorf("max_unowned_seconds = %d, want one window of about 3s from the close to the claim", c.MaxUnownedSeconds)
+	}
+	if n, _ := s.NodeDetail(ctx, intent); n.Payload["closed_at"] == nil {
+		t.Errorf("payload = %v, want closed_at kept until the intent closes again", n.Payload)
 	}
 }

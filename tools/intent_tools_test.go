@@ -917,6 +917,7 @@ func reopenedIntent() *Node {
 		"reopen_reason": "the test missed the second form",
 		"reopened_by":   "web-ui",
 		"reopened_at":   "2026-11-28T10:00:00Z",
+		"closed_at":     "2026-11-28T09:00:00Z",
 		"history":       []any{map[string]any{"state": "done", "reason": "the test missed the second form"}},
 	}}
 }
@@ -987,7 +988,7 @@ func TestCloseIntentClearsReopenFields(t *testing.T) {
 			t.Fatalf("%s: %s", tc.tool, r.Content)
 		}
 		p := ms.nodes[10].Payload
-		for _, k := range []string{"reopen_reason", "reopened_by", "reopened_at"} {
+		for _, k := range []string{"reopen_reason", "reopened_by", "reopened_at", "closed_at"} {
 			if _, ok := p[k]; ok {
 				t.Errorf("%s left %s in the payload: %v", tc.tool, k, p)
 			}

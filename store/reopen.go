@@ -117,13 +117,21 @@ func reopenIntentTx(ctx context.Context, tx *sql.Tx, res *tools.ReopenResult, by
 		return fmt.Errorf("lock goals proved by intent %d: %w", res.ID, err)
 	}
 
-	// The intent's unrestored target changes have been unowned since it
-	// closed. Record that window now; reopened_at starts the next one.
-	if _, err := tx.ExecContext(ctx, closeUnownedWindows(`tc.intent_id = $1 AND n.state IN ('done', 'stopped')`), res.ID); err != nil {
-		return fmt.Errorf("close unowned windows of intent %d: %w", res.ID, err)
+	// The intent's unrestored target changes have had no owner since it
+	// closed, and reopening does not give them one, so closed_at keeps their
+	// unowned window running from the close until the next claim.
+	var closedAt time.Time
+	if err := tx.QueryRowContext(ctx,
+		`SELECT updated_at FROM exploration_nodes WHERE id = $1`, res.ID).Scan(&closedAt); err != nil {
+		return fmt.Errorf("close time of intent %d: %w", res.ID, err)
 	}
 	if err := reopenNodeTx(ctx, tx, res.ID, []string{"done", "stopped"}, by, reason, at); err != nil {
 		return err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE exploration_nodes SET payload = payload || jsonb_build_object('closed_at', $2::text) WHERE id = $1`,
+		res.ID, closedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+		return fmt.Errorf("record close time of intent %d: %w", res.ID, err)
 	}
 
 	superseded, err := queryIDList(ctx, tx, `
