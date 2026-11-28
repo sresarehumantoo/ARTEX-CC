@@ -10,6 +10,8 @@ type ReportFinding struct {
 	Severity  string
 	Summary   string
 	Evidence  string
+
+	SupersededByReopen int64
 }
 
 // TargetChange is a change made to a target during the engagement and

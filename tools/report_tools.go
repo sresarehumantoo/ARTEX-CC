@@ -48,6 +48,8 @@ func makeGenerateReport(store Store, taskID, explorationID int64) Tool {
 					Severity:  f.Severity,
 					Summary:   f.Summary,
 					Evidence:  f.Evidence,
+
+					SupersededByReopen: f.SupersededByReopen,
 				}
 			}
 
