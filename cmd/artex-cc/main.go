@@ -117,6 +117,48 @@ func requireIdentity(flagSet, stdio bool, env string) (bool, error) {
 	return on, nil
 }
 
+// allowedHosts resolves --allowed-host and ARTEX_ALLOWED_HOSTS. Each value may
+// hold several comma-separated hosts; flags win over the env var. stdio is
+// refused because it has no HTTP listener to put behind a proxy.
+func allowedHosts(flagVals []string, env string, stdio bool) ([]string, error) {
+	vals := flagVals
+	if len(vals) == 0 {
+		vals = []string{env}
+	}
+	var hosts []string
+	for _, v := range vals {
+		for _, h := range strings.Split(v, ",") {
+			h = strings.TrimSpace(h)
+			if h == "" {
+				continue
+			}
+			if strings.Contains(h, "/") {
+				return nil, fmt.Errorf("allowed host %q is not a host: give the name the browser uses, optionally with a port, such as artex.example.com or artex.example.com:8443", h)
+			}
+			hosts = append(hosts, h)
+		}
+	}
+	if len(hosts) > 0 && stdio {
+		return nil, fmt.Errorf("--allowed-host (or ARTEX_ALLOWED_HOSTS) needs an HTTP transport: stdio has no listener to put behind a reverse proxy; unset it for stdio, or serve with --listen or --web")
+	}
+	return hosts, nil
+}
+
+// webAuthReason returns why the web UI requires a password login, or "" when
+// it does not. Allowed hosts force it because the UI is reachable through the
+// proxy even though the listener is loopback.
+func webAuthReason(authFlag bool, listen string, allowed []string) string {
+	switch {
+	case authFlag:
+		return "--auth or ARTEX_AUTH set"
+	case !isLoopbackAddr(listen):
+		return "non-loopback listener"
+	case len(allowed) > 0:
+		return "allowed hosts set, so the web UI is reachable through a reverse proxy"
+	}
+	return ""
+}
+
 func isLoopbackAddr(addr string) bool {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -143,12 +185,19 @@ func setupURL(listen string) string {
 // mcpListenToken returns the bearer token /mcp must require on a listener
 // without --web, or "" when none is needed. Only literal loopback addresses
 // may run without one; other hostnames are not resolved and count as exposed.
-func mcpListenToken(addr, token string) (string, error) {
+// Allowed hosts count as exposed too, since a reverse proxy publishes /mcp.
+func mcpListenToken(addr, token string, allowed []string) (string, error) {
 	token = strings.TrimSpace(token)
-	if token == "" && !isLoopbackAddr(addr) {
+	if token != "" {
+		return token, nil
+	}
+	if !isLoopbackAddr(addr) {
 		return "", fmt.Errorf("--listen %s is not a loopback address, so /mcp needs a bearer token: set ARTEX_MCP_TOKEN (for example ARTEX_MCP_TOKEN=$(openssl rand -hex 32)) and send it as \"Authorization: Bearer <token>\", or listen on localhost", addr)
 	}
-	return token, nil
+	if len(allowed) > 0 {
+		return "", fmt.Errorf("--allowed-host (or ARTEX_ALLOWED_HOSTS) is set, so /mcp is reachable through a reverse proxy and needs a bearer token: set ARTEX_MCP_TOKEN (for example ARTEX_MCP_TOKEN=$(openssl rand -hex 32)) and send it as \"Authorization: Bearer <token>\"")
+	}
+	return "", nil
 }
 
 func initLogging(debug bool) {
@@ -195,18 +244,21 @@ func listenMiddleware(srv *mcpserver.Server, signer *identity.Signer, token stri
 }
 
 // loopbackHostOnly refuses requests that arrived on a loopback address with a
-// Host that is not a loopback name, so a DNS-rebound page cannot reach the
-// listener as if it were same-origin. Connections on other local addresses
-// pass, so remote access by hostname keeps working.
-func loopbackHostOnly(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		local, _ := r.Context().Value(http.LocalAddrContextKey).(net.Addr)
-		if local != nil && isLoopbackAddr(local.String()) && !api.LoopbackHost(r) {
-			http.Error(w, "host not allowed", http.StatusMisdirectedRequest)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+// Host that is neither a loopback name nor in allowed, so a DNS-rebound page
+// cannot reach the listener as if it were same-origin. Connections on other
+// local addresses pass, so remote access by hostname keeps working.
+// X-Forwarded-Host is deliberately ignored: a rebound page can set it.
+func loopbackHostOnly(allowed []string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			local, _ := r.Context().Value(http.LocalAddrContextKey).(net.Addr)
+			if local != nil && isLoopbackAddr(local.String()) && !api.LoopbackHost(r) && !api.HostAllowed(r.Host, allowed) {
+				http.Error(w, "host not allowed", http.StatusMisdirectedRequest)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func webHandler(mcp, restAPI http.Handler) http.Handler {
@@ -233,6 +285,11 @@ func cmdServe(args []string) {
 	noPlugins := fs.Bool("no-plugins", false, "disable plugin loading")
 	shutdownSecs := fs.Int("timeout", 30, "graceful shutdown timeout in seconds")
 	requireIdentityFlag := fs.Bool("require-identity", false, "refuse intent claims from callers without a verified X-Artex-Identity (or ARTEX_REQUIRE_IDENTITY env; HTTP only)")
+	var allowedHostFlags []string
+	fs.Func("allowed-host", "accept this Host and Origin from a same-host reverse proxy; repeatable or comma-separated (or ARTEX_ALLOWED_HOSTS env; forces --auth with --web, needs ARTEX_MCP_TOKEN without it)", func(v string) error {
+		allowedHostFlags = append(allowedHostFlags, v)
+		return nil
+	})
 	fs.Parse(args)
 
 	if *showVersion {
@@ -252,10 +309,16 @@ func cmdServe(args []string) {
 		}
 	}
 
+	hosts, err := allowedHosts(allowedHostFlags, os.Getenv("ARTEX_ALLOWED_HOSTS"), *stdio)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+
 	var listenToken string
 	if !*stdio && !*webUI {
 		var err error
-		listenToken, err = mcpListenToken(*listen, os.Getenv("ARTEX_MCP_TOKEN"))
+		listenToken, err = mcpListenToken(*listen, os.Getenv("ARTEX_MCP_TOKEN"), hosts)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(1)
@@ -406,8 +469,11 @@ func cmdServe(args []string) {
 	var mcpToken string
 	var webIdentity *identity.Signer
 	if *webUI {
-		authRequired := *authFlag || envEnabled("ARTEX_AUTH") || !isLoopbackAddr(*listen)
-		apiOpts := []api.Option{api.WithDataDir(*dataDir), api.WithAuthRequired(authRequired), api.WithToolList(reg.Tools())}
+		authReason := webAuthReason(*authFlag || envEnabled("ARTEX_AUTH"), *listen, hosts)
+		if authReason != "" {
+			slog.Info("web UI password login required", "reason", authReason)
+		}
+		apiOpts := []api.Option{api.WithDataDir(*dataDir), api.WithAuthRequired(authReason != ""), api.WithAllowedHosts(hosts), api.WithToolList(reg.Tools())}
 		if *claudeBin != "" {
 			apiOpts = append(apiOpts, api.WithClaudeBin(*claudeBin))
 		}
@@ -456,7 +522,7 @@ func cmdServe(args []string) {
 		}
 	} else if *webUI {
 		mcpHandler := webMCPHandler(srv, mcpToken, webIdentity)
-		handler := loopbackHostOnly(webHandler(mcpHandler, restAPI.Handler()))
+		handler := loopbackHostOnly(hosts)(webHandler(mcpHandler, restAPI.Handler()))
 		httpServer := &http.Server{Addr: *listen, Handler: handler}
 		setupToken, err := restAPI.IssueSetupToken()
 		if err != nil {
@@ -470,7 +536,7 @@ func cmdServe(args []string) {
 		errCh := make(chan error, 1)
 		go func() { errCh <- httpServer.ListenAndServe() }()
 
-		slog.Info("serving", "addr", *listen, "web", true)
+		slog.Info("serving", "addr", *listen, "web", true, "allowed_hosts", hosts)
 		select {
 		case err := <-errCh:
 			if err != nil && ctx.Err() == nil {
@@ -485,8 +551,8 @@ func cmdServe(args []string) {
 		}
 	} else {
 		middleware := listenMiddleware(srv, loadIdentitySigner(*dataDir), listenToken)
-		middleware = append(middleware, loopbackHostOnly, api.SecurityHeaders)
-		slog.Info("serving", "addr", *listen, "mcp_auth", listenToken != "")
+		middleware = append(middleware, loopbackHostOnly(hosts), api.SecurityHeaders)
+		slog.Info("serving", "addr", *listen, "mcp_auth", listenToken != "", "allowed_hosts", hosts)
 		if err := srv.ServeHTTP(ctx, *listen, middleware...); err != nil && ctx.Err() == nil {
 			slog.Error("http server failed", "err", err)
 			os.Exit(1)

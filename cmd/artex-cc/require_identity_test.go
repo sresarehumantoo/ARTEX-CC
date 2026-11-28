@@ -119,3 +119,57 @@ func TestRequireIdentityOnBothHTTPPaths(t *testing.T) {
 		})
 	}
 }
+
+func TestAllowedHostsSetting(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		flags   []string
+		env     string
+		stdio   bool
+		want    []string
+		wantErr string
+	}{
+		{name: "default empty"},
+		{name: "env list", env: " artex.example.com, ops.example.com:8443 ,", want: []string{"artex.example.com", "ops.example.com:8443"}},
+		{name: "repeated flags", flags: []string{"a.example", "b.example,c.example"}, want: []string{"a.example", "b.example", "c.example"}},
+		{name: "flag wins over env", flags: []string{"a.example"}, env: "b.example", want: []string{"a.example"}},
+		{name: "url refused", env: "https://artex.example.com", wantErr: "is not a host"},
+		{name: "stdio refused", flags: []string{"a.example"}, stdio: true, wantErr: "needs an HTTP transport"},
+		{name: "empty on stdio", env: " , ", stdio: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := allowedHosts(tt.flags, tt.env, tt.stdio)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("err = %v, want %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil || strings.Join(got, "|") != strings.Join(tt.want, "|") {
+				t.Fatalf("= %q, %v, want %q", got, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestWebAuthReason(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		flag    bool
+		listen  string
+		allowed []string
+		want    string
+	}{
+		{name: "loopback default", listen: "localhost:9400"},
+		{name: "flag", flag: true, listen: "localhost:9400", want: "--auth"},
+		{name: "non-loopback", listen: ":9400", want: "non-loopback"},
+		{name: "allowed hosts force it", listen: "localhost:9400", allowed: []string{"artex.example.com"}, want: "reverse proxy"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got := webAuthReason(tt.flag, tt.listen, tt.allowed)
+			if (tt.want == "") != (got == "") || !strings.Contains(got, tt.want) {
+				t.Fatalf("= %q, want containing %q", got, tt.want)
+			}
+		})
+	}
+}
