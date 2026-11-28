@@ -1,6 +1,7 @@
 package traffic
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"slices"
@@ -394,5 +395,30 @@ VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
 	}
 	if _, err := os.Stat(exDir); !os.IsNotExist(err) {
 		t.Fatalf("host tree still exists: %v", err)
+	}
+}
+
+func TestGCBlobsRemovesOrphansAndLeavesSymlinkTargets(t *testing.T) {
+	tr := openTestTraffic(t)
+	sb := tr.spill(bytes.Repeat([]byte("a"), maxInlineBody+1), "text/plain")
+	if sb.hash == "" {
+		t.Fatal("body was not spilled")
+	}
+	outside := filepath.Join(t.TempDir(), "keep.bin")
+	if err := os.WriteFile(outside, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Dir(outside), filepath.Join(tr.dir, "_blobs", "sha256", "zz")); err != nil {
+		t.Fatal(err)
+	}
+	if err := tr.gcBlobs(); err != nil {
+		t.Fatal(err)
+	}
+	bucket := filepath.Join(tr.dir, "_blobs", "sha256", sb.hash[:2])
+	if _, err := os.Stat(bucket); !os.IsNotExist(err) {
+		t.Fatalf("orphan bucket survived: %v", err)
+	}
+	if _, err := os.Stat(outside); err != nil {
+		t.Fatalf("file behind symlink was touched: %v", err)
 	}
 }
