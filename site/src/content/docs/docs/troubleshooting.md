@@ -55,7 +55,11 @@ A rejected `X-Artex-Identity` header gets `400` with the reason in the body, not
 
 ## HTTP requests get `421` with `host not allowed`
 
-A request that arrives on a loopback address must carry a `Host` of `localhost` or a loopback IP, so a DNS-rebinding web page cannot reach the server. A reverse proxy on the same host that forwards the original `Host` header, or a hostname that resolves to `127.0.0.1`, gets 421. Point the client at `localhost` or `127.0.0.1`, or have the proxy send `Host: localhost`. Connections on other local addresses are not affected.
+A request that arrives on a loopback address must carry a `Host` of `localhost`, a loopback IP or a host listed with `--allowed-host` (or `ARTEX_ALLOWED_HOSTS`), so a DNS-rebinding web page cannot reach the server. A reverse proxy on the same host that forwards the original `Host` header, or a hostname that resolves to `127.0.0.1`, gets 421 unless that host is listed. Point the client at `localhost` or `127.0.0.1`, or list the public name; see [Behind a reverse proxy](/docs/web-ui/#behind-a-reverse-proxy). `X-Forwarded-Host` is not consulted. Connections on other local addresses are not affected.
+
+## Web UI writes get `403` with `cross-origin request refused`
+
+A browser write (POST, PUT, PATCH, DELETE) must come from an `Origin` that matches the request's `Host` or is listed with `--allowed-host`, and must not carry `Sec-Fetch-Site: cross-site` or `same-site`. A reverse proxy that rewrites `Host` to `localhost` makes every write from the public name fail this check, while page loads keep working. Start `serve` with `--allowed-host` set to the name in the browser's address bar, or have the proxy forward the original `Host` and list it. See [Behind a reverse proxy](/docs/web-ui/#behind-a-reverse-proxy).
 
 ## Claude repeats work or forgets what it did
 
