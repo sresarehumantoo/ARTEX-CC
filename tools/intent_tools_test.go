@@ -933,13 +933,40 @@ func TestStartIntentPrintsReopenReason(t *testing.T) {
 	if r.IsError {
 		t.Fatalf("start_intent: %s", r.Content)
 	}
-	first, rest, _ := strings.Cut(r.Content, "\n")
+	if strings.Count(r.Content, "\n") != 1 {
+		t.Errorf("result = %q, want the claim line and one JSON line", r.Content)
+	}
+	first, extra := splitClaimResult(t, r.Content)
 	if !strings.HasPrefix(first, "intent 10 is now running; claimed by ") {
 		t.Errorf("first line = %q, want the claim line unchanged", first)
 	}
-	var extra map[string]any
-	if err := json.Unmarshal([]byte(rest), &extra); err != nil || extra["reopen_reason"] != "the test missed the second form" {
-		t.Errorf("second line = %q (%v), want JSON with the reopen reason", rest, err)
+	if extra["reopen_reason"] != "the test missed the second form" {
+		t.Errorf("extra = %v, want the reopen reason", extra)
+	}
+}
+
+func TestStartIntentReopenReasonJoinsHandoff(t *testing.T) {
+	t.Parallel()
+	ms := newIntentMockStore()
+	ms.nodes[10] = reopenedIntent()
+	c := unownedChange(7, "intent_open", time.Minute)
+	c.IntentID = 10
+	ms.changes = append(ms.changes, c)
+	reg := NewRegistry()
+	RegisterIntentTools(reg, ms, 1)
+	start, _ := reg.Lookup("start_intent")
+
+	r, _ := start.Run(testSessionCtx, json.RawMessage(`{"node_id": 10}`))
+	if r.IsError || strings.Count(r.Content, "\n") != 1 {
+		t.Fatalf("result = %q, want the claim line and one JSON line", r.Content)
+	}
+	first, extra := splitClaimResult(t, r.Content)
+	if !strings.HasPrefix(first, "intent 10 is now running; claimed by ") {
+		t.Errorf("first line = %q, want the claim line unchanged", first)
+	}
+	inherited, _ := extra["inherited_target_changes"].([]any)
+	if extra["reopen_reason"] != "the test missed the second form" || len(inherited) != 1 || extra["handoff"] == nil {
+		t.Errorf("extra = %v, want the reopen reason next to the handoff", extra)
 	}
 }
 
