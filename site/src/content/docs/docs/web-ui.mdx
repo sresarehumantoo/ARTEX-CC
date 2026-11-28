@@ -59,12 +59,14 @@ artex.example.com {
 }
 ```
 
-Or with nginx, inside the `server` block for the public name (`proxy_buffering off` keeps the UI's live event stream flowing):
+Or with nginx, inside the `server` block for the public name. `$http_host` forwards the `Host` exactly as the browser sent it, port included, which an entry such as `artex.example.com:8443` needs (`$host` drops the port). HTTP/1.1 with an empty `Connection` header and `proxy_buffering off` keep the UI's live event stream flowing:
 
 ```nginx
 location / {
     proxy_pass http://127.0.0.1:9400;
-    proxy_set_header Host $host;
+    proxy_set_header Host $http_host;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
     proxy_buffering off;
 }
 ```
