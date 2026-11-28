@@ -98,6 +98,7 @@ type Store interface {
 	RecordTargetChange(ctx context.Context, explorationID int64, in TargetChangeInput) (*TargetChangeRecord, error)
 	RecordTargetRestore(ctx context.Context, explorationID int64, changeIDs []int64, observed, restoredBy string) ([]TargetRestoreOutcome, error)
 	ListTargetChanges(ctx context.Context, explorationID int64, unrestoredOnly bool) ([]TargetChange, error)
+	AdoptTargetChanges(ctx context.Context, explorationID, intentID int64, holder string, changeIDs []int64) (*AdoptResult, error)
 
 	// Export/Import
 	ExportEngagementData(ctx context.Context, taskID int64) (*EngagementExport, error)

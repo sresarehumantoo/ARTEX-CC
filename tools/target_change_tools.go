@@ -44,6 +44,26 @@ type TargetChange struct {
 	RestoredBy          string     `json:"restored_by,omitempty"`
 	LastObserved        string     `json:"last_observed,omitempty"`
 	RestoreAttempts     int        `json:"restore_attempts,omitempty"`
+	// Unowned says why an unrestored change has no live owner: claim_lapsed,
+	// no_intent, or intent_<state> for an intent that is not running. It is
+	// empty while the intent's claim is live and once the change is restored.
+	Unowned           string     `json:"unowned,omitempty"`
+	UnownedSince      *time.Time `json:"unowned_since,omitempty"`
+	MaxUnownedSeconds int        `json:"max_unowned_seconds,omitempty"`
+}
+
+// UnownedFor is how long the change has been without a live owner, or 0.
+func (c TargetChange) UnownedFor(now time.Time) time.Duration {
+	if c.Unowned == "" || c.UnownedSince == nil {
+		return 0
+	}
+	return max(now.Sub(*c.UnownedSince), 0)
+}
+
+// LongestUnowned is the longest window the change spent without a live
+// owner, counting the one still open.
+func (c TargetChange) LongestUnowned(now time.Time) time.Duration {
+	return max(time.Duration(c.MaxUnownedSeconds)*time.Second, c.UnownedFor(now))
 }
 
 // Summary is the compact form shown in graph_overview and list_changes.
@@ -65,6 +85,26 @@ func (c TargetChange) Summary() map[string]any {
 		m["last_observed"] = c.LastObserved
 		m["restore_attempts"] = c.RestoreAttempts
 	}
+	if c.Unowned != "" {
+		m["unowned"] = c.Unowned
+		if c.UnownedSince != nil {
+			m["unowned_since"] = c.UnownedSince.UTC().Format(time.RFC3339)
+		}
+	}
+	return m
+}
+
+// Handoff is the form given to an agent taking over the cleanup: the summary
+// plus what it needs to restore without starting from scratch.
+func (c TargetChange) Handoff() map[string]any {
+	m := c.Summary()
+	m["original_fingerprint"] = c.OriginalFingerprint
+	if c.Backup != "" {
+		m["backup"] = c.Backup
+	}
+	if c.Note != "" {
+		m["note"] = c.Note
+	}
 	return m
 }
 
@@ -74,6 +114,13 @@ func (c TargetChange) Summary() map[string]any {
 type TargetChangeRecord struct {
 	Change   TargetChange
 	Existing []TargetChange
+}
+
+// AdoptResult is the result of AdoptTargetChanges: the changes now owned by
+// the intent, and why each other requested id was not moved.
+type AdoptResult struct {
+	Adopted []TargetChange
+	Refused map[int64]string
 }
 
 const (
@@ -93,6 +140,12 @@ type TargetRestoreOutcome struct {
 	BaselineChangeID int64   `json:"baseline_change_id"`
 	AlsoRestored     []int64 `json:"also_restored,omitempty"`
 	Message          string  `json:"message"`
+	// The rest is set on not_restored, so a retry has what the recorder left:
+	// BaselineBackup is the backup kept with the baseline change.
+	BaselineBackup   string `json:"baseline_backup,omitempty"`
+	RecordedBy       string `json:"recorded_by,omitempty"`
+	PreviousObserved string `json:"previous_observed,omitempty"`
+	RestoreAttempts  int    `json:"restore_attempts,omitempty"`
 }
 
 // FingerprintsMatch compares fingerprints ignoring surrounding whitespace and

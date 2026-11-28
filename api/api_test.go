@@ -109,6 +109,9 @@ func (m *mockStore) RecordTargetRestore(context.Context, int64, []int64, string,
 func (m *mockStore) ListTargetChanges(context.Context, int64, bool) ([]tools.TargetChange, error) {
 	return nil, nil
 }
+func (m *mockStore) AdoptTargetChanges(context.Context, int64, int64, string, []int64) (*tools.AdoptResult, error) {
+	return &tools.AdoptResult{}, nil
+}
 func (m *mockStore) ListNodes(_ context.Context, _ int64, _ string, _ int) ([]tools.Node, error) {
 	return m.listNodes, m.listNodesErr
 }

@@ -193,6 +193,10 @@ type IntentClaim struct {
 	Owner     string `json:"-"`
 	ExpiresAt time.Time
 	Renewed   bool
+	// TookOver means the intent was running under another holder whose
+	// claim had lapsed; PreviousOwner is that holder.
+	TookOver      bool
+	PreviousOwner string `json:"-"`
 }
 
 // ClaimConflictError means another session holds a live claim on the intent.
