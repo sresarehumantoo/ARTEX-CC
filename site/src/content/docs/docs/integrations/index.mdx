@@ -1,0 +1,103 @@
+---
+title: Integrations overview
+description: Ship the ARTEX egress audit stream and ARTEX's own logs and metrics to a SIEM or observability backend with standard shippers. Draft, against the unreleased artex.audit/v1 schema.
+sidebar:
+  order: 0
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Draft: the audit stream has not shipped">
+These pages describe how to route the planned egress audit stream, which is not in any release yet. Every configuration here is illustrative, written against the draft `artex.audit/v1` schema in [the egress audit plan](https://github.com/SREsAreHumanToo/ARTEX-CC/blob/main/docs/EGRESS_AUDIT_PLAN.md). Field names, file names and settings can change before the stream ships. Nothing here has been tested against a live vendor product.
+</Aside>
+
+ARTEX keeps the engagement record. The planned audit stream adds a record of what agents did on the network and through ARTEX, with alerts for injection-shaped behavior such as out-of-scope hosts, paste and webhook services, or stored credentials leaving for the wrong host. These pages show how to get that record, and ARTEX's own logs and metrics, into the tools a security or operations team already runs. Agents still need a person checking their work; the point of shipping the stream is that the person can.
+
+## What ARTEX writes
+
+ARTEX does not contain any vendor client. It writes standard outputs, and your shipper or collector does the rest.
+
+| Output | What it carries | Default |
+|---|---|---|
+| JSONL files | One file per stream under `<data>/audit/`: `target.jsonl`, `agent.jsonl`, `anthropic.jsonl`. One record per line, rotated by rename, never truncated in place. The authoritative copy, kept 7 days by default | Always on |
+| OTLP logs | The same records as OTel log events over OTLP/HTTP (`http/protobuf` by default). Standard `OTEL_EXPORTER_OTLP_*` variables configure it but do not enable it | Off; `ARTEX_AUDIT_OTLP=on` |
+| HTTP sink | Batched NDJSON or JSON POSTs with static headers, for alerts only or for every record. Also serves as the alert webhook | Off |
+| ARTEX's own telemetry | Server logs through an OTel log bridge (and optional JSON on stderr), operational metrics over OTLP and a Prometheus `/metrics` endpoint | Off |
+
+All signals share one OTel resource: `service.name=artex-cc`, `service.version`, `service.instance.id` and `artex.engagement_id`.
+
+### Streams
+
+| Stream | Contents | Exported by default |
+|---|---|---|
+| `target` | Proxy exchanges to non-Anthropic hosts, tunneled hosts, and alerts derived from them | Yes, once an exporter is set up |
+| `agent` | MCP tool calls and Claude Code hook events | Yes, once an exporter is set up |
+| `anthropic` | Claude Code's own API traffic: model, token counts, status. Prompts are exported as keyed hashes, never in clear by default | Only when listed |
+
+Each record carries `artex.stream`, so one pipeline can route all three.
+
+### A record
+
+Records use OpenTelemetry semantic conventions as flat dotted keys, with ARTEX-only fields under `artex.*`. A proxied request:
+
+```json
+{"schema":"artex.audit/v1","time":"2026-11-28T15:04:05.123456789Z","event.name":"artex.egress.http","event.id":"01JDZ6Q8K4V9W2B3N5M7P0R1ST","artex.stream":"target","artex.seq":4211,"severity":"INFO","service.name":"artex-cc","artex.task_id":"t-17","http.request.method":"POST","url.full":"https://app.example.test/api/login?token=REDACTED","server.address":"app.example.test","server.port":443,"http.response.status_code":200,"http.request.body.size":412,"http.response.body.size":1880,"artex.in_scope":true,"artex.scope_rule":"*.example.test","artex.identity":"chat/7f3a","artex.exchange_id":"x-9b1e"}
+```
+
+An alert ARTEX raised about another request:
+
+```json
+{"schema":"artex.audit/v1","time":"2026-11-28T15:04:09.000000001Z","event.name":"artex.alert","event.id":"01JDZ6QC0000000000000000AB","artex.stream":"target","artex.seq":4212,"severity":"WARN","service.name":"artex-cc","artex.task_id":"t-17","security_rule.name":"scope.out","security_rule.category":"scope","artex.alert.severity":"warning","server.address":"paste.example.net","server.port":443,"artex.in_scope":false,"artex.identity":"chat/7f3a","artex.subject_event_id":"01JDZ6QB9ZZZZZZZZZZZZZZZZZ"}
+```
+
+Detections run inside ARTEX, which holds the scope and the stored credentials, so backends only need to alert on `event.name == "artex.alert"`. Agent identity fields use Claude Code's own names (`session.id`, `agent_id`, `parent_agent_id`), and attribution that an agent process could alter is marked as claimed. See [Field mappings](/docs/integrations/field-mappings/) for ECS, Splunk CIM, OCSF, CrowdStrike CPS and Google SecOps UDM.
+
+## Choosing a route
+
+| You run | Start with |
+|---|---|
+| An OpenTelemetry Collector, or want one place to route and redact | [OpenTelemetry Collector](/docs/integrations/opentelemetry-collector/) |
+| Vector | [Vector](/docs/integrations/vector/) |
+| Fluent Bit | [Fluent Bit](/docs/integrations/fluent-bit/) |
+| Splunk Enterprise or Splunk Cloud Platform | [Splunk](/docs/integrations/splunk/) |
+| Elastic (self-managed, Elastic Cloud, Serverless) | [Elastic](/docs/integrations/elastic/) |
+| CrowdStrike Falcon Next-Gen SIEM or Falcon LogScale | [CrowdStrike](/docs/integrations/crowdstrike/) |
+| Dynatrace | [Dynatrace](/docs/integrations/dynatrace/) |
+| Datadog | [Datadog](/docs/integrations/datadog/) |
+| Microsoft Sentinel | [Microsoft Sentinel](/docs/integrations/microsoft-sentinel/) |
+| Google SecOps | [Google SecOps](/docs/integrations/google-secops/) |
+| AWS (CloudWatch Logs, Security Lake) | [AWS](/docs/integrations/aws/) |
+| QRadar, ArcSight or another syslog, CEF or LEEF SIEM | [Syslog, CEF and LEEF](/docs/integrations/syslog-cef-leef/) |
+| Grafana, Loki and Alloy | A separate example repository is in progress and will be linked here when it is published |
+
+Rules that apply everywhere:
+
+- The JSONL files are the source of truth. Shippers retry and resume from their own checkpoints; OTLP export can drop records under backpressure and counts what it drops.
+- Tail only the active `*.jsonl` names. Rotated files get a suffix that the glob does not match, so a tailer never reads a file twice.
+- Use `event.id` to deduplicate. Shippers deliver at least once.
+- ARTEX's 7-day retention covers its local files only. Your backend's retention is yours to set, and the `anthropic` stream usually deserves a shorter one.
+- Keep the shipper's own traffic out of the recording proxy, so it is not audited as agent egress.
+- Several backends drop events older than a limit (Datadog 18 hours, Dynatrace 72 hours, CloudWatch 14 days). Replaying a long local backlog after an outage loses the older part there.
+
+## Shipping ARTEX's own logs and metrics
+
+The audit stream answers what the agents did. ARTEX's own telemetry answers whether the server is healthy: proxy throughput and interception failures, tool call errors and latency, intent claims and lapses, database latency, runner exits and usage-limit events, and how many audit records each sink exported or dropped. Every guide here covers both.
+
+- **Metrics:** scrape `/metrics` (enabled with `--metrics-listen`, loopback by default) with the collector's Prometheus receiver, or enable OTLP metrics with `ARTEX_OTEL_METRICS=on`. Metric temporality follows `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`, which matters for backends that accept only delta.
+- **Logs:** `ARTEX_OTEL_LOGS=on` sends server logs over the same OTLP configuration, under their own instrumentation scope so they never mix with audit records. Without it, `ARTEX_LOG_FORMAT=json` writes JSON to stderr for `docker logs` or journald collection.
+
+These setting names are proposals from the plan and may change.
+
+## How these examples were checked
+
+| Example | Check | Result |
+|---|---|---|
+| OpenTelemetry Collector | `otelcol-contrib validate` (0.166.0), plus a run against sample records with the `debug` exporter | Passed; records parsed, routed by stream and redacted as described |
+| Splunk OTel Collector | `otelcol validate` from `quay.io/signalfx/splunk-otel-collector` (0.165.1) | Passed |
+| Dynatrace OTel Collector | `dynatrace-otel-collector validate` (0.61.0) | Passed |
+| Vector (Splunk, Datadog, Sentinel, SecOps, CloudWatch, syslog/CEF) | `vector validate --no-environment` (0.62.0), plus a run of the Sentinel and CEF transforms against sample records | Passed |
+| Fluent Bit (OTLP, syslog, Sentinel) | `fluent-bit --dry-run` (5.2.1), plus a run of the tail input and parser against sample records | Passed |
+| Filebeat (Elastic) | `filebeat test config` (9.5.6) | Passed |
+| Splunk add-on files, Falcon LogScale Collector, Datadog Agent, CloudWatch agent, KQL, SPL, CQL, DQL and ES\|QL queries | None | Written from vendor documentation only |
+
+"Passed" means the tool accepted the configuration with placeholder endpoints and credentials. No example was run against a real vendor account, and no vendor service was called.
