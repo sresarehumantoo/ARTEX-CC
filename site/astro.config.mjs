@@ -64,6 +64,10 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Integrations (preview)',
+          items: [{ autogenerate: { directory: 'docs/integrations' } }],
+        },
+        {
           label: 'Tool reference',
           items: [{ autogenerate: { directory: 'docs/tools' } }],
         },
