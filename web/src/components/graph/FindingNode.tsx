@@ -18,9 +18,10 @@ export const FindingNode = memo(function FindingNode({ data }: NodeProps & { dat
   const summary = (data.payload.label ?? data.payload.summary ?? data.payload.text ?? '') as string
   const severity = ((data.payload.severity ?? 'medium') as string).toLowerCase()
   const colorClass = severityColors[severity] ?? severityColors.medium
+  const superseded = typeof data.payload.superseded_by_reopen === 'number'
   return (
-    <div className="group relative w-[180px] bg-card text-card-foreground rounded-lg shadow-md border-l-[3px] border-rose-500 overflow-hidden">
-      <NodeTooltip lines={[`Finding #${data.id}: ${truncate(name, 60)}`, truncate(summary, 80), `Severity: ${severity}`]} />
+    <div className={`group relative w-[180px] bg-card text-card-foreground rounded-lg shadow-md border-l-[3px] border-rose-500 overflow-hidden${superseded ? ' opacity-60' : ''}`}>
+      <NodeTooltip lines={[`Finding #${data.id}: ${truncate(name, 60)}`, truncate(summary, 80), `Severity: ${severity}`, ...(superseded ? [`Superseded by reopened intent #${data.payload.superseded_by_reopen}`] : [])]} />
       <Handle type="target" position={Position.Left} className="!bg-rose-500 !w-2 !h-2" />
       <div className="p-2.5">
         <div className="flex items-center gap-1.5 mb-1">

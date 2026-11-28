@@ -7,9 +7,10 @@ import { NodeTooltip } from './NodeTooltip'
 
 export const FactNode = memo(function FactNode({ data }: NodeProps & { data: GraphNode }) {
   const text = (data.payload.label ?? data.payload.text ?? data.payload.summary ?? '') as string
+  const superseded = typeof data.payload.superseded_by_reopen === 'number'
   return (
-    <div className="group relative w-[180px] bg-card text-card-foreground rounded-lg shadow-md border-l-[3px] border-amber-500 overflow-hidden">
-      <NodeTooltip lines={[`Fact #${data.id}`, truncate(text, 80), `State: ${data.state}`]} />
+    <div className={`group relative w-[180px] bg-card text-card-foreground rounded-lg shadow-md border-l-[3px] border-amber-500 overflow-hidden${superseded ? ' opacity-60' : ''}`}>
+      <NodeTooltip lines={[`Fact #${data.id}`, truncate(text, 80), `State: ${data.state}`, ...(superseded ? [`Superseded by reopened intent #${data.payload.superseded_by_reopen}`] : [])]} />
       <Handle type="target" position={Position.Left} className="!bg-amber-500 !w-2 !h-2" />
       <div className="p-2.5">
         <div className="flex items-center gap-1.5 mb-1">
