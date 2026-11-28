@@ -54,7 +54,7 @@
   "switch_engagement": "`\"switched to engagement <id> (exploration <id>): <goal>\"`.",
   "traffic_blob": "`{total, offset, length, data}`.",
   "traffic_clear": "`{deleted, host}`.",
-  "traffic_get": "Text with `--- REQUEST ---` and `--- RESPONSE ---` sections, each clipped at 32 KiB, preceded by a `REWRITTEN by rule ids [...]` line when rewrite rules changed the exchange.",
+  "traffic_get": "Text with `--- REQUEST ---` and `--- RESPONSE ---` sections, each clipped at 32 KiB. A response captured with `Content-Encoding` gzip, deflate or br is shown decoded under `--- RESPONSE (body decoded from its Content-Encoding) ---`.",
   "traffic_har_export": "`{har, exported, totalMatched, truncated}`.",
   "traffic_hosts": "`{count, hosts: [{host, count}, ...]}`.",
   "traffic_messages": "`{total, messages: [{seq, direction, type, size, payload, event?, blob?, truncated?}, ...]}`.",

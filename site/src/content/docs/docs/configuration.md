@@ -11,7 +11,7 @@ ARTEX reads its PostgreSQL connection string from `--pg` or the `ARTEX_PG` envir
 |---------|--------------|
 | `artex-cc serve` | Start the MCP tool server (stdio or HTTP) |
 | `artex-cc init` | Create the schema and a new engagement, generate the proxy CA |
-| `artex-cc health` | Check PostgreSQL connectivity |
+| `artex-cc health` | Check PostgreSQL, the schema and optionally the traffic database |
 | `artex-cc tools` | List the MCP tool catalog, marking the proxy-only tools (`--json` for machine output) |
 | `artex-cc identity` | Issue, rotate or inspect `X-Artex-Identity` tokens for HTTP clients (see [MCP clients](/docs/mcp-clients/#separate-claim-holders)) |
 | `artex-cc completion` | Print a shell completion script (`bash`, `zsh`, `fish`) |
@@ -22,7 +22,7 @@ ARTEX reads its PostgreSQL connection string from `--pg` or the `ARTEX_PG` envir
 artex-cc serve --stdio --pg "postgres://localhost/ccartex"
 
 # Serve with the recording proxy
-artex-cc serve --stdio --pg "postgres://localhost/ccartex" --proxy :8788
+artex-cc serve --stdio --pg "postgres://localhost/ccartex" --proxy 127.0.0.1:8788
 
 # Serve over HTTP (other clients), with the web UI
 artex-cc serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --web
@@ -41,7 +41,7 @@ artex-cc init --pg "postgres://localhost/ccartex" --goal "Bug bounty: corp.examp
 | `--web` | Enable the [web UI](/docs/web-ui/) and REST API | off |
 | `--auth` | Require password login for the web UI on a loopback listener (or `ARTEX_AUTH`) | off |
 | `--allowed-host HOST` | Accept `HOST` from a same-host reverse proxy, in the `Host` header and in the `Origin` of web UI writes (or `ARTEX_ALLOWED_HOSTS`). Repeat the flag or separate hosts with commas. Forces `--auth` with `--web`, requires `ARTEX_MCP_TOKEN` without it, and `serve --stdio` refuses to start with it. See [Behind a reverse proxy](/docs/web-ui/#behind-a-reverse-proxy) | none |
-| `--proxy ADDR` | Start the recording MITM proxy on `ADDR`, for example `:8788` | off |
+| `--proxy ADDR` | Start the recording MITM proxy on `ADDR`. Use an explicit loopback address such as `127.0.0.1:8788`; a bare `:8788` binds all interfaces | off |
 | `--data DIR` | Directory for traffic, evidence and the engagement config | `.` |
 | `--claude-bin PATH` | `claude` CLI used by the web UI chat (or `ARTEX_CLAUDE_BIN`) | `claude` |
 | `--plugin-dir DIR` | Plugin directory (or `ARTEX_PLUGIN_DIR`) | `~/.artex/plugins` |
@@ -64,6 +64,17 @@ See [Plugins](/docs/plugins/) for how the plugin directory is scanned and what a
 | `--data DIR` | Where to write `.artex.json` and the proxy CA. Created 0711 if missing, like `serve` does | `.` |
 | `--dry-run` | Show what would be created without creating it | off |
 | `--format FMT` | Output format, `text` or `json` | `text` |
+
+## `health` flags
+
+`health` pings PostgreSQL, checks that the schema exists and reports its migration version and the number of engagements. With `--data` it also checks the traffic database. It exits non-zero when a check fails.
+
+| Flag | Purpose | Default |
+|------|---------|---------|
+| `--pg DSN` | PostgreSQL connection string (or `ARTEX_PG`) | none, required |
+| `--data DIR` | Data directory whose traffic database to check | none (skipped) |
+| `--format FMT` | Output format, `text` or `json` | `text` |
+| `--timeout D` | Time limit for the checks, as a Go duration such as `10s` | `5s` |
 
 ## Environment variables
 

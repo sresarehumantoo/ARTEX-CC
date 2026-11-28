@@ -28,12 +28,12 @@ mcpserver/         MCP protocol server (stdio and HTTP transports)
 tools/             Tool implementations registered with the MCP server
 config/            Configuration loading and engagement state (.artex.json)
 identity/          Signed client identity tokens (X-Artex-Identity)
-traffic/           Recording MITM proxy, SOCKS5, replay, HAR export, rewrite engine
+traffic/           Recording MITM proxy, replay, HAR export; SOCKS5 and rewrite engine not wired up yet
 traffic/rewrite/   Rule-based request/response rewriting
 traffic/hookvm/    Sandboxed expression evaluator for rewrite hooks
 evidence/          Evidence capture and storage
 report/            Markdown report generation with quality analysis
-egress/            Rate-limiting governor for outbound requests
+egress/            Rate-limiting governor for outbound requests (not wired up yet)
 enrich/            DNS and HTTP enrichment logic
 ingest/            Scanner output parsers (nmap, nuclei, httpx, ffuf, masscan)
 eval/              Evaluation harness

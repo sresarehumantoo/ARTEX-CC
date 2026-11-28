@@ -22,7 +22,7 @@ import report from '../../../../../docs/screenshots/report.png';
 ## Running it
 
 ```sh
-artex-cc serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --proxy :8788 --web
+artex-cc serve --listen localhost:9400 --pg "postgres://localhost/ccartex" --proxy 127.0.0.1:8788 --web
 ```
 
 Open `http://localhost:9400`. The Docker image runs with `--web` already.
@@ -106,7 +106,7 @@ Besides the engagement views, the UI includes:
 
 - **Chat** with a Claude subprocess runner (uses the `claude` CLI, see `--claude-bin`), with agents and presets.
 - **Tasks**, live **logs** and a **commands** log.
-- **Intercept** approvals for tool calls that match allow, deny or ask rules.
+- **Intercept**, an editor for allow, deny and ask rules on tool calls and an approvals queue. Rules are stored but not enforced yet, and no tool call creates an approval, so the page does not gate anything today.
 - **MCP** server config, the **tool** catalog and **skills**.
 - **Usage** (token usage), a **workspace** browser and **LLM settings**.
 

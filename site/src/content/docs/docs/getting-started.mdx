@@ -75,13 +75,13 @@ You need PostgreSQL running locally (or anywhere reachable).
      "mcpServers": {
        "artex": {
          "command": "artex-cc",
-         "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
+         "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", "127.0.0.1:8788"]
        }
      }
    }
    ```
 
-   `--proxy` starts a recording MITM proxy alongside the MCP server. Point your tools at `http://localhost:8788` to capture traffic. Without it, the traffic tools are not registered and ARTEX runs as a pure data server.
+   `--proxy` starts a recording MITM proxy alongside the MCP server. Point your tools at `http://localhost:8788` to capture traffic. The examples bind it to `127.0.0.1` explicitly; a bare `:8788` listens on all interfaces. Without it, the traffic tools are not registered and ARTEX runs as a pure data server.
 
 3. Start Claude Code and ask:
 

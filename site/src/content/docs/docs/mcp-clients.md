@@ -5,7 +5,7 @@ description: "Configure Claude Code, Cursor, Cline, Windsurf, Zed or any other M
 
 ARTEX is a standard MCP server, so any MCP client can use it. Every client below launches the same command; only the config file location and wrapper keys differ.
 
-Run `artex-cc init --pg "<dsn>" --goal "<goal>"` once first (see [Getting started](/docs/getting-started/)). Replace `postgres://localhost/ccartex` with your DSN in each example. Drop `"--proxy", ":8788"` if you do not need traffic capture; without it the traffic tools are not registered.
+Run `artex-cc init --pg "<dsn>" --goal "<goal>"` once first (see [Getting started](/docs/getting-started/)). Replace `postgres://localhost/ccartex` with your DSN in each example. Drop `"--proxy", "127.0.0.1:8788"` if you do not need traffic capture; without it the traffic tools are not registered.
 
 Client config formats change between releases. If a path or key below does not match your version, check the client's MCP documentation; the command and args stay the same.
 
@@ -123,7 +123,7 @@ File: `~/.claude.json` (user-wide) or `.mcp.json` in the project root.
   "mcpServers": {
     "artex": {
       "command": "artex-cc",
-      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
+      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", "127.0.0.1:8788"]
     }
   }
 }
@@ -140,7 +140,7 @@ File: `.cursor/mcp.json` in the project root, or `~/.cursor/mcp.json` for all pr
   "mcpServers": {
     "artex": {
       "command": "artex-cc",
-      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
+      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", "127.0.0.1:8788"]
     }
   }
 }
@@ -160,7 +160,7 @@ Cline is a VS Code extension. Open the MCP Servers panel, choose Configure MCP S
   "mcpServers": {
     "artex": {
       "command": "artex-cc",
-      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"],
+      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", "127.0.0.1:8788"],
       "disabled": false
     }
   }
@@ -181,7 +181,7 @@ File: `~/.codeium/windsurf/mcp_config.json`. You can also open it from the Casca
   "mcpServers": {
     "artex": {
       "command": "artex-cc",
-      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"]
+      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", "127.0.0.1:8788"]
     }
   }
 }
@@ -202,7 +202,7 @@ Zed calls MCP servers "context servers" and configures them in `settings.json` (
     "artex": {
       "source": "custom",
       "command": "artex-cc",
-      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", ":8788"],
+      "args": ["serve", "--stdio", "--pg", "postgres://localhost/ccartex", "--proxy", "127.0.0.1:8788"],
       "env": {}
     }
   }
