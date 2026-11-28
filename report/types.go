@@ -26,6 +26,11 @@ type TargetChange struct {
 	RestoredAt      time.Time
 	LastObserved    string
 	RestoreAttempts int
+	// Unowned is why an unrestored change has no live owner now, empty if
+	// it has one. LongestUnowned is its longest window without one so far,
+	// counting a window still open.
+	Unowned        string
+	LongestUnowned time.Duration
 }
 
 // CoverageLedger is aggregated test coverage with identified gaps.

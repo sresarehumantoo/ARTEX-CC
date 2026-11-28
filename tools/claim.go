@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -28,12 +29,33 @@ var IntentLease = DefaultIntentLease
 // ParseIntentLease parses an ARTEX_INTENT_LEASE value. Only whole minutes are
 // accepted since agents are told the lease in minutes.
 func ParseIntentLease(v string) (time.Duration, error) {
+	return parseWholeMinutes("intent lease", v)
+}
+
+// DefaultUnownedChangeThreshold is how long an unrestored target change may
+// go without a live owner before it is flagged, when
+// ARTEX_UNOWNED_CHANGE_THRESHOLD is unset. Two 5 minute /loop cycles: a
+// lapsed change should be picked up on the first look, so missing two means
+// nothing is driving its restoration.
+const DefaultUnownedChangeThreshold = 10 * time.Minute
+
+// UnownedChangeThreshold is the flagging threshold in effect. serve sets it
+// from ARTEX_UNOWNED_CHANGE_THRESHOLD.
+var UnownedChangeThreshold = DefaultUnownedChangeThreshold
+
+// ParseUnownedChangeThreshold parses an ARTEX_UNOWNED_CHANGE_THRESHOLD value,
+// in whole minutes like the lease.
+func ParseUnownedChangeThreshold(v string) (time.Duration, error) {
+	return parseWholeMinutes("unowned change threshold", v)
+}
+
+func parseWholeMinutes(what, v string) (time.Duration, error) {
 	d, err := time.ParseDuration(strings.TrimSpace(v))
 	if err != nil {
-		return 0, fmt.Errorf("intent lease %q: %w", v, err)
+		return 0, fmt.Errorf("%s %q: %w", what, v, err)
 	}
 	if d < time.Minute || d%time.Minute != 0 {
-		return 0, fmt.Errorf("intent lease %q must be a whole number of minutes, at least 1m", v)
+		return 0, fmt.Errorf("%s %q must be a whole number of minutes, at least 1m", what, v)
 	}
 	return d, nil
 }
@@ -100,6 +122,12 @@ func IdentityName(ctx context.Context) string {
 }
 
 const identityHolderPrefix = "id:"
+
+// IdentityHolder is the claim holder for calls made under a verified
+// identity name with no owner argument.
+func IdentityHolder(name string) string {
+	return identityHolderPrefix + name
+}
 
 // ClaimOwner resolves who holds claims for this call. A verified identity
 // takes precedence and leaves the session out, so the same identity keeps
@@ -193,6 +221,10 @@ type IntentClaim struct {
 	Owner     string `json:"-"`
 	ExpiresAt time.Time
 	Renewed   bool
+	// TookOver means the intent was running under another holder whose
+	// claim had lapsed; PreviousOwner is that holder.
+	TookOver      bool
+	PreviousOwner string `json:"-"`
 }
 
 // ClaimConflictError means another session holds a live claim on the intent.
@@ -207,6 +239,74 @@ func (e *ClaimConflictError) Error() string {
 		"The claim renews while its holder records results against it, so do not wait for it to lapse",
 		e.NodeID, OwnerLabel(e.Owner), e.ExpiresAt.UTC().Format(time.RFC3339),
 		time.Until(e.ExpiresAt).Round(time.Second))
+}
+
+// trafficRenewInterval spaces renewal attempts per host. The store only
+// extends claims with less than half a lease left, so this only bounds how
+// often the proxy queries it.
+const trafficRenewInterval = time.Minute
+
+// maxTrafficHosts bounds the per-host throttle map; past it, entries older
+// than the interval are dropped, so brute forcing subdomains cannot grow it
+// without bound.
+const maxTrafficHosts = 1024
+
+// HostClaimRenewer renews intent claims from recorded proxy traffic (see
+// RenewIntentClaimsForHost). Touch is cheap and never blocks the proxy: at
+// most one renewal query runs at a time, and traffic arriving while one runs
+// is dropped and retried on that host's next exchange.
+type HostClaimRenewer struct {
+	renew    func(ctx context.Context, host string, lease time.Duration) ([]int64, error)
+	now      func() time.Time
+	mu       sync.Mutex
+	last     map[string]time.Time
+	inflight bool
+	wg       sync.WaitGroup
+}
+
+func NewHostClaimRenewer(renew func(ctx context.Context, host string, lease time.Duration) ([]int64, error)) *HostClaimRenewer {
+	return &HostClaimRenewer{renew: renew, now: time.Now, last: map[string]time.Time{}}
+}
+
+// Touch records traffic to host and, at most once per interval for that
+// host, renews in the background.
+func (r *HostClaimRenewer) Touch(host string) {
+	host = strings.TrimSuffix(strings.ToLower(host), ".")
+	now := r.now()
+	r.mu.Lock()
+	if r.inflight || now.Sub(r.last[host]) < trafficRenewInterval {
+		r.mu.Unlock()
+		return
+	}
+	if len(r.last) >= maxTrafficHosts {
+		for h, at := range r.last {
+			if now.Sub(at) >= trafficRenewInterval {
+				delete(r.last, h)
+			}
+		}
+	}
+	r.last[host] = now
+	r.inflight = true
+	r.wg.Add(1)
+	r.mu.Unlock()
+	go func() {
+		defer r.wg.Done()
+		defer func() {
+			r.mu.Lock()
+			r.inflight = false
+			r.mu.Unlock()
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		ids, err := r.renew(ctx, host, IntentLease)
+		if err != nil {
+			slog.Warn("renew intent claims from traffic", "host", host, "err", err)
+			return
+		}
+		if len(ids) > 0 {
+			slog.Debug("intent claims renewed from traffic", "host", host, "intents", ids)
+		}
+	}()
 }
 
 // renewHeldIntents extends the caller's claims on the intents a write was

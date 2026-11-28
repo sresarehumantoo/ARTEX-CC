@@ -89,6 +89,7 @@ Each variable is a fallback for the matching flag; a flag on the command line wi
 | `ARTEX_ALLOWED_HOSTS` | `--allowed-host` | Comma-separated hosts a same-host reverse proxy may send as `Host` or `Origin`. Ignored when `--allowed-host` is given | none |
 | `ARTEX_CREDENTIAL_KEY` | | Hex-encoded 32-byte AES-256-GCM key for encrypting stored credentials | none (plaintext) |
 | `ARTEX_INTENT_LEASE` | | How long a `start_intent` claim stays exclusive, in whole minutes (Go duration such as `2m`). Shorten it only for tests and evals | `30m` |
+| `ARTEX_UNOWNED_CHANGE_THRESHOLD` | | How long an unrestored target change may go with no live claim on its restoration before `graph_overview`, `list_changes`, the report and the eval scorecard flag it, in whole minutes. Set it to about two `/loop` intervals if you loop slower than every 5 minutes | `10m` |
 | `ARTEX_REQUIRE_IDENTITY` | `--require-identity` | Refuse intent claims from callers without a verified identity (`1`/`true`). Any value that is not a boolean is a startup error. HTTP only | off |
 | `ARTEX_CLAUDE_BIN` | `--claude-bin` | Path to the `claude` CLI used by the web UI chat | `claude` |
 | `ARTEX_PLUGIN_DIR` | `--plugin-dir` | Plugin directory | `~/.artex/plugins` |

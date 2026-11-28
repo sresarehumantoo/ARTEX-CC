@@ -441,3 +441,27 @@ func TestMarkdownTargetChanges(t *testing.T) {
 		t.Errorf("report without changes has a Target changes section:\n%s", out)
 	}
 }
+
+func TestMarkdownUnownedTargetChanges(t *testing.T) {
+	t.Parallel()
+	in := Input{Title: "T", GeneratedAt: time.Now(), UnownedThreshold: 10 * time.Minute, TargetChanges: []TargetChange{
+		{ID: 4, Target: "WIN01", Resource: "a", Kind: "modify", Baseline: "sha256:a", RecordedBy: "h-1",
+			Unowned: "claim_lapsed", LongestUnowned: 12 * time.Minute},
+		{ID: 5, Target: "WIN01", Resource: "b", Kind: "modify", Baseline: "sha256:b", RecordedBy: "h-1",
+			Restored: true, RestoredBy: "h-2", LongestUnowned: 7*time.Minute + 30*time.Second},
+	}}
+	out := Markdown(in)
+	for _, want := range []string{
+		"- Target changes: 2, unrestored: **1**, unowned past 10m: **1**",
+		"**1 change(s) went 10m or longer with no agent holding a live claim on their restoration.**",
+		"baseline `sha256:a`, **no live owner** (claim lapsed), unowned for up to 12m (**past threshold**)",
+		"baseline `sha256:b`, unowned for up to 7m30s\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("markdown missing %q:\n%s", want, out)
+		}
+	}
+	if shortDuration(time.Hour) != "1h" || shortDuration(90*time.Minute) != "1h30m" || shortDuration(30*time.Second) != "30s" {
+		t.Errorf("shortDuration: %s %s %s", shortDuration(time.Hour), shortDuration(90*time.Minute), shortDuration(30*time.Second))
+	}
+}

@@ -1485,7 +1485,7 @@
   },
   {
    "name": "graph_overview",
-   "description": "The task board: goals and their states, open/running/done intents, recent facts, findings, credentials, coverage, and unrestored_target_changes (see record_target_change). Call this FIRST at the start of every planning cycle to understand what has been done, what is in progress, and what needs doing next. After subagents complete work, call it again to see their results and plan the next round. Includes strategic hints from the human/main agent that must be incorporated when generating intents.",
+   "description": "The task board: goals and their states, open/running/done intents, recent facts, findings, credentials, coverage, and unrestored_target_changes (see record_target_change). unowned_target_changes, when present, names the unrestored changes nobody holds a live claim on; handle its over_threshold ids first. Call this FIRST at the start of every planning cycle to understand what has been done, what is in progress, and what needs doing next. After subagents complete work, call it again to see their results and plan the next round. Includes strategic hints from the human/main agent that must be incorporated when generating intents.",
    "read_only": true,
    "category": "graph",
    "schema": {
@@ -1992,7 +1992,7 @@
   },
   {
    "name": "generate_report",
-   "description": "Generate a Markdown penetration test report from the current engagement's findings, assets, and coverage, with a Target changes section listing every recorded change to a target and whether it was restored to its baseline.",
+   "description": "Generate a Markdown penetration test report from the current engagement's findings, assets, and coverage, with a Target changes section listing every recorded change to a target, whether it was restored to its baseline, and how long it went with no live owner.",
    "read_only": true,
    "category": "engagement",
    "schema": {
@@ -2049,7 +2049,7 @@
   },
   {
    "name": "goal_met",
-   "description": "Mark the entire engagement as complete. Call this when all goals have been proved and the engagement is finished. Sets the engagement status to achieved. Provide an optional summary of what was accomplished.",
+   "description": "Mark the entire engagement as complete. Call this when all goals have been proved and the engagement is finished. Sets the engagement status to achieved. Provide an optional summary of what was accomplished. Restore every recorded target change first; the result warns about any still unrestored.",
    "read_only": false,
    "category": "engagement",
    "schema": {
@@ -2271,11 +2271,18 @@
   },
   {
    "name": "start_intent",
-   "description": "Claim an open intent for this session and mark it running. Call this when you begin working on an intent. The claim is exclusive for 30 minutes and renews whenever you pass this intent as intent_id to record_fact, report_finding or record_coverage, with the same owner if you claimed with one. If you go that long without recording anything for it, call start_intent again to renew it, or the intent reopens for other sessions. Fails if another session holds a live claim, so pick a different intent. Pass the same owner on every claim call if you use one.",
+   "description": "Claim an open intent for this session and mark it running. Call this when you begin working on an intent. The claim is exclusive for 30 minutes and renews whenever you pass this intent as intent_id to record_fact, report_finding or record_coverage, with the same owner if you claimed with one. If you go that long without recording anything for it, call start_intent again to renew it, or the intent reopens for other sessions. Proxy traffic to an asset the intent is anchored to also keeps a live claim alive while you are the only holder on that host, but for at most one more lease. Fails if another session holds a live claim, so pick a different intent. When you take over an intent whose holder's claim lapsed, the result lists the unrestored target changes you inherit with their baselines: restoring them is now your job. Pass adopt_changes with ids from unowned_target_changes to make this claim own their restoration too. Pass the same owner on every claim call if you use one.",
    "read_only": false,
    "category": "graph",
    "schema": {
     "properties": {
+     "adopt_changes": {
+      "description": "ids of unrestored target changes with no live owner to move under this intent",
+      "items": {
+       "type": "integer"
+      },
+      "type": "array"
+     },
      "node_id": {
       "description": "intent node id",
       "type": "integer"
@@ -2293,7 +2300,7 @@
   },
   {
    "name": "complete_intent",
-   "description": "Mark a running intent as done with a result summary. Call this when you have finished working on an intent and recorded all facts/findings. Refused while another session holds a live claim on the intent. An open intent you never started is claimed and completed in one step, but start_intent it before working on it so other agents skip it.",
+   "description": "Mark a running intent as done with a result summary. Call this when you have finished working on an intent and recorded all facts/findings. Refused while another session holds a live claim on the intent. An open intent you never started is claimed and completed in one step, but start_intent it before working on it so other agents skip it. Restore the target changes you recorded for it first: closing it with changes unrestored succeeds with a warning, and they stay listed as unowned until someone restores them.",
    "read_only": false,
    "category": "graph",
    "schema": {
@@ -2345,7 +2352,7 @@
   },
   {
    "name": "list_changes",
-   "description": "What changed since you last looked: new or updated findings, facts, intents (with state and claim holder), goals, hints and assets, oldest first. Pass since as the changes_cursor from graph_overview, the cursor from your previous list_changes call, or an RFC 3339 timestamp. Also returns unrestored_target_changes, changes to targets that nobody has restored yet (see record_target_change), and session, your own holder label as it appears in claimed_by, and my_claims, the intents you hold with their expiry; renew one by calling start_intent again. Pass the same owner you pass to start_intent, if any; without a session or owner, session and my_claims are replaced by claims_error. When several agents share an engagement, poll this instead of re-reading graph_overview.",
+   "description": "What changed since you last looked: new or updated findings, facts, intents (with state and claim holder), goals, hints and assets, oldest first. Pass since as the changes_cursor from graph_overview, the cursor from your previous list_changes call, or an RFC 3339 timestamp. Also returns unrestored_target_changes, changes to targets that nobody has restored yet (see record_target_change), unowned_target_changes, the ids of those with no live owner, and session, your own holder label as it appears in claimed_by, and my_claims, the intents you hold with their expiry; renew one by calling start_intent again. Pass the same owner you pass to start_intent, if any; without a session or owner, session and my_claims are replaced by claims_error. When several agents share an engagement, poll this instead of re-reading graph_overview.",
    "read_only": true,
    "category": "other",
    "schema": {

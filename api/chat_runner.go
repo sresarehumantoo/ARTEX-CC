@@ -20,6 +20,7 @@ import (
 
 	"github.com/SREsAreHumanToo/ARTEX-CC/identity"
 	"github.com/SREsAreHumanToo/ARTEX-CC/mcpserver"
+	"github.com/SREsAreHumanToo/ARTEX-CC/tools"
 )
 
 const (
@@ -52,6 +53,7 @@ type Runner struct {
 	mu        sync.Mutex
 	processes map[string]*runningConv
 	afterExit func(id string)
+	release   func(ctx context.Context, holder string) (int64, error)
 }
 
 type runningConv struct {
@@ -147,9 +149,11 @@ func WriteMCPConfig(dataDir, listenAddr, token string) (string, error) {
 
 // conversationMCPConfig writes a copy of the runner's MCP config whose artex
 // server also sends a freshly minted chat/<id> identity, so the conversation
-// holds its own claims and keeps them when it resumes after a server restart.
+// holds its own claims. They end when its process exits, including at
+// shutdown through StopAll; resumed under the same identity, it can renew
+// any that nobody took over in the meantime.
 func (r *Runner) conversationMCPConfig(id string) (string, error) {
-	token, err := r.signer.Issue("chat/"+id, identity.DefaultTTL)
+	token, err := r.signer.Issue(conversationIdentity(id), identity.DefaultTTL)
 	if err != nil {
 		return "", err
 	}
@@ -195,6 +199,34 @@ func (r *Runner) SetSettings(fn func() LLMSettings) {
 // chat/<conversation id> identity on the artex MCP server.
 func (r *Runner) SetIdentitySigner(s *identity.Signer) {
 	r.signer = s
+}
+
+// SetClaimReleaser sets how the runner ends a conversation's intent claims
+// once its claude process exits. Each conversation has its own identity, so
+// the exit means that holder is gone and other agents need not wait out the
+// lease to take its intents over.
+func (r *Runner) SetClaimReleaser(fn func(ctx context.Context, holder string) (int64, error)) {
+	r.release = fn
+}
+
+func (r *Runner) releaseClaims(id string) {
+	if r.release == nil || r.signer == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	holder := tools.IdentityHolder(conversationIdentity(id))
+	n, err := r.release(ctx, holder)
+	switch {
+	case err != nil:
+		slog.Warn("releasing intent claims of an exited conversation", "conversation", id, "err", err)
+	case n > 0:
+		slog.Info("released intent claims of an exited conversation", "conversation", id, "claims", n)
+	}
+}
+
+func conversationIdentity(id string) string {
+	return "chat/" + id
 }
 
 func (r *Runner) Available() bool {
@@ -423,6 +455,7 @@ func (r *Runner) pump(id string, rc *runningConv, stdout io.Reader) {
 	}
 	err := rc.cmd.Wait()
 	rc.exited.Store(true)
+	r.releaseClaims(id)
 	if r.afterExit != nil {
 		r.afterExit(id)
 	}

@@ -69,6 +69,7 @@ Claude runs autonomously on a 5-minute loop. You can steer it with `add_hint` or
 | `--no-plugins` | Disable plugin loading |
 | `--timeout 30` | Graceful shutdown timeout in seconds |
 | `ARTEX_INTENT_LEASE` | Env var: how long a `start_intent` claim stays exclusive before another session may take it over, in whole minutes (for example `45m`; default `30m`) |
+| `ARTEX_UNOWNED_CHANGE_THRESHOLD` | Env var: how long an unrestored target change may go with no live claim before it is flagged, in whole minutes (default `10m`) |
 
 ## Credential encryption
 

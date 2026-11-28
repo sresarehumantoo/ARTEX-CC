@@ -4,17 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
 
 func RegisterIntentTools(reg *Registry, store Store, explorationID int64) {
-	reg.Register(makeStartIntent(store))
-	reg.Register(makeCompleteIntent(store))
-	reg.Register(makeCancelIntent(store))
+	reg.Register(makeStartIntent(store, explorationID))
+	reg.Register(makeCompleteIntent(store, explorationID))
+	reg.Register(makeCancelIntent(store, explorationID))
 }
 
-func makeStartIntent(store Store) Tool {
+func makeStartIntent(store Store, explorationID int64) Tool {
 	minuteUnit := "minutes"
 	if IntentLease == time.Minute {
 		minuteUnit = "minute"
@@ -25,16 +26,21 @@ func makeStartIntent(store Store) Tool {
 		Description: "Claim an open intent for this session and mark it running. Call this when you begin working on an intent. " +
 			fmt.Sprintf("The claim is exclusive for %d %s and renews whenever you pass this intent as intent_id to record_fact, report_finding or record_coverage, with the same owner if you claimed with one. ", int(IntentLease.Minutes()), minuteUnit) +
 			"If you go that long without recording anything for it, call start_intent again to renew it, or the intent reopens for other sessions. " +
+			"Proxy traffic to an asset the intent is anchored to also keeps a live claim alive while you are the only holder on that host, but for at most one more lease. " +
 			"Fails if another session holds a live claim, so pick a different intent. " +
+			"When you take over an intent whose holder's claim lapsed, the result lists the unrestored target changes you inherit with their baselines: restoring them is now your job. " +
+			"Pass adopt_changes with ids from unowned_target_changes to make this claim own their restoration too. " +
 			"Pass the same owner on every claim call if you use one." + identityRequiredDesc(),
 		Schema: obj(map[string]any{
-			"node_id": intp("intent node id"),
-			"owner":   str(ownerArgDesc),
+			"node_id":       intp("intent node id"),
+			"owner":         str(ownerArgDesc),
+			"adopt_changes": arr(map[string]any{"type": "integer"}, "ids of unrestored target changes with no live owner to move under this intent"),
 		}, "node_id"),
 		Run: func(ctx context.Context, in json.RawMessage) (Result, error) {
 			var a struct {
-				NodeID json.RawMessage `json:"node_id"`
-				Owner  string          `json:"owner"`
+				NodeID       json.RawMessage   `json:"node_id"`
+				Owner        string            `json:"owner"`
+				AdoptChanges []json.RawMessage `json:"adopt_changes"`
 			}
 			if err := json.Unmarshal(in, &a); err != nil {
 				return errResult("invalid input: " + err.Error()), nil
@@ -70,20 +76,109 @@ func makeStartIntent(store Store) Tool {
 			if claim.Renewed {
 				verb = "renewed"
 			}
-			return textResult(fmt.Sprintf("intent %d is now running; %s by %s until %s",
-				id, verb, OwnerLabel(claim.Owner), claim.ExpiresAt.UTC().Format(time.RFC3339))), nil
+			msg := fmt.Sprintf("intent %d is now running; %s by %s until %s",
+				id, verb, OwnerLabel(claim.Owner), claim.ExpiresAt.UTC().Format(time.RFC3339))
+			extra := map[string]any{}
+			if !claim.Renewed && claim.PreviousOwner != claim.Owner {
+				inheritChanges(ctx, store, explorationID, id, claim.PreviousOwner, extra)
+			}
+			if ids := pidList(a.AdoptChanges); len(ids) > 0 {
+				adoptChanges(ctx, store, explorationID, id, owner, ids, extra)
+			}
+			if len(extra) == 0 {
+				return textResult(msg), nil
+			}
+			b, err := json.Marshal(extra)
+			if err != nil {
+				return errResult(err.Error()), nil
+			}
+			return textResult(msg + "\n" + string(b)), nil
 		},
 	}
 }
 
-func makeCompleteIntent(store Store) Tool {
+// inheritChanges lists the unrestored changes a new holder of the intent
+// takes on, whether it took a lapsed claim over or claimed an open intent
+// that already had changes. The claim is already taken, so a failure here is
+// reported, not returned.
+func inheritChanges(ctx context.Context, store Store, explorationID, intentID int64, previous string, out map[string]any) {
+	live, err := store.ListTargetChanges(ctx, explorationID, true)
+	if err != nil {
+		out["handoff_error"] = err.Error()
+		return
+	}
+	var mine []TargetChange
+	for _, c := range live {
+		if c.IntentID == intentID {
+			mine = append(mine, c)
+		}
+	}
+	if len(mine) == 0 {
+		return
+	}
+	out["inherited_target_changes"] = handoffList(mine)
+	if len(mine) > maxWarningIDs {
+		out["inherited_total"] = len(mine)
+	}
+	from := "This intent already had"
+	if previous != "" {
+		from = fmt.Sprintf("You took this intent over from %s, whose claim lapsed with", OwnerLabel(previous))
+	}
+	out["handoff"] = fmt.Sprintf("%s %d unrestored target change(s). "+
+		"Restoring them is now yours: put each resource back to its baseline (not a later change's original_fingerprint), "+
+		"using the backup where one was kept, then call record_target_restore. last_observed and restore_attempts show earlier failed attempts.",
+		from, len(mine))
+}
+
+// handoffList is the handoff form of at most maxWarningIDs changes.
+func handoffList(changes []TargetChange) []map[string]any {
+	out := make([]map[string]any, 0, min(len(changes), maxWarningIDs))
+	for _, c := range changes[:min(len(changes), maxWarningIDs)] {
+		out = append(out, c.Handoff())
+	}
+	return out
+}
+
+// changeIDList names at most maxWarningIDs changes, then how many more.
+func changeIDList(ids []int64) string {
+	parts := make([]string, 0, min(len(ids), maxWarningIDs)+1)
+	for _, id := range ids[:min(len(ids), maxWarningIDs)] {
+		parts = append(parts, fmt.Sprintf("#%d", id))
+	}
+	if len(ids) > maxWarningIDs {
+		parts = append(parts, fmt.Sprintf("and %d more", len(ids)-maxWarningIDs))
+	}
+	return strings.Join(parts, ", ")
+}
+
+func adoptChanges(ctx context.Context, store Store, explorationID, intentID int64, holder string, ids []int64, out map[string]any) {
+	res, err := store.AdoptTargetChanges(ctx, explorationID, intentID, holder, ids)
+	if err != nil {
+		out["adopt_error"] = err.Error()
+		return
+	}
+	out["adopted_changes"] = handoffList(res.Adopted)
+	if len(res.Adopted) > maxWarningIDs {
+		out["adopted_total"] = len(res.Adopted)
+	}
+	if len(res.Refused) > 0 {
+		refused := map[string]string{}
+		for id, why := range res.Refused {
+			refused[strconv.FormatInt(id, 10)] = why
+		}
+		out["not_adopted"] = refused
+	}
+}
+
+func makeCompleteIntent(store Store, explorationID int64) Tool {
 	return Tool{
 		Name:     "complete_intent",
 		Category: CategoryExploration,
 		Description: "Mark a running intent as done with a result summary. " +
 			"Call this when you have finished working on an intent and recorded all facts/findings. " +
 			"Refused while another session holds a live claim on the intent. " +
-			"An open intent you never started is claimed and completed in one step, but start_intent it before working on it so other agents skip it.",
+			"An open intent you never started is claimed and completed in one step, but start_intent it before working on it so other agents skip it. " +
+			"Restore the target changes you recorded for it first: closing it with changes unrestored succeeds with a warning, and they stay listed as unowned until someone restores them.",
 		Schema: obj(map[string]any{
 			"node_id": intp("intent node id"),
 			"result":  str("brief result summary"),
@@ -130,16 +225,17 @@ func makeCompleteIntent(store Store) Tool {
 			if err := store.UpdateNodeFields(ctx, id, "done", merge); err != nil {
 				return errResult(err.Error()), nil
 			}
+			msg := fmt.Sprintf("intent %d marked done", id)
 			if neverStarted {
-				return textResult(fmt.Sprintf("intent %d marked done; it was never started, so it was claimed and completed in one step. "+
-					"Call start_intent before working an intent so other agents skip it.", id)), nil
+				msg += "; it was never started, so it was claimed and completed in one step. " +
+					"Call start_intent before working an intent so other agents skip it."
 			}
-			return textResult(fmt.Sprintf("intent %d marked done", id)), nil
+			return textResult(msg + closedWithChangesWarning(ctx, store, explorationID, id)), nil
 		},
 	}
 }
 
-func makeCancelIntent(store Store) Tool {
+func makeCancelIntent(store Store, explorationID int64) Tool {
 	return Tool{
 		Name:     "cancel_intent",
 		Category: CategoryExploration,
@@ -192,9 +288,32 @@ func makeCancelIntent(store Store) Tool {
 			if err := store.UpdateNodeFields(ctx, id, "stopped", merge); err != nil {
 				return errResult(err.Error()), nil
 			}
-			return textResult(fmt.Sprintf("intent %d cancelled", id)), nil
+			return textResult(fmt.Sprintf("intent %d cancelled", id) + closedWithChangesWarning(ctx, store, explorationID, id)), nil
 		},
 	}
+}
+
+// closedWithChangesWarning is said once, to whoever closes an intent with
+// unrestored changes. Nothing depends on it being heeded: the changes stay
+// in unowned_target_changes and the report until they are restored.
+func closedWithChangesWarning(ctx context.Context, store Store, explorationID, intentID int64) string {
+	live, err := store.ListTargetChanges(ctx, explorationID, true)
+	if err != nil {
+		return ""
+	}
+	var ids []int64
+	for _, c := range live {
+		if c.IntentID == intentID {
+			ids = append(ids, c.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\nWARNING: intent %d closed with %d unrestored target change(s) (%s), which now have no live owner. "+
+		"Restore each to its baseline and call record_target_restore, or start_intent another intent with adopt_changes to keep owning them. "+
+		"They stay listed in unowned_target_changes until restored.",
+		intentID, len(ids), changeIDList(ids))
 }
 
 func identityRequiredDesc() string {

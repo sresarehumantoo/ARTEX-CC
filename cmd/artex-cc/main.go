@@ -433,6 +433,15 @@ func cmdServe(args []string) {
 		tools.IntentLease = lease
 		slog.Info("intent claim lease set", "lease", lease)
 	}
+	if v := os.Getenv("ARTEX_UNOWNED_CHANGE_THRESHOLD"); v != "" {
+		threshold, err := tools.ParseUnownedChangeThreshold(v)
+		if err != nil {
+			slog.Error("invalid unowned change threshold", "err", err)
+			os.Exit(1)
+		}
+		tools.UnownedChangeThreshold = threshold
+		slog.Info("unowned target change threshold set", "threshold", threshold)
+	}
 	if identityRequired {
 		tools.RequireIdentity = true
 		slog.Info("intent claims require a verified identity")
@@ -524,6 +533,7 @@ func cmdServe(args []string) {
 		webIdentity = loadIdentitySigner(*dataDir)
 		runner = api.NewRunner(*claudeBin, mcpConfig, *dataDir, 0)
 		runner.SetIdentitySigner(webIdentity)
+		runner.SetClaimReleaser(s.ReleaseHolderClaims)
 		apiOpts = append(apiOpts, api.WithRunner(runner))
 		restAPI = api.New(s, t, engCfg.TaskID, engCfg.ExplorationID, apiOpts...)
 	}
@@ -541,6 +551,16 @@ func cmdServe(args []string) {
 	}))
 	srvOpts = append(srvOpts, mcpserver.WithVersion(strings.TrimPrefix(version, "v")))
 	srv = mcpserver.New(reg, srvOpts...)
+	if t != nil {
+		renewer := tools.NewHostClaimRenewer(func(ctx context.Context, host string, lease time.Duration) ([]int64, error) {
+			_, expID := srv.ActiveEngagement()
+			if expID <= 0 {
+				return nil, nil
+			}
+			return s.RenewIntentClaimsForHost(ctx, expID, host, lease)
+		})
+		t.OnExchange(renewer.Touch)
+	}
 	if restAPI != nil {
 		webExploration := func() int64 { return engCfg.ExplorationID }
 		go store.ListenChanges(ctx, dsn, changeOrigin, webExploration, func(c store.Change) {

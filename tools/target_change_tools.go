@@ -44,6 +44,36 @@ type TargetChange struct {
 	RestoredBy          string     `json:"restored_by,omitempty"`
 	LastObserved        string     `json:"last_observed,omitempty"`
 	RestoreAttempts     int        `json:"restore_attempts,omitempty"`
+	// Unowned says why an unrestored change has no live owner: claim_lapsed,
+	// no_intent, or intent_<state> for an intent that is not running. It is
+	// empty while the intent's claim is live and once the change is restored.
+	Unowned           string     `json:"unowned,omitempty"`
+	UnownedSince      *time.Time `json:"unowned_since,omitempty"`
+	MaxUnownedSeconds int        `json:"max_unowned_seconds,omitempty"`
+	// AsOf is the database clock when the change was read, so durations
+	// measured from UnownedSince use the clock that set it.
+	AsOf time.Time `json:"-"`
+}
+
+func (c TargetChange) asOf() time.Time {
+	if c.AsOf.IsZero() {
+		return time.Now()
+	}
+	return c.AsOf
+}
+
+// UnownedFor is how long the change has been without a live owner, or 0.
+func (c TargetChange) UnownedFor() time.Duration {
+	if c.Unowned == "" || c.UnownedSince == nil {
+		return 0
+	}
+	return max(c.asOf().Sub(*c.UnownedSince), 0)
+}
+
+// LongestUnowned is the longest window the change spent without a live
+// owner, counting the one still open.
+func (c TargetChange) LongestUnowned() time.Duration {
+	return max(time.Duration(c.MaxUnownedSeconds)*time.Second, c.UnownedFor())
 }
 
 // Summary is the compact form shown in graph_overview and list_changes.
@@ -65,6 +95,30 @@ func (c TargetChange) Summary() map[string]any {
 		m["last_observed"] = c.LastObserved
 		m["restore_attempts"] = c.RestoreAttempts
 	}
+	if c.Unowned != "" {
+		m["unowned"] = c.Unowned
+		if c.UnownedSince != nil {
+			m["unowned_since"] = c.UnownedSince.UTC().Format(time.RFC3339)
+		}
+	}
+	return m
+}
+
+// maxHandoffText bounds backup and note in a handoff. A backup is usually a
+// path; one kept inline that runs longer is in full in export_engagement.
+const maxHandoffText = 300
+
+// Handoff is the form given to an agent taking over the cleanup: the summary
+// plus what it needs to restore without starting from scratch.
+func (c TargetChange) Handoff() map[string]any {
+	m := c.Summary()
+	m["original_fingerprint"] = c.OriginalFingerprint
+	if c.Backup != "" {
+		m["backup"] = truncRunes(c.Backup, maxHandoffText)
+	}
+	if c.Note != "" {
+		m["note"] = truncRunes(c.Note, maxHandoffText)
+	}
 	return m
 }
 
@@ -74,6 +128,13 @@ func (c TargetChange) Summary() map[string]any {
 type TargetChangeRecord struct {
 	Change   TargetChange
 	Existing []TargetChange
+}
+
+// AdoptResult is the result of AdoptTargetChanges: the changes now owned by
+// the intent, and why each other requested id was not moved.
+type AdoptResult struct {
+	Adopted []TargetChange
+	Refused map[int64]string
 }
 
 const (
@@ -93,6 +154,12 @@ type TargetRestoreOutcome struct {
 	BaselineChangeID int64   `json:"baseline_change_id"`
 	AlsoRestored     []int64 `json:"also_restored,omitempty"`
 	Message          string  `json:"message"`
+	// The rest is set on not_restored, so a retry has what the recorder left:
+	// BaselineBackup is the backup kept with the baseline change.
+	BaselineBackup   string `json:"baseline_backup,omitempty"`
+	RecordedBy       string `json:"recorded_by,omitempty"`
+	PreviousObserved string `json:"previous_observed,omitempty"`
+	RestoreAttempts  int    `json:"restore_attempts,omitempty"`
 }
 
 // FingerprintsMatch compares fingerprints ignoring surrounding whitespace and
@@ -277,6 +344,54 @@ func makeRecordTargetRestore(store Store, explorationID int64) Tool {
 			return jsonResult(out)
 		},
 	}
+}
+
+// maxWarningIDs bounds the ids a warning repeats on every graph_overview.
+const maxWarningIDs = 20
+
+// UnownedWarning is the compact notice for unrestored changes with no live
+// owner. It names ids only; their baselines are in unrestored_target_changes.
+// A change leaves it once it is restored or a live claim owns it again.
+type UnownedWarning struct {
+	Count            int     `json:"count"`
+	ChangeIDs        []int64 `json:"change_ids"`
+	OverThreshold    []int64 `json:"over_threshold,omitempty"`
+	ThresholdMinutes int     `json:"threshold_minutes"`
+	OldestSince      string  `json:"oldest_unowned_since"`
+	Action           string  `json:"action"`
+}
+
+// unownedAction is repeated on every call while the notice lasts, so it only
+// points at the tools; their descriptions and the engagement guide explain.
+const unownedAction = "over_threshold first: start_intent the intent or pass adopt_changes, then restore to the baseline."
+
+// NewUnownedWarning builds the notice from unrestored changes, or returns nil
+// when every one of them has a live owner.
+func NewUnownedWarning(changes []TargetChange) *UnownedWarning {
+	w := &UnownedWarning{ThresholdMinutes: int(UnownedChangeThreshold.Minutes()), ChangeIDs: []int64{}, Action: unownedAction}
+	var oldest time.Time
+	for _, c := range changes {
+		if c.Unowned == "" || c.RestoredAt != nil {
+			continue
+		}
+		w.Count++
+		if len(w.ChangeIDs) < maxWarningIDs {
+			w.ChangeIDs = append(w.ChangeIDs, c.ID)
+		}
+		if c.UnownedFor() >= UnownedChangeThreshold && len(w.OverThreshold) < maxWarningIDs {
+			w.OverThreshold = append(w.OverThreshold, c.ID)
+		}
+		if c.UnownedSince != nil && (oldest.IsZero() || c.UnownedSince.Before(oldest)) {
+			oldest = *c.UnownedSince
+		}
+	}
+	if w.Count == 0 {
+		return nil
+	}
+	if !oldest.IsZero() {
+		w.OldestSince = oldest.UTC().Format(time.RFC3339)
+	}
+	return w
 }
 
 // UnrestoredSummaries is the compact list shown in graph_overview and list_changes.

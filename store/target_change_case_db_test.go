@@ -200,6 +200,15 @@ func TestTargetChangeBaselineRecomputeMigration(t *testing.T) {
 	s, migrate := migrationDB(t)
 	ctx := context.Background()
 	migrate("0009")
+	// The journal code below reads 0010's columns; adding them first leaves
+	// 0009 to run against the rows it would have met.
+	additive, err := fs.ReadFile(migrationsFS(), "0010_unowned_target_changes.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ExecContext(ctx, string(additive)); err != nil {
+		t.Fatal(err)
+	}
 	_, expID := testEngagement(t, s, "baseline-recompute")
 
 	u1 := recordResource(t, s, expID, "lnx01", "/srv/App.conf", "sha256:upper").Change.ID

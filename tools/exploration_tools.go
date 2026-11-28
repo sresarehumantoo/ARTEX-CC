@@ -26,6 +26,7 @@ func makeGraphOverview(store Store, explorationID int64) Tool {
 		Name:     "graph_overview",
 		Category: CategoryExploration,
 		Description: "The task board: goals and their states, open/running/done intents, recent facts, findings, credentials, coverage, and unrestored_target_changes (see record_target_change). " +
+			"unowned_target_changes, when present, names the unrestored changes nobody holds a live claim on; handle its over_threshold ids first. " +
 			"Call this FIRST at the start of every planning cycle to understand what has been done, what is in progress, and what needs doing next. " +
 			"After subagents complete work, call it again to see their results and plan the next round. " +
 			"Includes strategic hints from the human/main agent that must be incorporated when generating intents.",

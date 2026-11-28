@@ -58,6 +58,10 @@ func (m *claimStore) UpdateNodeFields(_ context.Context, id int64, state string,
 	return nil
 }
 
+func (m *claimStore) ListTargetChanges(context.Context, int64, bool) ([]tools.TargetChange, error) {
+	return nil, nil
+}
+
 func (m *claimStore) owner(id int64) string {
 	m.mu.Lock()
 	defer m.mu.Unlock()

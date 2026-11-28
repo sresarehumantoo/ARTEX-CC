@@ -15,8 +15,9 @@ import (
 
 type intentMockStore struct {
 	mockStore
-	nodes  map[int64]*Node
-	claims map[int64]IntentClaim
+	nodes   map[int64]*Node
+	claims  map[int64]IntentClaim
+	changes []TargetChange
 }
 
 func newIntentMockStore() *intentMockStore {
@@ -38,8 +39,33 @@ func (m *intentMockStore) ClaimIntent(_ context.Context, id int64, owner string,
 	}
 	n.State = "running"
 	c := IntentClaim{NodeID: id, Owner: owner, ExpiresAt: time.Now().Add(lease), Renewed: live}
+	if held && !live && prev.Owner != owner {
+		c.TookOver, c.PreviousOwner = true, prev.Owner
+	}
 	m.claims[id] = c
 	return &c, nil
+}
+
+func (m *intentMockStore) ListTargetChanges(_ context.Context, _ int64, _ bool) ([]TargetChange, error) {
+	return m.changes, nil
+}
+
+func (m *intentMockStore) AdoptTargetChanges(_ context.Context, _, intentID int64, holder string, ids []int64) (*AdoptResult, error) {
+	if c, ok := m.claims[intentID]; !ok || c.Owner != holder {
+		return nil, fmt.Errorf("adopting target changes needs a live claim of yours on intent %d", intentID)
+	}
+	res := &AdoptResult{Refused: map[int64]string{}}
+	for _, id := range ids {
+		for i, c := range m.changes {
+			if c.ID == id && c.Unowned != "" {
+				m.changes[i].IntentID, m.changes[i].Unowned, m.changes[i].UnownedSince = intentID, "", nil
+				res.Adopted = append(res.Adopted, m.changes[i])
+			} else if c.ID == id {
+				res.Refused[id] = "owned"
+			}
+		}
+	}
+	return res, nil
 }
 
 func (m *intentMockStore) NodeDetail(_ context.Context, id int64) (*Node, error) {
@@ -89,7 +115,7 @@ func TestStartIntentLeaseDescription(t *testing.T) {
 		{30 * time.Minute, "exclusive for 30 minutes and renews"},
 	} {
 		IntentLease = tc.lease
-		if got := makeStartIntent(nil).Description; !strings.Contains(got, tc.want) {
+		if got := makeStartIntent(nil, 1).Description; !strings.Contains(got, tc.want) {
 			t.Errorf("lease %v: description %q does not contain %q", tc.lease, got, tc.want)
 		}
 	}

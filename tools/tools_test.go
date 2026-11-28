@@ -99,6 +99,10 @@ func (m *mockStore) ListTargetChanges(_ context.Context, _ int64, _ bool) ([]Tar
 	return nil, nil
 }
 
+func (m *mockStore) AdoptTargetChanges(_ context.Context, _, _ int64, _ string, _ []int64) (*AdoptResult, error) {
+	return &AdoptResult{}, nil
+}
+
 func (m *mockStore) ListNodes(_ context.Context, _ int64, _ string, _ int) ([]Node, error) {
 	return nil, nil
 }

@@ -171,23 +171,27 @@ func (s *Store) UpdateNodeState(ctx context.Context, nodeID int64, state string)
 // when owner already holds the claim (a renewal).
 func (s *Store) ClaimIntent(ctx context.Context, nodeID int64, owner string, lease time.Duration) (*tools.IntentClaim, error) {
 	claim := &tools.IntentClaim{NodeID: nodeID, Owner: owner}
+	// A claim that fails leaves its target changes owned by the live holder,
+	// so recording their unowned window first is a no-op then.
 	err := s.QueryRowContext(ctx,
 		`WITH prev AS (
 			SELECT id, state, owner, claim_expires_at
 			FROM exploration_nodes WHERE id = $1 AND kind = 'intent'
 			FOR UPDATE
-		)
+		), `+closeUnownedWindowsCTE(`tc.intent_id = $1 AND n.state IN ('open', 'running')`)+`
 		UPDATE exploration_nodes n
-		SET state = 'running', owner = $2, claim_expires_at = now() + make_interval(secs => $3)
+		SET state = 'running', owner = $2, claim_expires_at = now() + make_interval(secs => $3), claim_renewed_at = now()
 		FROM prev
 		WHERE n.id = prev.id AND (
 			prev.state = 'open' OR (prev.state = 'running' AND (
 				prev.claim_expires_at IS NULL OR prev.claim_expires_at <= now() OR prev.owner = $2)))
 		RETURNING n.claim_expires_at,
 			prev.state = 'running' AND prev.owner IS NOT DISTINCT FROM $2
-				AND prev.claim_expires_at IS NOT NULL AND prev.claim_expires_at > now()`,
+				AND prev.claim_expires_at IS NOT NULL AND prev.claim_expires_at > now(),
+			prev.state = 'running' AND prev.owner IS DISTINCT FROM $2 AND COALESCE(prev.owner, '') <> '',
+			COALESCE(prev.owner, '')`,
 		nodeID, owner, lease.Seconds(),
-	).Scan(&claim.ExpiresAt, &claim.Renewed)
+	).Scan(&claim.ExpiresAt, &claim.Renewed, &claim.TookOver, &claim.PreviousOwner)
 	if err == nil {
 		return claim, nil
 	}
@@ -217,16 +221,90 @@ func (s *Store) ClaimIntent(ctx context.Context, nodeID int64, owner string, lea
 
 // RenewIntentClaims extends the lease on the given intents that are still
 // running under holder or an owner subdividing it, including lapsed claims
-// nobody has taken over. Claims with more than half a lease left are not
-// touched, which keeps each write from bumping the intent in list_changes.
+// nobody has taken over. Claims renewed by their holder within the last half
+// lease, with more than half a lease left, are not touched, which keeps each
+// write from bumping the intent in list_changes.
 func (s *Store) RenewIntentClaims(ctx context.Context, nodeIDs []int64, holder string, lease time.Duration) error {
+	const held = `n.id = ANY($1) AND n.kind = 'intent' AND n.state = 'running'
+		AND (n.owner = $2 OR starts_with(n.owner, $2 || '/owner:')) AND n.claim_expires_at IS NOT NULL`
 	_, err := s.ExecContext(ctx,
-		`UPDATE exploration_nodes SET claim_expires_at = now() + make_interval(secs => $3)
-		 WHERE id = ANY($1) AND kind = 'intent' AND state = 'running'
-		   AND (owner = $2 OR starts_with(owner, $2 || '/owner:'))
-		   AND claim_expires_at < now() + make_interval(secs => $3 / 2)`,
+		`WITH `+closeUnownedWindowsCTE(`tc.intent_id = ANY($1) AND `+held)+`
+		 UPDATE exploration_nodes n
+		 SET claim_expires_at = GREATEST(n.claim_expires_at, now() + make_interval(secs => $3)), claim_renewed_at = now()
+		 WHERE `+held+`
+		   AND (n.claim_expires_at < now() + make_interval(secs => $3 / 2)
+		     OR COALESCE(n.claim_renewed_at, '-infinity') < now() - make_interval(secs => $3 / 2))`,
 		nodeIDs, holder, lease.Seconds())
 	return err
+}
+
+// RenewIntentClaimsForHost extends live claims on running intents anchored
+// to an asset at host, when exactly one holder has such claims, because
+// recorded proxy traffic to host is then attributable to it. It never
+// revives a lapsed claim, skips claims with no claim_renewed_at, and never
+// extends one past two leases after the holder's own last claim or renewal,
+// which is one lease past when the claim would otherwise have expired, so a
+// dead holder's claim still lapses. lease is the renewing server's, so
+// servers with different leases on one database bound it by their own.
+// It returns the intents it renewed.
+func (s *Store) RenewIntentClaimsForHost(ctx context.Context, explorationID int64, host string, lease time.Duration) ([]int64, error) {
+	host = strings.TrimSuffix(strings.ToLower(strings.Trim(strings.TrimSpace(host), "[]")), ".")
+	if host == "" {
+		return nil, nil
+	}
+	const capped = `LEAST(now() + make_interval(secs => $3), n.claim_renewed_at + make_interval(secs => $3 * 2))`
+	// The outer WHERE repeats the liveness and owner checks, so a claim
+	// released or taken over after matched was read is left alone.
+	rows, err := s.QueryContext(ctx,
+		`WITH matched AS (
+			SELECT DISTINCT n.id, n.owner
+			FROM exploration_nodes n
+			JOIN exploration_anchors an ON an.node_id = n.id
+			JOIN assets a ON a.id = an.asset_id
+			WHERE n.exploration_id = $1 AND n.kind = 'intent' AND n.state = 'running'
+			  AND n.claim_expires_at > now() AND COALESCE(n.owner, '') <> ''
+			  AND (rtrim(lower(a.domain), '.') = $2 OR lower(btrim(a.ip, '[]')) = $2
+			    OR rtrim(lower(btrim(substring(a.url FROM '^[A-Za-z][A-Za-z0-9+.-]*://(?:[^@/?#]*@)?(\[[^]]*\]|[^:/?#]*)'), '[]')), '.') = $2)
+		)
+		UPDATE exploration_nodes n
+		SET claim_expires_at = `+capped+`
+		FROM matched
+		WHERE n.id = matched.id
+		  AND (SELECT count(DISTINCT owner) FROM matched) = 1
+		  AND n.state = 'running' AND n.claim_expires_at > now() AND n.owner = matched.owner
+		  AND n.claim_renewed_at IS NOT NULL
+		  AND n.claim_expires_at < now() + make_interval(secs => $3 / 2)
+		  AND `+capped+` > n.claim_expires_at
+		RETURNING n.id`,
+		explorationID, host, lease.Seconds())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// ReleaseHolderClaims ends the live claims of holder and of owners
+// subdividing it now, as if their lease had run out, so other sessions can
+// take the intents over at once. The owner is kept, so the intents show
+// claim_expired with their previous_owner. It returns how many it released.
+func (s *Store) ReleaseHolderClaims(ctx context.Context, holder string) (int64, error) {
+	res, err := s.ExecContext(ctx,
+		`UPDATE exploration_nodes SET claim_expires_at = now()
+		 WHERE kind = 'intent' AND state = 'running' AND claim_expires_at > now()
+		   AND (owner = $1 OR starts_with(owner, $1 || '/owner:'))`, holder)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 func (s *Store) UpdateNodeFields(ctx context.Context, nodeID int64, state string, payloadMerge map[string]any) error {
@@ -558,6 +636,7 @@ func (s *Store) GraphOverview(ctx context.Context, explorationID int64) (*tools.
 	}
 	if len(unrestored) > 0 {
 		ov.UnrestoredTargetChanges = tools.UnrestoredSummaries(unrestored)
+		ov.UnownedTargetChanges = tools.NewUnownedWarning(unrestored)
 	}
 
 	return ov, nil

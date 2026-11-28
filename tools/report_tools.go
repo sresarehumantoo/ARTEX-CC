@@ -16,7 +16,7 @@ func makeGenerateReport(store Store, taskID, explorationID int64) Tool {
 	return Tool{
 		Name:        "generate_report",
 		Category:    CategoryReporting,
-		Description: "Generate a Markdown penetration test report from the current engagement's findings, assets, and coverage, with a Target changes section listing every recorded change to a target and whether it was restored to its baseline.",
+		Description: "Generate a Markdown penetration test report from the current engagement's findings, assets, and coverage, with a Target changes section listing every recorded change to a target, whether it was restored to its baseline, and how long it went with no live owner.",
 		ReadOnly:    true,
 		Schema:      obj(map[string]any{}),
 		Run: func(ctx context.Context, _ json.RawMessage) (Result, error) {
@@ -55,6 +55,7 @@ func makeGenerateReport(store Store, taskID, explorationID int64) Tool {
 			if err != nil {
 				return errResult(err.Error()), nil
 			}
+			now := time.Now()
 			reportChanges := make([]report.TargetChange, len(changes))
 			for i, c := range changes {
 				rc := report.TargetChange{
@@ -67,6 +68,8 @@ func makeGenerateReport(store Store, taskID, explorationID int64) Tool {
 					RestoredBy:      c.RestoredBy,
 					LastObserved:    c.LastObserved,
 					RestoreAttempts: c.RestoreAttempts,
+					Unowned:         c.Unowned,
+					LongestUnowned:  c.LongestUnowned(),
 				}
 				if c.RestoredAt != nil {
 					rc.Restored = true
@@ -76,12 +79,13 @@ func makeGenerateReport(store Store, taskID, explorationID int64) Tool {
 			}
 
 			in := report.Input{
-				Title:         goal,
-				Goal:          goal,
-				GeneratedAt:   time.Now(),
-				AssetCounts:   assetCounts,
-				Findings:      reportFindings,
-				TargetChanges: reportChanges,
+				Title:            goal,
+				Goal:             goal,
+				GeneratedAt:      now,
+				AssetCounts:      assetCounts,
+				Findings:         reportFindings,
+				TargetChanges:    reportChanges,
+				UnownedThreshold: UnownedChangeThreshold,
 			}
 
 			return textResult(report.Markdown(in)), nil

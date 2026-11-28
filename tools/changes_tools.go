@@ -80,7 +80,7 @@ func makeListChanges(store Store, taskID, explorationID int64) Tool {
 		Category: CategoryExploration,
 		Description: "What changed since you last looked: new or updated findings, facts, intents (with state and claim holder), goals, hints and assets, oldest first. " +
 			"Pass since as the changes_cursor from graph_overview, the cursor from your previous list_changes call, or an RFC 3339 timestamp. " +
-			"Also returns unrestored_target_changes, changes to targets that nobody has restored yet (see record_target_change), and session, your own holder label as it appears in claimed_by, and my_claims, the intents you hold with their expiry; renew one by calling start_intent again. " +
+			"Also returns unrestored_target_changes, changes to targets that nobody has restored yet (see record_target_change), unowned_target_changes, the ids of those with no live owner, and session, your own holder label as it appears in claimed_by, and my_claims, the intents you hold with their expiry; renew one by calling start_intent again. " +
 			"Pass the same owner you pass to start_intent, if any; without a session or owner, session and my_claims are replaced by claims_error. " +
 			"When several agents share an engagement, poll this instead of re-reading graph_overview.",
 		ReadOnly: true,
@@ -153,6 +153,9 @@ func makeListChanges(store Store, taskID, explorationID int64) Tool {
 			}
 			if len(unrestored) > 0 {
 				out["unrestored_target_changes"] = UnrestoredSummaries(unrestored)
+				if w := NewUnownedWarning(unrestored); w != nil {
+					out["unowned_target_changes"] = w
+				}
 			}
 			for k, v := range grouped {
 				out[k] = v

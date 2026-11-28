@@ -119,6 +119,9 @@ func (s *Store) ExportEngagementData(ctx context.Context, taskID int64) (*tools.
 			m["last_observed"] = c.LastObserved
 			m["restore_attempts"] = c.RestoreAttempts
 		}
+		if c.MaxUnownedSeconds > 0 {
+			m["max_unowned_seconds"] = c.MaxUnownedSeconds
+		}
 		export.TargetChanges = append(export.TargetChanges, m)
 	}
 
@@ -867,8 +870,8 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 		if err := tx.QueryRowContext(ctx,
 			`INSERT INTO target_changes (exploration_id, target, resource, kind, intent_id, original_fingerprint,
 				baseline, baseline_change_id, backup, note, recorded_by, created_at, restored_at, restored_by,
-				last_observed, restore_attempts)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, COALESCE($12::timestamptz, now()), $13::timestamptz, $14, $15, $16)
+				last_observed, restore_attempts, max_unowned_seconds)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, COALESCE($12::timestamptz, now()), $13::timestamptz, $14, $15, $16, $17)
 			 RETURNING id`,
 			explorationID, exportMapString(c, "target"), exportMapString(c, "resource"), exportMapString(c, "kind"),
 			nullID(nodeIDMap[exportMapInt64(c, "intent_id")]), exportMapString(c, "original_fingerprint"),
@@ -876,6 +879,7 @@ func (s *Store) ImportEngagementData(ctx context.Context, data *tools.Engagement
 			exportMapString(c, "backup"), exportMapString(c, "note"), exportMapString(c, "recorded_by"),
 			recordedAt, restoredAt, exportMapString(c, "restored_by"),
 			exportMapString(c, "last_observed"), int(exportMapFloat64(c, "restore_attempts")),
+			int(exportMapFloat64(c, "max_unowned_seconds")),
 		).Scan(&newID); err != nil {
 			return 0, 0, fmt.Errorf("import target change (old id %d): %w", oldID, err)
 		}

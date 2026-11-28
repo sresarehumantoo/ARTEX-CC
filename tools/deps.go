@@ -98,6 +98,7 @@ type Store interface {
 	RecordTargetChange(ctx context.Context, explorationID int64, in TargetChangeInput) (*TargetChangeRecord, error)
 	RecordTargetRestore(ctx context.Context, explorationID int64, changeIDs []int64, observed, restoredBy string) ([]TargetRestoreOutcome, error)
 	ListTargetChanges(ctx context.Context, explorationID int64, unrestoredOnly bool) ([]TargetChange, error)
+	AdoptTargetChanges(ctx context.Context, explorationID, intentID int64, holder string, changeIDs []int64) (*AdoptResult, error)
 
 	// Export/Import
 	ExportEngagementData(ctx context.Context, taskID int64) (*EngagementExport, error)
@@ -258,6 +259,7 @@ type Overview struct {
 	ChangesCursor     string           `json:"changes_cursor,omitempty"`
 
 	UnrestoredTargetChanges []map[string]any `json:"unrestored_target_changes,omitempty"`
+	UnownedTargetChanges    *UnownedWarning  `json:"unowned_target_changes,omitempty"`
 }
 
 // Node is a vertex in the exploration graph (goal, hint, intent, fact, or finding).

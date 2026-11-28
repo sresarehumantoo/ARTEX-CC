@@ -69,6 +69,10 @@ A browser write (POST, PUT, PATCH, DELETE) must come from an `Origin` that match
 
 Make sure it calls `graph_overview` at the start of each planning cycle. Clients that do not read MCP resources (Zed, for example) never receive the `artex://engagement` workflow guide, so start the conversation with "call `graph_overview`".
 
+## `graph_overview` keeps showing `unowned_target_changes`
+
+A change to a target was recorded but nobody holds a live claim on restoring it, usually because the agent that made it was killed or its claim lapsed during long shell work. The notice repeats, in its compact form, until each listed change is restored or owned again. Have an agent `start_intent` the change's intent (the takeover result lists the inherited changes with their baselines and backups), or `start_intent` one of its own intents with `adopt_changes`, restore each resource to its baseline and call `record_target_restore`. A change listed under `over_threshold` has gone longer than `ARTEX_UNOWNED_CHANGE_THRESHOLD` (default 10 minutes) without an owner; if your `/loop` runs slower than every 5 minutes, raise the threshold to about two loop intervals.
+
 ## Still stuck
 
 Run `serve` with `--debug` for verbose logs, and open an issue on [GitHub](https://github.com/SREsAreHumanToo/ARTEX-CC/issues) with the output. For questions, use [Discussions](https://github.com/SREsAreHumanToo/ARTEX-CC/discussions).
