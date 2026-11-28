@@ -37,7 +37,7 @@ jobs:
       - name: Test with coverage
         run: go test -coverprofile=coverage.out -covermode=atomic ./...
       - name: Upload coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.out
@@ -104,7 +104,7 @@ jobs:
         env:
           ARTEX_TEST_PG: "postgres://artex:artex@localhost:5432/artex_test?sslmode=disable"
       - name: Upload store coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage-store.out
