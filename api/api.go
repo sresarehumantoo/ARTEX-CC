@@ -27,6 +27,7 @@ type API struct {
 	toolList []ToolInfo
 
 	authRequired bool
+	allowedHosts []string
 	authMu       sync.Mutex
 	setupToken   string
 }
@@ -42,6 +43,10 @@ func WithDataDir(dir string) Option {
 
 func WithRunner(r ChatRunner) Option {
 	return func(a *API) { a.runner = r }
+}
+
+func WithAllowedHosts(hosts []string) Option {
+	return func(a *API) { a.allowedHosts = hosts }
 }
 
 func WithClaudeBin(path string) Option {
@@ -101,5 +106,5 @@ func (a *API) Handler() http.Handler {
 	}
 	a.registerToolsRoutes(mux)
 	a.registerAuthRoutes(mux)
-	return sameOriginWrites(a.authMiddleware(mux))
+	return sameOriginWrites(a.allowedHosts, a.authMiddleware(mux))
 }

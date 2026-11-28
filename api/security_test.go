@@ -8,7 +8,7 @@ import (
 )
 
 func TestSameOriginWrites(t *testing.T) {
-	h := sameOriginWrites(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := sameOriginWrites(nil, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	tests := []struct {
@@ -47,6 +47,99 @@ func TestSameOriginWrites(t *testing.T) {
 				t.Fatalf("allowed = %v (status %d), want %v", got, w.Code, tt.allowed)
 			}
 		})
+	}
+}
+
+func TestSameOriginWritesAllowedHosts(t *testing.T) {
+	h := sameOriginWrites([]string{"Artex.Example.com", "ops.example.com:8443"}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	tests := []struct {
+		name    string
+		host    string
+		origin  string
+		fetch   string
+		allowed bool
+	}{
+		{"listed origin, Host rewritten to localhost", "localhost:9400", "https://artex.example.com", "same-origin", true},
+		{"listed origin case", "localhost:9400", "https://ARTEX.example.com", "", true},
+		{"listed host without port matches any port", "localhost:9400", "https://artex.example.com:8443", "", true},
+		{"listed port matches", "localhost:9400", "https://ops.example.com:8443", "", true},
+		{"listed port mismatch", "localhost:9400", "https://ops.example.com", "", false},
+		{"listed port other port", "localhost:9400", "https://ops.example.com:9443", "", false},
+		{"unlisted origin", "localhost:9400", "https://evil.example", "", false},
+		{"listed suffix is not a match", "localhost:9400", "https://evil-artex.example.com", "", false},
+		{"listed origin cross-site", "localhost:9400", "https://artex.example.com", "cross-site", false},
+		{"listed origin same-site", "localhost:9400", "https://artex.example.com", "same-site", false},
+		{"forwarded Host still matches itself", "artex.example.com", "https://artex.example.com", "same-origin", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequest("POST", "http://localhost:9400/api/hints", strings.NewReader("{}"))
+			r.Host = tt.host
+			r.Header.Set("Origin", tt.origin)
+			if tt.fetch != "" {
+				r.Header.Set("Sec-Fetch-Site", tt.fetch)
+			}
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, r)
+			if got := w.Code != http.StatusForbidden; got != tt.allowed {
+				t.Fatalf("allowed = %v (status %d), want %v", got, w.Code, tt.allowed)
+			}
+		})
+	}
+}
+
+func TestSameOriginWritesIgnoresForwardedHost(t *testing.T) {
+	for _, allowed := range [][]string{nil, {"artex.example.com"}} {
+		h := sameOriginWrites(allowed, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		r := httptest.NewRequest("POST", "http://localhost:9400/api/hints", strings.NewReader("{}"))
+		r.Header.Set("Origin", "https://evil.example")
+		r.Header.Set("X-Forwarded-Host", "evil.example")
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("allowed %v: status %d, want 403", allowed, w.Code)
+		}
+	}
+}
+
+func TestHostAllowed(t *testing.T) {
+	allowed := []string{"artex.example.com", "OPS.example.com:8443", "[::1]:9400"}
+	for _, tt := range []struct {
+		host string
+		want bool
+	}{
+		{"artex.example.com", true},
+		{"ARTEX.EXAMPLE.COM:443", true},
+		{"ops.example.com:8443", true},
+		{"ops.example.com", false},
+		{"ops.example.com:443", false},
+		{"[::1]:9400", true},
+		{"[::1]:9401", false},
+		{"example.com", false},
+		{"", false},
+	} {
+		if got := HostAllowed(tt.host, allowed); got != tt.want {
+			t.Errorf("HostAllowed(%q) = %v, want %v", tt.host, got, tt.want)
+		}
+	}
+	if HostAllowed("artex.example.com", nil) {
+		t.Error("empty list allowed a host")
+	}
+}
+
+func TestHandlerAcceptsAllowedOriginWrite(t *testing.T) {
+	h := New(nil, nil, 1, 1, WithDataDir(t.TempDir()), WithAllowedHosts([]string{"artex.example.com"})).Handler()
+	r := httptest.NewRequest("POST", "http://localhost:9400/api/auth/init", strings.NewReader(`{"password":"correct horse battery"}`))
+	r.Header.Set("Origin", "https://artex.example.com")
+	r.Header.Set("Sec-Fetch-Site", "same-origin")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code == http.StatusForbidden {
+		t.Fatalf("allowed-origin write refused: %s", w.Body)
 	}
 }
 
